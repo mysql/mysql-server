@@ -55,26 +55,18 @@ IF(WIN32)
     ENDIF()
   ENDIF()
 ELSEIF(APPLE)
-  # Version 3.12.4 is needed because the new build system of Xcode is not
-  # supported by cmake. 3.12.4 will force using the legacy build system.
-  # Version 3.9.2 is needed because INCLUDE_DIRECTORIES(SYSTEM ...) wasn't
-  # handled properly by the cmake Xcode generator.
-  # NOTE:
-  # cmake >= 3.19 will use the new build system by default for Xcode >= 12.x
   IF(CMAKE_GENERATOR STREQUAL "Xcode")
     SET(APPLE_XCODE 1)
-    CMAKE_MINIMUM_REQUIRED(VERSION 3.12.4)
-  ELSE()
-    CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
   ENDIF()
-  # If this is macOS 11, we need cmake 3.18
+  # For macOS version >= 11 we need cmake 3.18
   # System libraries like
   #    /usr/lib/libresolv.dylib
   # are no longer present in the file system.
   # cmake >= 3.18 will look for .tbd files in the SDK instead
   # So we end up linking with:
   #    /Applications/Xcode.app/.../usr/lib/libresolv.tbd
-  # We must postpone the version test until we have called 'uname -r' below.
+  # cmake >= 3.19 will use the new build system by default for Xcode >= 12.x
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.19)
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
   IF(CMAKE_VERSION VERSION_LESS 3.11.2)
@@ -504,20 +496,20 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         ENDIF()
       ENDIF()
     ELSEIF(SOLARIS)
-      MESSAGE(STATUS "Looking for GCC 10 on Solaris.")
+      MESSAGE(STATUS "Looking for GCC 11 on Solaris.")
       FIND_PROGRAM(ALTERNATIVE_GCC gcc
         NO_DEFAULT_PATH
-        PATHS "/usr/gcc/10/bin")
+        PATHS "/usr/gcc/11/bin")
       FIND_PROGRAM(ALTERNATIVE_GPP g++
         NO_DEFAULT_PATH
-        PATHS "/usr/gcc/10/bin")
+        PATHS "/usr/gcc/11/bin")
       IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
         SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
         SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
         MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
-        MESSAGE(WARNING "Could not find /usr/gcc/10/bin/gcc")
+        MESSAGE(WARNING "Could not find /usr/gcc/11/bin/gcc")
       ENDIF()
     ENDIF()
   ENDIF()
@@ -857,6 +849,7 @@ INCLUDE(zlib)
 INCLUDE(zstd)
 INCLUDE(lz4)
 INCLUDE(icu)
+INCLUDE(libbacktrace)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
@@ -1791,6 +1784,9 @@ IF(WITH_SYSTEM_LIBS)
   UNSET(WITH_SYSTEM_LIBS CACHE)
 ENDIF()
 
+# See whether backtrace is supported.
+MYSQL_CHECK_BACKTRACE()
+
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB()
 
@@ -2209,6 +2205,7 @@ ADD_DEPENDENCIES(clang_tidy_prerequisites GenError)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(strings)
+ADD_SUBDIRECTORY(extra/unordered_dense)
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)

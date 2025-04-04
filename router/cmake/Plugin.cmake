@@ -85,6 +85,9 @@ FUNCTION(add_harness_plugin NAME)
   # .dylib, which we do not want, so we reset it here.
   ADD_LIBRARY(${NAME} SHARED ${_option_SOURCES})
   TARGET_COMPILE_FEATURES(${NAME} PUBLIC cxx_std_17)
+  IF(APPLE)
+    TARGET_LINK_OPTIONS(${NAME} PRIVATE LINKER:-no_warn_duplicate_libraries)
+  ENDIF()
 
   # add plugin to build-all target
   ADD_DEPENDENCIES(mysqlrouter_all ${NAME})

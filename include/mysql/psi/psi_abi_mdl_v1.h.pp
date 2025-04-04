@@ -44,6 +44,8 @@ typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
 typedef void (*set_metadata_lock_duration_v2_t)(
     PSI_metadata_lock *lock, opaque_mdl_duration mdl_duration);
+typedef void (*set_metadata_lock_type_v3_t)(PSI_metadata_lock *lock,
+                                            opaque_mdl_type mdl_type);
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
 typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
     struct PSI_metadata_locker_state_v1 *state, struct PSI_metadata_lock *mdl,
@@ -70,5 +72,14 @@ struct PSI_mdl_service_v2 {
   start_metadata_wait_v1_t start_metadata_wait;
   end_metadata_wait_v1_t end_metadata_wait;
 };
-typedef struct PSI_mdl_service_v2 PSI_mdl_service_t;
+struct PSI_mdl_service_v3 {
+  create_metadata_lock_v1_t create_metadata_lock;
+  set_metadata_lock_status_v1_t set_metadata_lock_status;
+  set_metadata_lock_duration_v2_t set_metadata_lock_duration;
+  set_metadata_lock_type_v3_t set_metadata_lock_type;
+  destroy_metadata_lock_v1_t destroy_metadata_lock;
+  start_metadata_wait_v1_t start_metadata_wait;
+  end_metadata_wait_v1_t end_metadata_wait;
+};
+typedef struct PSI_mdl_service_v3 PSI_mdl_service_t;
 extern PSI_mdl_service_t *psi_mdl_service;

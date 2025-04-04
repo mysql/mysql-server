@@ -1168,15 +1168,6 @@ to be meaningful.
 @return true iff the lock is waiting */
 bool lock_is_waiting(const lock_t &lock);
 
-/** Inspect the lock queue associated with the given table in search for a lock
-which has guid equal to the given one.
-Caller should hold a latch on the shard containing this table's locks.
-@param[in]  table         the table, for which we expect the lock
-@param[in]  guid          the guid of the lock we seek for
-@return the lock with a given guid or nullptr if no such lock */
-const lock_t *lock_find_table_lock_by_guid(const dict_table_t *table,
-                                           const lock_guid_t &guid);
-
 /** Inspect the lock queues associated with the given page_id in search for a
 lock which has guid equal to the given one. Caller should hold a latch on shard
 containing locks for this page.

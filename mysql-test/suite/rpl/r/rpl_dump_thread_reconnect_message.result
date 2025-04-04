@@ -1,0 +1,20 @@
+# 1. Set up initial source-replica configuration
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+# 2. Start IO thread on replica which will start a dump thread on source
+include/start_slave_io.inc
+# 3. Restart the IO thread (Source should kill existing dump thread
+#    before starting a new dump thread)
+include/stop_slave_io.inc
+include/start_slave_io.inc
+# 4. Verify that no message appears stating 'killed the zombie thread'
+include/assert_grep.inc [No zombie thread kill message on the source]
+# 5. Verify that a message stating 'killed the old dump thread' is present
+include/assert_grep.inc [Found dump thread kill message on the source]
+# 6. Cleanup
+[connection slave]
+include/rpl_end.inc

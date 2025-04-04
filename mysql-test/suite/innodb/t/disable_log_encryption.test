@@ -1,4 +1,6 @@
+--source include/have_debug.inc
 --source include/have_perl_64bit_int.inc
+--source ../include/log_disable_page_cleaners.inc
 DO innodb_redo_log_consumer_register();
 SELECT @@global.innodb_redo_log_encrypt ;
 CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;

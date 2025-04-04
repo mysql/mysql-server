@@ -2642,13 +2642,15 @@ static int i_s_fts_index_cache_fill_one_index(
       ptr = node->ilist;
 
       while (decoded < node->ilist_size) {
-        ulint pos = fts_decode_vlc(&ptr);
+        const uint64_t delta = fts_decode_vlc(&ptr);
 
-        doc_id += pos;
+        doc_id += delta;
 
         /* Get position info */
         while (*ptr) {
-          pos = fts_decode_vlc(&ptr);
+          const auto decoded_pos = fts_decode_vlc(&ptr);
+          ut_ad(decoded_pos <= std::numeric_limits<ulint>::max());
+          const auto pos = static_cast<ulint>(decoded_pos);
 
           OK(field_store_string(fields[I_S_FTS_WORD], word_str));
 
@@ -2986,13 +2988,15 @@ static int i_s_fts_index_table_fill_one_fetch(
       ptr = node->ilist;
 
       while (decoded < node->ilist_size) {
-        ulint pos = fts_decode_vlc(&ptr);
+        const uint64_t delta = fts_decode_vlc(&ptr);
 
-        doc_id += pos;
+        doc_id += delta;
 
         /* Get position info */
         while (*ptr) {
-          pos = fts_decode_vlc(&ptr);
+          const auto decoded_pos = fts_decode_vlc(&ptr);
+          ut_ad(decoded_pos <= std::numeric_limits<ulint>::max());
+          const auto pos = static_cast<ulint>(decoded_pos);
 
           OK(field_store_string(fields[I_S_FTS_WORD], word_str));
 

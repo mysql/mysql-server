@@ -2491,6 +2491,9 @@ int ndb_pushed_builder_ctx::build_query() {
     NdbQueryOptions options;
     const NdbQueryOperand *op_key[ndb_pushed_join::MAX_KEY_PART + 1];
     if (table->get_index_no() >= 0) {
+      if (unlikely(handler->m_index[table->get_index_no()].type ==
+                   UNDEFINED_INDEX))
+        return fail_index_offline(handler->table, table->get_index_no());
       const int error = build_key(table, op_key, &options);
       if (unlikely(error)) return error;
     }

@@ -4618,6 +4618,14 @@ class Dblqh : public SimulatedBlock {
   void init_frags_to_execute_sr();
   Uint32 get_frags_to_execute_sr();
 
+  /* Frag lock checks */
+  bool have_frag_scan_access() const;
+  /*
+    bool have_frag_read_key_access() const;
+    bool have_frag_write_key_access() const;
+    bool have_frag_exclusve_access() const;
+  */
+
  public:
   void increment_usage_count_for_table(Uint32 tableId);
   void decrement_usage_count_for_table(Uint32 tableId);
@@ -4654,6 +4662,9 @@ class Dblqh : public SimulatedBlock {
   static Uint64 getTransactionMemoryNeed(
       const Uint32 ldm_instance_count,
       const ndb_mgm_configuration_iterator *mgm_cfg, const bool use_reserved);
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  void checkInitGlobalVariables() override;
+#endif
 };
 
 inline bool Dblqh::check_expand_shrink_ongoing(Uint32 tableId, Uint32 fragId) {
@@ -5100,6 +5111,13 @@ inline void Dblqh::unlock_log_part(LogPartRecord *logPartPtrP) {
     jamDebug();
     NdbMutex_Unlock(&logPartPtrP->m_log_part_mutex);
   }
+}
+
+inline bool Dblqh::have_frag_scan_access() const {
+  if (qt_likely(globalData.ndbMtQueryThreads > 0))
+    return (m_fragment_lock_status == FRAGMENT_LOCKED_IN_SCAN_MODE);
+
+  return true;
 }
 
 #undef JAM_FILE_ID

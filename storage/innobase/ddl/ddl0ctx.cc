@@ -236,11 +236,16 @@ bool Context::has_virtual_columns() const noexcept {
   return false;
 }
 
-dberr_t Context::handle_autoinc(const dtuple_t *dtuple) noexcept {
+dberr_t Context::handle_autoinc(const dtuple_t *dtuple,
+                                mem_heap_t *heap) noexcept {
   ut_ad(m_add_autoinc != ULINT_UNDEFINED);
   ut_ad(m_add_autoinc < m_new_table->get_n_user_cols());
 
   const auto dfield = dtuple_get_nth_field(dtuple, m_add_autoinc);
+  /* Perform a deep copy of the field because for spatial indexes,
+  the default tuple allocation is overwritten, as tuples are
+  processed at the end of the page. */
+  dfield_dup(dfield, heap);
 
   if (dfield_is_null(dfield)) {
     return DB_SUCCESS;

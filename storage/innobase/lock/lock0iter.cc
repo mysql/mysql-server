@@ -48,16 +48,10 @@ bool All_locks_iterator::iterate_over_current_table(F &&f) {
   }
   ut_ad(m_bucket_id < m_table_ids.size());
   const table_id_t table_id = m_table_ids[m_bucket_id];
-  dict_table_t *table = dd_table_open_on_id_in_mem(table_id, false);
-  if (table != nullptr) {
-    {
-      locksys::Shard_latch_guard table_latch_guard{UT_LOCATION_HERE, *table};
-      for (lock_t *lock : table->locks) {
-        std::forward<F>(f)(*lock);
-      }
-    }
-    dd_table_close(table, nullptr, nullptr, false);
-  }
+  locksys::find_on_table(table_id, [&](const lock_t &lock) {
+    std::forward<F>(f)(lock);
+    return false;
+  });
   m_bucket_id++;
   return true;
 }
@@ -218,5 +212,63 @@ const lock_t *find_blockers(const lock_t &wait_lock,
     }
   }
   return nullptr;
+}
+
+void find_on_table(const table_id_t table_id,
+                   std::function<bool(const lock_t &)> visitor) {
+  /* A thread which is dropping the table is not expecting the n_ref_count
+  to be above 0 (or 1 if we count the thread itself), because it holds exclusive
+  MDL on the table, and so nobody else should be accessing it. Yet, this method
+  here will call dd_table_open_on_id_in_mem(..) which is incrementing
+  n_ref_count. However, before releasing dict_sys->mutex it will decrement
+  n_ref_count again by calling table->release(), so the dropping thread should
+  not observe the state with elevated n_ref_count, because it checks it while
+  holding the dict_sys->mutex. Because visitor might be quite heavy, we do so,
+  before calling visitor. This, however, means visitor is called without holding
+  dict_sys->mutex nor even n_ref_count protection, thus it is crucial, that we
+  ensure table is not freed by other means: namely we verified that there is at
+  least one lock in table->locks, and we keep the shard mutex which prevents
+  anyone from releasing it - this is sufficient, and a technique already used in
+  other parts of the lock_sys, because one can not free a dict_table_t unless
+  all locks are released first. One drawback of this approach is that we acquire
+  lock_sys shard mutex, while holding dict_sys->mutex. To minimize the impact of
+  doing so, we only do so if table->locks appears non-empty - which we can check
+  without any mutex because it is an atomic. Of course, because we don't hold
+  any mutex, there's nothing preventing anyone from adding or removing locks on
+  this table, but this is fine, as we do not promise at which exact moment
+  during the call table->locks are inspected, so we can pick a convenient
+  linearization moment, or even check it twice, and the caller can't complain.
+  There are important reasons we use table->release() instead of a more regular
+  dict_table_close or dd_table_close:
+     - The dict_table_close, as a side effect might call dict_stats_deinit()
+       when the n_ref_count drops to zero, which could interfere with
+       create_table_info_t::create_table_update_dict() which is calling
+       dict_stats_update() without properly bumping the n_ref_count.
+       In worst case, our thread could deinitialize the stats just before
+       dict_stats_save() is called from dict_stats_update() to persist them.
+     - The dict_table_close() calls table->lock() which would violate latching
+       order if done while holding lock sys shard mutex.
+     - It's a bit cheaper and we try to not hog dict_sys->mutex */
+  dict_sys_mutex_enter();
+  dict_table_t *table = dd_table_open_on_id_in_mem(table_id, true);
+  if (table != nullptr) {
+    /* avoid waiting for shard mutex if there are no locks to report */
+    if (table->locks.get_length()) {
+      Shard_latch_guard table_latch_guard{UT_LOCATION_HERE, *table};
+      const bool any_lock_exists = (0 < table->locks.get_length());
+      table->release();
+      dict_sys_mutex_exit();
+      if (any_lock_exists) {
+        for (auto lock : table->locks) {
+          if (visitor(*lock)) {
+            return;
+          }
+        }
+      } /* else: table might be dangling, so do not even try to access it! */
+      return;
+    }
+    table->release();
+  }
+  dict_sys_mutex_exit();
 }
 }  // namespace locksys

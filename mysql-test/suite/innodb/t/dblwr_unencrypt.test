@@ -15,7 +15,10 @@
 call mtr.add_suppression("A bad Space ID was found in datafile");
 call mtr.add_suppression("\\[ERROR\\] .* Space ID in fsp header is \\d+, but in the page header it is \\d+");
 call mtr.add_suppression("Header page contains inconsistent data in datafile");
---disable_query_log
+call mtr.add_suppression("Checksum mismatch in datafile");
+--enable_query_log
+
+SET GLOBAL innodb_monitor_enable = module_log;
 
 --echo # Wait for purge to complete
 --source include/wait_innodb_all_purged.inc
@@ -49,20 +52,19 @@ SET SESSION innodb_interpreter = 'destroy';
 
 let MYSQLD_DATADIR=`SELECT @@datadir`;
 let FILE_NAME=`select @space_file_name`;
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+# Wait till generated REDOs are synced to disk
+--let $wait_condition = SELECT COUNT =(SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_current')  FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_last_flush'
+--source include/wait_condition.inc
 
 --source include/kill_mysqld.inc
 
 --echo # Corrupt the root page of table t1 in the user tablespace.
-perl;
-use IO::Handle;
-my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
-open(FILE, "+<", $fname) or die;
-FILE->autoflush(1);
-binmode FILE;
-seek(FILE, 0, SEEK_SET);
-print FILE chr(0) x 38;
-close FILE;
-EOF
+--let IBD_FILE=$MYSQLD_DATADIR/$FILE_NAME
+--let PAGE_NUM="0"
+--let ALL_ZEROES=0
+--source ../include/corrupt_page.inc
 
 --source include/start_mysqld.inc
 

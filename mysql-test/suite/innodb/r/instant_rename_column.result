@@ -79,11 +79,178 @@ c1	c22	c33	c44	c55
 DROP TABLE t1;
 DROP TABLE tpart;
 # Scenario 5 : Try to rename a column which is referenced in other table
+# Case 1: Single column foreign key without unique index
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT,  INDEX(c2));
 CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT,
 CONSTRAINT t1c1 FOREIGN KEY (c2) REFERENCES t1(c2));
 ALTER TABLE t1 CHANGE c2 c22 INT, algorithm=INSTANT;
 ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `t1c1` (`c2`),
+  CONSTRAINT `t1c1` FOREIGN KEY (`c2`) REFERENCES `t1` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE c2 c22 INT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c22` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c22`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `t1c1` (`c2`),
+  CONSTRAINT `t1c1` FOREIGN KEY (`c2`) REFERENCES `t1` (`c22`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1c;
+DROP TABLE t1;
+# Case 2: Single column foreign key with unique index
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT NOT NULL, UNIQUE INDEX (c3));
+CREATE TABLE t1c (c1 INT, c2 INT, c3 INT NOT NULL,
+CONSTRAINT fk1 FOREIGN KEY (c3) REFERENCES t1(c3));
+ALTER TABLE t1 CHANGE c3 c33 INT NOT NULL, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  UNIQUE KEY `c3` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `fk1` (`c3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`c3`) REFERENCES `t1` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE c3 c33 INT NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c33` int NOT NULL,
+  UNIQUE KEY `c3` (`c33`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `fk1` (`c3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`c3`) REFERENCES `t1` (`c33`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1c;
+DROP TABLE t1;
+# Case 3: Multi column foreign key without unique index
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT NOT NULL, INDEX(c2, c3));
+CREATE TABLE t1c (c1 INT, c2 INT, c3 INT NOT NULL,
+CONSTRAINT fk1 FOREIGN KEY (c2, c3) REFERENCES t1(c2, c3));
+ALTER TABLE t1 CHANGE c3 c33 INT NOT NULL, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `c2` (`c2`,`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `fk1` (`c2`,`c3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`c2`, `c3`) REFERENCES `t1` (`c2`, `c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE c3 c33 INT NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c33` int NOT NULL,
+  KEY `c2` (`c2`,`c33`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `fk1` (`c2`,`c3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`c2`, `c3`) REFERENCES `t1` (`c2`, `c33`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1c;
+DROP TABLE t1;
+# Case 4: Multi column foreign key with unique index
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT NOT NULL, UNIQUE INDEX(c2, c3));
+CREATE TABLE t1c (c1 INT, c2 INT, c3 INT NOT NULL,
+CONSTRAINT fk1 FOREIGN KEY (c2, c3) REFERENCES t1(c2, c3));
+ALTER TABLE t1 CHANGE c3 c33 INT NOT NULL, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  UNIQUE KEY `c2` (`c2`,`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `fk1` (`c2`,`c3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`c2`, `c3`) REFERENCES `t1` (`c2`, `c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE c3 c33 INT NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c33` int NOT NULL,
+  UNIQUE KEY `c2` (`c2`,`c33`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t1c;
+Table	Create Table
+t1c	CREATE TABLE `t1c` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  KEY `fk1` (`c2`,`c3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`c2`, `c3`) REFERENCES `t1` (`c2`, `c33`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1c;
 DROP TABLE t1;
 # Scenario 6: Try to change the column name in a table with discarded tablespace

@@ -60,6 +60,8 @@ extern SERVICE_TYPE(psi_mdl_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v1);
 extern SERVICE_TYPE(psi_mdl_v2)
     SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v2);
+extern SERVICE_TYPE(psi_mdl_v3)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v3);
 extern SERVICE_TYPE(psi_memory_v2)
     SERVICE_IMPLEMENTATION(performance_schema, psi_memory_v2);
 extern SERVICE_TYPE(psi_mutex_v1)

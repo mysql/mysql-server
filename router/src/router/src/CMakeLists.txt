@@ -156,5 +156,5 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_keyring
   keyring_cli.cc
   keyring_frontend.cc
   COMPONENT Router
-  LINK_LIBRARIES router_lib
+  LINK_LIBRARIES router_lib extra::rapidjson
   )

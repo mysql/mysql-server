@@ -38,7 +38,9 @@ ENDIF()
 SET(TESTS
   #example
   fil_path
+  fts0vlc
   ha_innodb
+  fts0fts
   log0log
   mem0mem
   os0file

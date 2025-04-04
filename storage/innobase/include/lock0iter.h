@@ -51,6 +51,22 @@ ends) or nullptr if visitor never returned true (so all waiters were visited).*/
 // TODO: this should use ut0function_reference.h or std::function_ref
 const lock_t *find_blockers(const lock_t &wait_lock,
                             std::function<bool(const lock_t &)> visitor);
+
+/** A helper method to access dict_table_t::locks list in a way which is
+safe against the case another thread is trying to drop or truncate the table.
+The main challenge it solves is how to do that without acquiring an MDL.
+@param[in]  table_id  The id of the table, locks of which we want to visit
+@param[in]  visitor   The visitor function which will be called for each lock
+                      on the table.
+                      It might be not called at all, in case the table is no
+                      longer found in the hash, or has no locks.
+                      If it is called, then it is called under protection of
+                      shard mutex for this table_id.
+                      To stop iteration the visitor can return true.
+*/
+void find_on_table(const table_id_t table_id,
+                   std::function<bool(const lock_t &)> visitor);
+
 }  // namespace locksys
 /** Iterates over all locks in the lock sys in a manner which guarantees that
 all locks from the same lock queue are processed in a single critical section.*/

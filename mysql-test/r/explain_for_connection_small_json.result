@@ -487,11 +487,11 @@ QUERY: SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE num
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -58,2 +58,3 @@
+@@ -57,2 +57,3 @@
              "filtered": "100.00",
 +            "using_where": true,
              "not_exists": true,
-@@ -69,4 +70,3 @@
+@@ -67,4 +68,3 @@
                "numeropost"
 -            ],
 -            "attached_condition": "<if>(is_not_null_compl(t3), <if>(found_match(t3), false, true), true)"

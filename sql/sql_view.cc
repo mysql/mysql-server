@@ -1760,8 +1760,11 @@ bool mysql_drop_view(THD *thd, Table_ref *views) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   Security_context *sctx = thd->security_context();
 
-  // First check which views exist
   String non_existant_views;
+  bool view_does_not_exist = false;
+  bool base_table_with_same_name_exists = false;
+
+  // First check which views exist
   for (Table_ref *view = views; view; view = view->next_local) {
     /*
       Either, the entity does not exist, in which case we will
@@ -1774,7 +1777,16 @@ bool mysql_drop_view(THD *thd, Table_ref *views) {
     const dd::Abstract_table *at = nullptr;
     if (thd->dd_client()->acquire(view->db, view->table_name, &at)) return true;
 
-    if (at == nullptr) {
+    view_does_not_exist = (at == nullptr);
+    base_table_with_same_name_exists =
+        (at && (at->type() == dd::enum_table_type::BASE_TABLE));
+
+    /*
+      If DROP ... IF EXISTS is specified, then reporting a warning will
+      suffice when the view does not exist or when a base table with the same
+      name exists. Otherwise, report an appropriate error.
+    */
+    if (view_does_not_exist) {
       String tbl_name(view->db, system_charset_info);
       tbl_name.append('.');
       tbl_name.append(String(view->table_name, system_charset_info));
@@ -1786,9 +1798,15 @@ bool mysql_drop_view(THD *thd, Table_ref *views) {
         if (non_existant_views.length()) non_existant_views.append(',');
         non_existant_views.append(tbl_name);
       }
-    } else if (at->type() == dd::enum_table_type::BASE_TABLE) {
-      my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
-      return true;
+    } else if (base_table_with_same_name_exists) {
+      if (thd->lex->drop_if_exists)
+        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_WRONG_OBJECT,
+                            ER_THD(thd, ER_WRONG_OBJECT), view->db,
+                            view->table_name, "VIEW");
+      else {
+        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+        return true;
+      }
     }
   }
   if (non_existant_views.length()) {
@@ -1818,7 +1836,11 @@ bool mysql_drop_view(THD *thd, Table_ref *views) {
       return true;
     }
 
-    if (at == nullptr) {
+    view_does_not_exist = (at == nullptr);
+    base_table_with_same_name_exists =
+        (at && (at->type() == dd::enum_table_type::BASE_TABLE));
+
+    if (view_does_not_exist || base_table_with_same_name_exists) {
       assert(thd->lex->drop_if_exists);
       continue;  // Warning reported above.
     }

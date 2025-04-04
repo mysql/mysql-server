@@ -1,0 +1,224 @@
+--source include/elide_costs.inc
+
+--echo #
+--echo # Bug#35842412 WHERE NOT IN with subquery is much slower on 8.1 than 5.7
+--echo #
+CREATE TABLE t1( b_id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                 val VARCHAR(100) NOT NULL, val_n VARCHAR(100),
+                 KEY ix_val (val, b_id), KEY ix_val_n (val_n, b_id));
+CREATE TABLE t2( a_id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                 val VARCHAR(100) NOT NULL, val_n VARCHAR(100),
+                 UNIQUE KEY ix_val (val), UNIQUE KEY ix_val_n (val_n));
+INSERT INTO t1(val, val_n)
+WITH RECURSIVE DataSource(num, c1, c2) AS (
+        SELECT 1, lpad(1,25,'0'), lpad(1,25,'0')
+        UNION ALL
+        SELECT num + 1, lpad(mod(num+1,30),25,'0'),
+      lpad(ELT(num%400 != 0, mod(num+1,30)), 25, '0')
+        FROM DataSource
+        WHERE num < 1000
+)
+SELECT c1, c2 from DataSource;
+INSERT INTO t2(val, val_n)
+WITH RECURSIVE DataSource(num, c1, c2) AS (
+        SELECT 1, lpad(1,25,'0'), lpad(1,25,'0')
+        UNION ALL
+        SELECT num + 1, lpad(num+1,25,'0'), lpad(ELT(num%13 != 0, num+1), 25, '0')
+        FROM DataSource
+        WHERE num < 30
+)
+SELECT c1, c2 from DataSource;
+ANALYZE TABLE t1, t2;
+
+--echo # Should use group skip scan on t1
+let query = SELECT DISTINCT val FROM t1 WHERE EXISTS
+    (SELECT * FROM t2 WHERE t2.val = t1.val);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE EXISTS
+    (SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val FROM t1 WHERE val IN (SELECT val FROM t2);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val FROM t1 WHERE val IN
+    (SELECT val FROM t2 WHERE t2.val = t1.val);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE val IN (SELECT val FROM t2 ) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE val IN
+    (SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE val = 'asd');
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE val = 'asd' ) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Should use group skip scan on t1
+let query = SELECT DISTINCT val FROM t1 WHERE val NOT IN (SELECT val FROM t2);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val FROM t1 WHERE val NOT IN
+    (SELECT val FROM t2 WHERE t2.val = t1.val);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE val NOT IN
+    (SELECT val FROM t2 ) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE val NOT IN
+    (SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE t2.val = t1.val);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Should use group skip scan on t1
+let query = SELECT DISTINCT val FROM t1 WHERE EXISTS (SELECT * FROM t2);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val FROM t1 WHERE EXISTS (SELECT * FROM t2) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Uses group skip scan with aggregate functions since "t2" is a const
+--echo # table. Hypergraph optimizer does not support const table optimization.
+--echo # So the plan chosen is different.
+
+let query = SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE val = 'asd') GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Should not use group skip scan on t1. Group skip scan is not supported
+--echo # on multi-table queries with aggregate functions.
+let query = SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE val
+    NOT IN (SELECT val FROM t2) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
+    (SELECT * FROM t2) GROUP BY val;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Cover nullable column scenarios
+--echo # Should use group skip scan on t1
+let query = SELECT DISTINCT val_n FROM t1 WHERE EXISTS
+    (SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val_n FROM t1 WHERE val_n IN (SELECT val_n FROM t2);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE val_n = 'asd');
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Should use group skip scan on t1
+let query = SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
+    (SELECT val_n FROM t2);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
+    (SELECT val_n FROM t2 WHERE t2.val_n = t1.val_n);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val_n FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE t2.val_n = t1.val_n) GROUP BY val_n;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Should use group skip scan on t1
+let query = SELECT DISTINCT val_n FROM t1 WHERE EXISTS (SELECT * FROM t2);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Uses group skip scan with aggregate functions since "t2" is a const
+--echo # table. Hypergraph optimizer does not support const table optimization.
+--echo # So the plan chosen is different.
+let query = SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
+    (SELECT * FROM t2 WHERE val_n = 'asd') GROUP BY val_n;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Should not use group skip scan on t1. Group skip scan is not supported
+--echo # on multi-table queries with aggregate functions.
+let query = SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE val_n
+    NOT IN (SELECT val_n FROM t2) GROUP BY val_n;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let query = SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
+    (SELECT * FROM t2) GROUP BY val_n;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t1, t2;

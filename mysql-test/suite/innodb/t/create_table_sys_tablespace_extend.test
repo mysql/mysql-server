@@ -1,0 +1,72 @@
+# Bug#36511673 MLOG_FILE_EXTEND log record is not redo logged for System
+# tablespace
+# Users can create the tables in the system tablespace. System tablespace
+# may expand as the table(s) grow. This test verifies that System
+# tablespace expansion is redo logged and, crash recovery works.
+#
+--source include/linux.inc
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/test_data_dir;
+let $MYSQLD_ERROR_LOG = $MYSQL_TMP_DIR/mysqld_test.err;
+
+# It is pre-requisite of this test to have system tablespace of default size.
+# It is possible only if test explicitly creates the new datadir for the
+# stability (e.g. test runing with --repeat option) reasons.
+--echo # Initialize new data directory...
+let $MYSQLD_EXTRA_ARGS = --innodb_page_size=16384;
+--source include/initialize_datadir.inc
+let restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG;
+
+--echo # Restart on the new data directory...
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/test_data_dir
+--source include/restart_mysqld.inc
+
+SELECT @@GLOBAL.innodb_redo_log_capacity;
+SELECT @@GLOBAL.innodb_data_file_path;
+
+--echo # Disable page cleaner to have redo logs for recovery later on
+--source suite/innodb/include/log_disable_page_cleaners.inc
+
+SET @@GLOBAL.DEBUG='+d,ib_redo_log_system_tablespace_expansion';
+# Force to have only two records per page
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, name VARCHAR(50),
+  PRIMARY KEY (`id`)) TABLESPACE=innodb_system;
+INSERT INTO t1 VALUES(0, REPEAT('a', 50));
+
+let $max_counter=8;
+let $counter = 1;
+--echo #
+--echo # Insert 2^$max_counter records
+--echo #
+--disable_query_log
+while($counter <= $max_counter){
+  INSERT INTO t1(name) SELECT name FROM t1;
+  inc $counter;
+}
+--enable_query_log
+
+
+--let SEARCH_FILE=$MYSQLD_ERROR_LOG
+--let SEARCH_PATTERN=System tablespace expansion is redo logged
+--source include/search_pattern.inc
+
+SET @@GLOBAL.DEBUG='-d,ib_redo_log_system_tablespace_expansion';
+
+--echo # Verify no issues observed during crash recovery
+let restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG;
+--replace_result $MYSQLD_ERROR_LOG temp/mysqld_test.err $MYSQLD_DATADIR tmp/test_data_dir
+--source include/kill_and_restart_mysqld.inc
+SELECT * FROM t1 ORDER BY id LIMIT 1;
+DROP TABLE t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+let restart_parameters = restart:;
+--source include/restart_mysqld.inc
+--remove_file $MYSQLD_ERROR_LOG
+--force-rmdir $MYSQLD_DATADIR

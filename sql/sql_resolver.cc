@@ -469,6 +469,9 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       transform_scalar_subqueries_to_join_with_derived(thd))
     return true; /* purecov: inspected */
 
+  /* Preserve the original table map for later reference. */
+  original_tables_map = all_tables_map();
+
   /*
     If GROUPING function is present in having condition -
     1. Set that the evaluation of this condition depends on rollup
@@ -6377,6 +6380,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       }
     }
 
+    new_derived->original_tables_map = original_tables_map;
     if (new_derived->has_sj_candidates() &&
         new_derived->flatten_subqueries(thd))
       return true;

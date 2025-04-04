@@ -6,6 +6,7 @@
 # tablespace is corrupted.  Valid copy of that page is there
 # in DBLWR file.
 #
+SET GLOBAL innodb_monitor_enable = module_log;
 # Wait for purge to complete
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB);
 START TRANSACTION;

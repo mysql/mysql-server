@@ -180,7 +180,7 @@ CURRENT_ROLE()
 `engineering`@`%`,`role`@`%`,`role1`@`%`
 SHOW STATUS LIKE '%acl_cache%';
 Variable_name	Value
-Acl_cache_items_count	3
+Acl_cache_items_count	4
 # REVOKE a FROM b
 # WL988.I-5
 REVOKE 'role' FROM role1;

@@ -1299,8 +1299,25 @@ void Certifier::garbage_collect() {
   */
   Certification_info::iterator it = certification_info.begin();
   stable_gtid_set_lock->wrlock();
+
+  uint64 garbage_collector_counter = garbage_collect_runs;
+
+  DBUG_EXECUTE_IF("group_replication_garbage_collect_counter_overflow", {
+    DBUG_SET("-d,group_replication_garbage_collect_counter_overflow");
+    garbage_collector_counter = 0;
+  });
+
   while (it != certification_info.end()) {
-    if (it->second->is_subset_not_equals(stable_gtid_set)) {
+    uint64 write_set_counter = it->second->get_garbage_collect_counter();
+
+    /*
+       we need to clear gtid_set_ref if marked with UINT64_MAX or
+       subset_not_equals of stable_gtid_set
+    */
+    if (write_set_counter == UINT64_MAX ||
+        (write_set_counter < garbage_collector_counter &&
+         it->second->is_subset_not_equals(stable_gtid_set))) {
+      it->second->set_garbage_collect_counter(UINT64_MAX);
       if (it->second->unlink() == 0) {
         /*
           Claim Gtid_set_ref used memory to
@@ -1311,10 +1328,17 @@ void Certifier::garbage_collect() {
         delete it->second;
       }
       certification_info.erase(it++);
-    } else
+    } else {
+      DBUG_EXECUTE_IF("group_replication_ci_rows_counter_high",
+                      { assert(write_set_counter > 0); });
+      it->second->set_garbage_collect_counter(garbage_collector_counter);
       ++it;
+    }
   }
   stable_gtid_set_lock->unlock();
+
+  /* Incrememnt number of garbage collect runs*/
+  garbage_collect_runs++;
 
   /*
     We need to update parallel applier indexes since we do not know

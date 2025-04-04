@@ -1535,10 +1535,12 @@ struct alignas(NDB_CL) thr_data {
   Uint32 m_global_variables_ptr_instances;
   Uint32 m_global_variables_uint32_ptr_instances;
   Uint32 m_global_variables_uint32_instances;
+  Uint32 m_global_variables_block_instances;
   bool m_global_variables_enabled;
   void *m_global_variables_ptrs[1024];
   void *m_global_variables_uint32_ptrs[1024];
   void *m_global_variables_uint32[1024];
+  SimulatedBlock *m_global_variables_block[MAX_INSTANCES_PER_THREAD];
 #endif
 };
 
@@ -9744,6 +9746,8 @@ void mt_clear_global_variables(thr_data *selfptr) {
       Uint32 *tmp = (Uint32 *)selfptr->m_global_variables_uint32[i];
       (*tmp) = Uint32(~0);
     }
+    for (Uint32 i = 0; i < selfptr->m_global_variables_block_instances; i++)
+      selfptr->m_global_variables_block[i]->checkInitGlobalVariables();
   }
 }
 
@@ -9791,6 +9795,15 @@ void mt_init_global_variables_uint32_instances(Uint32 self, void **tmp,
     selfptr->m_global_variables_uint32_instances = inx + 1;
   }
 }
+
+void mt_init_global_variables_block(Uint32 self, SimulatedBlock *block) {
+  struct thr_repository *rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  const Uint32 inx = selfptr->m_global_variables_block_instances;
+  selfptr->m_global_variables_block[inx] = block;
+  selfptr->m_global_variables_block_instances = inx + 1;
+}
+
 #endif
 
 /**

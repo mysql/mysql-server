@@ -253,6 +253,21 @@ inline_size
 
 DROP TABLE test.maxlen;
 
+## TINYBLOB columns ignore the BLOB_INLINE_SIZE option
+CREATE TABLE test.bigtiny(
+                      a int primary key,
+                      tb tinyblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=512") engine=ndb;
+Warnings:
+Warning	1296	BLOB_INLINE_SIZE not supported for BLOB column with no part table (e.g. TINYBLOB), using default value 256
+CREATE TABLE test.smalltiny(
+                      a int primary key,
+                      tb tinyblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=128") engine=ndb;
+Warnings:
+Warning	1296	BLOB_INLINE_SIZE not supported for BLOB column with no part table (e.g. TINYBLOB), using default value 256
+
+DROP TABLE test.bigtiny;
+DROP TABLE test.smalltiny;
+
 ## ALTER definitions of extended Blob feature BLOB_INLINE_SIZE
 CREATE TABLE test.inline(
                         a int primary key,
@@ -399,7 +414,7 @@ c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	c0bb7371406f4b1c5d579dcaad1ff066a3bd09e
 ## Copy ALTER TABLE too big BLOB_INLINE_SIZE
 ALTER TABLE test.inline algorithm=copy,
                         change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=27949",
-                        change column t t longtext comment "NDB_COLUMM_BLOB_INLINE_SIZE=1000",
+                        change column t t longtext comment "NDB_COLUMM=BLOB_INLINE_SIZE=1000",
                         change column j j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=27949";
 ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
@@ -425,6 +440,30 @@ Level	Code	Message
 Warning	1478	NDB_COLUMN= : unknown modifier: randomBLOB_INLINE_SIZE=25
 Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
 
+## ALTER TABLE on table for TINYBLOB
+ALTER TABLE test.inline change column b tb tinyblob;
+ERROR 22001: Data too long for column 'tb' at row 1
+## Length value on b (1536) is still larger than what can fit in TINYBLOB length (255)
+ALTER TABLE test.inline change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=255";
+ALTER TABLE test.inline change column b tb tinyblob;
+ERROR 22001: Data too long for column 'tb' at row 1
+
+## Must update data to allow to fit TINYBLOB
+UPDATE test.inline SET b = repeat(0x424C4F, 64) WHERE a = 1;
+ALTER TABLE test.inline change column b tb tinyblob;
+SELECT a, length(tb) FROM test.inline;
+a	length(tb)
+1	192
+
+CREATE TABLE test.tiny (
+                      a int primary key,
+                      tb tinyblob) engine = ndb;
+## Always ignored for TINYBLOB
+ALTER TABLE test.tiny change column tb tb tinyblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=128";
+Warnings:
+Warning	1296	BLOB_INLINE_SIZE not supported for BLOB column with no part table (e.g. TINYBLOB), using default value 256
+
+DROP TABLE test.tiny;
 DROP TABLE test.inline;
 
 ## Show Backup and Restore across BLOB inline sizes

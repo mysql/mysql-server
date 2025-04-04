@@ -1,0 +1,535 @@
+# We are using some debug-only features in this test
+call mtr.add_suppression("Receive from NDB failed");
+Create some tables suitable for executing operations on
+-------------------------------------------------------
+create table test.t1 (a int primary key, b int, key(b)) engine=ndb;
+create table test.t2 (a int primary key, b int, key(b)) engine=ndb;
+Insert 40 rows
+insert into test.t1 values (0, 0);;
+insert into test.t1 values (1, 1);;
+insert into test.t1 values (2, 2);;
+insert into test.t1 values (3, 3);;
+insert into test.t1 values (4, 4);;
+insert into test.t1 values (5, 5);;
+insert into test.t1 values (6, 6);;
+insert into test.t1 values (7, 7);;
+insert into test.t1 values (8, 8);;
+insert into test.t1 values (9, 9);;
+insert into test.t1 values (10, 10);;
+insert into test.t1 values (11, 11);;
+insert into test.t1 values (12, 12);;
+insert into test.t1 values (13, 13);;
+insert into test.t1 values (14, 14);;
+insert into test.t1 values (15, 15);;
+insert into test.t1 values (16, 16);;
+insert into test.t1 values (17, 17);;
+insert into test.t1 values (18, 18);;
+insert into test.t1 values (19, 19);;
+insert into test.t1 values (20, 20);;
+insert into test.t1 values (21, 21);;
+insert into test.t1 values (22, 22);;
+insert into test.t1 values (23, 23);;
+insert into test.t1 values (24, 24);;
+insert into test.t1 values (25, 25);;
+insert into test.t1 values (26, 26);;
+insert into test.t1 values (27, 27);;
+insert into test.t1 values (28, 28);;
+insert into test.t1 values (29, 29);;
+insert into test.t1 values (30, 30);;
+insert into test.t1 values (31, 31);;
+insert into test.t1 values (32, 32);;
+insert into test.t1 values (33, 33);;
+insert into test.t1 values (34, 34);;
+insert into test.t1 values (35, 35);;
+insert into test.t1 values (36, 36);;
+insert into test.t1 values (37, 37);;
+insert into test.t1 values (38, 38);;
+insert into test.t1 values (39, 39);;
+insert into test.t2 select * from test.t1;
+Show expected operation outcomes
+--------------------------------
+select * from test.t1 where a > 70 order by b;
+a	b
+select * from test.t1 order by b;
+a	b
+0	0
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+select * from test.t1 where a > 70 order by a;
+a	b
+select * from test.t1 order by a;
+a	b
+0	0
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+select t1.b, t2.b from test.t1 join test.t2 on t2.a = t1.b;
+b	b
+0	0
+1	1
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+2	2
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+3	3
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_reduced_api_protocol_timeout";
+
+----------------------------------
+Unordered scan timeout due to load
+Standalone
+----------------------------------
+Time out waiting for response, but close() cleans up
+
+select * from test.t1 where a > 70 order by b;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Unordered scan timeout due to load
+As part of a stateful transaction
+----------------------------------
+Time out waiting for response, but close() cleans up
+
+begin;
+insert into test.t1 values (54,54);
+select * from test.t1 where a > 70 order by b;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Unordered scan timeout due to bug
+----------------------------------
+Standalone
+
+select * from test.t1 order by b;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Unordered scan timeout due to bug
+----------------------------------
+As part of a stateful transaction
+
+begin;
+insert into test.t1 values (54,54);
+select * from test.t1 order by b;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Ordered scan timeout due to load
+Standalone
+----------------------------------
+Time out waiting for response, but close() cleans up
+
+select * from test.t1 where a > 70 order by a;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Ordered scan timeout due to load
+As part of a stateful transaction
+----------------------------------
+Time out waiting for response, but close() cleans up
+
+begin;
+insert into test.t1 values (54,54);
+select * from test.t1 where a > 70 order by a;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Ordered scan timeout due to bug
+Standalone
+----------------------------------
+
+select * from test.t1 order by a;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+----------------------------------
+Ordered scan timeout due to bug
+As part of a stateful transaction
+----------------------------------
+
+begin;
+insert into test.t1 values (54,54);
+select * from test.t1 order by a;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+-------------------------------
+SPJ request timeout due to load
+-------------------------------
+Standalone
+
+select t1.b, t2.b from test.t1 join test.t2 on t2.a = t1.b where t1.a > 70;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+Clear error condition
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+-------------------------------
+SPJ request timeout due to load
+-------------------------------
+As part of a stateful transaction
+
+begin;
+insert into test.t1 values (54,54);
+select t1.b, t2.b from test.t1 join test.t2 on t2.a = t1.b where t1.a > 70;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Clear error condition
+
+Check pk lookups
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+------------------------------
+SPJ request timeout due to bug
+------------------------------
+Standalone
+
+select t1.b, t2.b from test.t1 join test.t2 on t2.a = t1.b;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+Clear error condition
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+
+-------------------------------
+SPJ request timeout due to bug
+------------------------------
+As part of a stateful transaction
+
+begin;
+insert into test.t1 values (54,54);
+select t1.b, t2.b from test.t1 join test.t2 on t2.a = t1.b;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Check pk lookups
+Clear error condition
+
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+SET SESSION debug=@save_debug;
+Normal requests
+---------------
+select * from test.t1 where a=3 for update;
+a	b
+3	3
+select * from test.t1 order by b;
+a	b
+0	0
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+select * from test.t1 order by a;
+a	b
+0	0
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+select t1.b, t2.b from test.t1 join test.t2 on t2.a = t1.b;
+b	b
+0	0
+1	1
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+2	2
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+3	3
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+update test.t1 set b=b+1;
+Wait to show that subsequent actions do not cause reclamation
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+0
+drop table test.t1;
+drop table test.t2;

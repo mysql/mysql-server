@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 --echo #
 --echo # Bug 20219846: EXPLAIN FOR LIMIT QUERY SHOWS FILESORT BUT EXECUTION
 --echo #               IS DONE WITH INDEX ONLY
@@ -81,3 +83,23 @@ SELECT TRACE NOT RLIKE '"final_filtering_effect": 1' AS OK
 SET optimizer_trace="enabled=off";
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#36918913 INCORRECT QUERY RESULT FOR INDEX_SUBQUERY TYPE IN NULL
+--echo #              SUBQUERY
+--echo #
+SET @save_optimizer_switch= @@optimizer_switch;
+SET @@optimizer_switch= 'semijoin=off';
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+ANALYZE TABLE t1, t2;
+SELECT * FROM t1 WHERE a IN (SELECT * FROM (
+    SELECT b FROM t2 ORDER BY b LIMIT 2) x where b > 1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a IN (SELECT * FROM (
+                  SELECT b FROM t2 ORDER BY b LIMIT 2) x where b > 1);
+DROP TABLE t1,t2;
+SET @@optimizer_switch= @save_optimizer_switch;

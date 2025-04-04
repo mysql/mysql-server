@@ -935,7 +935,11 @@ static void page_cur_insert_rec_write_log(
   }
 
   /* If versions are different, then don't compare the records */
-  if (cur_version != ins_version && cur_extra_size == extra_size) {
+  bool is_same_version = (cur_version == ins_version);
+  DBUG_EXECUTE_IF("page_ins_simulate_differing_versions",
+                  is_same_version = false;);
+
+  if (is_same_version && cur_extra_size == extra_size) {
     ulint min_rec_size = std::min(cur_rec_size, rec_size);
 
     const byte *cur_ptr = cursor_rec - cur_extra_size;

@@ -2686,6 +2686,318 @@ int runScanLateUnlock(NDBT_Context *ctx, NDBT_Step *step) {
   }
   return NDBT_OK;
 }
+
+int runScanErrorCleanup(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+  NdbTransaction *pTrans;
+  CHECKE((pTrans = pNdb->startTransaction()) != NULL, (*pNdb));
+
+  NdbScanOperation *pScan = pTrans->getNdbScanOperation(pTab);
+  CHECKE(pScan != NULL, (*pTrans));
+
+  CHECKE(pScan->readTuples(NdbScanOperation::LM_CommittedRead,
+                           0,  // scan_flags
+                           0,  // parallel
+                           1)  // batch
+             == 0,
+         (*pScan));
+
+  pTrans->execute(NdbTransaction::NoCommit);
+
+  CHECKE(pTrans->getNdbError().code == 0, (*pTrans));
+
+  g_err << "Wait for results to come in before iterating" << endl;
+
+  NdbSleep_MilliSleep(5000);
+
+  int rc = 0;
+  while ((rc = pScan->nextResult(true, true)) == 0) {
+    do {
+      g_err << "Row returned" << endl;
+      g_err << "Let's try (incorrectly) performing takeover" << endl;
+
+      rc = pScan->deleteCurrentTuple();
+      g_err << "pScan->deleteCurrentTuple returns " << rc << endl;
+      CHECKE(rc == -1, (*pScan));
+    } while ((rc = pScan->nextResult(false)) == 0);
+
+    g_err << "Now execute batch of deletes" << endl;
+
+    rc = pTrans->execute(NdbTransaction::NoCommit);
+    g_err << "Batch execute rc is " << rc << endl;
+    CHECKE(rc == -1, (*pTrans));
+  }
+
+  g_err << "Scan nextResult is " << rc << endl;
+  CHECKE(rc == -1, (*pScan));
+
+  g_err << "Close scan" << endl;
+  pScan->close();
+
+  g_err << "Commit transaction" << endl;
+  rc = pTrans->execute(NdbTransaction::Commit);
+  g_err << "Transaction commit rc is " << rc << endl;
+  CHECKE(rc == -1, (*pTrans));
+
+  g_err << "Close transaction" << endl;
+  pTrans->close();
+
+  g_err << "Now do some other work, potentially reusing "
+        << "released ApiConnectRecord objects" << endl;
+  {
+    /* Now do some other transactions */
+    HugoTransactions hugoTrans(*pTab);
+
+    CHECKE(hugoTrans.pkReadRecords(pNdb, ctx->getNumRecords()) == 0, hugoTrans);
+  }
+
+  return NDBT_OK;
+}
+
+static Uint32 getTransactionObjectCount(Ndb *pNdb) {
+  Ndb::Free_list_usage flu;
+
+  flu.m_name = nullptr;
+  while (pNdb->get_free_list_usage(&flu) != nullptr) {
+    if (strcmp(flu.m_name, "NdbTransaction") == 0) {
+      return flu.m_created - flu.m_free;
+    }
+  }
+
+  return 0;
+}
+
+static void checkScanErrorAction(NdbTransaction *pTrans,
+                                 NdbScanOperation *pScan,
+                                 NdbRestarter *restarter, int when, int what) {
+  switch (what) {
+    case 0:
+      ndbout << "0 nothing ";
+      break;
+    case 1: {
+      if (when == 0) {
+        ndbout << "1 early scan fail at kernel ";
+        const int errCode = 8074;
+        restarter->insertErrorInAllNodes(errCode);
+      } else
+        ndbout << "1 skip ";
+
+      break;
+    }
+    case 2: {
+      if (when == 0) {
+        ndbout << "2 later scan fail at kernel ";
+        const int errCode = 8081;
+        restarter->insertErrorInAllNodes(errCode);
+      } else
+        ndbout << "2 skip ";
+
+      break;
+    }
+    case 3:
+      if (when > 0) {
+        ndbout << "3 NdbApi error on scan ";
+        int rc = pScan->deleteCurrentTuple();
+        ndbout << "(pScan->deleteCurrentTuple returns " << rc << " error "
+               << pScan->getNdbError() << ") ";
+        if (rc != -1) abort();
+      } else
+        ndbout << "3 skip ";
+
+      break;
+  }
+}
+
+static int checkScanErrorCase(Ndb *pNdb, const NdbDictionary::Table *pTab,
+                              const NdbDictionary::Index *pIdx,
+                              NdbRestarter *restarter, int records,
+                              int scanType, int lock, int delay, int when,
+                              int what) {
+  NdbTransaction *pTrans = nullptr;
+  CHECKE((pTrans = pNdb->startTransaction()) != NULL, (*pNdb));
+
+  ndbout << "checkScanErrorCase : ";
+
+  NdbScanOperation *pScan = nullptr;
+
+  bool ordered = false;
+  ndbout << scanType << " ";
+  switch (scanType) {
+    case 0:
+      ndbout << "table, ";
+      pScan = pTrans->getNdbScanOperation(pTab);
+      break;
+    case 1:
+      ndbout << "oi unordered, ";
+      pScan = pTrans->getNdbIndexScanOperation(pIdx, pTab);
+      break;
+    case 2:
+      ndbout << "oi ordered, ";
+      pScan = pTrans->getNdbIndexScanOperation(pIdx, pTab);
+      ordered = true;
+      break;
+    default:
+      abort();
+  }
+
+  CHECKE(pScan != nullptr, (*pTrans));
+
+  NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead;
+
+  ndbout << lock << " ";
+  switch (lock) {
+    case 0:
+      ndbout << "no lock, ";
+      break;
+    case 1:
+      ndbout << "lock, ";
+      lm = NdbOperation::LM_Read;
+      break;
+    default:
+      abort();
+  }
+
+  int scanFlags = 0;
+  if (ordered) {
+    scanFlags |= NdbScanOperation::SF_OrderBy;
+  }
+
+  CHECKE(pScan->readTuples(lm, scanFlags,
+                           0,  // parallel
+                           0)  // batch
+             == 0,
+         (*pScan));
+
+  if (when == 0) {
+    ndbout << "0 before exec, ";
+    checkScanErrorAction(pTrans, pScan, restarter, when, what);
+  }
+
+  pTrans->execute(NdbTransaction::NoCommit);
+  CHECKE(pTrans->getNdbError().code == 0, (*pTrans));
+
+  if (delay == 1) {
+    ndbout << "with delay, ";
+
+    NdbSleep_MilliSleep(1000);
+  }
+
+  if (when == 1) {
+    ndbout << "1 before iter, ";
+    checkScanErrorAction(pTrans, pScan, restarter, when, what);
+  }
+
+  int rc = 0;
+  int rowsRead = 0;
+  while ((rc = pScan->nextResult(true, true)) == 0) {
+    rowsRead++;
+
+    if (when == 2 && (rowsRead == records / 2)) {
+      ndbout << "2 during iter, ";
+      checkScanErrorAction(pTrans, pScan, restarter, when, what);
+    }
+  }
+
+  ndbout << "scan rc=" << rc;
+
+  rc = pTrans->execute(NdbTransaction::NoCommit);
+  ndbout << " trans nocommit rc=" << rc;
+
+  if (when == 3) {
+    ndbout << "3 after iter, ";
+    checkScanErrorAction(pTrans, pScan, restarter, when, what);
+  }
+
+  rc = pTrans->execute(NdbTransaction::Commit);
+  ndbout << " trans commit rc=" << rc;
+
+  ndbout << " closing...";
+  pScan->close();
+  ndbout << "closed." << endl;
+
+  pTrans->close();
+
+  return NDBT_OK;
+}
+
+static int runScanErrorHandling(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  const NdbDictionary::Index *pIdx = pNdb->getDictionary()->getIndex(
+      orderedPkIdxName, ctx->getTab()->getName());
+  NdbRestarter restarter;
+  const int records = ctx->getNumRecords();
+  const int someRecords = MIN(records, 100);
+
+  /* Pre-warm transaction objects in Ndb object */
+  HugoTransactions hugoTrans(*pTab, pIdx);
+  CHECKE(hugoTrans.pkReadRecords(pNdb, someRecords) == 0, hugoTrans);
+
+  /* scanType
+   * 0 Table
+   * 1 Ordered index
+   * 2 Ordered index with ordered result
+   */
+  for (int scanType = 0; scanType < 3; scanType++) {
+    /* lock
+     * 0 CommittedRead
+     * 1 LM_Read
+     */
+    for (int lock = 0; lock < 2; lock++) {
+      /* delay
+       * 0 none
+       * 1 after exec before iteration
+       */
+      for (int delay = 0; delay < 2; delay++) {
+        /* when
+         * 0 Before exec
+         * 1 Before iteration
+         * 2 During iteration
+         * 3 After iteration
+         */
+        for (int when = 0; when < 4; when++) {
+          /* what
+           * 0 Nothing
+           * 1 Inject early scan fail at TC (stateless)
+           * 2 Inject later scan fail at TC (staefull)
+           * 3 Cause API side error on scan object
+           */
+          for (int what = 0; what < 4; what++) {
+            ndbout << "------------------------------------" << endl;
+            const Uint32 startTransactionCount =
+                getTransactionObjectCount(pNdb);
+            int rc = checkScanErrorCase(pNdb, pTab, pIdx, &restarter, records,
+                                        scanType, lock, delay, when, what);
+
+            restarter.insertErrorInAllNodes(0);
+
+            const Uint32 endTransactionCount = getTransactionObjectCount(pNdb);
+            ndbout << "  Transaction object count " << startTransactionCount
+                   << " -> " << endTransactionCount << endl;
+            if (startTransactionCount != endTransactionCount) {
+              ndbout << "Transaction count mismatch" << endl;
+              rc = NDBT_FAILED;
+            }
+
+            if (rc != NDBT_OK) {
+              return NDBT_FAILED;
+            }
+
+            /**
+             * Now do some other transactions to check
+             * system health
+             */
+            CHECKE(hugoTrans.pkReadRecords(pNdb, someRecords) == 0, hugoTrans);
+          }
+        }
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead",
          "Verify scan requirement: It should be possible "
@@ -3373,6 +3685,20 @@ TESTCASE("ScanApiDisconnect",
 TESTCASE("ScanOnDMLLateUnlock",
          "Run a scan on top of DML with scan unlocking late") {
   STEP(runScanLateUnlock);
+}
+TESTCASE("ScanErrorCleanup",
+         "Test behaviour of NdbApi on handling errors for open scans") {
+  INITIALIZER(runLoadTable);
+  STEP(runScanErrorCleanup);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanErrorHandling",
+         "Test behaviour of NdbApi handling of scan errors") {
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runScanErrorHandling);
+  FINALIZER(runClearTable);
+  FINALIZER(createOrderedPkIndex_Drop);
 }
 
 NDBT_TESTSUITE_END(testScan)

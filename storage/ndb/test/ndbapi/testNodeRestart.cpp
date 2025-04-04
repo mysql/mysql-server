@@ -1156,6 +1156,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step) {
     }
     NdbSleep_SecSleep(2);
   }
+
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0) return NDBT_FAILED;
   if (restarter.waitClusterStarted()) return NDBT_FAILED;
 
@@ -1163,8 +1164,19 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step) {
 
   ndbout_c("Crash two nodes per node group");
   if (num_replicas == 3) {
+    // Inject error 644 in all nodes. It will eventually hit in one node
+    // in Qmgr::stateArbitCrash.
     prepare_all_nodes_for_death(restarter);
+    int val[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    if (restarter.dumpStateAllNodes(val, 2)) {
+      return NDBT_FAILED;
+    }
   }
+  /*
+   * Restart 2 nodes in nostart mode via error insert 1006, in a 3 replica
+   * configuration 3rd node will eventually crash as well. In a 4 replica
+   * configuration remaining nodes will survive.
+   */
   crash_x_nodes_per_node_group(restarter, dead_nodes, num_dead_nodes, 2);
   if (num_replicas == 3) {
     set_all_dead(restarter, dead_nodes, num_dead_nodes);
@@ -1172,16 +1184,44 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step) {
   if (!restarter.checkClusterState(dead_nodes, num_dead_nodes)) {
     return NDBT_FAILED;
   }
-  NdbSleep_SecSleep(3);
+
+  if (num_replicas == 3) {
+    /*
+     * In 3 replica setup all 3 nodes are restarted, 2 via EI 1006 1 via EI 644.
+     * Wait until al nodes enter the NOSTART state, then we can start all nodes
+     * again.
+     */
+    if (restarter.waitClusterNoStart()) {
+      return NDBT_FAILED;
+    }
+  }
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0) return NDBT_FAILED;
   if (restarter.waitClusterStarted()) return NDBT_FAILED;
 
   if (num_replicas == 4) {
     ndbout_c("Crash three nodes per node group");
+
+    int val[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    if (restarter.dumpStateAllNodes(val, 2)) {
+      return NDBT_FAILED;
+    }
     prepare_all_nodes_for_death(restarter);
+
+    /*
+     * Restart 3 nodes in nostart mode via error insert 1006, the remaining node
+     * will eventually crash as well.
+     */
     crash_x_nodes_per_node_group(restarter, dead_nodes, num_dead_nodes, 3);
     set_all_dead(restarter, dead_nodes, num_dead_nodes);
     if (!restarter.checkClusterState(dead_nodes, num_dead_nodes)) {
+      return NDBT_FAILED;
+    }
+
+    /*
+     * All 4 nodes are restarted, 3 via EI 1006 1 via EI 644. Wait until all
+     * nodes enter the NOSTART state, then we can start all nodes again.
+     */
+    if (restarter.waitClusterNoStart()) {
       return NDBT_FAILED;
     }
     if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
@@ -9408,7 +9448,8 @@ int runTestStallTimeout(NDBT_Context *ctx, NDBT_Step *step) {
 
       /* Prepare an update on the same rows from a different transaction */
       CHECK(hugoOps2.startTransaction(pNdb) == 0, "Start transaction failed");
-      CHECK(hugoOps2.pkUpdateRecord(pNdb, 1, 10) == 0, "Define updates failed");
+      CHECK(hugoOps2.pkUpdateRecord(pNdb, 1, numUpdates) == 0,
+            "Define updates failed");
 
       NdbTransaction *trans2 = hugoOps2.getTransaction();
       CallbackData cbd2;

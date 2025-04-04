@@ -37,50 +37,55 @@ void Gcs_xcom_expels_in_progress::remember_expels_issued(
 }
 
 void Gcs_xcom_expels_in_progress::forget_expels_that_have_taken_effect(
-    synode_no const config_id_where_members_left,
-    std::vector<Gcs_member_identifier *> const &members_that_left) {
+    synode_no const config_id_where_members_under_effect,
+    std::vector<Gcs_member_identifier *> const &members_under_effect) {
   MYSQL_GCS_TRACE_EXECUTE({
     std::stringstream ss;
     ss << "(";
-    for (auto const *const member_that_left : members_that_left) {
-      ss << " " << member_that_left->get_member_id();
+    for (auto const *const member_under_effect : members_under_effect) {
+      ss << " " << member_under_effect->get_member_id();
     }
     ss << " )";
-    MYSQL_GCS_LOG_TRACE("%s: config_id_where_members_left={%" PRIu64 " %" PRIu32
-                        "} members_that_left=%s",
-                        __func__, config_id_where_members_left.msgno,
-                        config_id_where_members_left.node, ss.str().c_str());
+    MYSQL_GCS_LOG_TRACE("%s: config_id_where_members_under_effect={%" PRIu64
+                        " %" PRIu32 "} members_under_effect=%s",
+                        __func__, config_id_where_members_under_effect.msgno,
+                        config_id_where_members_under_effect.node,
+                        ss.str().c_str());
   });
 
-  for (auto const *const member_that_left : members_that_left) {
+  for (auto const *const member_under_effect : members_under_effect) {
     /* Lambda that tells us whether some `expelled_member_info` should be
-       removed from `expels_in_progress` because it matches `member_that_left`.
+       removed from `expels_in_progress` because it matches
+       `member_under_effect`.
      */
     auto const func = __func__;
     auto const expel_has_taken_effect =
-        [&func, config_id_where_members_left,
-         member_that_left](std::pair<Gcs_member_identifier, synode_no> const
-                               &expelled_member_info) {
+        [&func, config_id_where_members_under_effect,
+         member_under_effect](std::pair<Gcs_member_identifier, synode_no> const
+                                  &expelled_member_info) {
           auto const &expelled_member = expelled_member_info.first;
           auto const &expel_config_id = expelled_member_info.second;
-          bool const expelled_member_left =
-              (expelled_member == *member_that_left &&
-               synode_lt(expel_config_id, config_id_where_members_left) != 0);
+          bool const expelled_member_under_effect =
+              (expelled_member == *member_under_effect &&
+               synode_lt(expel_config_id,
+                         config_id_where_members_under_effect) != 0);
 
-          MYSQL_GCS_LOG_TRACE(
-              "%s: expelled_member_info=(%s {%" PRIu64 " %" PRIu32
-              "}) member_that_left=%s config_id_where_members_left=%" PRIu64
-              " %" PRIu32 " expelled_member_left=%d",
-              func, expelled_member.get_member_id().c_str(),
-              expel_config_id.msgno, expel_config_id.node,
-              member_that_left->get_member_id().c_str(),
-              config_id_where_members_left.msgno,
-              config_id_where_members_left.node, expelled_member_left);
+          MYSQL_GCS_LOG_TRACE("%s: expelled_member_info=(%s {%" PRIu64
+                              " %" PRIu32
+                              "}) member_under_effect=%s "
+                              "config_id_where_members_under_effect=%" PRIu64
+                              " %" PRIu32 " expelled_member_under_effect=%d",
+                              func, expelled_member.get_member_id().c_str(),
+                              expel_config_id.msgno, expel_config_id.node,
+                              member_under_effect->get_member_id().c_str(),
+                              config_id_where_members_under_effect.msgno,
+                              config_id_where_members_under_effect.node,
+                              expelled_member_under_effect);
 
-          return expelled_member_left;
+          return expelled_member_under_effect;
         };
 
-    /* Remove the information about expels of `member_that_left` because they
+    /* Remove the information about expels of `member_under_effect` because they
        have already taken effect. */
     m_expels_in_progress.erase(
         std::remove_if(m_expels_in_progress.begin(), m_expels_in_progress.end(),
@@ -159,4 +164,16 @@ bool Gcs_xcom_expels_in_progress::contains(Gcs_member_identifier const &member,
       };
   return std::any_of(m_expels_in_progress.cbegin(), m_expels_in_progress.cend(),
                      is_expel_for_member_on_synode);
+}
+
+bool Gcs_xcom_expels_in_progress::contains(
+    Gcs_member_identifier const &member) const {
+  std::function<bool(std::pair<Gcs_member_identifier, synode_no> const &)> const
+      is_expel_for_member =
+          [&member](std::pair<Gcs_member_identifier, synode_no> const
+                        &expelled_member_info) {
+            return expelled_member_info.first == member;
+          };
+  return std::any_of(m_expels_in_progress.cbegin(), m_expels_in_progress.cend(),
+                     is_expel_for_member);
 }

@@ -2731,3 +2731,48 @@ SELECT * FROM t1, t3 WHERE t1.j = t3.i;
 SELECT * FROM t1, t3 WHERE t1.j <=> t3.i;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#37161583: Incorrect result with LEFT JOIN and small
+--echo #               join_buffer_size
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (NULL);
+
+CREATE TABLE t2(b INT);
+INSERT INTO t2
+  WITH RECURSIVE
+    s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 1000)
+  SELECT n FROM s;
+
+ANALYZE TABLE t1, t2;
+
+--let $query = SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t2 WHERE a = b)
+
+# We want to test a hash antijoin.
+--skip_if_hypergraph  # Different query plan (nested loop join).
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+# First verify that we get the correct result with DEFAULT
+# join_buffer_size, when the operation does not spill to disk.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SET join_buffer_size = DEFAULT;
+--sorted_result
+--eval $query
+# Verify that the operation did not spill to disk.
+--eval $hash_join_file_operations
+
+# Then verify that we get the correct result with a so small join
+# buffer that the operation spills to disk. It used to return zero
+# rows.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SET join_buffer_size = 128;
+--sorted_result
+--eval $query
+SET join_buffer_size = DEFAULT;
+# Verify that the operation spilled to disk.
+--skip_if_hypergraph  # Does not use hash join, so does not spill to disk.
+--eval $hash_join_file_operations
+
+DROP TABLE t1, t2;

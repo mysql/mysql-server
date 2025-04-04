@@ -82,7 +82,7 @@ UNLOCK TABLES;
 # 1) Both tables contain INSTANT column, with matching default values.
 #
 CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
-ALTER TABLE t2 ADD COLUMN v VARCHAR(255) DEFAULT "default_value";
+ALTER TABLE t2 ADD COLUMN v VARCHAR(255) DEFAULT "default_value", ALGORITHM=INSTANT;
 ALTER TABLE t2 DISCARD TABLESPACE;
 # Copy CFG/IBD file from temp
 # IMPORT should succeed now
@@ -104,7 +104,7 @@ DROP TABLE t2;
 # 2) Both tables contain INSTANT column, with conflicting default values.
 #
 CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
-ALTER TABLE t2 ADD COLUMN v VARCHAR(255) DEFAULT "different_value";
+ALTER TABLE t2 ADD COLUMN v VARCHAR(255) DEFAULT "different_value", ALGORITHM=INSTANT;
 ALTER TABLE t2 DISCARD TABLESPACE;
 # Copy CFG/IBD file from temp
 # IMPORT should fail because of the conflicting values

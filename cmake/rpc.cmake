@@ -85,8 +85,13 @@ FUNCTION(MYSQL_CHECK_RPC)
   IF(TIRPC_FOUND AND NOT WITH_TIRPC STREQUAL "bundled")
     SET(WITH_TIRPC "system" CACHE INTERNAL "")
     ADD_LIBRARY(ext::rpc SHARED IMPORTED GLOBAL)
+    IF(DEFINED pkgcfg_lib_TIRPC_tirpc)
+      SET(tirpc_imported_location ${pkgcfg_lib_TIRPC_tirpc})
+    ELSE()
+      SET(tirpc_imported_location ${TIRPC_LDFLAGS})
+    ENDIF()
     SET_TARGET_PROPERTIES(ext::rpc PROPERTIES
-      IMPORTED_LOCATION ${pkgcfg_lib_TIRPC_tirpc}
+      IMPORTED_LOCATION ${tirpc_imported_location}
       INTERFACE_COMPILE_DEFINITIONS HAVE_SYSTEM_TIRPC
       )
     TARGET_INCLUDE_DIRECTORIES(ext::rpc

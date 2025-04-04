@@ -175,13 +175,13 @@ class ConnectionContainer {
   std::vector<ConnData> get_all_connections_info() {
     std::vector<ConnData> connection_datas;
 
-    auto l =
+    connections_.for_each(
         [&connection_datas](const decltype(connections_)::value_type &conn) {
           const auto stats = conn.second->get_stats();
 
           connection_datas.push_back({
-              conn.second->get_client_address(),
-              conn.second->get_server_address(),
+              stats.client_address,
+              stats.server_address,
               stats.bytes_up,
               stats.bytes_down,
               stats.started,
@@ -189,8 +189,7 @@ class ConnectionContainer {
               stats.last_sent_to_server,
               stats.last_received_from_server,
           });
-        };
-    connections_.for_each(l);
+        });
     return connection_datas;
   }
   /**

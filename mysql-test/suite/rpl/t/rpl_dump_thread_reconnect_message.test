@@ -1,0 +1,56 @@
+# ==== Purpose ====
+# Verify that a clear and meaningful message is logged on the source when
+# restarting the IO thread.
+#
+# ==== Requirements ====
+# A clear and meaningful message must be logged in the source log file during
+# the IO thread restart.
+#
+# ==== Implementation ====
+#  1. Set up initial source-replica configuration
+#  2. Start IO thread on replica which will start a dump thread on source
+#  3. Restart the IO thread (Source should kill existing dump thread before
+#     starting a new dump thread)
+#  4. Verify that no message appears stating 'killed the zombie thread'
+#  5. Verify that a message stating 'killed the old dump thread' is present
+#  6. Cleanup
+#
+# ==== References ====
+# Bug#25330090 SLIGHTLY CONFUSING 'NOTE' REPORTED IN MASTER SERVER'S LOG WHEN
+# SLAVE RECONNECTS
+
+--source include/have_binlog_format_row.inc
+
+--echo # 1. Set up initial source-replica configuration
+--let rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+--echo # 2. Start IO thread on replica which will start a dump thread on source
+--source include/start_slave_io.inc
+
+--echo # 3. Restart the IO thread (Source should kill existing dump thread
+--echo #    before starting a new dump thread)
+--source include/stop_slave_io.inc
+--source include/start_slave_io.inc
+
+--echo # 4. Verify that no message appears stating 'killed the zombie thread'
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count_condition= <=0
+--let $assert_select= While initializing dump thread for replica with UUID.*, found a zombie dump thread with the same UUID.*
+--let $assert_text= No zombie thread kill message on the source
+--source include/assert_grep.inc
+
+--echo # 5. Verify that a message stating 'killed the old dump thread' is present
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count_condition= >=1
+--let $assert_select= Upon reconnection with the replica, while initializing the dump thread for.*, an existing dump thread with the same.* was detected.*
+--let $assert_text= Found dump thread kill message on the source
+--source include/assert_grep.inc
+
+--echo # 6. Cleanup
+--source include/rpl_connection_slave.inc
+# We do not care about SQL thread for this test scenario
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

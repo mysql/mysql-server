@@ -1,0 +1,124 @@
+include/only_with_option.inc [GLOBAL.replica_parallel_workers > 1]
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+# Bootstrap group with server1 as primary and server2, server3 as secondaries.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+# Create inbound channel from server4 to server1
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+# Suppress errors
+include/suppress_messages.inc
+# Connection 1 suppresses message <Replica SQL for channel 'ch1': Worker .* failed executing transaction '.*' at source log .* Could not execute Write_rows event on table test.t1>.
+# Connection 1 suppresses message <Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 1 suppresses message <Plugin group_replication reported: 'The requested GTID '.*' was already used, the transaction will rollback.*'>.
+# Connection 2 suppresses message <Replica SQL for channel 'ch1': Worker .* failed executing transaction '.*' at source log .* Could not execute Write_rows event on table test.t1>.
+# Connection 2 suppresses message <Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Plugin group_replication reported: 'The requested GTID '.*' was already used, the transaction will rollback.*'>.
+# Connection 3 suppresses message <Replica SQL for channel 'ch1': Worker .* failed executing transaction '.*' at source log .* Could not execute Write_rows event on table test.t1>.
+# Connection 3 suppresses message <Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 3 suppresses message <Plugin group_replication reported: 'The requested GTID '.*' was already used, the transaction will rollback.*'>.
+# Connection 4 suppresses message <Replica SQL for channel 'ch1': Worker .* failed executing transaction '.*' at source log .* Could not execute Write_rows event on table test.t1>.
+# Connection 4 suppresses message <Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 4 suppresses message <Plugin group_replication reported: 'The requested GTID '.*' was already used, the transaction will rollback.*'>.
+# Create table
+[connection server4]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Make server2 join the group
+[connection server2]
+include/start_group_replication.inc
+# Begin a transasction on the group primary so that T1 will be blocked
+[connection server_1_1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+# Begin a transasction on the group primary so that T3 will be blocked
+[connection server_1_2]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+# Commit transactions T1, T2, T3 on the upstream source.
+# This should eventually lead to the following state on the group primary:
+# T1: blocked by local session
+# T2: certified, waiting for preceding transaction to commit
+# T3: blocked by local session
+[connection server4]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+# Wait until T2 is waiting for T1 to commit.
+[connection server1]
+include/save_error_log_position.inc
+# Join server3 to the group
+# The join will produce a view_change, delivered after T2.
+# This forces T2 to bypass replica-preserve-commit-order and commit before T1.
+# This should eventually lead to the following state on the group primary:
+# T1: blocked by local session
+# T2: committed ahead
+# T3: blocked by local session
+[connection server3]
+include/start_group_replication.inc
+# Wait for T2 to commit on server1.
+[connection server1]
+include/assert_error_log.inc [server: 1, pattern: The transaction '[a-z0-9\-]*:[0-9]*' will commit out of order with respect to its source to follow the group global order]
+# Verify that T1, T3 are still not committed
+include/assert.inc [There should be two missing GTIDs]
+# Check that *new* transactions block as needed, *not* violating replica-preserve-commit-order.
+# This should eventually lead to the following state on the group primary:
+# T1: blocked by local session
+# T2: committed ahead
+# T3: blocked by local session
+# T4: waiting for preceding transaction (T3)
+[connection server_4]
+INSERT INTO t1 VALUES (4);
+[connection server_1]
+# Wait until T4 is waiting for preceding transaction to commit.
+include/assert.inc [t1 should still have only one element]
+# Unblock T3.
+# This should eventually lead to the following state on the group primary:
+# T1: blocked by local session
+# T2: committed ahead
+# T3: waiting for preceding transaction (T1)
+# T4: waiting for preceding transaction (T3)
+[connection server_1_2]
+ROLLBACK;
+# Wait until T3 is waiting for preceding transaction to commit.
+# Make T1 fail, by committing the blocking transaction.
+# This should eventually lead to the following state on the group primary:
+# T1: rolled back
+# T2: committed ahead
+# T3: rolled back
+# T4: rolled back
+[connection server_1_1]
+COMMIT;
+include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL 'ch1']
+include/assert.inc [There should be 3 missing GTIDs]
+include/assert.inc [t1 should have two elements (one replicated, one from local session)]
+# Remove the duplicate row on the group primary.
+[connection server1]
+DELETE FROM t1 WHERE c1 = 1;
+# Start the inbound channel again.
+# Now that the duplicate row is gone, it should be able to replicate T1, T3, T4.
+# This should eventually lead to the following state on the group primary:
+# T1: committed
+# T2: committed ahead
+# T3: committed
+# T4: committed
+include/start_slave.inc [FOR CHANNEL 'ch1']
+[connection server4]
+include/sync_slave_sql_with_master.inc
+include/rpl_sync.inc
+# Clean up
+[connection server4]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_sync.inc
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+include/group_replication_end.inc

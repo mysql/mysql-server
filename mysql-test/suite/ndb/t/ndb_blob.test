@@ -729,4 +729,19 @@ select * from t1;
 
 drop table t1;
 
+# Bug#37201818
+
+let $n=256;
+let $i=1;
+let $columns=pk INT PRIMARY KEY;
+while ($i <= $n) {
+  let $columns=$columns, blob$i BLOB COMMENT "NDB_COLUMN=BLOB_INLINE_SIZE=100";
+  inc $i;
+}
+echo create table t1(256 blobs) engine=ndbcluster;
+disable_query_log;
+eval create table t1($columns) engine=ndbcluster;
+enable_query_log;
+drop table t1;
+
 --echo End of 5.6 tests

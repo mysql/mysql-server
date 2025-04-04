@@ -54,21 +54,15 @@ class MySQLRoutingConnectionBase {
 
   virtual std::string get_destination_id() const = 0;
 
-  /**
-   * @brief Returns address of server to which connection is established.
-   *
-   * @return address of server
-   */
-  virtual std::string get_server_address() const = 0;
+  void server_address(const std::string &dest) {
+    stats_([&dest](Stats &stats) { stats.server_address = dest; });
+  }
 
   virtual void disconnect() = 0;
 
-  /**
-   * @brief Returns address of client which connected to router
-   *
-   * @return address of client
-   */
-  virtual std::string get_client_address() const = 0;
+  void client_address(const std::string &dest) {
+    stats_([&dest](Stats &stats) { stats.client_address = dest; });
+  }
 
   std::size_t get_bytes_up() const {
     return stats_([](const Stats &stats) { return stats.bytes_up; });
@@ -99,6 +93,9 @@ class MySQLRoutingConnectionBase {
   }
 
   struct Stats {
+    std::string client_address;
+    std::string server_address;
+
     std::size_t bytes_up{0};
     std::size_t bytes_down{0};
 

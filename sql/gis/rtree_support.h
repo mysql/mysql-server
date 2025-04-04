@@ -78,7 +78,27 @@ dd::Spatial_reference_system *fetch_srs(gis::srid_t srid);
 bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
                      rtr_mbr_t *b);
 
-/// Checks if two MBRs are equal
+/// Checks if two MBRs are equal physically
+///
+/// There is another function mbr_equal_logically(), which checks for
+/// equality in logical sense.
+///
+/// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
+/// than or equal to the corresponding coordinates of the maximum corner.
+///
+/// @param[in] a The first MBR.
+/// @param[in] b The second MBR.
+///
+/// @retval true The two MBRs are equal physically.
+/// @retval false The two MBRs aren't equal physically.
+bool mbr_equal_physically(rtr_mbr_t *a, rtr_mbr_t *b);
+
+/// Checks if two MBRs are equal logically
+///
+/// Comparison is epsilon based using boost geometry.
+///
+/// There is another function mbr_equal_physically(), which checks for
+/// equality in physical sense.
 ///
 /// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
 /// than or equal to the corresponding coordinates of the maximum corner.
@@ -87,10 +107,10 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 /// @param[in] a The first MBR.
 /// @param[in] b The second MBR.
 ///
-/// @retval true The two MBRs are equal.
-/// @retval false The two MBRs aren't equal.
-bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
-                   rtr_mbr_t *b);
+/// @retval true The two MBRs are equal logically.
+/// @retval false The two MBRs aren't equal logically.
+bool mbr_equal_logically(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                         rtr_mbr_t *b);
 
 /// Checks if two MBRs intersect each other
 ///

@@ -1,0 +1,352 @@
+# Case 1. Extern BLOB with sec index on v_col undergoes UPDATE during online DDL
+CREATE TABLE t1 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t1 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t1;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t1 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t1;
+c1	c2	c4
+1	1	2
+UPDATE t1 SET c2=2;
+SELECT c1, c2, c4 FROM t1;
+c1	c2	c4
+1	2	2
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t1;
+c1	c2	c4
+1	2	2
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Case 2. BLOB with sec index on v_col undergoes UPDATE during online DDL
+CREATE TABLE t2 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t2 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t2;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t2 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t2;
+c1	c2	c4
+1	1	2
+UPDATE t2 SET c2=2;
+SELECT c1, c2, c4 FROM t2;
+c1	c2	c4
+1	2	2
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t2;
+c1	c2	c4
+1	2	2
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# Case 3. (case 1) with update on base column of v_col
+CREATE TABLE t3 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t3 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t3;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t3;
+c1	c2	c4
+1	1	2
+UPDATE t3 SET c1=10;
+SELECT c1, c2, c4 FROM t3;
+c1	c2	c4
+10	1	11
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t3;
+c1	c2	c4
+10	1	11
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+# Case 4. (case 2) with update on base column of v_col
+CREATE TABLE t4 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t4 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t4;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t4 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t4;
+c1	c2	c4
+1	1	2
+UPDATE t4 SET c1=10;
+SELECT c1, c2, c4 FROM t4;
+c1	c2	c4
+10	1	11
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t4;
+c1	c2	c4
+10	1	11
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t4;
+# Case 5. (case 1) with update on BLOB without changing extern status
+CREATE TABLE t5 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t5 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t5;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t5 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t5;
+c1	c2	c4
+1	1	2
+UPDATE t5 SET c3=REPEAT('abcdefghcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281);
+UPDATE t5 SET c2=2;
+UPDATE t5 SET c1=10;
+SELECT c1, c2, c4 FROM t5;
+c1	c2	c4
+10	2	11
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t5;
+c1	c2	c4
+10	2	11
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	status	OK
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t5;
+# Case 6. (case 2) with update on BLOB without changing extern status
+CREATE TABLE t6 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t6 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t6;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t6 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t6;
+c1	c2	c4
+1	1	2
+UPDATE t6 SET c3=REPEAT('B', 256);
+UPDATE t6 SET c2=2;
+UPDATE t6 SET c1=10;
+SELECT c1, c2, c4 FROM t6;
+c1	c2	c4
+10	2	11
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t6;
+c1	c2	c4
+10	2	11
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	status	OK
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t6;
+# Case 7. (case 1) with update on BLOB inverting BLOB's extern status
+CREATE TABLE t7 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t7 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t7;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t7 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t7;
+c1	c2	c4
+1	1	2
+UPDATE t7 SET c3=REPEAT('B', 256);
+UPDATE t7 SET c2=2;
+UPDATE t7 SET c1=10;
+SELECT c1, c2, c4 FROM t7;
+c1	c2	c4
+10	2	11
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t7;
+c1	c2	c4
+10	2	11
+CHECK TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t7;
+# Case 8. (case 2) with update on BLOB inverting BLOB's extern status
+CREATE TABLE t8 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t8 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t8;
+c1	c2	c4
+1	1	2
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+ALTER TABLE t8 ADD PRIMARY KEY (c1);
+SET DEBUG_SYNC='now WAIT_FOR online';
+SELECT c1, c2, c4 FROM t8;
+c1	c2	c4
+1	1	2
+UPDATE t8 SET c3=REPEAT('abcdefghcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281);
+UPDATE t8 SET c2=2;
+UPDATE t8 SET c1=10;
+SELECT c1, c2, c4 FROM t8;
+c1	c2	c4
+10	2	11
+SET DEBUG_SYNC='now SIGNAL upd';
+SELECT c1, c2, c4 FROM t8;
+c1	c2	c4
+10	2	11
+CHECK TABLE t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	status	OK
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` blob,
+  `c4` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`c1`),
+  KEY `id` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t8;

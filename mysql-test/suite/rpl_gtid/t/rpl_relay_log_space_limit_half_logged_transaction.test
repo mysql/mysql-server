@@ -1,0 +1,94 @@
+# === Purpose ===
+#
+# This test causes a transaction to be half written in the relay log and then restarts the receiver
+# thread proving it is not stuck waiting for space as the variable relay_log_space_limit was
+# set to a low value.
+#
+# ==== Requirements ====
+#
+# R1. When the receiver thread stops in the middle of a transaction, and relay log space usage
+#     exceeds the set limit, the receiver thread shall not be stuck waiting for space indefinitely
+#
+# === Implementation ====
+#
+# 1. Setup the table needed in the test scenario.
+# 2. Stop replication
+#    Start the receiver but only write the events for the first insert
+# 3. Restart the replica with a limit to the relay log size
+#    Check that the replica is not stuck waiting for space
+#    by replicating a new transaction.
+# 4. Cleanup
+#
+# === References ===
+#
+# BUG#37008345:Stop replica blocks after reporting the replica coordinator and worker threads
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/master-slave.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Setup the table needed in the test scenario.
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT, c2 LONGTEXT);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Stop replication
+--echo #    Start the receiver but only write the events for the first insert
+
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+
+BEGIN;
+INSERT INTO test.t1 (c2) VALUES (REPEAT('a', 1000000));
+INSERT INTO test.t1 (c2) VALUES (REPEAT('b', 1000000));
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+--let $rpl_after_received_events_action= stop
+--let $rpl_event_count= 4
+--let $rpl_skip_event_count_print_in_result_log= 1
+if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+{
+   --let $rpl_event_count= 3
+}
+--source include/rpl_receive_event_count.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Restart the replica with a limit to the relay log size
+--echo #    Check that the replica is not stuck waiting for space
+--echo #    by replicating a new transaction.
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay_log_space_limit=1000000
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO test.t1 (c2) VALUES (REPEAT('c', 1200000));
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

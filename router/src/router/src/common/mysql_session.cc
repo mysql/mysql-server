@@ -648,3 +648,7 @@ const char *MySQLSession::ssl_cipher() {
 void MySQLSession::LoggingStrategyDebugLogger::log(const std::string &msg) {
   log_debug("%s", msg.c_str());
 }
+
+unsigned long MySQLSession::server_version() {
+  return connection_ ? mysql_get_server_version(connection_) : 0;
+}

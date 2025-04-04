@@ -96,7 +96,7 @@ ER_LOG_GENERAL_CANNOT_OPEN
 ER_LOG_CANNOT_WRITE
   eng "Failed to write to %s: %s"
 
-ER_RPL_ZOMBIE_ENCOUNTERED
+OBSOLETE_ER_RPL_ZOMBIE_ENCOUNTERED
   eng "While initializing dump thread for replica with %s <%s>, found a zombie dump thread with the same %s. Source is killing the zombie dump thread(%u)."
 
 ER_RPL_GTID_TABLE_CANNOT_OPEN
@@ -12301,8 +12301,14 @@ ER_IB_INDEX_PART_TOO_LONG
 ER_DD_UPDATE_DATADIR_FLAG_FAIL
   eng "Failed to update data directory flag for dd table with tablespace id '%llu' when ibd file for '%s' is moved to new location '%s' during server shutdown"
 
-ER_IB_MSG_FIL_STATE_MOVED_PREV_OR_HAS_DATADIR
-  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory. It is either moved or is created with 'DATA DIRECTORY'"
+ER_IB_MSG_FIL_STATE_MOVED_PREV
+  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory, but DD misses info about DATA DIRECTORY"
+
+ER_RPL_KILL_OLD_DUMP_THREAD_ENCOUNTERED
+  eng "Upon reconnection with the replica, while initializing the dump thread for %s <%s>, an existing dump thread with the same %s was detected. The source is terminating the previous dump thread (%u), which is normal and expected."
+
+ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
+  eng "The transaction '%-.192s' will commit out of order with respect to its source to follow the group global order."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

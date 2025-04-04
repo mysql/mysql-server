@@ -48,6 +48,19 @@ max_connections
 replica_net_timeout
 slave_net_timeout
 SET @@debug='-d,crash_after_close_persist_file';
+SET @@debug='+d,crash_after_rename_persist_file';
+SET PERSIST replica_net_timeout=360;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT @@max_connections, @@max_heap_table_size, @@replica_net_timeout;
+@@max_connections	@@max_heap_table_size	@@replica_net_timeout
+42	16777216	360
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+variable_name
+max_connections
+replica_net_timeout
+slave_net_timeout
+SET @@debug='-d,crash_after_rename_persist_file';
 RESET PERSIST;
 SET GLOBAL max_connections = default, replica_net_timeout = default, max_heap_table_size = default;
 # restart:

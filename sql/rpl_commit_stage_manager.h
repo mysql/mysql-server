@@ -213,6 +213,17 @@ class Commit_stage_manager {
   void deinit();
 
   /**
+    Checks if the THD session parameter BGC ticket is active and
+    the BGC back ticket was incremented.
+
+    @param thd The THD session that holds the ticket to check.
+
+    @return True if the THD session parameter BGC ticket is active and
+            the BGC back ticket was incremented, false otherwise.
+  */
+  bool is_ticket_on_its_turn_and_back_ticket_incremented(THD *thd) const;
+
+  /**
     Waits for the THD session parameter underlying BGC ticket to become
     active.
 

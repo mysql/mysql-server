@@ -3378,9 +3378,13 @@ int MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           if (!getNodeInfo(nodeId).is_confirmed()) nodeId = 0;
           if (first_attempt && (ref->errorCode != AllocNodeIdRef::NotMaster)) {
             first_attempt = false;
+            const char *reason =
+                (ref->errorCode == AllocNodeIdRef::Busy
+                     ? "System busy with another nodeid allocation"
+                     : "Node id not yet ready for use");
             g_eventLogger->info(
-                "Alloc node id %u rejected with error code %u, will retry",
-                free_node_id, ref->errorCode);
+                "Alloc node id %u rejected due to %s (%u), will retry",
+                free_node_id, reason, ref->errorCode);
           }
           /* sleep for a while before retrying */
           ss.unlock();

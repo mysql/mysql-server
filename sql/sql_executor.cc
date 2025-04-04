@@ -3405,8 +3405,7 @@ void JOIN::create_access_paths_for_index_subquery() {
       path = NewMaterializedTableFunctionAccessPath(thd, first_qep_tab->table(),
                                                     tl->table_function, path);
     } else {
-      path = GetAccessPathForDerivedTable(thd, first_qep_tab,
-                                          first_qep_tab->access_path());
+      path = GetAccessPathForDerivedTable(thd, first_qep_tab, path);
     }
   }
 

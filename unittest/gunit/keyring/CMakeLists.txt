@@ -75,6 +75,12 @@ TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
   )
 
 ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)
+IF(MY_COMPILER_IS_GNU)
+  MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    MY_TARGET_LINK_OPTIONS(merge_keyring_file_tests-t "${HAS_WARN_FLAG}")
+  ENDIF()
+ENDIF()
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc

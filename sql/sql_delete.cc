@@ -869,6 +869,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
 
+  select->original_tables_map = select->all_tables_map();
   if (select->has_sj_candidates() && select->flatten_subqueries(thd))
     return true;
 

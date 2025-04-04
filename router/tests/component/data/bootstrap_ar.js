@@ -5,6 +5,10 @@ var options = {
   innodb_cluster_name: "mycluster",
 };
 
+if (mysqld.global.server_version === undefined) {
+  mysqld.global.server_version = "8.0.39";
+}
+
 var common_responses = common_stmts.prepare_statement_responses(
     [
       "router_set_session_options",
@@ -39,6 +43,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     options);
 
 ({
+  handshake: {greeting: {server_version: mysqld.global.server_version}},
   stmts: function(stmt) {
     var res;
     if (common_responses.hasOwnProperty(stmt)) {

@@ -871,8 +871,6 @@ dberr_t Builder::copy_fts_column(Copy_ctx &ctx, dfield_t *field) noexcept {
     doc_id = fts.m_doc_id->current();
   }
 
-  ut_a(doc_id <= 4294967295u);
-
   if (unlikely(!dfield_is_null(field))) {
     auto ptr = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
                                   sizeof(FTS::Doc_item) + field->len);

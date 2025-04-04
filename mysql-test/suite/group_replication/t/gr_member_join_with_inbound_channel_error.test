@@ -1,0 +1,297 @@
+################################################################################
+#
+# ==== Purpose ====
+#
+# On a group with an inbound channel on the primary, receiving transactions
+# T1, T2 in this order, if T2 is delivered/certified before T1, and a
+# View_change occurs between the delivery of T2 and T1, verify that the primary
+# bypasses replica-preserve-commit-order and allows T2 to commit before T1.
+# Then, verify that a rollback of T1 is propagated to transactions following T2.
+#
+# Footnote:
+# The mechanism to bypass replica-preserve-commit-order is necessary in order to
+# avoid the following deadlock, which would occur otherwise:
+#  1. T2 waits for T1 to commit, because of replica-preserve-commit-order
+#  2. T1 waits for the View_change, because transactions delivered/certified
+#     after a view_change must also commit after the view_change (using the
+#     BGC ticket manager).
+#  3. The view change waits for T2, because transactions delivered/certified
+#     before a view_change must also commit before the view_change (using the
+#     BGC ticket manager)
+#
+# ==== Requirements ====
+#
+# Given transactions T1, T2, delivered in reverse order with a view_change
+# between them, and T3 following them:
+#
+# R1. T2 should commit without waiting for T1
+# R2. T2 should emit an error message
+# R3. If T1 is rolled back, T3 should rollback too.
+#
+# ==== Test overview ====
+#
+# Topology:
+# - The group server1, server2, server3
+# - Initially only server1 and server2 joined
+# - server1 is the primary
+# - server4 replicates to server1.
+#
+# Execution:
+# - server4 executes transactions T1, T2, T3.
+# - server1 receives T1, T2, T3 and begins to process them in parallel.
+# - server1 executes T2 first and does not make progress on T1 and T3. In real
+#   life this can happen by chance, but in the test we enforce it by taking
+#   row locks that block T1 and T3.
+# - server1 finishes executing T2, broadcasts it to the group, and processes it
+#   up to the point where it waits for the preceding transaction (T1) to commit.
+# - server3 joins the group, creating a view change
+# - the view_change will cause a deadlock:
+#   - In order to preserve commit order, T2 is waiting on T1
+#   - In order to keep transactions on the right side of the view_change, the
+#     view_change is waiting on T2.
+#   - T1 will (once it is unblocked) be waiting on the view_change.
+# - on server1, the server logic where T2 waits on T1 has a time-out. The
+#   time-out is reached, which makes it detect the deadlock. It resolves the
+#   deadlock by sacrificing replica-preserve-commit-order in favor of
+#   view_change order, and thus unblocks T2 despites T1 has not committed.
+# - server4 executes T4
+# - server1 makes T1 fail, and unblocks T3
+# - now we expect that the inbound channel on T1 stops and that T1, T3, T4
+#   have rolled back.
+
+# ==== Test steps ====
+#
+# 0. The test requires 4 servers:
+#    server1: group primary with a inbound channel replicating from server3
+#    server2: secondary
+#    server3: secondary
+#    server4: standalone server
+# 1. server1: Bootstrap group.
+#    Start an inbound channel that replicates from server4.
+# 2. server2: join the group.
+# 3. server1: Begin a transaction that takes a lock that will block T1
+# 4. server4: commit T1, T2, T3
+# 5. server1: wait until T2 blocks waiting on commit order
+# 6. server3: join the group
+# 7. server1: wait until T2 has committed (which it does because the joining
+#    server forces it to violate replica-preserve-commit-order).
+#    Verify that no transaction blocks waiting for commit order any more.
+#    Verify that T1 has not committed yet.
+#    Verify that gtid_executed is 1 element smaller on server1 than server4.
+#    Verify that there is a warning in the error log.
+# 8. server4: commit transaction T4.
+# 9. server1: wait until T4 blocks waiting for commit order
+#    Verify that the table still contains only one row
+#10. server1: Commit the transaction, making T1 fail
+#    Wait for T1, T2 and T3 to fail.
+#    Verify that the table only contains one row.
+#11. Clean up.
+################################################################################
+
+--source include/only_mts_replica_parallel_type_logical_clock.inc
+--let $option_name = replica_parallel_workers
+--let $option_operator = >
+--let $option_value = 1
+--source include/only_with_option.inc
+--let $group_replication_group_name = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--source include/have_group_replication_plugin.inc
+--let $rpl_extra_connections_per_server = 2
+--let $rpl_group_replication_single_primary_mode = 1
+--let $rpl_skip_group_replication_start = 1
+--let $rpl_server_count = 4
+--let $rpl_gtid_utils = 1
+--source include/group_replication.inc
+
+--let $assert_escape = 1
+
+--echo # Bootstrap group with server1 as primary and server2, server3 as secondaries.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo # Create inbound channel from server4 to server1
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_4 FOR CHANNEL 'ch1'
+--let $rpl_channel_name = 'ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name =
+
+--echo # Suppress errors
+let $messages =
+Replica SQL for channel 'ch1': Worker .* failed executing transaction '.*' at source log .* Could not execute Write_rows event on table test.t1
+Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
+Plugin group_replication reported: 'The requested GTID '.*' was already used, the transaction will rollback.*'
+;
+--source include/suppress_messages.inc
+
+--echo # Create table
+--let $rpl_connection_name = server4
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Make server2 join the group
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo # Begin a transasction on the group primary so that T1 will be blocked
+--let $rpl_connection_name = server_1_1
+--source include/rpl_connection.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+--echo # Begin a transasction on the group primary so that T3 will be blocked
+--let $rpl_connection_name = server_1_2
+--source include/rpl_connection.inc
+BEGIN;
+INSERT INTO t1 VALUES (3);
+
+--echo # Commit transactions T1, T2, T3 on the upstream source.
+--echo # This should eventually lead to the following state on the group primary:
+--echo # T1: blocked by local session
+--echo # T2: certified, waiting for preceding transaction to commit
+--echo # T3: blocked by local session
+--let $rpl_connection_name = server4
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+--let $source_gtid_executed = `SELECT @@global.gtid_executed`
+
+--echo # Wait until T2 is waiting for T1 to commit.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for preceding transaction to commit'
+--source include/wait_condition.inc
+
+--source include/save_error_log_position.inc
+
+--echo # Join server3 to the group
+--echo # The join will produce a view_change, delivered after T2.
+--echo # This forces T2 to bypass replica-preserve-commit-order and commit before T1.
+--echo # This should eventually lead to the following state on the group primary:
+--echo # T1: blocked by local session
+--echo # T2: committed ahead
+--echo # T3: blocked by local session
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo # Wait for T2 to commit on server1.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+--let $wait_condition = SELECT COUNT(*) = 1 FROM test.t1
+--source include/wait_condition.inc
+
+--let $wait_condition = SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for preceding transaction to commit'
+--source include/wait_condition.inc
+
+--let $error_pattern = The transaction '[a-z0-9\-]*:[0-9]*' will commit out of order with respect to its source to follow the group global order
+--source include/assert_error_log.inc
+
+--echo # Verify that T1, T3 are still not committed
+
+--let $assert_text = There should be two missing GTIDs
+--let $assert_cond = [SELECT GTID_COUNT(GTID_SUBTRACT('$source_gtid_executed', @@global.gtid_executed))] = 2
+--source include/assert.inc
+
+--echo # Check that *new* transactions block as needed, *not* violating replica-preserve-commit-order.
+--echo # This should eventually lead to the following state on the group primary:
+--echo # T1: blocked by local session
+--echo # T2: committed ahead
+--echo # T3: blocked by local session
+--echo # T4: waiting for preceding transaction (T3)
+--let $rpl_connection_name = server_4
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (4);
+--let $source_gtid_executed = `SELECT @@global.gtid_executed`
+
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+
+--echo # Wait until T4 is waiting for preceding transaction to commit.
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for preceding transaction to commit'
+--source include/wait_condition.inc
+
+--let $assert_text = t1 should still have only one element
+--let $assert_cond = [SELECT COUNT(*) FROM test.t1] = 1
+--source include/assert.inc
+
+--echo # Unblock T3.
+--echo # This should eventually lead to the following state on the group primary:
+--echo # T1: blocked by local session
+--echo # T2: committed ahead
+--echo # T3: waiting for preceding transaction (T1)
+--echo # T4: waiting for preceding transaction (T3)
+--let $rpl_connection_name = server_1_2
+--source include/rpl_connection.inc
+ROLLBACK;
+
+--echo # Wait until T3 is waiting for preceding transaction to commit.
+--let $wait_condition = SELECT COUNT(*) = 2 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for preceding transaction to commit'
+--source include/wait_condition.inc
+
+--echo # Make T1 fail, by committing the blocking transaction.
+--echo # This should eventually lead to the following state on the group primary:
+--echo # T1: rolled back
+--echo # T2: committed ahead
+--echo # T3: rolled back
+--echo # T4: rolled back
+--let $rpl_connection_name = server_1_1
+--source include/rpl_connection.inc
+COMMIT;
+
+--let $rpl_channel_name = 'ch1'
+--let $slave_sql_errno = convert_error(ER_DUP_ENTRY)
+--source include/wait_for_slave_sql_error.inc
+
+--let $assert_text = There should be 3 missing GTIDs
+--let $assert_cond = [SELECT GTID_COUNT(GTID_SUBTRACT('$source_gtid_executed', @@global.gtid_executed))] = 3
+--source include/assert.inc
+
+--let $assert_text = t1 should have two elements (one replicated, one from local session)
+--let $assert_cond = [SELECT COUNT(*) FROM test.t1] = 2
+--source include/assert.inc
+
+--echo # Remove the duplicate row on the group primary.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+DELETE FROM t1 WHERE c1 = 1;
+
+--echo # Start the inbound channel again.
+--echo # Now that the duplicate row is gone, it should be able to replicate T1, T3, T4.
+--echo # This should eventually lead to the following state on the group primary:
+--echo # T1: committed
+--echo # T2: committed ahead
+--echo # T3: committed
+--echo # T4: committed
+--let $rpl_channel_name = 'ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name =
+
+--let $rpl_connection_name = server4
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_sync.inc
+
+--echo # Clean up
+--let $rpl_connection_name = server4
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+--let $rpl_channel_name=
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+
+--source include/group_replication_end.inc

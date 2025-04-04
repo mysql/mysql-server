@@ -3046,6 +3046,10 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   bool transactional_tables;
   std::set<LEX_USER *> audit_users;
   DBUG_TRACE;
+  DBUG_EXECUTE_IF("test_acl_race_condition", {
+    assert(!debug_sync_set_action(
+        thd, STRING_WITH_LEN("now WAIT_FOR map_inserted NO_CLEAR_EVENT")));
+  });
 
   /* check if DROP user is allowed on this user list or not. */
   if (check_orphaned_definers(thd, list)) return true;
@@ -3078,6 +3082,8 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
       return true;
     }
 
+    Lock_state_list modified_user_lock_state_list;
+
     if (check_system_user_privilege(thd, list)) {
       commit_and_close_mysql_tables(thd);
       return true;
@@ -3107,6 +3113,10 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
         continue;
       }
 
+      ACL_temporary_lock_state::preserve_user_lock_state(
+          user_name->host.str, user_name->user.str,
+          modified_user_lock_state_list);
+
       audit_users.insert(tmp_user_name);
 
       int ret = handle_grant_data(thd, tables, true, user_name, nullptr,
@@ -3133,6 +3143,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
     /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
     rebuild_check_host();
     rebuild_cached_acl_users_for_name();
+    clear_and_init_db_cache(); /* Clear privilege cache */
 
     if (result && !thd->is_error()) {
       String operation_str;
@@ -3149,7 +3160,9 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
       result =
           populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
 
-    result = log_and_commit_acl_ddl(thd, transactional_tables);
+    result =
+        log_and_commit_acl_ddl(thd, transactional_tables, nullptr, nullptr,
+                               false, true, &modified_user_lock_state_list);
 
     {
       /* Notify audit plugin. We will ignore the return value. */
@@ -3242,6 +3255,8 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
       return true;
     }
 
+    Lock_state_list modified_user_lock_state_list;
+
     while ((tmp_user_from = user_list++)) {
       LEX_USER *user_from;
       LEX_USER *user_to;
@@ -3255,6 +3270,10 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         continue;
       }
       assert(user_to != nullptr); /* Syntax enforces pairs of users. */
+
+      ACL_temporary_lock_state::preserve_user_lock_state(
+          user_from->host.str, user_from->user.str,
+          modified_user_lock_state_list);
 
       /*
         If we are renaming to anonymous user, make sure no roles are granted.
@@ -3339,7 +3358,9 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
     Security_context *current_sctx = thd->security_context();
     current_sctx->restore_security_context(thd, orig_sctx.get());
 
-    result = log_and_commit_acl_ddl(thd, transactional_tables);
+    result =
+        log_and_commit_acl_ddl(thd, transactional_tables, nullptr, nullptr,
+                               false, true, &modified_user_lock_state_list);
 
     /* Restore the updated security context */
     current_sctx->restore_security_context(thd, current_sctx);
@@ -3421,6 +3442,8 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       return true;
     }
 
+    Lock_state_list modified_user_lock_state_list;
+
     if (check_system_user_privilege(thd, list)) {
       commit_and_close_mysql_tables(thd);
       return true;
@@ -3448,6 +3471,10 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
         result = 1;
         continue;
       }
+
+      acl_user = ACL_temporary_lock_state::preserve_user_lock_state(
+          user_from->host.str, user_from->user.str,
+          modified_user_lock_state_list);
 
       /* copy password expire attributes to individual lex user */
       user_from->alter_status = thd->lex->alter_password;
@@ -3478,8 +3505,6 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
         is_anonymous_user = true;
         continue;
       }
-
-      acl_user = find_acl_user(user_from->host.str, user_from->user.str, true);
 
       if (history_check_done) {
         /*
@@ -3600,7 +3625,8 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
     User_params user_params(&extra_users);
     result = log_and_commit_acl_ddl(thd, transactional_tables, &extra_users,
-                                    &user_params, false, write_to_binlog);
+                                    &user_params, false, write_to_binlog,
+                                    &modified_user_lock_state_list);
     /* Notify audit plugin. We will ignore the return value. */
     LEX_USER *audit_user;
     for (LEX_USER *one_user : audit_users) {

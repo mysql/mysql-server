@@ -784,6 +784,23 @@ Partition *Table_impl::get_partition(Object_id partition_id) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+Partition *Table_impl::get_leaf_partition(const std::string &part_name) {
+  return const_cast<Partition *>(
+      std::as_const(*this).get_leaf_partition(part_name));
+}
+
+const Partition *Table_impl::get_leaf_partition(
+    const std::string &part_name) const {
+  for (Partition *leaf : m_leaf_partitions) {
+    if (!my_strcasecmp(system_charset_info, leaf->name().c_str(),
+                       part_name.c_str())) {
+      return leaf;
+    }
+  }
+  return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Trigger collection.
 ///////////////////////////////////////////////////////////////////////////
 

@@ -3300,6 +3300,15 @@ void Dbspj::execSCAN_FRAGCONF(Signal *signal) {
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(), conf->total_len, DBLQH);
 #endif
 
+  if (ERROR_INSERTED(17123)) {
+    jam();
+    g_eventLogger->info(
+        "Dbspj %u : Error insert stalling SCAN_FRAGCONF for 0.5s", instance());
+    sendSignalWithDelay(reference(), GSN_SCAN_FRAGCONF, signal, 500,
+                        signal->getLength());
+    return;
+  }
+
   Ptr<ScanFragHandle> scanFragHandlePtr;
   ndbrequire(getGuardedPtr(scanFragHandlePtr, conf->senderData));
   Ptr<TreeNode> treeNodePtr;

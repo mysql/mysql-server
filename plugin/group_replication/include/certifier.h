@@ -57,7 +57,11 @@ class Gtid_set_ref : public Gtid_set {
   Gtid_set_ref(Sid_map *sid_map, int64 parallel_applier_sequence_number)
       : Gtid_set(sid_map),
         reference_counter(0),
-        parallel_applier_sequence_number(parallel_applier_sequence_number) {}
+        parallel_applier_sequence_number(parallel_applier_sequence_number),
+        garbage_collect_counter(0) {
+    DBUG_EXECUTE_IF("group_replication_ci_rows_counter_high",
+                    { garbage_collect_counter = 1000; });
+  }
 
   virtual ~Gtid_set_ref() = default;
 
@@ -78,6 +82,22 @@ class Gtid_set_ref : public Gtid_set {
     return --reference_counter;
   }
 
+  /**
+    Set garbage collector counter when Gtid_set_ref was checked is subset no
+    equals of gtid_stable_set
+  */
+  void set_garbage_collect_counter(uint64 ver) {
+    garbage_collect_counter = ver;
+  }
+
+  /**
+    Get garbage collector counter when Gtid_set_ref was checked is subset no
+    equals of gtid_stable_set
+
+    @return garbage collect counter
+  */
+  uint64 get_garbage_collect_counter() { return garbage_collect_counter; }
+
   int64 get_parallel_applier_sequence_number() const {
     return parallel_applier_sequence_number;
   }
@@ -85,6 +105,7 @@ class Gtid_set_ref : public Gtid_set {
  private:
   size_t reference_counter;
   int64 parallel_applier_sequence_number;
+  uint64 garbage_collect_counter;
 };
 
 /**
@@ -740,6 +761,9 @@ class Certifier : public Certifier_interface {
     certified transaction on a particular group member.
   */
   void update_certified_transaction_count(bool result, bool local_transaction);
+
+  /* Number of garbage collector run */
+  uint64 garbage_collect_runs{1};
 };
 
 /*

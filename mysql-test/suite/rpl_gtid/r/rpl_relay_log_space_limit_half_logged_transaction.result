@@ -1,0 +1,39 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Setup the table needed in the test scenario.
+[connection master]
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT, c2 LONGTEXT);
+include/sync_slave_sql_with_master.inc
+
+##############################################################
+# 2. Stop replication
+#    Start the receiver but only write the events for the first insert
+include/stop_slave.inc
+[connection master]
+BEGIN;
+INSERT INTO test.t1 (c2) VALUES (REPEAT('a', 1000000));
+INSERT INTO test.t1 (c2) VALUES (REPEAT('b', 1000000));
+COMMIT;
+[connection slave]
+include/rpl_receive_event_count.inc
+
+##############################################################
+# 3. Restart the replica with a limit to the relay log size
+#    Check that the replica is not stuck waiting for space
+#    by replicating a new transaction.
+include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_space_limit=1000000]
+include/start_slave.inc
+[connection master]
+INSERT INTO test.t1 (c2) VALUES (REPEAT('c', 1200000));
+include/sync_slave_sql_with_master.inc
+
+##############################################################
+# 4. Cleanup
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -100,7 +100,7 @@ class FixedByteBufferPoolImpl {
         this.bufferSize = bufferSize;
         this.name = name;
         this.pool = new ConcurrentLinkedQueue<ByteBuffer>();
-        logger.info("FixedByteBufferPoolImpl<init> for " + name + " bufferSize " + bufferSize);
+        logger.debug("FixedByteBufferPoolImpl<init> for " + name + " bufferSize " + bufferSize);
     }
 
     /** Borrow a buffer from the pool. If none in the pool, create a new one. */

@@ -1,0 +1,7 @@
+################################################################################
+# Verifies that the same properties are present as in the source file when
+# autocommit is set to off.
+#
+################################################################################
+
+--source gr_acf_receiver_old_primary_rejoin.test

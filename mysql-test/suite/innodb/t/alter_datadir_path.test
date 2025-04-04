@@ -28,6 +28,7 @@
 #Table t8a: Covers scenario create partitioned table with data directory clause and both partitions in different directories, move to default dir and alter table force
 #Table t8b: Covers scenario create partitioned table with data directory clause and both partitions in different directories, move to default dir and alter table force algo=inplace
 #Table t8c: Covers scenario create partitioned table with data directory clause and both partitions in different directories, move to default dir and alter table force algo=copy
+#Table t8d: Covers scenario create partitioned table with one partition in data directory clause and the other partition in default data dir path, move to default dir and alter table force algo=copy
 #Table t9a: Covers scenario create partitioned table without data directory clause but moving each partition to different external directories and alter table force
 #Table t9b: Covers scenario create partitioned table without data directory clause but moving each partition to different external directories and alter table force algo=inplace
 #Table t9c: Covers scenario create partitioned table without data directory clause but moving each partition to different external directories and alter table force algo=copy
@@ -296,17 +297,23 @@ eval CREATE TABLE `t8a` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUE
 eval CREATE TABLE `t8b` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) $data_directory_clause, PARTITION p1 VALUES LESS THAN (20) $data_directory_clause2);
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE `t8c` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) $data_directory_clause, PARTITION p1 VALUES LESS THAN (20) $data_directory_clause2);
+--echo # Partition table with one partition in external directory and one in default directory
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t8d` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) $data_directory_clause, PARTITION p1 VALUES LESS THAN (20) );
 
 --echo # Shutdown server
 --source include/shutdown_mysqld.inc
 
---echo # Check that for partition p0 for t8a, t8b, t8c exist in EXTERNAL_DIR and partition p1 for for t8a, t8b, t8c exist in EXTERNAL_DIR2
+--echo # Check that for partition p0 for t8a, t8b, t8c and t8d exist in EXTERNAL_DIR and partition p1 for for t8a, t8b, t8c exist in EXTERNAL_DIR2
 
 --echo # Listing EXTERNAL_DIR
 --list_files $EXTERNAL_DIR/dbtest/ *
 
 --echo # Listing EXTERNAL_DIR2
 --list_files $EXTERNAL_DIR2/dbtest/ *
+
+--echo # List default directory. t8d's p1 partition should be present
+--list_files $MYSQLD_DATADIR/dbtest *
 
 --echo # Restart the server
 --let $innodb_dirs=$EXTERNAL_DIR;$EXTERNAL_DIR2
@@ -318,7 +325,7 @@ let restart_parameters = restart: --innodb-directories=$innodb_dirs;
 ALTER TABLE dbtest.t8a FORCE;
 ALTER TABLE dbtest.t8b FORCE, ALGORITHM=INPLACE;
 ALTER TABLE dbtest.t8c FORCE, ALGORITHM=COPY;
-
+ALTER TABLE dbtest.t8d FORCE, ALGORITHM=COPY;
 --echo # Check that for partition p0 for t8a, t8b, t8c still exist in EXTERNAL_DIR and partition p1 for for t8a, t8b, t8c still exist in EXTERNAL_DIR2
 
 --echo # Listing EXTERNAL_DIR
@@ -327,10 +334,13 @@ ALTER TABLE dbtest.t8c FORCE, ALGORITHM=COPY;
 --echo # Listing EXTERNAL_DIR2
 --list_files $EXTERNAL_DIR2/dbtest/ *
 
+--echo # List default directory. t8d's p1 partition should be present
+--list_files $MYSQLD_DATADIR/dbtest *
+
 --echo # Shutdown server
 --source include/shutdown_mysqld.inc
 
---echo # Now lets move all partitioned tables p0 of t8a, t8b, t8c from EXTERNAL_DIR and partitioned tables p1 of t8a, t8b, t8c from EXTERNAL_DIR2 to default directory
+--echo # Now lets move all partitioned tables p0 of t8a, t8b, t8c, t8d from EXTERNAL_DIR and partitioned tables p1 of t8a, t8b, t8c from EXTERNAL_DIR2 to default directory
 --copy_files_wildcard $EXTERNAL_DIR/dbtest/ $MYSQLD_DATADIR/dbtest/ *
 --remove_files_wildcard $EXTERNAL_DIR/dbtest/ *
 --copy_files_wildcard $EXTERNAL_DIR2/dbtest/ $MYSQLD_DATADIR/dbtest/ *
@@ -347,7 +357,19 @@ ALTER TABLE dbtest.t8a FORCE;
 ALTER TABLE dbtest.t8b FORCE, ALGORITHM=INPLACE;
 ALTER TABLE dbtest.t8c FORCE, ALGORITHM=COPY;
 
---echo # Check that all the partitioned tables for t8a, t8b, t8c now exist in default directory
+--echo # Check that all the partitioned tables for t8a, t8b, t8c and t8d now exist in default directory
+--list_files $MYSQLD_DATADIR/dbtest *
+
+--echo # Check that EXTERNAL_DIR and EXTERNAL_DIR2 are empty
+--echo # Listing EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Listing EXTERNAL_DIR2
+--list_files $EXTERNAL_DIR2/dbtest/ *
+
+ALTER TABLE dbtest.t8d FORCE, ALGORITHM=COPY;
+
+--echo # Check that all the partitioned tables for t8a, t8b, t8c and t8d now exist in default directory
 --list_files $MYSQLD_DATADIR/dbtest *
 
 --echo # Check that EXTERNAL_DIR and EXTERNAL_DIR2 are empty
@@ -361,6 +383,7 @@ ALTER TABLE dbtest.t8c FORCE, ALGORITHM=COPY;
 DROP TABLE dbtest.t8a;
 DROP TABLE dbtest.t8b;
 DROP TABLE dbtest.t8c;
+DROP TABLE dbtest.t8d;
 
 --echo # Clean up for other tests
 --remove_files_wildcard $EXTERNAL_DIR/dbtest/ *

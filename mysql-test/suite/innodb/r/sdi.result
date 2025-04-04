@@ -146,13 +146,13 @@ SUBPARTITION p33));
 # Should only have tablespace SDI
 # restart: --datadir=MYSQLD_DATADIR --innodb_redo_log_capacity=LOG_CAPACITY
 # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
-ALTER TABLE t1 ADD COLUMN b INT;
+ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT;
 # ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index
 ALTER TABLE t2 ADD INDEX k1(b(10));
 # ALTER TABLE t3, DROP INDEX, Verify SDI doesn't show dropped index
 ALTER TABLE t3 DROP INDEX k2;
 # ALTER TABLE t4, DROP column, Verify SDI doesn't show dropped column
-ALTER TABLE t4 DROP COLUMN d;
+ALTER TABLE t4 DROP COLUMN d, ALGORITHM=INSTANT;
 # ALTER TABLE RENAME column
 ALTER TABLE t10 CHANGE a pk INT;
 # Drop virtual column, verify SDI is updated

@@ -229,6 +229,7 @@ void mt_disable_global_variables(Uint32 self);
 void mt_init_global_variables_ptr_instances(Uint32, void **, size_t);
 void mt_init_global_variables_uint32_ptr_instances(Uint32, void **, size_t);
 void mt_init_global_variables_uint32_instances(Uint32, void **, size_t);
+void mt_init_global_variables_block(Uint32, class SimulatedBlock *);
 #endif
 
 #undef JAM_FILE_ID

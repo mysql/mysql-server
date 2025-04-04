@@ -1,0 +1,68 @@
+# Prepare table:
+CREATE TABLE t1 (c1 INT);
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES (1,1);
+# Case 1:
+# -------
+# Simulate insert log record without common prefix compression when
+# versions are different
+# Disable page cleaners and prevent page flushing/checkpointing.
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL DEBUG="+d,page_ins_simulate_differing_versions";
+# Generate redo logs
+INSERT INTO t1 VALUES (1,1);
+# Simulate crash and recovery to apply redo logs
+# Kill and restart
+SET GLOBAL DEBUG="-d,page_ins_simulate_differing_versions";
+SELECT * FROM t1;
+c1	c2
+1	1
+1	1
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Case 2:
+# -------
+# Simulate insert log record with common prefix compression when
+# versions are same
+# Disable page cleaners and prevent page flushing/checkpointing.
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+# Generate redo logs
+INSERT INTO t1 VALUES (1,1);
+# Simulate crash and recovery to apply redo logs
+# Kill and restart
+SELECT * FROM t1;
+c1	c2
+1	1
+1	1
+1	1
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Resume page cleaners after recovery
+SET GLOBAL debug = "-d,gtid_persist_flush_disable";
+SET GLOBAL debug = "-d,disable_se_persists_gtid";
+SET GLOBAL innodb_dict_stats_disabled_debug = 0;
+SET GLOBAL innodb_master_thread_disabled_debug = 0;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
+SET GLOBAL innodb_checkpoint_disabled = 0;
+SET GLOBAL innodb_purge_stop_now = 0;
+SET GLOBAL innodb_purge_run_now = 1;
+# Cleanup:
+DROP TABLE t1;

@@ -319,6 +319,11 @@ class Binlog_group_commit_ctx {
     @param ticket The ticket to set the THD session to.
    */
   void set_session_ticket(binlog::BgcTicket ticket);
+#ifndef NDEBUG
+  /// @brief Pushes new bgc ticket, for testing purposes
+  void push_new_ticket();
+#endif
+
   /**
     Assigns the THD session to the ticket accepting assignments in the
     ticket manager. The method is idem-potent within the execution of a

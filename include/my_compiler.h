@@ -367,4 +367,26 @@ constexpr bool unlikely(bool expr) { return expr; }
 #define MY_COMPILER_CLANG_WORKAROUND_FALSE_POSITIVE_UNUSED_VARIABLE_WARNING() \
   MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wunused-variable")
 
+/**
+ * ignore -Wsuggest-attribute=format compiler warnings for \@see \@ref
+ *
+ * @code
+ * MY_COMPILER_DIAGNOSTIC_PUSH()
+ * MY_COMPILER_GCC_WORKAROUND_FALSE_POSITIVE_SUGGEST_ATTRIBUTE_FORMAT()
+ * ...
+ * MY_COMPILER_DIAGNOSTIC_POP()
+ * @endcode
+ *
+ * allows to work around false positives -Wsuggest-attribute=format warnings
+ * like:
+ *
+ * - \@sa \@ref
+ * - \@see \@ref
+ * - \@return \@ref
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=116954
+ *
+ */
+#define MY_COMPILER_GCC_WORKAROUND_FALSE_POSITIVE_SUGGEST_ATTRIBUTE_FORMAT() \
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wsuggest-attribute=format")
+
 #endif /* MY_COMPILER_INCLUDED */

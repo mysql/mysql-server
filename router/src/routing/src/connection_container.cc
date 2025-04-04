@@ -43,8 +43,10 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
                            return node.address.str() ==
                                   connection.first->get_destination_id();
                          }) == nodes.end()) {
-          const auto server_address = connection.first->get_server_address();
-          const auto client_address = connection.first->get_client_address();
+          auto stats = connection.first->get_stats();
+
+          const auto server_address = stats.server_address;
+          const auto client_address = stats.client_address;
 
           log_info("Disconnecting client %s from server %s",
                    client_address.c_str(), server_address.c_str());
@@ -64,7 +66,7 @@ MySQLRoutingConnectionBase *ConnectionContainer::get_connection(
 
   auto lookup = [&ret, &client_endpoint](auto &connection) {
     if (ret) return;
-    const auto client_address = connection.first->get_client_address();
+    const auto client_address = connection.first->get_stats().client_address;
     if (client_address == client_endpoint) {
       ret = connection.first;
     }

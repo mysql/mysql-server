@@ -64,6 +64,13 @@ if (mysqld.global.gr_pos === undefined) {
   mysqld.global.gr_pos = 0;
 }
 
+if (mysqld.global.server_version === undefined) {
+  // Let's keep the default server version as some known compatible version.
+  // If there is a need to some specific compatibility checks, this should be
+  // overwritten from the test.
+  mysqld.global.server_version = "8.0.39";
+}
+
 var members = gr_memberships.gr_members(
     mysqld.global.gr_node_host, mysqld.global.gr_nodes);
 
@@ -138,7 +145,8 @@ var router_start_transaction =
     auth: {
       username: mysqld.global.user,
       password: mysqld.global.password,
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {

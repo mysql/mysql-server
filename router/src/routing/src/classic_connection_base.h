@@ -242,6 +242,7 @@ class MysqlRoutingClassicConnectionBase
                                     std::make_unique<ClassicProtocolState>()})},
         read_timer_{socket_splicer()->client_conn().connection()->io_ctx()},
         connect_timer_{socket_splicer()->client_conn().connection()->io_ctx()} {
+    client_address(socket_splicer_->client_conn().endpoint());
   }
 
  public:
@@ -279,14 +280,6 @@ class MysqlRoutingClassicConnectionBase
 
   SslMode dest_ssl_mode() const {
     return this->socket_splicer()->dest_ssl_mode();
-  }
-
-  std::string get_client_address() const override {
-    return socket_splicer()->client_conn().endpoint();
-  }
-
-  std::string get_server_address() const override {
-    return socket_splicer()->server_conn().endpoint();
   }
 
   void disconnect() override;

@@ -43,8 +43,9 @@
 /*
   HAVE_BACKTRACE - Linux, FreeBSD, OSX, Solaris
   _WIN32 - Windows
+  HAVE_EXT_BACKTRACE - Unixes without backtrace(3)
 */
-#if defined(HAVE_BACKTRACE) || defined(_WIN32)
+#if defined(HAVE_BACKTRACE) || defined(_WIN32) || defined(HAVE_EXT_BACKTRACE)
 #define HAVE_STACKTRACE 1
 void my_init_stacktrace();
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack);
@@ -54,7 +55,7 @@ void my_safe_puts_stderr(const char *val, size_t max_len);
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 void my_create_minidump(const char *name, HANDLE process, DWORD pid);
 #endif
-#endif /* HAVE_BACKTRACE || _WIN32 */
+#endif /* HAVE_BACKTRACE || _WIN32 || HAVE_EXT_BACKTRACE */
 
 void my_write_core(int sig);
 

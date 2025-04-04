@@ -1,0 +1,31 @@
+connect  con1, localhost, root,,;
+#
+# Bug#36808088 Inplace ALTER TABLE might fail with duplicate key error
+# if concurrent insertions
+#
+connection default;
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('ccccc'), ('ddddd'), ('eeeee');
+connection con1;
+SET DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+# Send ALTER TABLE INPLACE which rebuilds table.
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+INSERT INTO t1 VALUES ('ccaaa');
+SET DEBUG_SYNC='now SIGNAL go';
+connection con1;
+# Reap ALTER TABLE
+# Before fix it failed with duplicate key error.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+# Test Cleanup.
+SET DEBUG_SYNC= 'RESET';
+connection default;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+#
+# Cleanup
+disconnect con1;

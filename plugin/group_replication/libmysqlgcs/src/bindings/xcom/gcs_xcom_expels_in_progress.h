@@ -77,16 +77,17 @@ class Gcs_xcom_expels_in_progress {
       Gcs_xcom_nodes const &expels_issued);
 
   /**
-   * @brief Forget about any expel we issued for the nodes in @c
-   * members_that_left that have taken effect in the XCom configuration
-   * identified by @c config_id_where_members_left.
+   * @brief Forget about any expel we issued for the members that have taken
+   * effect in the XCom configuration identified by
+   * @c config_id_where_members_under_effect.
    *
-   * @param config_id_where_members_left XCom configuration where the nodes left
-   * @param members_that_left nodes that left
+   * @param config_id_where_members_under_effect XCom configuration where
+   *        the nodes that have left or rejoined
+   * @param members_under_effect  nodes that have left or rejoined
    */
   void forget_expels_that_have_taken_effect(
-      synode_no const config_id_where_members_left,
-      std::vector<Gcs_member_identifier *> const &members_that_left);
+      synode_no const config_id_where_members_under_effect,
+      std::vector<Gcs_member_identifier *> const &members_under_effect);
 
   /**
    * @brief How many of the expels in progress do not pertain to suspected
@@ -131,6 +132,15 @@ class Gcs_xcom_expels_in_progress {
    */
   bool contains(Gcs_member_identifier const &member,
                 synode_no const synode) const;
+
+  /**
+   * @brief Whether there is an expel in progress for @c member issued.
+   *
+   * @param member member to check
+   * @retval true there is an expel in progress for @c member
+   * @retval false otherwise
+   */
+  bool contains(Gcs_member_identifier const &member) const;
 
  private:
   std::vector<std::pair<Gcs_member_identifier, synode_no>> m_expels_in_progress;

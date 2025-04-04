@@ -6352,3 +6352,25 @@ SELECT * FROM v1;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#33200087: DROP VIEW IF EXISTS results in error when having a table
+--echo #               with the same name
+--echo #
+
+CREATE TABLE foo1 (a BOOL);
+--echo # Without the patch, the following query reports an error.
+DROP VIEW IF EXISTS foo1;
+
+CREATE TABLE foo2 (b BOOL);
+CREATE VIEW v1 AS SELECT * FROM foo2;
+--echo # Without the patch, the following query reports an error while trying to
+--echo # drop `foo1`. Thus the view v1 is not dropped even though it exists.
+DROP VIEW IF EXISTS foo1, v1;
+
+# Confirming that the view v1 was dropped.
+--let $assert_text= View v1 should not exist
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME=\'v1\']" = 0
+--source include/assert.inc
+
+DROP TABLE foo2, foo1;

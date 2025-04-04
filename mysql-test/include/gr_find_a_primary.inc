@@ -4,6 +4,7 @@
 #
 # Result is placed on var:
 # - $group_replication_primary_connection_out_var
+# - $group_replication_primary_connection_number_out_var
 # - $group_replication_found_primary_out_var
 #
 # It relies on $rpl_server_count to iterate through
@@ -24,6 +25,15 @@
 #   --source include/rpl_connection.inc
 #   # now on primary
 # }
+#
+# --source include/gr_find_a_primary.inc
+# if ($group_replication_primary_connection_number_out_var)
+# {
+#   --let $rpl_server_number= $group_replication_primary_connection_number_out_var
+#   --source include/rpl/reconnect.inc
+#   # now on primary
+# }
+
 
 --let $include_filename= gr_find_a_primary.inc
 --source include/begin_include_file.inc
@@ -33,6 +43,7 @@
 
 --let $group_replication_found_primary_out_var= 0
 --let $group_replication_primary_connection_out_var=
+--let $group_replication_primary_connection_number_out_var=
 
 # Let's wait 1 second between each try
 --let $_retry_find_primary= $wait_timeout
@@ -53,6 +64,7 @@ while ($_retry_find_primary)
     {
       --let $group_replication_found_primary_out_var= 1
       --let $group_replication_primary_connection_out_var= server$_i_find_primary
+      --let $group_replication_primary_connection_number_out_var= $_i_find_primary
       --let $_i_find_primary= 0
     }
 

@@ -1,0 +1,224 @@
+# Bug#36511673 MLOG_FILE_EXTEND log record is not redo logged for System
+# tablespace
+# Change buffer persists in the system tablespace. System tablespace size
+# may expand beyond the default size when then change buffer grows. This
+# test verifies that System tablespace expansion is redo logged and,
+# crash recovery works.
+
+--source include/linux.inc
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+--source include/count_sessions.inc
+
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/test_data_dir;
+let $MYSQLD_ERROR_LOG = $MYSQL_TMP_DIR/mysqld_test.err;
+
+# It is pre-requisite of this test to have system tablespace of default size.
+# It is possible only if test explicitly creates the new datadir for the
+# stability (e.g. runing with --repeat option) reasons.
+--echo # Initialize new data directory...
+let $MYSQLD_EXTRA_ARGS = --innodb_page_size=16384 --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG;
+--source include/initialize_datadir.inc
+let restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG;
+
+--echo # Restart on the new data directory...
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/test_data_dir
+--source include/restart_mysqld.inc
+
+# Expand buffer pool to ~1G
+let $wait_timeout = 180;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+SET GLOBAL innodb_buffer_pool_size = 1082130432;
+--source include/wait_condition.inc
+SET GLOBAL innodb_redo_log_capacity=52428800;
+SET GLOBAL innodb_change_buffering=all;
+SET GLOBAL innodb_change_buffer_max_size=50;
+SET GLOBAL innodb_master_thread_disabled_debug = ON;
+
+# Verify if the values are as intended
+SELECT @@GLOBAL.innodb_buffer_pool_size;
+SELECT @@GLOBAL.innodb_redo_log_capacity;
+SELECT @@GLOBAL.innodb_data_file_path;
+SELECT @@GLOBAL.innodb_change_buffering;
+SELECT @@GLOBAL.innodb_change_buffer_max_size;
+
+SET GLOBAL innodb_disable_background_merge=ON;
+
+CREATE DATABASE db1;
+
+--disable_query_log
+
+--DELIMITER //
+
+CREATE PROCEDURE db1.CreateNTables(IN dbName VARCHAR(255),
+            IN tableNamePrefix VARCHAR(255), IN COUNT INT)
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    DECLARE fullTableName VARCHAR(255);
+
+    WHILE i <= COUNT DO
+        SET fullTableName := CONCAT(dbName, '.', tableNamePrefix, i);
+        -- Create table
+        SET @sql := CONCAT(
+        'CREATE TABLE ', fullTableName, ' (',
+        '`id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,',
+        '`k` BIGINT UNSIGNED NOT NULL DEFAULT ''0'',',
+        '`nk` INT NOT NULL DEFAULT ''0'',',
+        '`c` VARCHAR(2048),',
+        '`pad` VARCHAR(2048),',
+        'PRIMARY KEY (`id`),',
+        'KEY `idx_k` (`k`),',
+        'KEY `idx_knk` (`nk`, `k`),',
+        'KEY `idx_nk` (`nk`),',
+        'KEY `idx_c` (`c`(512)),',
+        'KEY `idx_pad` (`pad`(512))',
+        ') ENGINE=InnoDB ',
+        'DEFAULT CHARSET=ascii COLLATE=ascii_bin;'
+        );
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SET i = i + 1;
+    END WHILE;
+END //
+
+
+CREATE PROCEDURE db1.InsertIntoRecords (IN schemaName VARCHAR(255),
+            IN tableName VARCHAR(255), IN two_to_power INT)
+BEGIN
+  DECLARE fullTableName VARCHAR(255);
+  SET fullTableName := CONCAT(schemaName, '.', tableName);
+  SET @stm := CONCAT('INSERT INTO ', fullTableName , ' (k, nk, c, pad)',
+                     ' SELECT 2000, nk, c, pad FROM db1.t1');
+  PREPARE stmt FROM @stm;
+  SET @idx := two_to_power;
+  WHILE (@idx > 0) DO
+    EXECUTE stmt;
+    SET @idx := @idx - 1;
+  END WHILE;
+  DEALLOCATE PREPARE stmt;
+END //
+
+--DELIMITER ;
+
+--enable_query_log
+let $max_connections=4;
+--echo # Create $max_connections tables
+eval CALL db1.CreateNTables('db1', 't', $max_connections);
+
+--echo
+--echo # Create Connection objects
+let $counter = 1;
+while($counter <= $max_connections){
+  connect (con_$counter, localhost, root,,);
+  inc $counter;
+}
+
+--echo
+--echo # Insert record in each table
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  send_eval INSERT INTO db1.t$counter VALUES(0, 1000 , 1, REPEAT('a', 2048), REPEAT('b', 2048));
+  inc $counter;
+}
+
+--echo # Wait for inserts to finish
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  reap;
+  inc $counter;
+}
+
+--echo
+--echo # Insert total 2^8 records in each table
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  send_eval CALL db1.InsertIntoRecords('db1', 't$counter', 8);
+  inc $counter;
+}
+
+--echo
+--echo # Wait for insert into tables to finish
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  reap;
+  inc $counter;
+}
+
+connection default;
+--echo # Disable page cleaner to have redo logs for recovery later on
+--source suite/innodb/include/log_disable_page_cleaners.inc
+SET @@GLOBAL.DEBUG='+d,ib_redo_log_system_tablespace_expansion';
+
+# Update the records in the batches of 5
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  send_eval UPDATE db1.t$counter SET k = id + k , c = REPEAT(3, 90) WHERE id % 5 = 0;
+  inc $counter;
+}
+
+--echo
+--echo # Wait for Updates to finish
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  reap;
+  inc $counter;
+}
+
+--echo
+--echo # Delete records
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  send_eval DELETE FROM db1.t$counter WHERE id % 4 = 1 ORDER BY id;
+  inc $counter;
+}
+
+--echo
+--echo # Wait for Deletes to finish #1
+let $counter = 1;
+while($counter <= $max_connections){
+  connection con_$counter;
+  reap;
+  inc $counter;
+}
+
+connection default;
+
+--file_exists $MYSQLD_ERROR_LOG
+--let SEARCH_FILE=$MYSQLD_ERROR_LOG
+--let SEARCH_PATTERN=System tablespace expansion is redo logged
+--source include/search_pattern.inc
+
+SET @@GLOBAL.DEBUG='-d,ib_redo_log_system_tablespace_expansion';
+
+--echo # Verify no issues observed during crash recovery
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/test_data_dir
+--source include/kill_and_restart_mysqld.inc
+SELECT id, k FROM db1.t1 ORDER BY id LIMIT 1;
+DROP DATABASE db1;
+
+--echo
+--echo # Cleanup
+--echo
+
+let restart_parameters = restart:;
+--source include/restart_mysqld.inc
+--remove_file $MYSQLD_ERROR_LOG
+--force-rmdir $MYSQLD_DATADIR
+
+let $counter = 1;
+while($counter <= $max_connections){
+  disconnect con_$counter;
+  inc $counter;
+}
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,420 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1.
+#    Start an inbound channel that replicates from server4.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+############################################################
+# 2. Create table t1 without consuming a GTID to cause a future
+#    `group_replication_recovery` channel error.
+#    The goal is make the join operation as short as possible,
+#    so that we can maximize the number of joins per test.
+#    Join server2 to the group.
+[connection server2]
+SET SESSION sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+
+############################################################
+# 3. Create table t1 without consuming a GTID to cause a future
+#    `group_replication_recovery` channel error.
+#    The goal is make the join operation as short as possible,
+#    so that we can maximize the number of joins per test.
+#    Join server3 to the group.
+[connection server3]
+SET SESSION sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+
+############################################################
+# 4. Execute a procedure on server4 that commits transactions
+#    "forever" (until we kill the session).
+[connection server4]
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE EVENT ev1
+ON SCHEDULE
+EVERY 1 SECOND
+DO
+BEGIN
+DECLARE i INTEGER;
+SET i = 0;
+WHILE i < 5000 DO
+INSERT INTO t1() VALUES ();
+SET i = i + 1;
+END WHILE;
+END |
+
+############################################################
+# 5. Wait for the duplicate table error on server2 and server3.
+[connection server2]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+
+############################################################
+# 6. Attempt to rejoin server2 and server3 50 times.
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server2]
+START GROUP_REPLICATION;
+Got one of the listed errors
+[connection server3]
+START GROUP_REPLICATION;
+Got one of the listed errors
+
+############################################################
+# 7. There must be 0 applier threads on server1 with the state
+#    'Waiting for Binlog Group Commit ticket'.
+[connection server1]
+
+############################################################
+# 8. Clean up.
+[connection server3]
+DROP TABLE t1;
+include/suppress_messages.inc
+# Connection 3 suppresses message <Replica SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*>.
+# Connection 3 suppresses message <The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.>.
+# Connection 3 suppresses message <Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.>.
+# Connection 3 suppresses message <The server was automatically set into read only mode after an error was detected.>.
+# Connection 3 suppresses message <Skipping leave operation: concurrent attempt to leave the group is on-going.>.
+# Connection 3 suppresses message <Skipping leave operation: member already left the group.>.
+# Connection 3 suppresses message <Unable to confirm whether the server has left the group or not. Check *.*>.
+# Connection 3 suppresses message <The server was automatically set into read only mode after an error was detected.>.
+# Connection 3 suppresses message <There was a previous plugin error while the member joined the group. The member will now exit the group.>.
+# Connection 3 suppresses message <Message received while the plugin is not ready, message discarded.>.
+# Connection 3 suppresses message <Unable to initialize the Group Replication applier module.>.
+# Connection 3 suppresses message <.*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*>.
+# Connection 3 suppresses message <.*Coordinator experienced an error or was killed while scheduling an event at.*>.
+[connection server2]
+DROP TABLE t1;
+include/suppress_messages.inc
+# Connection 2 suppresses message <Replica SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*>.
+# Connection 2 suppresses message <The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.>.
+# Connection 2 suppresses message <Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.>.
+# Connection 2 suppresses message <The server was automatically set into read only mode after an error was detected.>.
+# Connection 2 suppresses message <Skipping leave operation: concurrent attempt to leave the group is on-going.>.
+# Connection 2 suppresses message <Skipping leave operation: member already left the group.>.
+# Connection 2 suppresses message <Unable to confirm whether the server has left the group or not. Check *.*>.
+# Connection 2 suppresses message <The server was automatically set into read only mode after an error was detected.>.
+# Connection 2 suppresses message <There was a previous plugin error while the member joined the group. The member will now exit the group.>.
+# Connection 2 suppresses message <Message received while the plugin is not ready, message discarded.>.
+# Connection 2 suppresses message <Unable to initialize the Group Replication applier module.>.
+# Connection 2 suppresses message <.*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*>.
+# Connection 2 suppresses message <.*Coordinator experienced an error or was killed while scheduling an event at.*>.
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/stop_group_replication.inc
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+DROP EVENT ev1;
+DROP TABLE t1;
+include/suppress_messages.inc
+# Connection 1 suppresses message <The transaction '[a-z0-9-]*:[0-9]*' will commit out of order with respect to its source to follow the group global order.>.
+[connection server4]
+DROP EVENT ev1;
+DROP TABLE t1;
+include/group_replication_end.inc

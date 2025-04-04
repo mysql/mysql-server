@@ -542,7 +542,7 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
       if (ec == TlsErrc::kWantRead) return Result::RecvFromClient;
 
       log_info("accepting TLS connection from %s failed: %s",
-               connection()->get_client_address().c_str(),
+               connection()->socket_splicer()->client_conn().endpoint().c_str(),
                ec.message().c_str());
 
       stage(Stage::Error);

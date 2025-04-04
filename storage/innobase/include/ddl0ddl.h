@@ -550,8 +550,10 @@ struct Context {
 
   /** Handle auto increment.
   @param[in] row                Row with autoinc column.
+  @param[in] heap               Heap to use for allocation of autoinc column.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t handle_autoinc(const dtuple_t *row) noexcept;
+  [[nodiscard]] dberr_t handle_autoinc(const dtuple_t *row,
+                                       mem_heap_t *heap) noexcept;
 
   /** @return true if any virtual columns are involved. */
   [[nodiscard]] bool has_virtual_columns() const noexcept;

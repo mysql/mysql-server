@@ -1,0 +1,51 @@
+--source include/have_debug.inc
+
+--echo # Prepare table:
+CREATE TABLE t1 (c1 INT);
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES (1,1);
+
+--echo # Case 1:
+--echo # -------
+--echo # Simulate insert log record without common prefix compression when
+--echo # versions are different
+
+--echo # Disable page cleaners and prevent page flushing/checkpointing.
+--source ../include/log_disable_page_cleaners.inc
+
+SET GLOBAL DEBUG="+d,page_ins_simulate_differing_versions";
+
+--echo # Generate redo logs
+INSERT INTO t1 VALUES (1,1);
+
+--echo # Simulate crash and recovery to apply redo logs
+--source include/kill_and_restart_mysqld.inc
+
+SET GLOBAL DEBUG="-d,page_ins_simulate_differing_versions";
+
+SELECT * FROM t1;
+CHECK TABLE t1 EXTENDED;
+
+--echo # Case 2:
+--echo # -------
+--echo # Simulate insert log record with common prefix compression when
+--echo # versions are same
+
+--echo # Disable page cleaners and prevent page flushing/checkpointing.
+--source ../include/log_disable_page_cleaners.inc
+
+--echo # Generate redo logs
+INSERT INTO t1 VALUES (1,1);
+
+--echo # Simulate crash and recovery to apply redo logs
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t1;
+CHECK TABLE t1 EXTENDED;
+
+--echo # Resume page cleaners after recovery
+--source ../include/log_enable_page_cleaners.inc
+
+--echo # Cleanup:
+DROP TABLE t1;
+

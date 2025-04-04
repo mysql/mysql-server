@@ -4022,6 +4022,106 @@ int runCrashNodeDuringSR(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
+int checkMultipleNGs(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+
+  if (restarter.getNumNodeGroups() < 2) {
+    g_err << "Need multiple nodegroups for test" << endl;
+    return NDBT_SKIPPED;
+  }
+
+  return NDBT_OK;
+}
+
+int runGCPSaveLagLcpSR(NDBT_Context *ctx, NDBT_Step *step) {
+  /**
+   * Test behaviour with sequence :
+   *    Multiple nodegroups
+   *    GCP Save stalled on every node except one
+   *    ...
+   *    LCP triggered
+   *    ...
+   *    System failure
+   *    System restart
+   *
+   * This exercises code which copies the DIH 'recoverable GCI'
+   * metadata around the system.
+   * A partially complete GCP is not yet restorable - the execution
+   * of an LCP should not cause a subsequent SR to attempt to
+   * restore it.
+   */
+  NdbRestarter restarter;
+
+  const Uint32 startLcpDelaySecs = 10;
+  const Uint32 postLcpDelaySecs = 5;
+  const Uint32 stallGCPSaveEICode = 7237;
+
+  const int node = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+  /* Inject error on all nodes other than the node */
+  g_err << "Injecting error " << stallGCPSaveEICode
+        << " to stall GCP_SAVE on all nodes "
+        << " other than " << node << endl;
+  if (restarter.insertErrorInAllNodes(stallGCPSaveEICode) != 0) {
+    g_err << "Error inserting error in all" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
+  if (restarter.insertErrorInNode(node, 0) != 0) {
+    g_err << "Error clearing error in node " << node << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
+
+  g_err << "Delay " << startLcpDelaySecs << " seconds before triggering LCP"
+        << endl;
+  NdbSleep_SecSleep(startLcpDelaySecs);
+
+  g_err << "Triggering LCP" << endl;
+  const int startLcpDumpCode = 7099;
+  if (restarter.dumpStateAllNodes(&startLcpDumpCode, 1) != 0) {
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
+
+  g_err << "Waiting for " << postLcpDelaySecs
+        << " seconds after triggering Lcp." << endl;
+  NdbSleep_SecSleep(postLcpDelaySecs);
+
+  g_err << "Triggering immediate System Restart" << endl;
+  if (restarter.restartAll(false,  // initial
+                           true,   // nostart
+                           true,   // abort
+                           false)  // force
+      != 0) {
+    restarter.insertErrorInAllNodes(0);
+    g_err << "Triggering SR failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Waiting for NoStart state" << endl;
+  if (restarter.waitClusterNoStart() != 0) {
+    g_err << "Failed waiting for nodes to enter NoStart state" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Starting cluster" << endl;
+  if (restarter.startAll() != 0) {
+    g_err << "Failed to request start of all nodes" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Waiting for cluster to recover" << endl;
+  if (restarter.waitClusterStarted() != 0) {
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Cluster recovered successfully" << endl;
+
+  return NDBT_OK;
+}
+
 /**************************************************************************/
 
 NDBT_TESTSUITE(testSystemRestart);
@@ -4511,6 +4611,13 @@ TESTCASE("SystemDownDuringSR",
          "Check recoverability when system goes down "
          "during system restart") {
   STEP(runCrashNodeDuringSR);
+}
+TESTCASE("GCPSaveLagLcpSR",
+         "Check recoverability when system fails during "
+         "GCP Save lag with an intermediate LCP start") {
+  INITIALIZER(checkMultipleNGs);
+  INITIALIZER(runWaitStarted);
+  STEP(runGCPSaveLagLcpSR);
 }
 NDBT_TESTSUITE_END(testSystemRestart)
 

@@ -187,6 +187,7 @@ class DumpStateOrd {
     TcSetTransientPoolMaxSize = 2556,
     TcResetTransientPoolMaxSize = 2557,
     TcSetTransErrorLogLevel = 2558,
+    TcNdbInfoApiConnectRecFull = 2559,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     /**

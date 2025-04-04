@@ -1508,7 +1508,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                   ] /* setup_range_conditions */,
                   "group_index_range": {
                     "chosen": false,
-                    "cause": "not_single_table"
+                    "cause": "not_original_query_table"
                   } /* group_index_range */,
                   "skip_scan_range": {
                     "chosen": false,

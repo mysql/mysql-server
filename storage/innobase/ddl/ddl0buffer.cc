@@ -225,7 +225,7 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer,
     if (err != DB_SUCCESS) {
       return err;
     }
-    ut_ad(ptr > io_buffer.first);
+    ut_ad(ptr >= io_buffer.first);
     ut_a(size_t(ptr - io_buffer.first) < IO_BLOCK_SIZE);
     /* After writing buffer contains [0, IO_BLOCK_SIZE) bytes,
     so aligning it to  IO_BLOCK_SIZE guarantees space for

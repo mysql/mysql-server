@@ -87,7 +87,7 @@ var defaults = {
   router_ro_x_port: "",
   router_metadata_user: "",
   rest_user_credentials: [],
-  version: "8.0.24",  // SELECT @@version;
+  version: "8.0.39",  // SELECT @@version;
   router_expected_target_cluster: ".*",
   router_options: "",
 

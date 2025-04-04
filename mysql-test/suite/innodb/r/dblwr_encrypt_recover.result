@@ -7,6 +7,7 @@ INSERT INTO t1 VALUES(4, repeat('-',12));
 INSERT INTO t1 VALUES(5, repeat('.',12));
 COMMIT WORK;
 # Wait for purge to complete
+SET GLOBAL innodb_monitor_enable = module_log;
 # Ensure that dirty pages of table t1 is flushed.
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;

@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef INNOBASE_FTS0TYPES_H
 #define INNOBASE_FTS0TYPES_H
 
+#include <cstdint>
 #include "fts0fts.h"
 #include "fut0fut.h"
 #include "pars0pars.h"
@@ -309,11 +310,11 @@ extern const fts_index_selector_t fts_index_selector[];
 /** It's defined in fts/fts0fts.c */
 extern const fts_index_selector_t fts_index_selector_5_7[];
 
-/** Decode and return the integer that was encoded using our VLC scheme.*/
-inline ulint fts_decode_vlc(
-    /*!< out: value decoded */
-    byte **ptr); /*!< in: ptr to decode from, this ptr is
-                 incremented by the number of bytes decoded */
+/** Decode and return the integer that was encoded using our VLC scheme.
+@param[in,out]  ptr     ptr to decode from, this ptr is incremented
+                        by the number of bytes decoded
+@return value decoded */
+inline uint64_t fts_decode_vlc(byte **ptr);
 
 /** Duplicate a string.
 @param[in]      dst     dup to here
@@ -323,17 +324,16 @@ inline ulint fts_decode_vlc(
 inline void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
                            mem_heap_t *heap);
 
-/** Return length of val if it were encoded using our VLC scheme. */
-inline ulint fts_get_encoded_len(
-    /*!< out: length of value
-     encoded, in bytes */
-    ulint val); /*!< in: value to encode */
+/** Return length of val if it were encoded using our VLC scheme.
+@param[in]     val      value to encode
+@return length of value encoded, in bytes */
+inline unsigned int fts_get_encoded_len(uint64_t val);
 
 /** Encode an integer using our VLC scheme and return the length in bytes.
 @param[in]      val     value to encode
 @param[in]      buf     buffer, must have enough space
 @return length of value encoded, in bytes */
-inline ulint fts_encode_int(ulint val, byte *buf);
+inline unsigned int fts_encode_int(uint64_t val, byte *buf);
 
 /** Get the selected FTS aux INDEX suffix. */
 inline const char *fts_get_suffix(ulint selected); /*!< in: selected index */

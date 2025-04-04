@@ -37,7 +37,6 @@
 #include <mysqld_error.h>
 #include <openssl/ssl.h>
 
-#include "duk_logging.h"
 #include "duk_module_shim.h"
 #include "duk_node_fs.h"
 #include "duktape.h"
@@ -46,6 +45,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -808,7 +808,11 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
   auto *ctx = pimpl_->ctx;
 
   // defaults
-  std::string server_version = "8.0.23-mock";
+  std::string server_version =
+      std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+      std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+      std::to_string(MYSQL_ROUTER_VERSION_PATCH) + "-mock";
+
   uint32_t connection_id = 0;
   classic_protocol::capabilities::value_type server_capabilities =
       classic_protocol::capabilities::long_password |

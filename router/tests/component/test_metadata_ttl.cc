@@ -2886,6 +2886,147 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.test_name;
     });
 
+static constexpr const unsigned long max_supported_version =
+    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
+
+struct ServerCompatTestParam {
+  std::string description;
+  ClusterType cluster_type;
+  std::string tracefile;
+  std::string server_version;
+  bool expect_failure;
+  std::string expected_error_msg;
+};
+
+class CheckServerCompatibilityTest
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<ServerCompatTestParam> {};
+
+/**
+ * @test
+ *       Verifies that the server version is checked for compatibility when the
+ * Router is running with the GR Cluster and Replica Set
+ */
+TEST_P(CheckServerCompatibilityTest, Spec) {
+  RecordProperty("Description", GetParam().description);
+
+  const size_t kClusterNodes{2};
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> md_servers_classic_ports, md_servers_http_ports;
+
+  const std::string tracefile = get_data_dir().join(GetParam().tracefile).str();
+  // launch the mock servers
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    const auto classic_port = port_pool_.get_next_available();
+    const auto http_port = port_pool_.get_next_available();
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    md_servers_classic_ports.push_back(classic_port);
+    md_servers_http_ports.push_back(http_port);
+  }
+
+  for (const auto http_port : md_servers_http_ports) {
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(md_servers_classic_ports), 0,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
+  }
+
+  // launch the router
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type);
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string routing_rw_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const auto router_ro_port = port_pool_.get_next_available();
+  const std::string routing_ro_section = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+  auto &router = launch_router(metadata_cache_section,
+                               routing_rw_section + routing_ro_section,
+                               md_servers_classic_ports, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
+
+  // make sure that Router works
+  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
+  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+
+  // change the cluster nodes versions
+  for (const auto http_port : md_servers_http_ports) {
+    set_mock_server_version(http_port, GetParam().server_version);
+  }
+
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(md_servers_http_ports[0], 5, 5s));
+
+  if (GetParam().expect_failure) {
+    verify_new_connection_fails(router_rw_port);
+    verify_new_connection_fails(router_ro_port);
+
+    EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error_msg, 5s));
+  } else {
+    make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
+    make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CheckServerCompatibilityTest,
+    ::testing::Values(
+        ServerCompatTestParam{
+            "GR Cluster; Server is the same version as Router - OK",
+            ClusterType::GR_V2, "metadata_dynamic_nodes_v2_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            false, ""},
+        ServerCompatTestParam{
+            "Replica Set; Server is the same version as Router - OK",
+            ClusterType::RS_V2, "metadata_dynamic_nodes_v2_ar.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            false, ""},
+        ServerCompatTestParam{
+            "GR Cluster; Server major version is highier than Router - "
+            "we should reject the metadata",
+            ClusterType::GR_V2, "metadata_dynamic_nodes_v2_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "WARNING .* Unsupported MySQL Server version '.*'. Maximal "
+            "supported version is '" +
+                std::to_string(max_supported_version) + "'."},
+        ServerCompatTestParam{
+            "GR Cluster; Server minor version is highier than Router - "
+            "we should reject the metadata",
+            ClusterType::GR_V2, "metadata_dynamic_nodes_v2_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "WARNING .* Unsupported MySQL Server version '.*'. Maximal "
+            "supported version is '" +
+                std::to_string(max_supported_version) + "'."},
+        ServerCompatTestParam{
+            "GR Cluster; Server patch version is highier than Router - OK",
+            ClusterType::GR_V2, "metadata_dynamic_nodes_v2_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),
+            false, ""},
+        ServerCompatTestParam{
+            "Replica Set; Server minor version is highier than Router - "
+            "we should reject the metadata",
+            ClusterType::RS_V2, "metadata_dynamic_nodes_v2_ar.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "WARNING .* Unsupported MySQL Server version '.*'. Maximal "
+            "supported version is '" +
+                std::to_string(max_supported_version) + "'."}));
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());

@@ -629,7 +629,9 @@ bool Item_bool_func2::resolve_type(THD *thd) {
   // Both arguments are needed for type resolving
   assert(args[0] && args[1]);
 
-  Item_bool_func::resolve_type(thd);
+  if (Item_bool_func::resolve_type(thd)) {
+    return true;
+  }
   /*
     See agg_item_charsets() in item.cc for comments
     on character set and collation aggregation.
@@ -4682,11 +4684,16 @@ bool cmp_item_row::allocate_template_comparators(THD *thd, Item *item) {
 void cmp_item_row::store_value(Item *item) {
   DBUG_TRACE;
   assert(comparators != nullptr);
-  item->bring_value();
   item->null_value = false;
-  for (uint i = 0; i < n; i++) {
-    comparators[i]->store_value(item->element_index(i));
-    item->null_value |= item->element_index(i)->null_value;
+  item->bring_value();
+  if (item->null_value) {
+    set_null_value(/*nv=*/true);
+  } else {
+    item->null_value = false;
+    for (uint i = 0; i < n; i++) {
+      comparators[i]->store_value(item->element_index(i));
+      item->null_value |= item->element_index(i)->null_value;
+    }
   }
 }
 
@@ -4712,12 +4719,17 @@ bool cmp_item_row::allocate_value_comparators(MEM_ROOT *mem_root,
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item) {
   cmp_item_row *tmpl = (cmp_item_row *)t;
-  item->bring_value();
   item->null_value = false;
-  for (uint i = 0; i < n; i++) {
-    comparators[i]->store_value_by_template(tmpl->comparators[i],
-                                            item->element_index(i));
-    item->null_value |= item->element_index(i)->null_value;
+  item->bring_value();
+  if (item->null_value) {
+    set_null_value(/*nv=*/true);
+  } else {
+    item->null_value = false;
+    for (uint i = 0; i < n; i++) {
+      comparators[i]->store_value_by_template(tmpl->comparators[i],
+                                              item->element_index(i));
+      item->null_value |= item->element_index(i)->null_value;
+    }
   }
 }
 

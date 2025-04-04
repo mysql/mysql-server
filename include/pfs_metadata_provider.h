@@ -58,6 +58,9 @@ void pfs_set_metadata_lock_status_vc(PSI_metadata_lock *lock,
 void pfs_set_metadata_lock_duration_vc(PSI_metadata_lock *lock,
                                        opaque_mdl_duration mdl_duration);
 
+void pfs_set_metadata_lock_type_vc(PSI_metadata_lock *lock,
+                                   opaque_mdl_type mdl_type);
+
 void pfs_destroy_metadata_lock_vc(PSI_metadata_lock *lock);
 
 struct PSI_metadata_locker *pfs_start_metadata_wait_vc(

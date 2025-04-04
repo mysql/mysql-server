@@ -1,0 +1,218 @@
+################################################################################
+# Validate that a group with an inbound channel does not block when a member joins.
+#
+# Test:
+# 0. The test requires 4 servers:
+#    server1: group primary with an inbound channel replicating from server3
+#    server2: secondary
+#    server3: secondary
+#    server4: standalone server
+# 1. Bootstrap group on server1.
+#    Start an inbound channel that replicates from server4.
+# 2. Create table t1 without consuming a GTID to cause a future
+#    `group_replication_recovery` channel error.
+#    The goal is make the join operation as short as possible,
+#    so that we can maximize the number of joins per test.
+#    Join server2 to the group.
+# 3. Create table t1 without consuming a GTID to cause a future
+#    `group_replication_recovery` channel error.
+#    The goal is make the join operation as short as possible,
+#    so that we can maximize the number of joins per test.
+#    Join server3 to the group.
+# 4. Begin executing a stored procedure that commits transactions continuously
+#    "forever" (until we kill it).
+# 5. Wait for the duplicate table error on server2 and server3.
+# 6. Attempt to rejoin server2 and server3 50 times.
+# 7. There must be 0 applier threads on server1 with the state
+#    'Waiting for Binlog Group Commit ticket'.
+# 8. Clean up.
+################################################################################
+--let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode =1
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap group on server1.
+--echo #    Start an inbound channel that replicates from server4.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_4 FOR CHANNEL 'ch1'
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+
+--echo
+--echo ############################################################
+--echo # 2. Create table t1 without consuming a GTID to cause a future
+--echo #    `group_replication_recovery` channel error.
+--echo #    The goal is make the join operation as short as possible,
+--echo #    so that we can maximize the number of joins per test.
+--echo #    Join server2 to the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET SESSION sql_log_bin=1;
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Create table t1 without consuming a GTID to cause a future
+--echo #    `group_replication_recovery` channel error.
+--echo #    The goal is make the join operation as short as possible,
+--echo #    so that we can maximize the number of joins per test.
+--echo #    Join server3 to the group.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET SESSION sql_log_bin=1;
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Execute a procedure on server4 that commits transactions
+--echo #    "forever" (until we kill the session).
+--let $rpl_connection_name = server4
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+delimiter |;
+
+CREATE EVENT ev1
+ ON SCHEDULE
+  EVERY 1 SECOND
+ DO
+  BEGIN
+    DECLARE i INTEGER;
+    SET i = 0;
+
+    WHILE i < 5000 DO
+      INSERT INTO t1() VALUES ();
+      SET i = i + 1;
+    END WHILE;
+  END |
+
+delimiter ;|
+
+
+--echo
+--echo ############################################################
+--echo # 5. Wait for the duplicate table error on server2 and server3.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ERROR"
+--source include/wait_condition.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ERROR"
+--source include/wait_condition.inc
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Attempt to rejoin server2 and server3 50 times.
+--let $cnt=50
+while ($cnt)
+{
+  --let $rpl_connection_name= server2
+  --source include/rpl_connection.inc
+  --error 3092,3094
+  START GROUP_REPLICATION;
+
+  --let $rpl_connection_name= server3
+  --source include/rpl_connection.inc
+  --error 3092,3094
+  START GROUP_REPLICATION;
+
+  --dec $cnt
+}
+
+
+--echo
+--echo ############################################################
+--echo # 7. There must be 0 applier threads on server1 with the state
+--echo #    'Waiting for Binlog Group Commit ticket'.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# We used a wait_condition instead of a assert because the last rejoin may have
+# caused a wait for ticket which will take some seconds to be complete.
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.threads WHERE PROCESSLIST_STATE='Waiting for Binlog Group Commit ticket'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Clean up.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+let $messages =
+Replica SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*
+The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.
+Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.
+The server was automatically set into read only mode after an error was detected.
+Skipping leave operation: concurrent attempt to leave the group is on-going.
+Skipping leave operation: member already left the group.
+Unable to confirm whether the server has left the group or not. Check *.*
+The server was automatically set into read only mode after an error was detected.
+There was a previous plugin error while the member joined the group. The member will now exit the group.
+Message received while the plugin is not ready, message discarded.
+Unable to initialize the Group Replication applier module.
+.*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*
+.*Coordinator experienced an error or was killed while scheduling an event at.*
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+# Reuse $messages defined previously.
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+--let $rpl_channel_name=
+
+--source include/stop_group_replication.inc
+
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+
+DROP EVENT ev1;
+DROP TABLE t1;
+
+let $messages =
+The transaction '[a-z0-9\-]*:[0-9]*' will commit out of order with respect to its source to follow the group global order.
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+DROP EVENT ev1;
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

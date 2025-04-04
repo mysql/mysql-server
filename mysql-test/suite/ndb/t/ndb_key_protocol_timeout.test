@@ -1,0 +1,203 @@
+-- source include/have_multi_ndb.inc
+--echo # We are using some debug-only features in this test
+-- source include/have_debug.inc
+-- source have_ndb_error_insert.inc
+
+#
+# Test of key protocol timeout behaviour
+#
+# Checking behaviour of system over key (PK/UK) request
+# timeouts
+#
+# This test is testing the behaviour of the system
+# when timeouts occur at the NdbApi level
+#
+# Multiple error insert mechanisms are used for testing
+#
+#   API side :    ndb_reduced_api_protocol_timeout
+#                 This DBUG option causes the NdbApi
+#                 timeout to be set to a low value
+#                 (currently 2000 millis) so that blocking
+#                 NdbApi calls typically return in
+#                 3 * 2 = 6s
+#
+#   Kernel side :
+#
+# Key protocol timeout is expected to mostly be due
+# to bugs
+#
+# A .cnf file is used to avoid TDDT getting in the
+# way of API timeout testing
+
+# STABILISATION_SECS is time taken for error insert
+# cancellation to cause delayed signal loops to end
+# and system to reach a stable state
+#
+let STABILISATION_SECS=4;
+
+call mtr.add_suppression("Receive from NDB failed");
+
+--echo Create some tables suitable for executing operations on
+--echo -------------------------------------------------------
+use test;
+create table test.t1 (a int primary key, b int, key(b), c int, unique(c)) engine=ndb;
+
+--echo Insert 40 rows
+--let $keycount=40
+--let $i = 0
+while ($i < $keycount)
+{
+  --eval insert into test.t1 values ($i, $i, $i);
+  --inc $i
+}
+
+--echo Take row locks in other session
+--connection server2
+begin;
+select * from test.t1 where a < 10 order by a for update;
+
+--connection server1
+
+# Track # Api Connection records allocated
+--source ndb_get_api_connect_count.inc
+--let $start_api_conn_count = $api_conn_count
+
+# Cause reduced API timeout
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_reduced_api_protocol_timeout";
+
+--echo ----------------------------
+--echo Autocommit PK SELECT timeout
+--echo ----------------------------
+
+--error 1296
+select * from test.t1 where a=0 for update;
+
+# Checking pk lookups checks that all usable ApiConnectRecords can
+# be used for a different transaction
+--echo Check pk lookups
+--disable_query_log
+--disable_result_log
+--let $i=0
+while ($i < $keycount)
+{
+  --eval select * from test.t1 where a=$i;
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--echo Check transaction leaks
+--source ndb_get_api_connect_count.inc
+--disable_query_log
+eval select $api_conn_count - $start_api_conn_count as Leaks;
+--let $start_api_conn_count = $api_conn_count
+--enable_query_log
+select count(1) as ops from ndbinfo.cluster_operations;
+
+--echo --------------------------------------
+--echo Stateful transaction PK SELECT timeout
+--echo --------------------------------------
+
+begin;
+insert into test.t1 values (100,100,100);
+--error 1296
+select * from test.t1 where a=2 for update;
+
+# Checking pk lookups checks that all usable ApiConnectRecords can
+# be used for a different transaction
+--echo Check pk lookups
+--disable_query_log
+--disable_result_log
+--let $i=0
+while ($i < $keycount)
+{
+  --eval select * from test.t1 where a=$i;
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--echo Check transaction leaks
+--source ndb_get_api_connect_count.inc
+--disable_query_log
+eval select $api_conn_count - $start_api_conn_count as Leaks;
+--let $start_api_conn_count = $api_conn_count
+--enable_query_log
+select count(1) as ops from ndbinfo.cluster_operations;
+
+
+--echo ----------------------------
+--echo Autocommit UK SELECT timeout
+--echo ----------------------------
+
+--error 1296
+select * from test.t1 where c=0 for update;
+
+# Checking pk lookups checks that all usable ApiConnectRecords can
+# be used for a different transaction
+--echo Check pk lookups
+--disable_query_log
+--disable_result_log
+--let $i=0
+while ($i < $keycount)
+{
+  --eval select * from test.t1 where a=$i;
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--echo Check transaction leaks
+--source ndb_get_api_connect_count.inc
+--disable_query_log
+eval select $api_conn_count - $start_api_conn_count as Leaks;
+--let $start_api_conn_count = $api_conn_count
+--enable_query_log
+select count(1) as ops from ndbinfo.cluster_operations;
+
+--echo --------------------------------------
+--echo Stateful transaction UK SELECT timeout
+--echo --------------------------------------
+
+begin;
+insert into test.t1 values (100,100,100);
+--error 1296
+select * from test.t1 where c=2 for update;
+
+# Checking pk lookups checks that all usable ApiConnectRecords can
+# be used for a different transaction
+--echo Check pk lookups
+--disable_query_log
+--disable_result_log
+--let $i=0
+while ($i < $keycount)
+{
+  --eval select * from test.t1 where a=$i;
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+
+--echo Check transaction leaks
+--source ndb_get_api_connect_count.inc
+--disable_query_log
+eval select $api_conn_count - $start_api_conn_count as Leaks;
+--let $start_api_conn_count = $api_conn_count
+--enable_query_log
+select count(1) as ops from ndbinfo.cluster_operations;
+
+
+
+
+
+--connection server2
+rollback;
+
+--connection server1
+
+SET SESSION debug=@save_debug;
+
+drop table test.t1;
+

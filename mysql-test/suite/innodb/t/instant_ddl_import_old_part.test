@@ -103,7 +103,7 @@ CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=compact
                   PARTITION p1 VALUES LESS THAN (256),
                   PARTITION p2 VALUES LESS THAN (384),
                   PARTITION p3 VALUES LESS THAN MAXVALUE);
-ALTER TABLE t1 ADD COLUMN c5 char(20) DEFAULT "c5_def";
+ALTER TABLE t1 ADD COLUMN c5 char(20) DEFAULT "c5_def", ALGORITHM=INSTANT;
 
 --let $table_name=t1
 --source suite/innodb/include/print_instant_part_metadata.inc
@@ -125,7 +125,7 @@ CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=compact
                   PARTITION p1 VALUES LESS THAN (256),
                   PARTITION p2 VALUES LESS THAN (384),
                   PARTITION p3 VALUES LESS THAN MAXVALUE);
-ALTER TABLE t1 ADD COLUMN c5 char(10) DEFAULT "c5_def";
+ALTER TABLE t1 ADD COLUMN c5 char(10) DEFAULT "c5_def", ALGORITHM=INSTANT;
 
 --let $table_name=t1
 --source suite/innodb/include/print_instant_part_metadata.inc
@@ -147,7 +147,7 @@ CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=compact
                   PARTITION p1 VALUES LESS THAN (256),
                   PARTITION p2 VALUES LESS THAN (384),
                   PARTITION p3 VALUES LESS THAN MAXVALUE);
-ALTER TABLE t1 ADD COLUMN c5 char(20) DEFAULT "def_c5";
+ALTER TABLE t1 ADD COLUMN c5 char(20) DEFAULT "def_c5", ALGORITHM=INSTANT;
 
 --let $table_name=t1
 --source suite/innodb/include/print_instant_part_metadata.inc

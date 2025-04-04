@@ -2287,23 +2287,21 @@ end:
 static int changeLCPInterval(NDBT_Context *ctx, NDBT_Step *step) {
   Config conf;
   NdbRestarter restarter;
-  Uint32 new_cfg_db_lcp_interval = 0;
 
-  Uint32 cfg_db_lcp_interval =
-      ctx->getProperty("LCPINTERVAL", (Uint32)new_cfg_db_lcp_interval);
-
+  Uint32 cfg_db_lcp_interval = ctx->getProperty(
+      "LCPINTERVAL", (Uint32)0);  // if LCPINTERVAL not set, use 0 as default
   NdbMgmd mgmd;
   Uint32 saved_old_value = 0;
   CHECK3(mgmd.change_config32(cfg_db_lcp_interval, &saved_old_value,
                               CFG_SECTION_NODE, CFG_DB_LCP_INTERVAL),
          "Change config failed");
 
-  if (new_cfg_db_lcp_interval != saved_old_value) {
+  if (cfg_db_lcp_interval != saved_old_value) {
     // Save old config value in the test case context
     ctx->setProperty("LCPINTERVAL", Uint32(saved_old_value));
 
     g_err << "Restarting nodes to change CFG_DB_LCP_INTERVAL from "
-          << saved_old_value << " to " << new_cfg_db_lcp_interval << endl;
+          << saved_old_value << " to " << cfg_db_lcp_interval << endl;
 
     CHECK3(restarter.restartAll() == 0, "Restart all failed");
     CHECK3(restarter.waitClusterStarted(120) == 0, "Cluster has not started");

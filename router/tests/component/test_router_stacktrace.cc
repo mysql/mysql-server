@@ -509,7 +509,11 @@ TEST_F(RouterStacktraceTest, no_core_file) {
   }
 
   SCOPED_TRACE("// console output has stacktrace");
+#ifdef HAVE_EXT_BACKTRACE
+  EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("signal_handler.cc"));
+#else
   EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("my_print_stacktrace"));
+#endif
 }
 
 // TS_2_2
@@ -577,7 +581,11 @@ TEST_F(RouterStacktraceTest, core_file_0) {
   }
 
   SCOPED_TRACE("// console output has stacktrace");
+#ifdef HAVE_EXT_BACKTRACE
+  EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("signal_handler.cc"));
+#else
   EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("my_print_stacktrace"));
+#endif
 }
 
 #endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)

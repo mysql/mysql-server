@@ -15,6 +15,10 @@ set_target_properties(protoc PROPERTIES
 
 ################################################################
 
+IF(APPLE)
+  TARGET_LINK_OPTIONS(protoc PRIVATE LINKER:-no_warn_duplicate_libraries)
+ENDIF()
+
 SET_TARGET_PROPERTIES(protoc PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 

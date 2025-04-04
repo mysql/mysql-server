@@ -53,7 +53,18 @@ let $restart_parameters =;
 --source include/start_mysqld.inc
 SELECT @@max_connections, @@max_heap_table_size, @@replica_net_timeout;
 SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+
 SET @@debug='-d,crash_after_close_persist_file';
+SET @@debug='+d,crash_after_rename_persist_file';
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET PERSIST replica_net_timeout=360;
+# server restart should succeed in reading persist file.
+let $restart_parameters =;
+--source include/start_mysqld.inc
+SELECT @@max_connections, @@max_heap_table_size, @@replica_net_timeout;
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+SET @@debug='-d,crash_after_rename_persist_file';
 
 #cleanup
 RESET PERSIST;

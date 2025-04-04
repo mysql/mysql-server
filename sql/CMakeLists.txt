@@ -945,6 +945,8 @@ ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
+TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
+
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
   binlogevents_static ${LIBWRAP} ${LIBDL} ${SSL_LIBRARIES}
@@ -1177,6 +1179,11 @@ IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
   # We may get errors in boost/geometry/srs/projections/proj/ob_tran.hpp
   # and several other boost files.
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
+  ENDIF()
+  # The linker claims that unmasked_server_id is uninitialized.
+  MY_CHECK_CXX_COMPILER_WARNING("error=uninitialized" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
     MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
   ENDIF()

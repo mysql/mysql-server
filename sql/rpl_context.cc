@@ -236,6 +236,14 @@ void Binlog_group_commit_ctx::set_session_ticket(binlog::BgcTicket ticket) {
   }
 }
 
+#ifndef NDEBUG
+void Binlog_group_commit_ctx::push_new_ticket() {
+  binlog::Bgc_ticket_manager::instance().push_new_ticket();
+  // we need to pop front in case there are no sessions waiting
+  binlog::Bgc_ticket_manager::instance().pop_front_ticket();
+}
+#endif
+
 void Binlog_group_commit_ctx::assign_ticket() {
   if (this->m_session_ticket.is_set()) {
     return;

@@ -310,11 +310,21 @@ class ACL_USER : public ACL_ACCESS {
     bool is_active() const {
       return m_password_lock_time_days != 0 && m_failed_login_attempts != 0;
     }
+    bool is_default() const {
+      return (m_remaining_login_attempts == m_failed_login_attempts &&
+              m_daynr_locked == 0);
+    }
     int get_password_lock_time_days() const {
       return m_password_lock_time_days;
     }
     uint get_failed_login_attempts() const { return m_failed_login_attempts; }
-    void set_parameters(uint password_lock_time_days,
+    uint get_remaining_login_attempts() const {
+      return m_remaining_login_attempts;
+    }
+    long get_daynr_locked() const { return m_daynr_locked; }
+    void set_temporary_lock_state_parameters(uint remaining_login_attempts,
+                                             long daynr_locked);
+    void set_parameters(int password_lock_time_days,
                         uint failed_login_attempts);
     bool update(THD *thd, bool successful_login, long *ret_days_remaining);
     Password_locked_state()
@@ -728,6 +738,10 @@ class Acl_cache {
   */
   void flush_cache();
   /**
+    Removes all acl map objects when shutdown_acl_cache is called.
+  */
+  void clear_acl_cache();
+  /**
     Return a lower boundary to the current version count.
   */
   uint64 version();
@@ -817,6 +831,58 @@ class Acl_restrictions {
 
  private:
   malloc_unordered_map<std::string, Restrictions> m_restrictions_map;
+};
+
+/**
+  Enables preserving temporary account locking attributes during ACL DDL.
+  Enables restoring temporary account locking attributes after ACL reload.
+
+  This class is used to preserve the state of the accounts being altered by the
+  current ACL statement. The account locking data needs to be preserved since
+  the current state of account locking is not stored into the table and can't be
+  restored from it when the code needs to re-create the ACL caches from the
+  tables.
+
+  When an ACL DDL statement that can modify account locking data starts, a new
+  instance of this class is created and the current in-memory account locking
+  data is preserved for each user that is modified by the statement, if account
+  locking data is not default.
+
+  ACL DDL rollback results in the in-memory ACL cache being re-created during
+  ACL reload.
+
+  After ACL reload:
+  - For all users in the new ACL cache, the temporary account locking state is
+    restored from the old ACL cache, if account locking data is not default.
+  - For specific users in the new ACL cache, the temporary account locking state
+    is restored from the instances of this class that were created at the start
+    of the ACL DDL statement. This needs to be done since these accounts could
+    be dropped (mysql_drop_user), renamed (mysql_rename_user) or altered
+    (mysql_alter_user) in the old ACL cache.
+*/
+class ACL_temporary_lock_state {
+ public:
+  ACL_temporary_lock_state(const char *host, const char *user,
+                           uint remaining_login_attempts, long daynr_locked);
+
+  static bool is_modified(ACL_USER *acl_user);
+
+  static ACL_USER *preserve_user_lock_state(const char *host, const char *user,
+                                            Lock_state_list &user_list);
+
+  static void restore_user_lock_state(const char *host, const char *user,
+                                      uint remaining_login_attempts,
+                                      long daynr_locked);
+
+  static void restore_temporary_account_locking(
+      Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users,
+      Lock_state_list *modified_user_lock_state_list);
+
+ private:
+  const char *m_host;
+  const char *m_user;
+  const uint m_remaining_login_attempts;
+  const long m_daynr_locked;
 };
 
 #endif /* SQL_USER_CACHE_INCLUDED */

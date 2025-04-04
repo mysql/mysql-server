@@ -1580,7 +1580,12 @@ bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
         mem_heap_free(temp_heap);
       }
 
-      if (!mbr_equal_cmp(index->rtr_srs.get(), old_mbr, new_mbr)) {
+      /* We use mbr_equal_physically() because we would like to skip
+      Updation of Spatial Index only when the existing MBR in Spatial
+      Index matches physically to the MBR of the new geometry.
+      Else it might cause issues later during searching of record, because
+      cmp_geometry_field() does physical comparison.*/
+      if (!mbr_equal_physically(old_mbr, new_mbr)) {
         return (true);
       } else {
         continue;
@@ -2775,24 +2780,27 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
 
 /** Updates a clustered index record of a row when the ordering fields do
  not change.
+ @param[in]      flags         undo logging and locking flags
+ @param[in]      node          row update node
+ @param[in]      index         clustered index
+ @param[in]      offsets       rec_get_offsets() on node->pcur
+ @param[in,out]  offsets_heap  memory heap, can be emptied
+ @param[in]      thr           query thread
+ @param[in]      mtr           mtr; gets committed here
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
-[[nodiscard]] static dberr_t row_upd_clust_rec(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    upd_node_t *node,    /*!< in: row update node */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint *offsets,      /*!< in: rec_get_offsets() on node->pcur */
-    mem_heap_t **offsets_heap,
-    /*!< in/out: memory heap, can be emptied */
-    que_thr_t *thr, /*!< in: query thread */
-    mtr_t *mtr)     /*!< in: mtr; gets committed here */
-{
+[[nodiscard]] static dberr_t row_upd_clust_rec(ulint flags, upd_node_t *node,
+                                               dict_index_t *index,
+                                               ulint *offsets,
+                                               mem_heap_t **offsets_heap,
+                                               que_thr_t *thr, mtr_t *mtr) {
   mem_heap_t *heap = nullptr;
   big_rec_t *big_rec = nullptr;
   btr_pcur_t *pcur;
   btr_cur_t *btr_cur;
   dberr_t err = DB_SUCCESS;
   bool persist_autoinc = false;
+  bool is_old_or_new_rec_extern = false;
   const dtuple_t *rebuilt_old_pk = nullptr;
   trx_id_t trx_id = thr_get_trx(thr)->id;
   trx_t *trx = thr_get_trx(thr);
@@ -2810,6 +2818,7 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   ut_ad(rec_offs_validate(btr_cur_get_rec(btr_cur), index, offsets));
 
   if (dict_index_is_online_ddl(index)) {
+    is_old_or_new_rec_extern = rec_offs_any_extern(offsets);
     rebuilt_old_pk = row_log_table_get_pk(btr_cur_get_rec(btr_cur), index,
                                           offsets, nullptr, &heap);
     if (row_log_table_get_error(index) == DB_INDEX_CORRUPT) {
@@ -2900,9 +2909,19 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
       dtuple_t *new_v_row = nullptr;
       dtuple_t *old_v_row = nullptr;
 
+      /* In case UPDATE modifies extern BLOB and makes it fit within record
+      after above update, we still need old virtual col */
+      is_old_or_new_rec_extern |= rec_offs_any_extern(offsets);
+
       if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
         new_v_row = node->upd_row;
         old_v_row = node->update->old_vrow;
+      } else if (is_old_or_new_rec_extern) {
+        /* Row log treats UPDATE on extern BLOB as DELETE + INSERT. This
+        requires virtual col info. Since no change in virtual col, new value is
+        same as old */
+        old_v_row = node->update->old_vrow;
+        new_v_row = old_v_row;
       }
 
       row_log_table_update(btr_cur_get_rec(btr_cur), index, offsets,

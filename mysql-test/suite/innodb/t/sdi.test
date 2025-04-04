@@ -357,7 +357,7 @@ if ($MTR_RECORD == 0) {
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_CAPACITY LOG_CAPACITY
 --source include/start_mysqld.inc
 --echo # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
-ALTER TABLE t1 ADD COLUMN b INT;
+ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT;
 
 --echo # ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index
 ALTER TABLE t2 ADD INDEX k1(b(10));
@@ -366,7 +366,7 @@ ALTER TABLE t2 ADD INDEX k1(b(10));
 ALTER TABLE t3 DROP INDEX k2;
 
 --echo # ALTER TABLE t4, DROP column, Verify SDI doesn't show dropped column
-ALTER TABLE t4 DROP COLUMN d;
+ALTER TABLE t4 DROP COLUMN d, ALGORITHM=INSTANT;
 
 --echo # ALTER TABLE RENAME column
 ALTER TABLE t10 CHANGE a pk INT;

@@ -1,0 +1,81 @@
+# Initialize new data directory...
+# Restart on the new data directory...
+# restart: --datadir=tmp/test_data_dir --log-error=my_restart.err
+SET GLOBAL innodb_buffer_pool_size = 1082130432;
+SET GLOBAL innodb_redo_log_capacity=52428800;
+SET GLOBAL innodb_change_buffering=all;
+SET GLOBAL innodb_change_buffer_max_size=50;
+SET GLOBAL innodb_master_thread_disabled_debug = ON;
+SELECT @@GLOBAL.innodb_buffer_pool_size;
+@@GLOBAL.innodb_buffer_pool_size
+1082130432
+SELECT @@GLOBAL.innodb_redo_log_capacity;
+@@GLOBAL.innodb_redo_log_capacity
+52428800
+SELECT @@GLOBAL.innodb_data_file_path;
+@@GLOBAL.innodb_data_file_path
+ibdata1:12M:autoextend
+SELECT @@GLOBAL.innodb_change_buffering;
+@@GLOBAL.innodb_change_buffering
+all
+SELECT @@GLOBAL.innodb_change_buffer_max_size;
+@@GLOBAL.innodb_change_buffer_max_size
+50
+SET GLOBAL innodb_disable_background_merge=ON;
+CREATE DATABASE db1;
+# Create 4 tables
+CALL db1.CreateNTables('db1', 't', 4);
+
+# Create Connection objects
+
+# Insert record in each table
+INSERT INTO db1.t1 VALUES(0, 1000 , 1, REPEAT('a', 2048), REPEAT('b', 2048));
+INSERT INTO db1.t2 VALUES(0, 1000 , 1, REPEAT('a', 2048), REPEAT('b', 2048));
+INSERT INTO db1.t3 VALUES(0, 1000 , 1, REPEAT('a', 2048), REPEAT('b', 2048));
+INSERT INTO db1.t4 VALUES(0, 1000 , 1, REPEAT('a', 2048), REPEAT('b', 2048));
+# Wait for inserts to finish
+
+# Insert total 2^8 records in each table
+CALL db1.InsertIntoRecords('db1', 't1', 8);
+CALL db1.InsertIntoRecords('db1', 't2', 8);
+CALL db1.InsertIntoRecords('db1', 't3', 8);
+CALL db1.InsertIntoRecords('db1', 't4', 8);
+
+# Wait for insert into tables to finish
+# Disable page cleaner to have redo logs for recovery later on
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+SET @@GLOBAL.DEBUG='+d,ib_redo_log_system_tablespace_expansion';
+UPDATE db1.t1 SET k = id + k , c = REPEAT(3, 90) WHERE id % 5 = 0;
+UPDATE db1.t2 SET k = id + k , c = REPEAT(3, 90) WHERE id % 5 = 0;
+UPDATE db1.t3 SET k = id + k , c = REPEAT(3, 90) WHERE id % 5 = 0;
+UPDATE db1.t4 SET k = id + k , c = REPEAT(3, 90) WHERE id % 5 = 0;
+
+# Wait for Updates to finish
+
+# Delete records
+DELETE FROM db1.t1 WHERE id % 4 = 1 ORDER BY id;
+DELETE FROM db1.t2 WHERE id % 4 = 1 ORDER BY id;
+DELETE FROM db1.t3 WHERE id % 4 = 1 ORDER BY id;
+DELETE FROM db1.t4 WHERE id % 4 = 1 ORDER BY id;
+
+# Wait for Deletes to finish #1
+Pattern "System tablespace expansion is redo logged" found
+SET @@GLOBAL.DEBUG='-d,ib_redo_log_system_tablespace_expansion';
+# Verify no issues observed during crash recovery
+# Kill and restart: --datadir=tmp/test_data_dir --log-error=my_restart.err
+SELECT id, k FROM db1.t1 ORDER BY id LIMIT 1;
+id	k
+2	2000
+DROP DATABASE db1;
+
+# Cleanup
+
+# restart:

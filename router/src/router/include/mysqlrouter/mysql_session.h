@@ -445,6 +445,8 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   virtual const char *ssl_cipher();
 
+  virtual unsigned long server_version();
+
  protected:
   std::unique_ptr<LoggingStrategy> logging_strategy_;
 

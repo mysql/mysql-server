@@ -64,6 +64,41 @@ SELECT * FROM t1 WHERE b = 3;
 SELECT * FROM t1 WHERE b = 3;
 show warnings;
 
+# This test results in an error message in the server log:
+# [ERROR] [MY-010211] [Server] Got error 126 when reading table './test/t1'
+call mtr.add_suppression(".*Got error 126 when reading table '.*t1'");
+
+## Attempt MRR read via dropped uk index
+--error ER_NOT_KEYFILE
+select * from t1 where b in (2,4,6,8);
+show warnings;
+
+## Attempt join with dropped uk lookup as root, pk lookup as child
+--error ER_NOT_KEYFILE
+select * from t1 x join t1 y on x.a = y.c where y.b=5;
+show warnings;
+
+## Attempt join with pk lookup as root, dropped uk lookup as child
+--error ER_NOT_KEYFILE
+select * from t1 x join t1 y on y.b = x.c where x.a=3;
+show warnings;
+
+## Attempt update ignoring duplicates on dropped uk index
+--error ER_NOT_KEYFILE
+update ignore t1 set b=1 where a=4;
+show warnings;
+
+## Attempt insert on duplicate key update of dropped uk index
+--error ER_NOT_KEYFILE
+insert into t1 values (10,4,4,4,4) on duplicate key update b=b+1;
+show warnings;
+
+## Attempt insert which must check for duplicates on dropped
+## uk index to ignore errors
+--error ER_NOT_KEYFILE
+insert ignore into t1 values (10,4,4,4,4);
+show warnings;
+
 ##########################################
 ## Use ndb_drop_index to drop the index on c.
 --exec $NDB_DROP_INDEX -d test t1 c >> $NDB_TOOLS_OUTPUT

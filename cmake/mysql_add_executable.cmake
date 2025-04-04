@@ -192,6 +192,10 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     MACOS_ADD_DEVELOPER_ENTITLEMENTS(${target})
   ENDIF()
 
+  IF(APPLE)
+    TARGET_LINK_OPTIONS(${target} PRIVATE LINKER:-no_warn_duplicate_libraries)
+  ENDIF()
+
   IF(WIN32_CLANG AND WITH_ASAN)
     TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan-x86_64.lib")
     TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_cxx-x86_64.lib")

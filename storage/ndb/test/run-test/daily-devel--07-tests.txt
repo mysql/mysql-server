@@ -299,7 +299,7 @@ max-time: 600
 
 cmd: testDict
 args : -r 2500 -l 200 -n TableAddAttrsUpdateMaxRecSzForLCP T1
-max-time: 600
+max-time: 900
 
 cmd: testNodeRestart
 args: -n TransStallTimeout T1
@@ -353,3 +353,22 @@ cmd: test_event
 args: -n ExhaustedPreparedPoolsInternalOps T1 -l 1000
 max-time: 240
 
+cmd: testScan
+args: -n ScanErrorCleanup T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanErrorHandling T1
+max-time: 480
+
+cmd: testSystemRestart
+args: -n GCPSaveLagLcpSR T1
+max-time: 240
+
+cmd: testNdbinfo
+args: -n ScanFragOperationsDuringCreateDropTable -l 10000 T1
+max-time: 180
+
+cmd: testNdbinfo
+args: -n ScanFragMemUseDuringCreateDropTable -l 10000 T1
+max-time: 180

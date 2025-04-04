@@ -91,18 +91,15 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
                   cs::apply::Commit_order_queue::enum_worker_stage::WAITED;
 
               auto this_worker{cs::apply::Commit_order_queue::NO_WORKER};
-              auto this_seq_nr{0};
-              std::tie(this_worker, this_seq_nr) =
-                  scheduled.pop();                 // Pops the head of the
-                                                   // queue and gets own
-                                                   // commit sequence
-                                                   // number
-              auto next_seq_nr = this_seq_nr + 1;  // Calculates which is
-                                                   // the next sequence
-                                                   // number
+              auto next_seq_nr{0};
+              std::tie(this_worker, next_seq_nr) =
+                  scheduled.pop();  // Pops the head of the
+                                    // queue and gets the
+                                    // the next sequence
+                                    // number
               EXPECT_EQ(worker_id, this_worker);
-              EXPECT_NE(this_seq_nr, 0);  // NO_SEQUENCE_NR
-              EXPECT_NE(this_seq_nr, 1);  // SEQUENCE_NR_FROZEN
+              EXPECT_NE(next_seq_nr, 0);  // NO_SEQUENCE_NR
+              EXPECT_NE(next_seq_nr, 1);  // SEQUENCE_NR_FROZEN
 
               auto next_worker =
                   scheduled.front();  // Gets the next worker and checks if it
@@ -310,6 +307,101 @@ TEST_F(Rpl_commit_order_queue_test, Pushing_then_poping_test) {
   EXPECT_EQ(f.is_empty(), false);
   f.clear();
   EXPECT_EQ(f.is_empty(), true);
+}
+
+TEST_F(Rpl_commit_order_queue_test, Remove) {
+  constexpr cs::apply::Commit_order_queue::value_type total_workers{4};
+  cs::apply::Commit_order_queue queue{total_workers};
+  auto this_worker{cs::apply::Commit_order_queue::NO_WORKER};
+  auto next_seq_nr{0};
+
+  queue.push(0);
+  queue.push(1);
+  queue.push(2);
+  queue.push(3);
+  /*
+    +----------------------+----+----+----+----+
+    | worker               |  0 |  1 |  2 |  3 |
+    | sequence number      |  2 |  3 |  4 |  5 |
+    | next sequence number |  3 |  4 |  5 |  6 |
+    +----------------------+----+----+----+----+
+  */
+  EXPECT_EQ(queue.to_string(), "0, 1, 2, 3, EOF");
+
+  std::tie(this_worker, next_seq_nr) = queue.remove(0);
+  /*
+    +----------------------+----+----+----+
+    | worker               |  1 |  2 |  3 |
+    | sequence number      |  3 |  4 |  5 |
+    | next sequence number |  4 |  5 |  6 |
+    +----------------------+----+----+----+
+  */
+  EXPECT_EQ(this_worker, 0);
+  EXPECT_EQ(next_seq_nr, 3);
+  EXPECT_EQ(queue.to_string(), "1, 2, 3, EOF");
+
+  std::tie(this_worker, next_seq_nr) = queue.remove(3);
+  /*
+    +----------------------+----+----+
+    | worker               |  1 |  2 |
+    | sequence number      |  3 |  4 |
+    | next sequence number |  4 |  6 |
+    +----------------------+----+----+
+  */
+  EXPECT_EQ(this_worker, 3);
+  EXPECT_EQ(next_seq_nr, 0);  // NO_SEQUENCE_NR
+  EXPECT_EQ(queue.to_string(), "1, 2, EOF");
+
+  queue.push(0);
+  /*
+    +----------------------+----+----+----+
+    | worker               |  1 |  2 |  0 |
+    | sequence number      |  3 |  4 |  6 |
+    | next sequence number |  4 |  6 |  7 |
+    +----------------------+----+----+----+
+  */
+  EXPECT_EQ(queue.to_string(), "1, 2, 0, EOF");
+
+  std::tie(this_worker, next_seq_nr) = queue.remove(2);
+  /*
+    +----------------------+----+----+
+    | worker               |  1 |  0 |
+    | sequence number      |  3 |  6 |
+    | next sequence number |  6 |  7 |
+    +----------------------+----+----+
+  */
+  EXPECT_EQ(this_worker, 2);
+  EXPECT_EQ(next_seq_nr, 0);  // NO_SEQUENCE_NR
+  EXPECT_EQ(queue.to_string(), "1, 0, EOF");
+
+  std::tie(this_worker, next_seq_nr) = queue.pop();
+  /*
+    +----------------------+----+
+    | worker               |  0 |
+    | sequence number      |  6 |
+    | next sequence number |  7 |
+    +----------------------+----+
+  */
+  EXPECT_EQ(this_worker, 1);
+  EXPECT_EQ(next_seq_nr, 6);
+  EXPECT_EQ(queue.to_string(), "0, EOF");
+
+  std::tie(this_worker, next_seq_nr) = queue.pop();
+  /*
+    +----------------------+
+    | worker               |
+    | sequence number      |
+    | next sequence number |
+    +----------------------+
+  */
+  EXPECT_EQ(this_worker, 0);
+  EXPECT_EQ(next_seq_nr, 7);
+  EXPECT_EQ(queue.to_string(), "EOF");
+
+  std::tie(this_worker, next_seq_nr) = queue.remove(50);
+  EXPECT_EQ(this_worker, -1);  // NO_WORKER
+  EXPECT_EQ(next_seq_nr, 0);   // NO_SEQUENCE_NR
+  EXPECT_EQ(queue.to_string(), "EOF");
 }
 
 }  // namespace unittests

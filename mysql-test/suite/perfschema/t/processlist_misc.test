@@ -1,0 +1,69 @@
+--echo ##
+--echo ## Miscellaneous test cases for performance_schema.processlist
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Verify naming of foreground system threads.
+--echo ##
+--echo
+--echo ##
+--echo ## Test Case 1: Verify naming of foreground system threads.
+--echo ##
+--echo ## Foreground system threads should be named 'system user' except for 
+--echo ## singleton threads such as 'event_scheduler'.
+--echo ##
+--echo ## Reference: Bug#36895513 "Wrong result in P_S.processlist on replica node"
+--echo ## NOTE: Results must be manually verified.
+--echo ##
+
+--source include/no_protocol.inc
+--echo
+--echo # Configure two servers to be source and replica.
+--source include/master-slave.inc
+--echo
+--echo # Wait until the replica SQL thread has been synced and all events have been copied over to the replica.
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # Stop replica.
+--source include/stop_slave.inc
+--echo
+--echo # Start replica.
+--source include/start_slave.inc
+
+--echo
+--echo # Verify processlist user name is 'system_user'.
+--echo
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
+select * from performance_schema.processlist order by user, id;
+
+--echo
+--echo # Create user 'test_processlist' then restart the replica and verify that
+--echo # the processlist user name for the replica threads is 'system user'.
+--echo
+CREATE USER 'test_processlist'@'localhost';
+GRANT ALL ON *.* TO 'test_processlist'@'localhost';
+
+--echo
+--echo # Stop replica.
+--source include/stop_slave.inc
+--echo
+--echo # Connect as 'test_processlist'.
+--connect(processlist_slave, localhost, test_processlist,,, $SLAVE_MYPORT,$SLAVE_MYSOCK)
+--echo
+--echo # Start replica as user 'test_processlist'.
+--source include/start_slave.inc
+
+--echo
+--echo # Verify processlist user name is 'system_user' for the replica threads.
+--echo
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
+select * from performance_schema.processlist order by user, id;
+
+--echo
+--echo # Clean up.
+--echo
+DROP USER 'test_processlist'@'localhost';
+
+--source include/rpl_end.inc

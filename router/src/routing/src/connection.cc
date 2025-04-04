@@ -281,11 +281,14 @@ void MySQLRoutingConnectionBase::accepted() {
 }
 
 void MySQLRoutingConnectionBase::connected() {
-  const auto now = clock_type::now();
-  stats_([now](Stats &stats) { stats.connected_to_server = now; });
+  stats_([now = clock_type::now()](Stats &stats) {
+    stats.connected_to_server = now;
+  });
 
-  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-    log_debug("[%s] connected %s -> %s", context().get_name().c_str(),
-              get_client_address().c_str(), get_server_address().c_str());
-  }
+  if (!log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) return;
+
+  const auto stats = get_stats();
+
+  log_debug("[%s] connected %s -> %s", context().get_name().c_str(),
+            stats.client_address.c_str(), stats.server_address.c_str());
 }

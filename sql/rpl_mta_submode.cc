@@ -575,6 +575,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
                                                    Log_event *ev) {
   longlong last_sequence_number = sequence_number;
   bool gap_successor = false;
+  static_assert(SEQ_UNINIT == 0, "MTA scheduling code assumes SEQ_UNINIT is 0");
 
   DBUG_TRACE;
   // We should check if the SQL thread was already killed before we schedule
@@ -625,23 +626,19 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
              sequence_number, last_sequence_number);
       return ER_MTA_CANT_PARALLEL;
     }
-    /*
-      Transaction sequence as scheduled may have gaps, even in
-      relay log. In such case a transaction that succeeds a gap will
-      wait for all earlier that were scheduled to finish. It's marked
-      as gap successor now.
-    */
-    static_assert(SEQ_UNINIT == 0, "");
-    if (unlikely(sequence_number > last_sequence_number + 1)) {
-      /*
-        TODO: account autopositioning
-        assert(rli->replicate_same_server_id);
-      */
-      DBUG_PRINT("info", ("sequence_number gap found, "
-                          "last_sequence_number %lld, sequence_number %lld",
-                          last_sequence_number, sequence_number));
-      gap_successor = true;
-    }
+  }
+
+  /*
+    Transaction sequence as scheduled may have gaps, even in
+    relay log. In such case a transaction that succeeds a gap will
+    wait for all earlier that were scheduled to finish. It's marked
+    as gap successor now.
+  */
+  if (unlikely(sequence_number > last_sequence_number + 1)) {
+    DBUG_PRINT("info", ("sequence_number gap found, "
+                        "last_sequence_number %lld, sequence_number %lld",
+                        last_sequence_number, sequence_number));
+    gap_successor = true;
   }
 
   /*

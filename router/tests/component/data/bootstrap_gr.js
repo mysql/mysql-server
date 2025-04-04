@@ -19,6 +19,13 @@ if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "cluster-specific-id";
 }
 
+if (mysqld.global.server_version === undefined) {
+  // Let's keep the default server version as some known compatible version.
+  // If there is a need to some specific compatibility checks, this should be
+  // overwritten from the test.
+  mysqld.global.server_version = "8.0.39";
+}
+
 if (mysqld.global.last_insert_id === undefined) {
   mysqld.global.last_insert_id = 1;
 }
@@ -86,7 +93,8 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     auth: {
       username: "root",
       password: "fake-pass",
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     var res;

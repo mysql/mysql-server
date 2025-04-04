@@ -1128,27 +1128,29 @@ void AsyncFile::log_set_odirect_result(int result) {
 
   if (odirect_failure)  // Failed set ODirect
     g_eventLogger->warning(
-        "Failed to set ODirect for file %s %s%s (errno: %u, block size %zu, "
-        "alignment %zu, direct io %d, avoid on append %d, io block size %zu, "
-        "alignment %zu).",
+        "Failed to set ODirect for file %s %s%s (errno: %u, block size %ju, "
+        "alignment %ju, direct io %d, avoid on append %d, io block size %ju, "
+        "alignment %ju).",
         filename, (param ? "under " : ""), (param ? param : ""),
-        get_last_os_error(), m_file.get_block_size(),
-        m_file.get_block_alignment(), m_file.have_direct_io_support(),
-        m_file.avoid_direct_io_on_append(), m_file.get_direct_io_block_size(),
-        m_file.get_direct_io_block_alignment());
+        get_last_os_error(), uintmax_t{m_file.get_block_size()},
+        uintmax_t{m_file.get_block_alignment()},
+        m_file.have_direct_io_support(), m_file.avoid_direct_io_on_append(),
+        uintmax_t{m_file.get_direct_io_block_size()},
+        uintmax_t{m_file.get_direct_io_block_alignment()});
   else if (success)  // Succeeded to set ODirect
     g_eventLogger->info("Succeeded to set ODirect for file %s %s%s.", filename,
                         (param ? "under " : ""), (param ? param : ""));
   else  // Failed checking ODirect
     g_eventLogger->warning(
-        "Failed to probe ODirect for file %s %s%s (errno: %u, block size %zu, "
-        "alignment %zu, direct io %d, avoid on append %d, io block size %zu, "
-        "alignment %zu).",
+        "Failed to probe ODirect for file %s %s%s (errno: %u, block size %ju, "
+        "alignment %ju, direct io %d, avoid on append %d, io block size %ju, "
+        "alignment %ju).",
         filename, (param ? "under " : ""), (param ? param : ""),
-        get_last_os_error(), m_file.get_block_size(),
-        m_file.get_block_alignment(), m_file.have_direct_io_support(),
-        m_file.avoid_direct_io_on_append(), m_file.get_direct_io_block_size(),
-        m_file.get_direct_io_block_alignment());
+        get_last_os_error(), uintmax_t{m_file.get_block_size()},
+        uintmax_t{m_file.get_block_alignment()},
+        m_file.have_direct_io_support(), m_file.avoid_direct_io_on_append(),
+        uintmax_t{m_file.get_direct_io_block_size()},
+        uintmax_t{m_file.get_direct_io_block_alignment()});
 }
 
 void AsyncFile::log_set_odirect_result(const char *param, const char *filename,

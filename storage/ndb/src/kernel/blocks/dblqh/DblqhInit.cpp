@@ -244,6 +244,7 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg,
     };
     init_global_ptrs(tmp, sizeof(tmp) / sizeof(tmp[0]));
   }
+  init_global_block();
 #endif
   // Records with dynamic sizes
   hostRecord = (HostRecord *)allocRecord("HostRecord", sizeof(HostRecord),

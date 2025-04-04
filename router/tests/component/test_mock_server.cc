@@ -1047,7 +1047,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
        std::string version_string;
        ASSERT_TRUE(row->get_string(1, &version_string));
        ASSERT_THAT(version_string,
-                   ::testing::SizeIs(::testing::Gt(5)));  // x.y.z
+                   ::testing::SizeIs(::testing::Ge(5)));  // x.y.z
      }},
 };
 

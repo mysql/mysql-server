@@ -242,8 +242,9 @@ Log_event *Rpl_applier_reader::read_next_event() {
   if (m_relaylog_file_reader.get_error_type() == Binlog_read_error::READ_EOF &&
       !m_reading_active_log) {
     bool force_purging = false;
-    if (m_rli->is_receiver_waiting_for_rl_space.load() &&
-        !m_rli->is_in_group()) {
+    bool is_in_group = m_rli->is_parallel_exec() ? m_rli->is_mts_in_group()
+                                                 : m_rli->is_in_group();
+    if (m_rli->is_receiver_waiting_for_rl_space.load() && !is_in_group) {
       force_purging = true;
       if (m_rli->is_parallel_exec()) {
         mysql_mutex_unlock(&m_rli->data_lock);
@@ -387,7 +388,9 @@ bool Rpl_applier_reader::move_to_next_log(bool force) {
   m_rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
   m_rli->set_event_relay_log_name(m_linfo.log_file_name);
 
-  if (!m_rli->is_in_group()) {
+  bool is_in_group = m_rli->is_parallel_exec() ? m_rli->is_mts_in_group()
+                                               : m_rli->is_in_group();
+  if (!is_in_group) {
     /*
       To make the code be simpler, it is better to remove the following 'if'
       code block. should_purge_current_relay_log is rarely true. So it is ok

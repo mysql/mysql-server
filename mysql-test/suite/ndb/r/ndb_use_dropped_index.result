@@ -89,6 +89,57 @@ Level	Code	Message
 Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
 Error	1034	Incorrect key file for table 't1'; try to repair it
 
+call mtr.add_suppression(".*Got error 126 when reading table '.*t1'");
+
+## Attempt MRR read via dropped uk index
+select * from t1 where b in (2,4,6,8);
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+## Attempt join with dropped uk lookup as root, pk lookup as child
+select * from t1 x join t1 y on x.a = y.c where y.b=5;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+## Attempt join with pk lookup as root, dropped uk lookup as child
+select * from t1 x join t1 y on y.b = x.c where x.a=3;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+## Attempt update ignoring duplicates on dropped uk index
+update ignore t1 set b=1 where a=4;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+## Attempt insert on duplicate key update of dropped uk index
+insert into t1 values (10,4,4,4,4) on duplicate key update b=b+1;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+## Attempt insert which must check for duplicates on dropped
+## uk index to ignore errors
+insert ignore into t1 values (10,4,4,4,4);
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
 ##########################################
 ## Use ndb_drop_index to drop the index on c.
 ## Stale metadata

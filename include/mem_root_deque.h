@@ -151,6 +151,7 @@ class mem_root_deque {
       : m_blocks(other.m_blocks),
         m_begin_idx(other.m_begin_idx),
         m_end_idx(other.m_end_idx),
+        m_capacity(other.m_capacity),
         m_root(other.m_root) {
     other.m_blocks = nullptr;
     other.m_begin_idx = other.m_end_idx = other.m_capacity = 0;

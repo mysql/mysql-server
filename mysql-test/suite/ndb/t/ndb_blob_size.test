@@ -185,6 +185,17 @@ CREATE TABLE test.maxlen(
 SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'maxlen';
 
 DROP TABLE test.maxlen;
+
+## TINYBLOB columns ignore the BLOB_INLINE_SIZE option
+CREATE TABLE test.bigtiny(
+                      a int primary key,
+                      tb tinyblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=512") engine=ndb;
+CREATE TABLE test.smalltiny(
+                      a int primary key,
+                      tb tinyblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=128") engine=ndb;
+
+DROP TABLE test.bigtiny;
+DROP TABLE test.smalltiny;
 --echo
 
 # WL#15044 Configurable BLOB inline size
@@ -291,7 +302,7 @@ SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE test.inline algorithm=copy,
                         change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=27949",
-                        change column t t longtext comment "NDB_COLUMM_BLOB_INLINE_SIZE=1000",
+                        change column t t longtext comment "NDB_COLUMM=BLOB_INLINE_SIZE=1000",
                         change column j j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=27949";
 SHOW WARNINGS;
 
@@ -306,6 +317,26 @@ SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
 ALTER TABLE test.inline change column b b longblob comment "NDB_COLUMN=randomBLOB_INLINE_SIZE=25";
 SHOW WARNINGS LIMIT 2;
 
+## ALTER TABLE on table for TINYBLOB
+--error ER_DATA_TOO_LONG
+ALTER TABLE test.inline change column b tb tinyblob;
+## Length value on b (1536) is still larger than what can fit in TINYBLOB length (255)
+ALTER TABLE test.inline change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=255";
+--error ER_DATA_TOO_LONG
+ALTER TABLE test.inline change column b tb tinyblob;
+
+## Must update data to allow to fit TINYBLOB
+UPDATE test.inline SET b = repeat(0x424C4F, 64) WHERE a = 1;
+ALTER TABLE test.inline change column b tb tinyblob;
+SELECT a, length(tb) FROM test.inline;
+
+CREATE TABLE test.tiny (
+                      a int primary key,
+                      tb tinyblob) engine = ndb;
+## Always ignored for TINYBLOB
+ALTER TABLE test.tiny change column tb tb tinyblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=128";
+
+DROP TABLE test.tiny;
 DROP TABLE test.inline;
 --echo
 

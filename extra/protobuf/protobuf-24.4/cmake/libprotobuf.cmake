@@ -71,6 +71,9 @@ IF(protobuf_BUILD_SHARED_LIBS)
       PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver
       )
   ENDIF()
+  IF(APPLE)
+    TARGET_LINK_OPTIONS(libprotobuf PRIVATE LINKER:-no_warn_duplicate_libraries)
+  ENDIF()
 
   IF(WIN32)
     ADD_CUSTOM_COMMAND(TARGET libprotobuf POST_BUILD

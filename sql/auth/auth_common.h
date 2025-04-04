@@ -69,6 +69,8 @@ class Table_ref;
 enum class role_enum;
 enum class Consumer_type;
 class LEX_GRANT_AS;
+class ACL_temporary_lock_state;
+typedef std::vector<ACL_temporary_lock_state> Lock_state_list;
 
 namespace consts {
 extern const std::string mysql;
@@ -764,7 +766,9 @@ void acl_free(bool end = false);
 bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked);
 bool grant_init(bool skip_grant_tables);
 void grant_free(void);
-bool reload_acl_caches(THD *thd, bool mdl_locked);
+bool reload_acl_caches(THD *thd, bool mdl_locked,
+                       bool preserve_temporary_account_locking,
+                       Lock_state_list *modified_user_lock_state_list);
 Access_bitmask acl_get(THD *thd, const char *host, const char *ip,
                        const char *user, const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);

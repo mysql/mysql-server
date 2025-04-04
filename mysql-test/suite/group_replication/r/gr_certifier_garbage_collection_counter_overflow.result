@@ -1,0 +1,45 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start Group Replication and force a garbage collect
+#    high number on write set of certification info.
+include/start_and_bootstrap_group_replication.inc
+# Adding debug point 'group_replication_ci_rows_counter_high' to @@GLOBAL.debug
+
+############################################################
+# 2. Run some transactions on the group to increase
+#    garbage collection size.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL, c3 INT UNIQUE KEY NOT NULL);
+
+############################################################
+# 3. Remove certification info higher gtid set ref and
+#    enable debug point that will simulate a one time
+#    overflow on garbage collect counter.
+# Removing debug point 'group_replication_ci_rows_counter_high' from @@GLOBAL.debug
+# Adding debug point 'group_replication_garbage_collect_counter_overflow' to @@GLOBAL.debug
+
+############################################################
+# 4. As certification garbage collect simulates an overflow
+#    it will not delete values from certification info.
+
+############################################################
+# 5. Assert there are 3000 rows on certification info.
+include/assert.inc ['Count_transactions_rows_validating must be 3000']
+
+############################################################
+# 6. Remove debug point, already unset in the code
+# Removing debug point 'group_replication_garbage_collect_counter_overflow' from @@GLOBAL.debug
+
+############################################################
+# 7. Execute one more transaction to update stable set and
+#    garbage collect will clean certification info.
+INSERT INTO t1 VALUES (1001, 1001, 1001);
+
+#################################################################
+# 8. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -1,0 +1,169 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--enable_connect_log
+--connect (con1, localhost, root,,)
+
+--DELIMITER //
+
+CREATE PROCEDURE test.insert_records (IN record_count INT)
+BEGIN
+    DECLARE counter INT DEFAULT 1;
+
+    WHILE counter <= record_count DO
+        INSERT INTO test.t1 (srid)
+          VALUES (ST_PointFromText('POINT(1 1)'));
+        SET counter = counter + 1;
+    END WHILE;
+END //
+
+--DELIMITER ;
+
+# Limit the max number of records per page to 3
+SET GLOBAL innodb_limit_optimistic_insert_debug=3;
+
+--echo ############################################################
+--echo # Test#1 Bug#37318367 Delete part of records from two pages
+--echo # to lose a record
+--echo ############################################################
+
+--connection default
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, srid POINT NOT NULL SRID 0,
+  PRIMARY KEY(id), SPATIAL INDEX spi(srid)) ENGINE=InnoDB;
+
+# 8 records are inserted into four pages as following due to
+# sysvar innodb_limit_optimistic_insert_debug=3 set above :
+# p1: {1},  p2: {2,3,4}, p3: {5,6,7}, p4: {8}
+CALL insert_records(8);
+
+SET GLOBAL innodb_purge_stop_now = ON;
+
+#  Remove records in right half of page p2 and left half of page p3
+DELETE FROM t1 WHERE id > 2 AND id < 7;
+
+let $before_count = `SELECT COUNT(*) FROM t1`;
+--connection con1
+SET DEBUG_SYNC='ddl_batch_inserter_latches_released SIGNAL latches_released WAIT_FOR go EXECUTE 2';
+
+--echo # Send ALTER TABLE INPLACE to rebuild the index.
+
+# Force the log free check so that latch could be released at the end of the page
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
+
+# Save the cursor position at the end of record#4 and wait for the second
+# 'go'  signal to resume operation.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+# wait for the first hit of the sync point at the end of first page ...
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+# ... which we ignore by immediately resuming the alter table operation
+SET DEBUG_SYNC='now SIGNAL go';
+# Now wait for the second hit of the sync point at the end of second page
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+
+# Resume the alter table operation after page p2 is processed. Since the purge
+# is completed so remaining records are arranged as following :
+# p1: {1, 2, 7}, p4: {8}
+# Without the fix, cursor is positioned to record#8 instead of record#7 thus
+# latter is skipped.
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE.
+--reap;
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
+
+--echo # Ensure all data is present after index rebuild.
+let $after_count = `SELECT COUNT(*) FROM t1`;
+if($before_count != $after_count) {
+  --echo # Records, before rebuild=$before_count != after rebuild=$after_count"
+  SELECT id FROM t1;
+  --die "Test failed due to record count mismatch after index rebuild"
+}
+
+
+--echo # Test cleanup.
+DROP TABLE t1;
+
+--echo ############################################################
+--echo # Test#2 Bug#37318367 Delete part of records from two pages
+--echo # to lose a record - pause in PCursor::move_to_next_block
+--echo ############################################################
+
+--connection default
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, srid POINT NOT NULL SRID 0,
+  PRIMARY KEY(id), SPATIAL INDEX spi(srid)) ENGINE=InnoDB;
+
+# 8 records are inserted into four pages as following due to
+# sysvar innodb_limit_optimistic_insert_debug=3 set above :
+# p1: {1},  p2: {2,3,4}, p3: {5,6,7}, p4: {8}
+CALL insert_records(8);
+
+SET GLOBAL innodb_purge_stop_now = ON;
+
+#  Remove records in right half of page p2 and left half of page p3
+DELETE FROM t1 WHERE id > 2 AND id < 7;
+
+let $before_count = `SELECT COUNT(*) FROM t1`;
+--connection con1
+SET DEBUG_SYNC='pcursor_move_to_next_block_latches_released SIGNAL latches_released WAIT_FOR go EXECUTE 2';
+
+--echo # Send ALTER TABLE INPLACE to rebuild the index.
+
+# Force the log free check so that latch could be released at the end of the page
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
+# Trick the PCursor::move_to_next_block to think the latch is congested
+SET SESSION debug="+d,pcursor_move_to_next_block_release_latches";
+# Save the cursor position at the end of record#4 and wait for the second
+# 'go'  signal to resume operation.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+# wait for the first hit of the sync point at the end of first page ...
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+# ... which we ignore by immediately resuming the alter table operation
+SET DEBUG_SYNC='now SIGNAL go';
+# Now wait for the second hit of the sync point at the end of second page
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+
+# Resume the alter table operation after page p2 is processed. Since the purge
+# is completed so remaining records are arranged as following :
+# p1: {1, 2, 7}, p4: {8}
+# Without the fix, cursor is positioned to record#8 instead of record#7 thus
+# latter is skipped.
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE.
+--reap;
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
+SET SESSION debug="-d,pcursor_move_to_next_block_release_latches";
+
+--echo # Ensure all data is present after index rebuild.
+let $after_count = `SELECT COUNT(*) FROM t1`;
+if($before_count != $after_count) {
+  --echo # Records, before rebuild=$before_count != after rebuild=$after_count"
+  SELECT id FROM t1;
+  --die "Test failed due to record count mismatch after index rebuild"
+}
+
+
+--echo # Test cleanup.
+DROP TABLE t1;
+
+
+
+--echo # cleanup
+--connection default
+DROP PROCEDURE test.insert_records;
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+--disconnect con1
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

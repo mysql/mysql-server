@@ -1,0 +1,39 @@
+# Initialize new data directory...
+# Restart on the new data directory...
+# restart: --datadir=tmp/test_data_dir --log-error=my_restart.err
+SELECT @@GLOBAL.innodb_redo_log_capacity;
+@@GLOBAL.innodb_redo_log_capacity
+10485760
+SELECT @@GLOBAL.innodb_data_file_path;
+@@GLOBAL.innodb_data_file_path
+ibdata1:12M:autoextend
+# Disable page cleaner to have redo logs for recovery later on
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+SET @@GLOBAL.DEBUG='+d,ib_redo_log_system_tablespace_expansion';
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, name VARCHAR(50),
+PRIMARY KEY (`id`)) TABLESPACE=innodb_system;
+INSERT INTO t1 VALUES(0, REPEAT('a', 50));
+#
+# Insert 2^8 records
+#
+Pattern "System tablespace expansion is redo logged" found
+SET @@GLOBAL.DEBUG='-d,ib_redo_log_system_tablespace_expansion';
+# Verify no issues observed during crash recovery
+# Kill and restart: --datadir=tmp/test_data_dir --log-error=temp/mysqld_test.err
+SELECT * FROM t1 ORDER BY id LIMIT 1;
+id	name
+1	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+DROP TABLE t1;
+#
+# Cleanup
+#
+# restart:

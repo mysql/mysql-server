@@ -437,6 +437,11 @@ void ConfigGenerator::init(
 
   // throws std::runtime_error, std::logic_error,
   connect_to_metadata_server(u, bootstrap_socket, bootstrap_options);
+
+  if (!is_server_version_supported(mysql_.get())) {
+    throw std::runtime_error(get_unsupported_server_version_msg(mysql_.get()));
+  }
+
   schema_version_ = mysqlrouter::get_metadata_schema_version(mysql_.get());
 
   if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {

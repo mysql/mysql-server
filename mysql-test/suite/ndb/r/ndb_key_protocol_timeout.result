@@ -1,0 +1,118 @@
+# We are using some debug-only features in this test
+call mtr.add_suppression("Receive from NDB failed");
+Create some tables suitable for executing operations on
+-------------------------------------------------------
+use test;
+create table test.t1 (a int primary key, b int, key(b), c int, unique(c)) engine=ndb;
+Insert 40 rows
+insert into test.t1 values (0, 0, 0);;
+insert into test.t1 values (1, 1, 1);;
+insert into test.t1 values (2, 2, 2);;
+insert into test.t1 values (3, 3, 3);;
+insert into test.t1 values (4, 4, 4);;
+insert into test.t1 values (5, 5, 5);;
+insert into test.t1 values (6, 6, 6);;
+insert into test.t1 values (7, 7, 7);;
+insert into test.t1 values (8, 8, 8);;
+insert into test.t1 values (9, 9, 9);;
+insert into test.t1 values (10, 10, 10);;
+insert into test.t1 values (11, 11, 11);;
+insert into test.t1 values (12, 12, 12);;
+insert into test.t1 values (13, 13, 13);;
+insert into test.t1 values (14, 14, 14);;
+insert into test.t1 values (15, 15, 15);;
+insert into test.t1 values (16, 16, 16);;
+insert into test.t1 values (17, 17, 17);;
+insert into test.t1 values (18, 18, 18);;
+insert into test.t1 values (19, 19, 19);;
+insert into test.t1 values (20, 20, 20);;
+insert into test.t1 values (21, 21, 21);;
+insert into test.t1 values (22, 22, 22);;
+insert into test.t1 values (23, 23, 23);;
+insert into test.t1 values (24, 24, 24);;
+insert into test.t1 values (25, 25, 25);;
+insert into test.t1 values (26, 26, 26);;
+insert into test.t1 values (27, 27, 27);;
+insert into test.t1 values (28, 28, 28);;
+insert into test.t1 values (29, 29, 29);;
+insert into test.t1 values (30, 30, 30);;
+insert into test.t1 values (31, 31, 31);;
+insert into test.t1 values (32, 32, 32);;
+insert into test.t1 values (33, 33, 33);;
+insert into test.t1 values (34, 34, 34);;
+insert into test.t1 values (35, 35, 35);;
+insert into test.t1 values (36, 36, 36);;
+insert into test.t1 values (37, 37, 37);;
+insert into test.t1 values (38, 38, 38);;
+insert into test.t1 values (39, 39, 39);;
+Take row locks in other session
+begin;
+select * from test.t1 where a < 10 order by a for update;
+a	b	c
+0	0	0
+1	1	1
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	7	7
+8	8	8
+9	9	9
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_reduced_api_protocol_timeout";
+----------------------------
+Autocommit PK SELECT timeout
+----------------------------
+select * from test.t1 where a=0 for update;
+ERROR HY000: Got error 4012 'Request ndbd time-out, maybe due to high load or communication problems' from NDBCLUSTER
+Check pk lookups
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+10
+--------------------------------------
+Stateful transaction PK SELECT timeout
+--------------------------------------
+begin;
+insert into test.t1 values (100,100,100);
+select * from test.t1 where a=2 for update;
+ERROR HY000: Got error 4012 'Request ndbd time-out, maybe due to high load or communication problems' from NDBCLUSTER
+Check pk lookups
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+10
+----------------------------
+Autocommit UK SELECT timeout
+----------------------------
+select * from test.t1 where c=0 for update;
+ERROR HY000: Got error 4012 'Request ndbd time-out, maybe due to high load or communication problems' from NDBCLUSTER
+Check pk lookups
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+10
+--------------------------------------
+Stateful transaction UK SELECT timeout
+--------------------------------------
+begin;
+insert into test.t1 values (100,100,100);
+select * from test.t1 where c=2 for update;
+ERROR HY000: Got error 4012 'Request ndbd time-out, maybe due to high load or communication problems' from NDBCLUSTER
+Check pk lookups
+Check transaction leaks
+Leaks
+0
+select count(1) as ops from ndbinfo.cluster_operations;
+ops
+10
+rollback;
+SET SESSION debug=@save_debug;
+drop table test.t1;

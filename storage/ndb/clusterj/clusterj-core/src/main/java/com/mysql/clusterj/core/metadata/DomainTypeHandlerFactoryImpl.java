@@ -98,7 +98,7 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
             throw new ClusterJUserException(errorMessages.toString(), e);
         } finally {
             // if handler is null, there may be a problem with the schema, so remove it from the local dictionary
-            if (handler == null) {
+            if (handler == null && domainClass != null) {
                 String tableName = DomainTypeHandlerImpl.getTableName(domainClass);
                 if (tableName != null) {
                     logger.info(local.message("MSG_Removing_Schema", tableName, domainClass.getName()));

@@ -4,6 +4,13 @@ if (mysqld.global.session_count === undefined) {
   mysqld.global.session_count = 0;
 }
 
+if (mysqld.global.server_version === undefined) {
+  // Let's keep the default server version as some known compatible version.
+  // If there is a need to some specific compatibility checks, this should be
+  // overwritten from the test.
+  mysqld.global.server_version = "8.0.39";
+}
+
 var options = {
   cluster_type: "gr",
 
@@ -75,7 +82,8 @@ var router_insert_into_routers =
     auth: {
       username: "root",
       password: "fake-pass",
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     var res;

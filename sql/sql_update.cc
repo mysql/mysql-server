@@ -1782,6 +1782,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   Opt_trace_array trace_steps(trace, "steps");
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
 
+  select->original_tables_map = select->all_tables_map();
   if (select->has_sj_candidates() && select->flatten_subqueries(thd))
     return true; /* purecov: inspected */
 

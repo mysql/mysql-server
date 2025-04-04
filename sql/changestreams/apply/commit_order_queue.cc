@@ -45,10 +45,14 @@ cs::apply::Commit_order_queue::Node::reset_commit_sequence_nr() {
   for (; true;) {
     auto ticket_nr =
         this->m_commit_sequence_nr->load(std::memory_order_acquire);
+    auto next_ticket_nr =
+        this->m_next_commit_sequence_nr->load(std::memory_order_acquire);
     if (ticket_nr != SEQUENCE_NR_FROZEN &&
         this->m_commit_sequence_nr->compare_exchange_strong(
-            ticket_nr, NO_SEQUENCE_NR, std::memory_order_release))
-      return ticket_nr;
+            ticket_nr, NO_SEQUENCE_NR, std::memory_order_release)) {
+      this->m_next_commit_sequence_nr->store(Node::NO_SEQUENCE_NR);
+      return next_ticket_nr;
+    }
     std::this_thread::yield();
   }
   assert(false);
@@ -150,14 +154,13 @@ cs::apply::Commit_order_queue::pop() {
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
   value_type value_to_return{NO_WORKER};
-  sequence_type sequence_to_return{Node::NO_SEQUENCE_NR};
+  sequence_type next_seq_nr{Node::NO_SEQUENCE_NR};
   this->m_commit_queue >> value_to_return;
   this->m_commit_queue.clear_state();
   if (value_to_return != NO_WORKER) {
-    sequence_to_return =
-        this->m_workers[value_to_return].reset_commit_sequence_nr();
+    next_seq_nr = this->m_workers[value_to_return].reset_commit_sequence_nr();
   }
-  return std::make_tuple(value_to_return, sequence_to_return);
+  return std::make_tuple(value_to_return, next_seq_nr);
 }
 
 void cs::apply::Commit_order_queue::push(value_type index) {
@@ -170,6 +173,8 @@ void cs::apply::Commit_order_queue::push(value_type index) {
     next = this->m_commit_sequence_generator->fetch_add(1);
   } while (next <= Node::SEQUENCE_NR_FROZEN);
   this->m_workers[index].m_commit_sequence_nr->store(next);
+  this->m_workers[index].m_next_commit_sequence_nr->store(
+      get_next_sequence_nr(next));
   this->m_commit_queue << index;
   assert(this->m_commit_queue.get_state() !=
          Commit_order_queue::queue_type::enum_queue_state::NO_SPACE_AVAILABLE);
@@ -178,6 +183,9 @@ void cs::apply::Commit_order_queue::push(value_type index) {
 
 cs::apply::Commit_order_queue::value_type
 cs::apply::Commit_order_queue::front() {
+  lock::Shared_spin_lock::Guard front_sentry{
+      this->m_push_pop_lock,
+      lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
   return this->m_commit_queue.front();
 }
 
@@ -213,4 +221,97 @@ cs::apply::Commit_order_queue::get_next_sequence_nr(
     ++next;
   } while (next <= Node::SEQUENCE_NR_FROZEN);
   return next;
+}
+
+std::tuple<cs::apply::Commit_order_queue::value_type,
+           cs::apply::Commit_order_queue::sequence_type>
+cs::apply::Commit_order_queue::remove(value_type index) {
+  lock::Shared_spin_lock::Guard remove_sentry{
+      this->m_push_pop_lock,
+      lock::Shared_spin_lock::enum_lock_acquisition::SL_EXCLUSIVE};
+  value_type value_to_return{NO_WORKER};
+  value_type previous_worker{NO_WORKER};
+  sequence_type next_seq_nr{Node::NO_SEQUENCE_NR};
+
+  std::tie(value_to_return, previous_worker) = remove_from_commit_queue(index);
+  this->m_commit_queue.clear_state();
+
+  if (value_to_return != NO_WORKER) {
+    next_seq_nr = this->m_workers[value_to_return].reset_commit_sequence_nr();
+
+    if (previous_worker != NO_WORKER) {
+      /*
+        The previous worker will be responsible to unblock the next worker.
+
+        Example:
+        +----------------------+----+----+----+
+        | worker               |  1 |  2 |  3 |
+        | sequence number      | 11 | 12 | 13 |
+        | next sequence number | 12 | 13 | 14 |
+        +----------------------+----+----+----+
+
+        Worker 2 is removed:
+        +----------------------+----+----+
+        | worker               |  1 |  3 |
+        | sequence number      | 11 | 13 |
+        | next sequence number | 13 | 14 |
+        +----------------------+----+----+
+        Worker 1 will be responsible to unblock worker 3, thence the next
+        sequence number 13.
+      */
+      this->m_workers[previous_worker].m_next_commit_sequence_nr->store(
+          next_seq_nr);
+      next_seq_nr = Node::NO_SEQUENCE_NR;
+    }
+  }
+
+  return std::make_tuple(value_to_return, next_seq_nr);
+}
+
+std::tuple<cs::apply::Commit_order_queue::value_type,
+           cs::apply::Commit_order_queue::value_type>
+cs::apply::Commit_order_queue::remove_from_commit_queue(value_type to_remove) {
+  assert(to_remove != NO_WORKER);
+
+  // Iterator to the first match, if any.
+  auto it = std::find(this->m_commit_queue.begin(), this->m_commit_queue.end(),
+                      to_remove);
+
+  // If to_remove is not in the set, return.
+  if (it == this->m_commit_queue.end()) {
+    return std::make_tuple(NO_WORKER, NO_WORKER);
+  }
+
+  // If to_remove is the first, just pop it and return.
+  if (it == this->m_commit_queue.begin()) {
+    value_type value_removed = this->m_commit_queue.pop();
+    return std::make_tuple(value_removed, NO_WORKER);
+  }
+
+  // If to_remove is in the queue but not the first,
+  // rebuild the queue omitting to_remove.
+  value_type value_removed{NO_WORKER};
+  value_type previous_value{NO_WORKER};
+  const Commit_order_queue::queue_type::index_type original_size =
+      this->m_commit_queue.tail() - this->m_commit_queue.head();
+
+  // Pop the first value so that we have the
+  // previous value.
+  value_type value = this->m_commit_queue.pop();
+  this->m_commit_queue.push(value);
+
+  for (Commit_order_queue::queue_type::index_type i = 1; i < original_size;
+       ++i) {
+    value_type current_previous_value = value;
+    value = this->m_commit_queue.pop();
+    if (value_removed == NO_WORKER && value == to_remove) {
+      value_removed = value;
+      previous_value = current_previous_value;
+    } else {
+      this->m_commit_queue.push(value);
+    }
+  }
+  assert(this->m_commit_queue.get_state() ==
+         Commit_order_queue::queue_type::enum_queue_state::SUCCESS);
+  return std::make_tuple(value_removed, previous_value);
 }

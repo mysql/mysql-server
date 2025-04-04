@@ -84,7 +84,7 @@ DROP TABLE t1;
 --echo # Scenario 3 : INSTANT ADD/DROP Columns in target table
 --echo # ------------------------------------------------------------
 create table t1 (c1 char(10), c2 char(10)) row_format=compact;
-ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def", ADD COLUMN c4 char(10) DEFAULT "c4_def";
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def", ADD COLUMN c4 char(10) DEFAULT "c4_def", ALGORITHM=INSTANT;
 
 --let $table_name=t1
 --source suite/innodb/include/print_instant_metadata.inc
@@ -103,7 +103,7 @@ DROP TABLE t1;
 --echo # Scenario 4 : INSTANT ADD/DROP. Column mismatch
 --echo # ------------------------------------------------------------
 create table t1 (c1 char(10), c2 char(10)) row_format=compact;
-ALTER TABLE t1 ADD COLUMN c3 char(20) DEFAULT "c3_def", ADD COLUMN c4 char(10) DEFAULT "c4_def";
+ALTER TABLE t1 ADD COLUMN c3 char(20) DEFAULT "c3_def", ADD COLUMN c4 char(10) DEFAULT "c4_def", ALGORITHM=INSTANT;
 
 --let $table_name=t1
 --source suite/innodb/include/print_instant_metadata.inc
@@ -122,7 +122,7 @@ DROP TABLE t1;
 --echo # Scenario 5 : INSTANT ADD/DROP. Default value mismatch
 --echo # ------------------------------------------------------------
 create table t1 (c1 char(10), c2 char(10)) row_format=compact;
-ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "def_c3", ADD COLUMN c4 char(10) DEFAULT "c4_def";
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "def_c3", ADD COLUMN c4 char(10) DEFAULT "c4_def", ALGORITHM=INSTANT;
 
 --let $table_name=t1
 --source suite/innodb/include/print_instant_metadata.inc

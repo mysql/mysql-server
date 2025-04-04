@@ -327,6 +327,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       DEPENDS ${target})
   ENDIF()
 
+  IF(BUILD_PLUGIN AND ARG_MODULE_ONLY AND APPLE)
+    TARGET_LINK_OPTIONS(${target} PRIVATE LINKER:-no_warn_duplicate_libraries)
+  ENDIF()
+
   IF(BUILD_PLUGIN)
     ADD_DEPENDENCIES(plugin_all ${target})
     TARGET_COMPILE_FEATURES(${target} PUBLIC cxx_std_17)

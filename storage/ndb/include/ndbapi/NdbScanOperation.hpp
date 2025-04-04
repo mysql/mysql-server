@@ -637,7 +637,7 @@ class NdbScanOperation : public NdbOperation {
   int send_next_scan(Uint32 cnt, bool close);
   void receiver_delivered(NdbReceiver *);
   void receiver_completed(NdbReceiver *);
-  void execCLOSE_SCAN_REP();
+  void execCLOSE_SCAN_REP(Uint32 errorCode, bool needClose);
 
   int getKeyFromKEYINFO20(Uint32 *data, Uint32 &size);
   NdbOperation *takeOverScanOp(OperationType opType, NdbTransaction *);
@@ -719,6 +719,13 @@ class NdbScanOperation : public NdbOperation {
    */
   NdbBlob *getBlobHandle(const char *anAttrName) const override;
   NdbBlob *getBlobHandle(Uint32 anAttrId) const override;
+
+ protected:
+  /*
+    Owned by the receiver thread
+    Read by API thread under mutex protection
+  */
+  Uint32 m_kernel_error_code;
 };
 
 inline NdbOperation *NdbScanOperation::lockCurrentTuple() {

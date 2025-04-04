@@ -7381,6 +7381,7 @@ restart_cluster_failure:
   // wait_for_server_started() to ensure that the parts of
   // MySQL Server it uses has been created
   thd->init_query_mem_roots();
+  thd->set_time();
   lex_start(thd);
 
   if (do_reconnect_incident && ndb_binlog_running) {
@@ -7857,6 +7858,9 @@ restart_cluster_failure:
     // Self test functionality
     DBUG_EXECUTE_IF("ndb_binlog_log_table_maps",
                     { dbug_log_table_maps(i_ndb, current_epoch); });
+
+    DBUG_EXECUTE_IF("ndb_binlog_log_multi_server_id",
+                    { dbug_log_multi_server_id(i_ndb, current_epoch); });
 
     DBUG_EXECUTE_IF("ndb_binlog_inject_incident", {
       // Test rpl_injector function for writing incident to binlog

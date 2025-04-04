@@ -443,11 +443,7 @@ void Transporter::disconnectImpl() {
   assert(theSocket.is_valid());
   if (theSocket.is_valid()) {
     DEB_MULTI_TRP(("Shutdown socket for trp %u", getTransporterIndex()));
-    if (theSocket.shutdown() < 0) {
-      // Do we care about shutdown failures? It might fail due to e.g.
-      // connection already terminated by other peer.
-      report_error(TE_ERROR_CLOSING_SOCKET);
-    }
+    theSocket.shutdown();
   }
 }
 

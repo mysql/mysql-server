@@ -9942,17 +9942,26 @@ query_expression_body:
           }
         | query_expression_body UNION_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_union($1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {flatten_equal_set_ops<PT_union,
+                                        PT_set_operation::UNION>(
+                      YYMEM_ROOT, $1.body, $3, $4.body,
+                      $4.is_parenthesized),
                   false};
           }
         | query_expression_body EXCEPT_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_except($1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {flatten_equal_set_ops<PT_except,
+                                        PT_set_operation::EXCEPT>(
+                      YYMEM_ROOT, $1.body, $3, $4.body,
+                      $4.is_parenthesized),
                   false};
           }
         | query_expression_body INTERSECT_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_intersect($1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {flatten_equal_set_ops<PT_intersect,
+                                        PT_set_operation::INTERSECT>(
+                      YYMEM_ROOT, $1.body, $3, $4.body,
+                      $4.is_parenthesized),
                   false};
           }
         ;

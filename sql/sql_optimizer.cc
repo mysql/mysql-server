@@ -1523,7 +1523,8 @@ bool JOIN::optimize_distinct_group_order() {
     }
   }
   if (!(!group_list.empty() || tmp_table_param.sum_func_count || windowing) &&
-      select_distinct && plan_is_single_table() &&
+      select_distinct &&
+      (plan_is_single_table() || query_block->original_tables_map == 1) &&
       rollup_state == RollupState::NONE) {
     int order_idx = -1, group_idx = -1;
     /*
@@ -8045,9 +8046,10 @@ bool is_indexed_agg_distinct(JOIN *join,
   bool result = false;
   Field_map first_aggdistinct_fields;
 
-  if (join->primary_tables > 1 ||             /* reference more than 1 table */
-      join->select_distinct ||                /* or a DISTINCT */
-      join->query_block->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
+  if (join->query_block->original_tables_map > 1 || /* reference more than 1
+                                                       table originally */
+      join->select_distinct ||                      /* or a DISTINCT */
+      join->query_block->olap == ROLLUP_TYPE)       /* Check (B3) for ROLLUP */
     return false;
 
   if (join->make_sum_func_list(*join->fields, true)) return false;
@@ -8165,7 +8167,9 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
   const char *cause;
 
   /* Find the indexes that might be used for skip scan queries. */
-  if (join->where_cond && join->primary_tables == 1 &&
+  if (join->where_cond != nullptr &&
+      join->query_block->original_tables_map == 1 &&
+      join->query_block->original_tables_map == join_tab->table_ref->map() &&
       join->group_list.empty() &&
       !is_indexed_agg_distinct(join, &indexed_fields) &&
       !join->select_distinct) {

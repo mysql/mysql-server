@@ -1,0 +1,9 @@
+create table t1 (a int primary key,
+b int,
+c int,
+key(c)) engine = ndb;
+Insert a number of rows
+Define a statement that will use MRR to read
+Run a number of iterations to likely get query thread usage
+Cleanup
+drop table t1;

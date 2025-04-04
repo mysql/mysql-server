@@ -1138,8 +1138,8 @@ bool Item_singlerow_subselect::select_transformer(THD *thd,
   }
   if (!unit->is_set_operation() && !select->has_tables() &&
       single_field != nullptr && !single_field->has_aggregation() &&
-      !single_field->has_wf() && select->where_cond() == nullptr &&
-      select->having_cond() == nullptr) {
+      select->olap == UNSPECIFIED_OLAP_TYPE && !single_field->has_wf() &&
+      select->where_cond() == nullptr && select->having_cond() == nullptr) {
     have_to_be_excluded = true;
     if (thd->lex->is_explain()) {
       char warn_buff[MYSQL_ERRMSG_SIZE];

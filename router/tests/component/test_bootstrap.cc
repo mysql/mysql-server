@@ -3136,6 +3136,119 @@ INSTANTIATE_TEST_SUITE_P(
             /*fail_default_auth_plugin_query*/ false,
             /*fail_alter_user_query*/ true}));
 
+static constexpr const unsigned long max_supported_version =
+    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
+
+struct ServerCompatTestParam {
+  std::string description;
+  std::string tracefile;
+  std::string server_version;
+  bool expect_failure;
+  std::string expected_error_msg;
+};
+
+class CheckServerCompatibilityTest
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<ServerCompatTestParam> {};
+
+/**
+ * @test
+ *       Verifies that the server version is checked for compatibility when the
+ * Router is bootstrapped against the GR Cluster and Replica Set
+ */
+TEST_P(CheckServerCompatibilityTest, Spec) {
+  RecordProperty("Description", GetParam().description);
+
+  const auto classic_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+
+  const std::string tracefile = get_data_dir().join(GetParam().tracefile).str();
+  launch_mysql_server_mock(tracefile, classic_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  set_mock_metadata(http_port, "gr-uuid",
+                    classic_ports_to_gr_nodes({classic_port}), 0,
+                    {classic_port});
+
+  set_mock_server_version(http_port, GetParam().server_version);
+
+  std::vector<std::string> cmdline_bs = {"--bootstrap=root:"s + kRootPassword +
+                                             "@localhost:"s +
+                                             std::to_string(classic_port),
+                                         "-d", bootstrap_dir.name()};
+
+  const auto expected_exit_code =
+      GetParam().expect_failure ? EXIT_FAILURE : EXIT_SUCCESS;
+  auto &router = launch_router_for_bootstrap(cmdline_bs, expected_exit_code);
+  check_exit_code(router, expected_exit_code);
+
+  if (GetParam().expect_failure) {
+    const std::string router_console_output = router.get_full_output();
+    EXPECT_TRUE(
+        pattern_found(router_console_output, GetParam().expected_error_msg))
+        << router_console_output;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CheckServerCompatibilityTest,
+    ::testing::Values(
+        ServerCompatTestParam{
+            "GR Cluster; Server is the same version as Router - bootstrap OK",
+            "bootstrap_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            false, ""},
+        ServerCompatTestParam{
+            "Replica Set; Server is the same version as Router - bootstrap OK",
+            "bootstrap_ar.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            false, ""},
+        ServerCompatTestParam{
+            "GR Cluster; Server major version is highier than Router - "
+            "bootstrap should fail",
+            "bootstrap_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
+            "version is '" +
+                std::to_string(max_supported_version) + "'."},
+        ServerCompatTestParam{
+            "GR Cluster; Server minor version is highier than Router - "
+            "bootstrap should fail",
+            "bootstrap_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
+            "version is '" +
+                std::to_string(max_supported_version) + "'."},
+        ServerCompatTestParam{
+            "GR Cluster; Server patch version is highier than Router - "
+            "bootstrap OK",
+            "bootstrap_gr.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),
+            false, ""},
+        ServerCompatTestParam{
+            "Replica Set; Server major version is highier than Router - "
+            "bootstrap should fail",
+            "bootstrap_ar.js",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
+            "version is '" +
+                std::to_string(max_supported_version) + "'."}));
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());

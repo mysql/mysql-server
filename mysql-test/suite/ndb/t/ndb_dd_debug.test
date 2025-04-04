@@ -1,0 +1,66 @@
+-- source include/have_ndb.inc
+-- source include/have_debug.inc
+
+# Setup disk data
+
+CREATE LOGFILE GROUP lg
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg
+INITIAL_SIZE 30M
+EXTENT_SIZE 256K
+ENGINE NDB;
+
+# Create table with many disk columns and check that disk scan is selected for
+# table scan.
+
+set @save_debug = @@session.debug;
+set debug='+d,ndb_disk_scan';
+
+let $n = 255;
+let $i = 1;
+let $columns = pk int PRIMARY KEY;
+while ($i <= $n) {
+  let $columns =$columns, col$i BINARY(10) DEFAULT NULL;
+  inc $i;
+}
+
+# 255 disk columns
+
+echo CREATE TABLE t1 (255 disk columns) TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+disable_query_log;
+eval CREATE TABLE t1 ($columns)
+     TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+enable_query_log;
+INSERT INTO t1 (pk) VALUES (1),(2),(3),(4),(5),(6),(7);
+SELECT col17 FROM t1;
+DROP TABLE t1;
+
+# 256 disk columns
+
+let $columns =$columns, col$i BINARY(10) DEFAULT NULL;
+echo CREATE TABLE t1 (256 disk columns) TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+disable_query_log;
+eval CREATE TABLE t1 ($columns)
+     TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+enable_query_log;
+INSERT INTO t1 (pk) VALUES (1),(2),(3),(4),(5),(6),(7);
+SELECT col17 FROM t1;
+DROP TABLE t1;
+
+set session debug=@save_debug;
+
+# Cleanup disk data
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
+
+DROP LOGFILE GROUP lg
+ENGINE=NDB;
+

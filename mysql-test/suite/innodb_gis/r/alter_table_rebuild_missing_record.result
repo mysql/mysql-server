@@ -1,0 +1,72 @@
+connect  con1, localhost, root,,;
+CREATE PROCEDURE test.insert_records (IN record_count INT)
+BEGIN
+DECLARE counter INT DEFAULT 1;
+WHILE counter <= record_count DO
+INSERT INTO test.t1 (srid)
+VALUES (ST_PointFromText('POINT(1 1)'));
+SET counter = counter + 1;
+END WHILE;
+END //
+SET GLOBAL innodb_limit_optimistic_insert_debug=3;
+############################################################
+# Test#1 Bug#37318367 Delete part of records from two pages
+# to lose a record
+############################################################
+connection default;
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, srid POINT NOT NULL SRID 0,
+PRIMARY KEY(id), SPATIAL INDEX spi(srid)) ENGINE=InnoDB;
+CALL insert_records(8);
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id > 2 AND id < 7;
+connection con1;
+SET DEBUG_SYNC='ddl_batch_inserter_latches_released SIGNAL latches_released WAIT_FOR go EXECUTE 2';
+# Send ALTER TABLE INPLACE to rebuild the index.
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET DEBUG_SYNC='now SIGNAL go';
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now = ON;
+SET DEBUG_SYNC='now SIGNAL go';
+connection con1;
+# Reap ALTER TABLE.
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
+# Ensure all data is present after index rebuild.
+# Test cleanup.
+DROP TABLE t1;
+############################################################
+# Test#2 Bug#37318367 Delete part of records from two pages
+# to lose a record - pause in PCursor::move_to_next_block
+############################################################
+connection default;
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, srid POINT NOT NULL SRID 0,
+PRIMARY KEY(id), SPATIAL INDEX spi(srid)) ENGINE=InnoDB;
+CALL insert_records(8);
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id > 2 AND id < 7;
+connection con1;
+SET DEBUG_SYNC='pcursor_move_to_next_block_latches_released SIGNAL latches_released WAIT_FOR go EXECUTE 2';
+# Send ALTER TABLE INPLACE to rebuild the index.
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
+SET SESSION debug="+d,pcursor_move_to_next_block_release_latches";
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET DEBUG_SYNC='now SIGNAL go';
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now = ON;
+SET DEBUG_SYNC='now SIGNAL go';
+connection con1;
+# Reap ALTER TABLE.
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
+SET SESSION debug="-d,pcursor_move_to_next_block_release_latches";
+# Ensure all data is present after index rebuild.
+# Test cleanup.
+DROP TABLE t1;
+# cleanup
+connection default;
+DROP PROCEDURE test.insert_records;
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+disconnect con1;

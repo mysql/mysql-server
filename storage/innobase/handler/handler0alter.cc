@@ -788,9 +788,9 @@ static bool ok_to_rename_column(const Alter_inplace_info *ha_alter_info,
         for (dict_foreign_set::iterator it = dict_table->referenced_set.begin();
              it != dict_table->referenced_set.end(); ++it) {
           dict_foreign_t *foreign = *it;
-          const char *r_name = foreign->referenced_col_names[0];
 
           for (size_t i = 0; i < foreign->n_fields; ++i) {
+            const char *r_name = foreign->referenced_col_names[i];
             if (!my_strcasecmp(system_charset_info, r_name, col_name)) {
               if (report_error) {
                 my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
@@ -801,7 +801,6 @@ static bool ok_to_rename_column(const Alter_inplace_info *ha_alter_info,
               }
               return false;
             }
-            r_name = foreign->referenced_col_names[i];
           } /* each column in reference element */
         }   /* each element in reference set */
       }     /* each column being renamed */
@@ -1040,6 +1039,12 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         if (ha_alter_info->alter_info->requested_algorithm ==
             Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
           /* Still fall back to INPLACE since the behaviour is different */
+          break;
+        } else if ((ha_alter_info->alter_info->requested_algorithm ==
+                    Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT) &&
+                   !dict_table_is_discarded(m_prebuilt->table) &&
+                   btr_is_index_empty(m_prebuilt->table->first_index())) {
+          /* No records: prefer INPLACE to prevent bumping row version */
           break;
         } else if (!((m_prebuilt->table->n_def +
                       get_num_cols_added(ha_alter_info)) < REC_MAX_N_FIELDS)) {
@@ -3552,7 +3557,8 @@ static inline bool innobase_pk_col_is_existing(const ulint new_col_no,
 }
 
 /** Determine whether both the indexes have same set of primary key
-fields arranged in the same order.
+fields arranged in the same order. If so, there is no need to do the
+external sorting of primary key fields.
 
 Rules when we cannot skip sorting:
 (1) Removing existing PK columns somewhere else than at the end of the PK;
@@ -3563,14 +3569,16 @@ columns are removed from the PK;
 follows rule(1), Increasing the prefix length just like adding existing
 PK columns follows rule(2);
 (5) Changing the ascending order of the existing PK columns.
+(6) Adding a new auto increment column with descending order in PK.
 @param[in]      col_map         mapping of old column numbers to new ones
 @param[in]      old_clust_index index to be compared
 @param[in]      new_clust_index index to be compared
+@param[in]      add_autoinc     added AUTO_INCREMENT column position
 @retval true if both indexes have same order.
 @retval false. */
 [[nodiscard]] static bool innobase_pk_order_preserved(
     const ulint *col_map, const dict_index_t *old_clust_index,
-    const dict_index_t *new_clust_index) {
+    const dict_index_t *new_clust_index, ulint add_autoinc) {
   ulint old_n_uniq = dict_index_get_n_ordering_defined_by_user(old_clust_index);
   ulint new_n_uniq = dict_index_get_n_ordering_defined_by_user(new_clust_index);
 
@@ -3622,7 +3630,13 @@ PK columns follows rule(2);
     } else if (innobase_pk_col_is_existing(new_col_no, col_map, old_n_cols)) {
       new_field_order = old_n_uniq + existing_field_count++;
     } else {
-      /* Skip newly added column. */
+      /* Skip newly added column except descending auto increment column */
+      if (add_autoinc == new_col_no &&
+          !new_clust_index->fields[new_field].is_ascending) {
+        /* Descending needs sort */
+        return (false);
+      }
+
       continue;
     }
 
@@ -4948,8 +4962,8 @@ template <typename Table>
   if (new_clustered) {
     dict_index_t *clust_index = user_table->first_index();
     dict_index_t *new_clust_index = ctx->new_table->first_index();
-    ctx->skip_pk_sort =
-        innobase_pk_order_preserved(ctx->col_map, clust_index, new_clust_index);
+    ctx->skip_pk_sort = innobase_pk_order_preserved(
+        ctx->col_map, clust_index, new_clust_index, ctx->add_autoinc);
 
     DBUG_EXECUTE_IF("innodb_alter_table_pk_assert_no_sort",
                     assert(ctx->skip_pk_sort););

@@ -358,6 +358,8 @@ ConnectProcessor::from_pool() {
         (void)socket_splicer->server_conn().connection()->set_io_context(
             socket_splicer->client_conn().connection()->io_ctx());
 
+        connection()->server_address(socket_splicer->server_conn().endpoint());
+
         stage(Stage::Connected);
         return Result::Again;
       }
@@ -745,6 +747,9 @@ ConnectProcessor::connected() {
   // remember the destination we connected too for connection-sharing.
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
 
+  connection()->server_address(
+      connection()->socket_splicer()->server_conn().endpoint());
+
   {
     const auto &dest = (*destinations_it_);
 
@@ -779,9 +784,11 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
       msg += ": ";
       msg += ec.message();
     }
+
     log_error("[%s] connecting to backend(s) for client from %s failed: %s",
               connection()->context().get_name().c_str(),
-              connection()->get_client_address().c_str(), msg.c_str());
+              connection()->socket_splicer()->client_conn().endpoint().c_str(),
+              msg.c_str());
   }
 
   if (last_ec == make_error_condition(std::errc::too_many_files_open) ||

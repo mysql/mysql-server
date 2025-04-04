@@ -323,6 +323,7 @@ NdbTransaction::NdbTransaction(Ndb *aNdb)
       theTransactionIsStarted(false),
       theDBnode(0),
       theReleaseOnClose(false),
+      theForceReleaseOnClose(false),
       // Scan operations
       m_waitForReply(true),
       m_theFirstScanOperation(nullptr),
@@ -1026,6 +1027,8 @@ int NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
             "occur. You have likely hit a NDB Bug. Please "
             "file a bug.");
         DBUG_PRINT("error", ("This timeout should never occure, execute()"));
+        // TODO : Consider removing inline rollback, leave until transaction
+        // release time
         g_eventLogger->error(
             "Forcibly trying to rollback txn (0x%x 0x%x"
             ") to try to clean up data node resources.",
@@ -1035,6 +1038,7 @@ int NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
         theError.status = NdbError::PermanentError;
         theError.classification = NdbError::TimeoutExpired;
         setOperationErrorCodeAbort(4012);  // ndbd timeout
+        theForceReleaseOnClose = true;
         DBUG_RETURN(-1);
       }  // if
 

@@ -71,7 +71,7 @@ char *NdbConfig_NdbCfgName(int with_ndb_home) {
     len = (int)strlen(buf);
   } else
     buf = (char *)malloc(PATH_MAX);
-  snprintf(buf + len, PATH_MAX, "Ndb.cfg");
+  snprintf(buf + len, PATH_MAX - len, "Ndb.cfg");
   return buf;
 }
 

@@ -1,0 +1,58 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode on server1 and
+#    server2
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+
+############################################################
+# 2. Set autocommit OFF on server2
+[connection server2]
+include/save_sysvars.inc [
+"GLOBAL.autocommit"
+]
+SET @@GLOBAL.autocommit= 0;
+
+############################################################
+# 3. Configure a channel on server2 that replicates from
+#    server3
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+
+############################################################
+# 4. Start group replication on server2
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 5. Configure and start a failover channel on server1 that
+#    replicates from server3
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+
+############################################################
+# 6. Reset replica on server2
+[connection server2]
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+
+############################################################
+# 7. Clean up.
+[connection server1]
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+[connection server2]
+include/stop_group_replication.inc
+include/restore_sysvars.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

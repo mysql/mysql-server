@@ -1,0 +1,83 @@
+# The LOCK_TYPE in table performance_schema.metadata_locks
+# does not change after MDL upgrade or downgrade
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Prepare
+connect (con1, localhost, root, , );
+
+create table t1 (id int key, c1 int);
+insert into t1 values (1, 10);
+
+# DDL and check MDL LOCK_TYPE
+--connection con1
+
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC= 'alter_opened_table WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog WAIT_FOR continue3';
+
+--echo # Sending:
+--send alter table t1 change column c1 c1 bigint
+
+
+--connection default
+
+# Wait for the ALTER TABLE to reach the sync point 1.
+let $wait_timeout= 5;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE' and OBJECT_NAME = 't1'
+  AND LOCK_TYPE = 'SHARED_UPGRADABLE';
+--source include/wait_condition.inc
+
+# expect SHARED_UPGRADABLE
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE' and OBJECT_NAME = 't1';
+
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+
+# Wait for the ALTER TABLE to reach the sync point 2.
+let $wait_timeout= 5;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE' and OBJECT_NAME = 't1'
+  AND LOCK_TYPE = 'SHARED_NO_WRITE';
+--source include/wait_condition.inc
+
+# expect SHARED_NO_WRITE
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE' and OBJECT_NAME = 't1';
+
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+
+# Wait for the ALTER TABLE to reach the sync point 3.
+let $wait_timeout= 5;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE' and OBJECT_NAME = 't1'
+  AND LOCK_TYPE = 'EXCLUSIVE';
+--source include/wait_condition.inc
+
+# expect EXCLUSIVE
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE' and OBJECT_NAME = 't1';
+
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+
+--connection con1
+--echo # Reaping ALTER TABLE ...
+--reap
+SET DEBUG_SYNC= 'RESET';
+
+
+
+# Cleanup
+--connection default
+
+drop table t1;
+

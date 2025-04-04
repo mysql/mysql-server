@@ -470,6 +470,132 @@ int runRestarter(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
+int runCreateDropTableUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
+  NdbRestarter res;
+  const char *tableName = ctx->getProperty("tableName", (char *)NULL);
+
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  Uint32 stepNum = step->getStepNo();
+  BaseString tabName(tableName);
+  tabName.appfmt("_%i", stepNum);
+
+  NdbDictionary::Table tab(tabName.c_str());
+  {
+    NdbDictionary::Column col("a");
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setPrimaryKey(true);
+    tab.addColumn(col);
+  }
+  {
+    NdbDictionary::Column col("b");
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setNullable(false);
+    tab.addColumn(col);
+  }
+
+  while (!ctx->isTestStopped()) {
+    /*
+     * 3006: Error Insert to delay handling of ACCFRAGREQ (and indirectly
+     * TUPFRAGREQ).
+     * 4039: Error Insert to delay fragment release in TUP.
+     */
+    int error = rand() % 2 ? 3006 : 4039;
+    if (res.insertErrorInAllNodes(error) != 0) {
+      g_err << "Failed to insertError " << error << endl;
+      return NDBT_FAILED;
+    }
+
+    if (pDict->createTable(tab) != 0) {
+      NdbError err = pDict->getNdbError();
+      g_err << "Failed to create table (" << tabName.c_str() << ") " << err
+            << endl;
+      /**
+       * if error is:
+       * 701: System busy with other schema operation, or
+       * 721: Schema object with given name already exists
+       * test can continue
+       */
+      if (err.code != 701 && err.code != 721) {
+        return NDBT_FAILED;
+      }
+    }
+
+    /**
+     * if error is:
+     * 701: System busy with other schema operation, or
+     * 723: No such table existed
+     * test can continue
+     */
+    if (pDict->dropTable(tabName.c_str()) != 0) {
+      NdbError err = pDict->getNdbError();
+      g_err << "Failed to drop table (" << tabName.c_str() << ") " << err
+            << endl;
+      if (err.code != 701 && err.code != 723) {
+        return NDBT_FAILED;
+      }
+    }
+    NdbSleep_MilliSleep(20);
+    if (res.insertErrorInAllNodes(0) != 0) {
+      g_err << "Failed to clear Error " << error << endl;
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int runScanNdbInfoTable(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  const char *tableName = ctx->getProperty("infoTableName", (char *)NULL);
+
+  NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
+  if (!ndbinfo.init()) {
+    g_err << "ndbinfo.init failed" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+
+  const NdbInfo::Table *table;
+  if (ndbinfo.openTable(tableName, &table) != 0) {
+    g_err << "Failed to openTable " << tableName << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+
+  while (loops-- && !ctx->isTestStopped()) {
+    NdbInfoScanOperation *scanOp = nullptr;
+    if (ndbinfo.createScanOperation(table, &scanOp)) {
+      g_err << "createScanOperation failed" << endl;
+      ndbinfo.releaseScanOperation(scanOp);
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (scanOp->readTuples() != 0) {
+      g_err << "scanOp->readTuples failed" << endl;
+      ndbinfo.releaseScanOperation(scanOp);
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (scanOp->execute() != 0) {
+      g_err << "scanOp->execute failed" << endl;
+      ndbinfo.releaseScanOperation(scanOp);
+      result = NDBT_FAILED;
+      break;
+    }
+    while (scanOp->nextResult() == 1) {
+    }
+
+    ndbinfo.releaseScanOperation(scanOp);
+  }
+
+  ndbinfo.closeTable(table);
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testNdbinfo);
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes") {
   STEP(runRestarter);
@@ -504,6 +630,23 @@ TESTCASE("TestTable",
          "of rows which will depend on how many TUP blocks are configured") {
   STEP(runTestTable);
 }
+TESTCASE("ScanFragOperationsDuringCreateDropTable",
+         "Check that scanning of ndbinfo/frag_operations table is robust"
+         "to CREATE/DROP table operation running in parallel with the scan") {
+  TC_PROPERTY("tableName", "tmp_table");
+  TC_PROPERTY("infoTableName", "ndbinfo/frag_operations");
+  STEPS(runCreateDropTableUntilStopped, 1);
+  STEPS(runScanNdbInfoTable, 16);
+}
+TESTCASE("ScanFragMemUseDuringCreateDropTable",
+         "Check that scanning of ndbinfo/frag_mem_use table is robust"
+         "to CREATE/DROP table operation running in parallel with the scan") {
+  TC_PROPERTY("tableName", "tmp_table");
+  TC_PROPERTY("infoTableName", "ndbinfo/frag_mem_use");
+  STEPS(runCreateDropTableUntilStopped, 1);
+  STEPS(runScanNdbInfoTable, 16);
+}
+
 NDBT_TESTSUITE_END(testNdbinfo)
 
 int main(int argc, const char **argv) {

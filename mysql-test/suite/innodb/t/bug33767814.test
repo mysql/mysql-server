@@ -1,0 +1,21 @@
+CREATE TABLE t_asc (
+    pk int, a int, b int, 
+    primary key (pk), key (a), key (b)
+  ) ENGINE=InnoDB;
+
+CREATE TABLE t_desc (
+    pk int, a int, b int,
+    primary key (pk DESC), key (a), key (b)
+  ) ENGINE=InnoDB;
+ 
+INSERT INTO t_asc VALUES (27,3,0), (28,39,NULL), (29,NULL,255), (30,NULL,0);
+
+INSERT INTO t_desc SELECT * FROM t_asc;
+ 
+SELECT /*+ INDEX_MERGE(t_asc b, a) */ * FROM t_asc
+  WHERE b = 255 AND a IS NULL;
+SELECT /*+ INDEX_MERGE(t_desc b, a) */ * FROM t_desc
+  WHERE b = 255 AND a IS NULL;
+
+DROP TABLE t_asc;
+DROP TABLE t_desc;

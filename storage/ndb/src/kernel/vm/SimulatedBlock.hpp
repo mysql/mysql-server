@@ -1516,6 +1516,7 @@ class alignas(NDB_CL) SimulatedBlock
   void init_global_ptrs(void **tmp, size_t cnt);
   void init_global_uint32_ptrs(void **tmp, size_t cnt);
   void init_global_uint32(void **tmp, size_t cnt);
+  void init_global_block();
   void disable_global_variables();
   void enable_global_variables();
 #endif
@@ -2029,6 +2030,14 @@ class alignas(NDB_CL) SimulatedBlock
       mb();
     }
   }
+
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  /**
+   * Optional method to check / init global variables between
+   * job buffer signal executions
+   */
+  virtual void checkInitGlobalVariables();
+#endif
 
  protected:
   /**

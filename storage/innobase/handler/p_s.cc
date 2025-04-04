@@ -173,20 +173,13 @@ static void find_lock_and_execute(const char *engine_lock_id, F &&f) {
 
   } else {
     ut_ad(lock_type == LOCK_TABLE);
-
-    dict_table_t *table = dd_table_open_on_id_in_mem(row.lock_table_id, false);
-
-    if (table != nullptr) {
-      {
-        locksys::Shard_latch_guard guard{UT_LOCATION_HERE, *table};
-        const lock_t *lock = lock_find_table_lock_by_guid(table, row.lock_guid);
-        if (lock != nullptr) {
-          std::forward<F>(f)(*lock, lock_type, ULINT_UNDEFINED);
-        }
+    locksys::find_on_table(row.lock_table_id, [&](const lock_t &lock) {
+      if (lock_guid_t(lock) == row.lock_guid) {
+        std::forward<F>(f)(lock, lock_type, ULINT_UNDEFINED);
+        return true;
       }
-
-      dd_table_close(table, nullptr, nullptr, false);
-    }
+      return false;
+    });
   }
 }
 

@@ -78,8 +78,11 @@ ADD_LIBRARY(mysql_server_component_services STATIC
   ${MYSQL_SERVER_COMPONENT_SOURCES})
 TARGET_COMPILE_DEFINITIONS(mysql_server_component_services
   PRIVATE WITH_MYSQL_COMPONENTS_TEST_DRIVER)
-TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE extra::rapidjson)
-TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE ext::zlib)
+TARGET_LINK_LIBRARIES(mysql_server_component_services
+  PRIVATE
+  extra::rapidjson
+  ext::zlib
+  )
 ADD_DEPENDENCIES(mysql_server_component_services GenError)
 
 # Exclude mysql_server_component_services from PGO on Windows to avoid linker error LNK1248

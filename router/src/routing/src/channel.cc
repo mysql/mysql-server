@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "channel.h"
 
+#include <algorithm>  // min
 #include <cassert>
 
 #include <openssl/bio.h>
@@ -235,10 +236,21 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
   size_t bytes_read{};
   // decrypt from src-ssl into the ssl-plain-buf
   while (sz > 0) {
+    // read at most a SSL frame (16k) to avoid excessive resizes.
+    //
+    // Without the limitation, a 16Mbyte frame takes 150sec to transfer
+    // if CMAKE_BUILD_TYPE is Debug due to disabled optimizations:
+    //
+    //      | Debug    | RelWithDebInfo
+    //   1k |  2100ms  | 256ms
+    //  16k |  1966ms  | 219ms
+    // 256k | *6509ms* | 189ms
+    const size_t to_read = std::min(sz, static_cast<size_t>(16UL * 1024));
+
     auto dyn_buf = net::dynamic_buffer(plain_buf);
 
     // append to the plain buffer
-    const auto read_res = read(dyn_buf, sz);
+    const auto read_res = read(dyn_buf, to_read);
 
     // sync the plain-view as the read() may have resized it.
     view_sync_plain();
@@ -248,7 +260,6 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
 
       sz -= transferred;
       bytes_read += transferred;
-
     } else {
       // read from client failed.
 

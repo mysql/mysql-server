@@ -186,3 +186,20 @@ void set_mock_bootstrap_data(
 
   EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
 }
+
+void set_mock_server_version(uint16_t http_port, const std::string &version) {
+  std::string server_globals =
+      MockServerRestClient(http_port).get_globals_as_json_string();
+  JsonDocument globals;
+  if (globals.Parse<0>(server_globals.c_str()).HasParseError()) {
+    FAIL() << "Failed parsing mock server globals";
+  }
+
+  JsonAllocator allocator;
+  globals.RemoveMember("server_version");
+  globals.AddMember("server_version",
+                    JsonValue(version.c_str(), version.length(), allocator),
+                    allocator);
+  server_globals = json_to_string(globals);
+  MockServerRestClient(http_port).set_globals(server_globals);
+}

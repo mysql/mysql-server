@@ -1,0 +1,4 @@
+!include ../my.cnf
+[cluster_config.1]
+AutomaticThreadConfig=1
+NumCPUs=4

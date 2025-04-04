@@ -343,6 +343,7 @@ class Ndb_binlog_thread : public Ndb_component {
 
 #ifndef NDEBUG
   void dbug_log_table_maps(Ndb *ndb, Uint64 current_epoch);
+  void dbug_log_multi_server_id(Ndb *ndb, Uint64 current_epoch);
 #endif
 };
 

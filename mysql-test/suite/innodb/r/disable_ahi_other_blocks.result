@@ -1,0 +1,42 @@
+CREATE TABLE t1 (
+id INT PRIMARY KEY
+);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1)+id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1)+id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1)+id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1)+id FROM t1;
+CREATE TABLE t2 (
+id INT PRIMARY KEY,
+c1 CHAR(250) NOT NULL DEFAULT 'a',
+c2 CHAR(250) NOT NULL DEFAULT 'a',
+c3 CHAR(250) NOT NULL DEFAULT 'a',
+c4 CHAR(250) NOT NULL DEFAULT 'a',
+c5 CHAR(250) NOT NULL DEFAULT 'a',
+c6 CHAR(250) NOT NULL DEFAULT 'a',
+c7 CHAR(250) NOT NULL DEFAULT 'a',
+c8 CHAR(250) NOT NULL DEFAULT 'a',
+c9 CHAR(250) NOT NULL DEFAULT 'a'
+);
+INSERT INTO t2 (id) SELECT id FROM t1;
+# restart: --innodb_page_size=4k --innodb_buffer_pool_chunk_size=1048576 --innodb-buffer-pool-instances=1 --innodb-buffer-pool-size=6M
+# Populate the buffer pool with pages
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+# Connect now before updating the global system variable
+SET DEBUG_SYNC='buf_pool_clear_hash_index_will_process_block SIGNAL found_block WAIT_FOR process_block';
+SET GLOBAL DEBUG="+d,buf_pool_clear_hash_index_check_other_blocks";
+SET GLOBAL innodb_adaptive_hash_index=OFF;
+SET DEBUG_SYNC='now WAIT_FOR found_block';
+BEGIN;
+SELECT COUNT(*) FROM t2 FOR SHARE;
+COUNT(*)
+16
+# Wait for sometime to allow conn2 to bring new pages to the buffer pool
+SET DEBUG_SYNC='now SIGNAL process_block';
+COMMIT;
+SET GLOBAL DEBUG="-d,buf_pool_clear_hash_index_check_other_blocks";
+# restart:
+DROP TABLE t1;
+DROP TABLE t2;

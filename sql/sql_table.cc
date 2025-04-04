@@ -3919,6 +3919,8 @@ namespace {
 
 struct sort_keys {
   bool operator()(const KEY &a, const KEY &b) const {
+    // std::sort may compare an element to itself:
+    if (&a == &b) return false;
     // Sort UNIQUE before not UNIQUE.
     if ((a.flags ^ b.flags) & HA_NOSAME) return a.flags & HA_NOSAME;
 

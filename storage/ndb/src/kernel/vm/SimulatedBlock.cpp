@@ -4085,6 +4085,12 @@ void SimulatedBlock::init_global_uint32(void **tmp, size_t cnt) {
   mt_init_global_variables_uint32_instances(m_threadId, tmp, cnt);
 #endif
 }
+
+void SimulatedBlock::init_global_block() {
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_block(m_threadId, this);
+#endif
+}
 #endif
 
 int SimulatedBlock::cmp_key(Uint32 tab, const Uint32 *s1,
@@ -5508,6 +5514,20 @@ Uint32 SimulatedBlock::m_num_rr_groups = 0;
 Uint32 SimulatedBlock::m_num_query_thread_per_ldm = 0;
 Uint32 SimulatedBlock::m_num_distribution_threads = 0;
 bool SimulatedBlock::m_inited_rr_groups = false;
+
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+void SimulatedBlock::checkInitGlobalVariables() {
+  jam();
+  jamLine(refToMain(reference()));
+  jamLine(refToInstance(reference()));
+
+  /* Blocks must override */
+  g_eventLogger->error(
+      "Unimplemented checkInitGlobalVariables in block %u instance %u\n",
+      refToMain(reference()), refToInstance(reference()));
+  ndbabort();
+}
+#endif
 
 /**
  * #undef is needed since this file is included by SimulatedBlock_nonmt.cpp

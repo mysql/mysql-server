@@ -1,0 +1,68 @@
+include/only_with_option.inc [GLOBAL.replica_parallel_workers > 1]
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+# Bootstrap group with server1 as primary and server2, server3 as secondaries.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+# Create inbound channel from server4 to server1
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+# Create tables
+[connection server4]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Make server2 join the group
+[connection server2]
+include/start_group_replication.inc
+# Take a lock on the primary so that T1 will be blocked
+[connection server_1_1]
+LOCK TABLES t1 WRITE;
+# Commit transaction T1 on table t1, then transaction T2 on t2.
+[connection server4]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+# Wait until T2 is waiting for T1 to commit.
+[connection server1]
+include/save_error_log_position.inc
+# Join server3 to the group
+[connection server3]
+include/start_group_replication.inc
+# Wait for T2 to commit on server1
+[connection server1]
+include/assert_error_log.inc [server: 1, pattern: The transaction '[a-z0-9\-]*:[0-9]*' will commit out of order with respect to its source to follow the group global order]
+# Verify that t1 is still not committed
+include/assert.inc [There should be one missing GTID]
+[connection server_1_1]
+include/assert.inc [t1 should still be empty]
+# Check that new transactions block as needed, *not* violating replica-preserve-commit-order
+[connection server_4]
+INSERT INTO t2 VALUES (3);
+[connection server_1]
+include/assert.inc [t2 should still have only one element]
+# Unblock T1 and T3 and let them finish
+[connection server_1_1]
+UNLOCK TABLES;
+include/rpl_sync.inc
+# Clean up
+[connection server4]
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+include/rpl_sync.inc
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

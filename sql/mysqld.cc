@@ -4808,9 +4808,9 @@ int init_common_variables() {
   }
   /*
     We set SYSTEM time zone as reasonable default and
-    also for failure of my_tz_init() and bootstrap mode.
+    also for failure of my_tz_full_init() and bootstrap mode.
     If user explicitly set time zone with --default-time-zone
-    option we will change this value in my_tz_init().
+    option we will change this value in my_tz_full_init().
   */
   global_system_variables.time_zone = my_tz_SYSTEM;
 

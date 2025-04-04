@@ -70,6 +70,7 @@
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
+#include "sql/transaction.h"  // trans_begin
 
 /**
   Auxiliary function to stop all the running channel threads according to the
@@ -1368,6 +1369,8 @@ bool start_failover_channels() {
 bool channel_change_source_connection_auto_failover(const char *channel,
                                                     bool status) {
   bool error = false;
+  bool thd_created = false;
+  THD *thd = current_thd;
   channel_map.assert_some_wrlock();
 
   Master_info *mi = channel_map.get_mi(channel);
@@ -1377,8 +1380,29 @@ bool channel_change_source_connection_auto_failover(const char *channel,
     return true;
   }
 
+  if (!thd) {
+    thd_created = true;
+    thd = create_surrogate_thread();
+    thd->set_skip_readonly_check();
+  }
+
   mi->channel_wrlock();
   lock_slave_threads(mi);
+
+  /*
+    When autocommit= 0, we force a new transaction to prevent
+    table access deadlocks when a master and slave info repositories
+    transaction is executed after changing SOURCE_CONNECTION_AUTO_FAILOVER.
+  */
+  if (thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) {
+    assert(!(thd->server_status & SERVER_STATUS_IN_TRANS));
+    if (trans_begin(thd)) {
+      unlock_slave_threads(mi);
+      mi->channel_unlock();
+      if (thd_created) delete_surrogate_thread(thd);
+      return true;
+    }
+  }
 
   if (status && !mi->is_source_connection_auto_failover()) {
     mi->set_source_connection_auto_failover();
@@ -1390,8 +1414,24 @@ bool channel_change_source_connection_auto_failover(const char *channel,
     error |= (flush_master_info(mi, true, true, false) != 0);
   }
 
+  /*
+    When autocommit= 0, we force a new transaction to prevent
+    table access deadlocks when a master and slave info repositories
+    transaction is executed after changing SOURCE_CONNECTION_AUTO_FAILOVER.
+  */
+  if (thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) {
+    if (trans_commit(thd)) {
+      unlock_slave_threads(mi);
+      mi->channel_unlock();
+      if (thd_created) delete_surrogate_thread(thd);
+      return true;
+    }
+  }
+
   unlock_slave_threads(mi);
   mi->channel_unlock();
+
+  if (thd_created) delete_surrogate_thread(thd);
 
   return error;
 }

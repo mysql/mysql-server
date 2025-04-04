@@ -604,8 +604,9 @@ void acl_notify_htons(THD *thd, enum_sql_command operation,
   @retval True  - Error.
 */
 
-static bool acl_end_trans_and_close_tables(THD *thd,
-                                           bool rollback_transaction) {
+static bool acl_end_trans_and_close_tables(
+    THD *thd, bool rollback_transaction,
+    Lock_state_list *modified_user_lock_state_list) {
   bool result;
 
   /*
@@ -651,7 +652,7 @@ static bool acl_end_trans_and_close_tables(THD *thd,
     */
     DBUG_EXECUTE_IF("wl14084_acl_ddl_error_before_cache_reload_trigger_timeout",
                     sleep(2););
-    reload_acl_caches(thd, true);
+    reload_acl_caches(thd, true, true, modified_user_lock_state_list);
     close_thread_tables(thd);
   }
   thd->mdl_context.release_transactional_locks();
@@ -675,17 +676,22 @@ static bool acl_end_trans_and_close_tables(THD *thd,
   @param write_to_binlog        Skip writing to binlog.
                                 Used for routine grants while
                                 creating routine.
+  @param modified_user_lock_state_list
+                                List of users whose temporary account
+                                locking attributes are likely modified.
 
   @returns status of log and commit
     @retval 0 Successfully committed. Optionally : written to binlog.
     @retval 1 If an error is raised at any stage
 */
 
-bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
-                            std::set<LEX_USER *> *extra_users, /* = NULL */
-                            Rewrite_params *rewrite_params,    /* = NULL */
-                            bool extra_error,                  /* = true */
-                            bool write_to_binlog) {            /* = true */
+bool log_and_commit_acl_ddl(
+    THD *thd, bool transactional_tables,
+    std::set<LEX_USER *> *extra_users,                /* = NULL */
+    Rewrite_params *rewrite_params,                   /* = NULL */
+    bool extra_error,                                 /* = false */
+    bool write_to_binlog,                             /* = true */
+    Lock_state_list *modified_user_lock_state_list) { /* = nullptr */
   bool result = false;
   DBUG_TRACE;
   assert(thd);
@@ -764,7 +770,10 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
     mysql_rewrite_acl_query(thd, rlb, Consumer_type::TEXTLOG, rewrite_params);
   }
 
-  if (acl_end_trans_and_close_tables(thd, result)) result = true;
+  if (acl_end_trans_and_close_tables(thd, result,
+                                     modified_user_lock_state_list)) {
+    result = true;
+  }
 
   return result;
 }

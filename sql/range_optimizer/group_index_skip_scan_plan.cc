@@ -151,7 +151,14 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     A) Table T has at least one compound index I of the form:
        I = <A_1, ...,A_k, [B_1,..., B_m], C, [D_1,...,D_n]>
     B) Query conditions:
-    B0. Q is over a single table T.
+    B0. Q is over a single table T. For a single table query which is internally
+        transformed into a multi-table query E.g. due to semijoin
+        transformations, group skip scan can still be used for the original
+        table specified in the query for duplicate removal. E.g. SELECT DISTINCT
+        f1 FROM t1 IN (SELECT f1 FROM t2); In this case, with a semi-join
+        transformation, query would look like SELECT DISTINCT f1 FROM t1
+        semi-join t2 ON t1.f1=t2.f1; Group skip scan can still be used for table
+        "t1" for duplicate removal even though the query has a JOIN now.
     B1. The attributes referenced by Q are a subset of the attributes of I.
     B2. All attributes QA in Q can be divided into 3 overlapping groups:
         - SA = {S_1, ..., S_l, [C]} - from the SELECT clause, where C is
@@ -322,8 +329,15 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   /* Perform few 'cheap' tests whether this access method is applicable. */
   if (!join)
     cause = "no_join";
-  else if (join->primary_tables != 1) /* Query must reference one table. */
+  else if (param->query_block->original_tables_map != 1)
+    /* Check (B0) Query must reference only one table. */
     cause = "not_single_table";
+  else if (table->pos_in_table_list->map() != 1)
+    /*
+      Check (B0) - Group skip scan is allowed only on the table that was used
+      originally in the query i.e before the query transformations.
+    */
+    cause = "not_original_query_table";
   else if (join->query_block->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
     cause = "rollup";
   else if (table->s->keys == 0) /* There are no indexes to use. */
@@ -345,6 +359,22 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
         .add_alnum("cause", "not_group_by_or_distinct");
     return nullptr;
   }
+
+  /*
+    Additional checking for (B0) - Group skip scan is allowed only for single
+    table queries. The exception being, queries that were transformed from a
+    single table query to multi-table queries because of semijoin
+    transformations. For such a case, do not allow group skip scan if
+    aggregation functions are present. Only duplicate removal could happen
+    before joins not aggregation.
+  */
+  if (join->sum_funcs[0] != nullptr &&
+      param->query_block->leaf_table_count != 1) {
+    trace_group.add("chosen", false)
+        .add_alnum("cause", "Multi_table_with_aggregate");
+    return nullptr;
+  }
+
   /* Analyze the query in more detail. */
 
   if (join->sum_funcs[0]) {

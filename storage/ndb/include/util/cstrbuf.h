@@ -372,7 +372,10 @@ template <std::size_t Extent>
 inline int cstrbuf_format(ndb::span<char, Extent> buf, const char fmt[],
                           std::va_list ap) noexcept {
   cstrbuf strbuf(buf);
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_WORKAROUND_FALSE_POSITIVE_SUGGEST_ATTRIBUTE_FORMAT()
   return strbuf.vappendf(fmt, ap);
+  MY_COMPILER_DIAGNOSTIC_POP()
 }
 
 template <std::size_t Extent>

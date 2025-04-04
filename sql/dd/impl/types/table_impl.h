@@ -402,6 +402,11 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
     return &m_leaf_partitions;
   }
 
+  Partition *get_leaf_partition(const std::string &part_name) override;
+
+  const Partition *get_leaf_partition(
+      const std::string &part_name) const override;
+
   // non-virtual
   void add_leaf_partition(Partition *p) { m_leaf_partitions.push_back(p); }
 

@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <math.h>
 #include <sys/types.h>
 #include <iomanip>
+#include <limits>
 #include <vector>
 
 #include "dict0dict.h"
@@ -2893,14 +2894,17 @@ fts_query_find_doc_id(
                 ulint           freq = 0;
                 ulint           min_pos = 0;
                 ulint           last_pos = 0;
-                ulint           pos = fts_decode_vlc(&ptr);
+                const uint64_t  delta = fts_decode_vlc(&ptr);
 
                 /* Add the delta. */
-                doc_id += pos;
+                doc_id += delta;
 
                 while (*ptr) {
                         ++freq;
-                        last_pos += fts_decode_vlc(&ptr);
+                        const uint64_t decoded_pos = fts_decode_vlc(&ptr);
+                        ut_ad(uint64_t(last_pos) + decoded_pos
+                              <= std::numeric_limits<ulint>::max());
+                        last_pos += static_cast<ulint>(decoded_pos);
 
                         /* Only if min_pos is not set and the current
                         term exists in a position greater than the
@@ -2968,15 +2972,15 @@ static dberr_t fts_query_filter_doc_ids(
     fts_doc_freq_t *doc_freq;
     fts_match_t *match = nullptr;
     ulint last_pos = 0;
-    ulint pos = fts_decode_vlc(&ptr);
+    const uint64_t delta = fts_decode_vlc(&ptr);
 
     /* Some sanity checks. */
     if (doc_id == 0) {
-      ut_a(pos == node->first_doc_id);
+      ut_a(delta == node->first_doc_id);
     }
 
     /* Add the delta. */
-    doc_id += pos;
+    doc_id += delta;
 
     if (calc_doc_count) {
       word_freq->doc_count++;
@@ -3004,7 +3008,10 @@ static dberr_t fts_query_filter_doc_ids(
 
     /* Unpack the positions within the document. */
     while (*ptr) {
-      last_pos += fts_decode_vlc(&ptr);
+      const uint64_t pos_delta = fts_decode_vlc(&ptr);
+      ut_ad(uint64_t(last_pos) + pos_delta <=
+            std::numeric_limits<ulint>::max());
+      last_pos += static_cast<ulint>(pos_delta);
 
       /* Collect the matching word positions, for phrase
       matching later. */

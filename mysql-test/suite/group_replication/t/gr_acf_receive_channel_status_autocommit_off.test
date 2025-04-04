@@ -1,0 +1,96 @@
+###############################################################################
+# Validate that, with autocommit set to OFF on a secondary member,
+# the `RESET REPLICA` command can be executed on this secondary group member
+# after initiating a failover channel on server1.
+#
+# Test:
+#   0. This test requires three servers:
+#        server1, server2: group
+#        server3: single server
+#   1. Deploy a group in single-primary mode on server1 and
+#      server2
+#   2. Set autocommit= OFF on server2
+#   3. Configure a channel on server2 that replicates from
+#      server3
+#   4. Start group replication on server2
+#   5. Configure and start a failover channel on server1 that
+#      replicates from server3
+#   6. Reset replica on server2
+#   7. Clean up
+#
+# References:
+#  Bug#37173907 InnoDB ClusterSet Controlled Switchover Fail
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a group in single-primary mode on server1 and
+--echo #    server2
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Set autocommit OFF on server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $sysvars_to_save = [
+  "GLOBAL.autocommit"
+];
+--source include/save_sysvars.inc
+SET @@GLOBAL.autocommit= 0;
+
+--echo
+--echo ############################################################
+--echo # 3. Configure a channel on server2 that replicates from
+--echo #    server3
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--echo
+--echo ############################################################
+--echo # 4. Start group replication on server2
+--source include/start_group_replication.inc
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Configure and start a failover channel on server1 that
+--echo #    replicates from server3
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--echo
+--echo ############################################################
+--echo # 6. Reset replica on server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+
+--echo
+--echo ############################################################
+--echo # 7. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

@@ -37,6 +37,7 @@
 #include "my_bit.h"  // is_single_bit
 
 #include "my_inttypes.h"  // TODO: replace with cstdint
+#include "my_list.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -724,6 +725,8 @@ class PT_locking_clause_list : public Parse_tree_node {
 
 class PT_query_expression_body : public Parse_tree_node {
  public:
+  enum Setop_type { NONE, UNION, INTERSECT, EXCEPT };
+  virtual Setop_type type() const { return NONE; }
   virtual bool is_set_operation() const = 0;
 
   /**
@@ -1631,35 +1634,43 @@ class PT_set_operation : public PT_query_expression_body {
   PT_set_operation(PT_query_expression_body *lhs, bool is_distinct,
                    PT_query_expression_body *rhs,
                    bool is_rhs_in_parentheses = false)
-      : m_lhs(lhs),
-        m_is_distinct(is_distinct),
-        m_rhs(rhs),
-        m_is_rhs_in_parentheses{is_rhs_in_parentheses} {}
+      : m_is_distinct(is_distinct),
+        m_is_rhs_in_parentheses{is_rhs_in_parentheses} {
+    m_list.push_back(lhs);
+    m_list.push_back(rhs);
+  }
 
   void merge_descendants(Parse_context *pc, Query_term_set_op *setop,
                          QueryLevel &ql);
   bool is_set_operation() const override { return true; }
 
   bool has_into_clause() const override {
-    return m_lhs->has_into_clause() || m_rhs->has_into_clause();
+    return std::any_of(m_list.cbegin(), m_list.cend(),
+                       [](const PT_query_expression_body &body) {
+                         return body.has_into_clause();
+                       });
   }
   bool has_trailing_into_clause() const override {
-    return !m_is_rhs_in_parentheses && m_rhs->has_trailing_into_clause();
+    return !m_is_rhs_in_parentheses &&
+           m_list[m_list.elements - 1]->has_trailing_into_clause();
   }
 
   bool can_absorb_order_and_limit(bool, bool) const override { return false; }
 
   bool is_table_value_constructor() const override { return false; }
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }
+  bool is_distinct() const { return m_is_distinct; }
+
+  List<PT_query_expression_body> m_list;
+  void set_is_rhs_in_parentheses(bool v) { m_is_rhs_in_parentheses = v; }
 
  protected:
   bool contextualize_setop(Parse_context *pc, Query_term_type setop_type,
                            Surrounding_context context);
-  PT_query_expression_body *m_lhs;
+  void merge_children(Query_term_set_op *setop, Query_term_set_op *lower);
   bool m_is_distinct;
-  PT_query_expression_body *m_rhs;
   PT_into_destination *m_into;
-  const bool m_is_rhs_in_parentheses;
+  bool m_is_rhs_in_parentheses;
 };
 
 class PT_union : public PT_set_operation {
@@ -1668,6 +1679,7 @@ class PT_union : public PT_set_operation {
  public:
   using PT_set_operation::PT_set_operation;
   bool contextualize(Parse_context *pc) override;
+  enum Setop_type type() const override { return UNION; }
 };
 
 class PT_except : public PT_set_operation {
@@ -1676,6 +1688,7 @@ class PT_except : public PT_set_operation {
  public:
   using PT_set_operation::PT_set_operation;
   bool contextualize(Parse_context *pc) override;
+  enum Setop_type type() const override { return EXCEPT; }
 };
 
 class PT_intersect : public PT_set_operation {
@@ -1684,6 +1697,7 @@ class PT_intersect : public PT_set_operation {
  public:
   using PT_set_operation::PT_set_operation;
   bool contextualize(Parse_context *pc) override;
+  enum Setop_type type() const override { return INTERSECT; }
 };
 
 class PT_select_stmt : public Parse_tree_root {
@@ -5229,4 +5243,68 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
 PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
 PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,
                                                             LEX_CSTRING);
+
+/**
+  Helper function to imitate \c dynamic_cast for \c PT_set_operation hierarchy.
+
+  Template parameter @p To is the destination type (@c PT_union, \c PT_except or
+  \c PT_intersect). For \c PT_intersect we return nullptr if ALL due to impl.
+  restriction: we cannot merge INTERSECT ALL.
+
+  @param from        source item
+  @param is_distinct true if distinct
+  @return typecast   item to the type To or NULL
+*/
+template <class To, PT_set_operation::Setop_type Tag>
+To *setop_cast(PT_query_expression_body *from, bool is_distinct) {
+  return (from->type() == Tag &&
+          down_cast<PT_set_operation *>(from)->is_distinct() == is_distinct &&
+          (Tag != PT_query_expression_body::INTERSECT || is_distinct))
+             ? static_cast<To *>(from)
+             : nullptr;
+}
+
+/**
+  Flatten set operators at parse time
+
+  This function flattens UNION ALL/DISTINCT, EXCEPT All/DISTINCT
+  and INTERSECT DISTINCT (not ALL due to implementation restrictions) operators
+  at parse time if applicable, otherwise it creates
+  new \c PT_<setop> nodes respectively of the two input operands.
+
+  Template parameter @p Class is @c PT_union or @c PT_intersect
+  Template parameter @p Tag is @c PT_query_specification::UNION or
+                     @c ::INTERSECT
+
+  @param mem_root       MEM_ROOT
+  @param left           left argument of the operator
+  @param is_distinct    true if DISTINCT
+  @param right          right argument of the operator
+  @param is_right_in_parentheses
+                        true if right hand size is parenthesized
+  @return resulting parse tree Item
+*/
+template <class Class, PT_set_operation::Setop_type Tag>
+PT_set_operation *flatten_equal_set_ops(MEM_ROOT *mem_root,
+                                        PT_query_expression_body *left,
+                                        bool is_distinct,
+                                        PT_query_expression_body *right,
+                                        bool is_right_in_parentheses) {
+  if (left == nullptr || right == nullptr) return nullptr;
+  Class *left_setop = setop_cast<Class, Tag>(left, is_distinct);
+  Class *right_setop [[maybe_unused]] =
+      setop_cast<Class, Tag>(right, is_distinct);
+  assert(right_setop == nullptr);  // doesn't happen
+  if (left_setop != nullptr) {
+    // X1 op X2 op Y ==> op (X1, X2, Y)
+    left_setop->m_list.push_back(right);
+    left_setop->set_is_rhs_in_parentheses(is_right_in_parentheses);
+    return left_setop;
+  } else {
+    /* X op Y */
+    return new (mem_root)
+        Class(left, is_distinct, right, is_right_in_parentheses);
+  }
+}
+
 #endif /* PARSE_TREE_NODES_INCLUDED */

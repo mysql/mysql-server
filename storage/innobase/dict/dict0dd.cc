@@ -35,12 +35,14 @@ Data dictionary interface */
 #include <sql_backup_lock.h>
 #include <sql_class.h>
 #include <sql_thd_internal_api.h>
+
 #include "item.h"
 #else /* !UNIV_HOTBACKUP */
 #include <my_base.h>
 #endif /* !UNIV_HOTBACKUP */
 
 #include <dd/properties.h>
+
 #include "dict0crea.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -1191,69 +1193,41 @@ dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
     ut_o(return DB_ERROR);
   }
 
-  ut_ad(dd_table != nullptr);
   std::string dd_table_name{dd_table->table().name()};
   Fil_path fpath{path};
 
-  std::string part_name = (!table_info.subpartition.empty())
-                              ? table_info.subpartition
-                              : table_info.partition;
-  to_lower(part_name);
-
-  /* This function may be hit by those tables which are marked as
-  Fil_state::MOVED_PREV_OR_HAS_DATADIR which includes tables that are moved
-  before 8.0.38/8.4.1/9.0.0 and tables that are created using data directory
-  clause. We want to set the flag for tables moved before 8.0.38/8.4.1/9.0.0
-  only and ignore those tables which are created using data directory clause
-  as the dd_table data dir flag is already set for them. Additionally, we
-  explicitly remove the flag if moved from external to default data dir. We
-  do this because dd_table data dir flag should not exist if the ibd file is
-  located in default dir */
-  if (part_name.empty()) {
-    /* The table is non-partitioned table */
-    bool dd_flag = dd_table->se_private_data().exists(
-        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
-    bool set_true = !(MySQL_datadir_path.is_same_as(fpath) ||
-                      MySQL_datadir_path.is_ancestor(fpath)) &&
-                    !dd_flag;
-    bool set_false = MySQL_datadir_path.is_same_as(fpath) ||
-                     MySQL_datadir_path.is_ancestor(fpath);
+  bool set_true = !MySQL_datadir_path.is_ancestor(fpath);
+  if (!dd_table_is_partitioned(*dd_table)) {
+    /* Set the DATA DIRECTORY FLAG to true for dd table if ibd file is moved to
+    directory other than default data dir. Remove the flag if moved from
+    external to default data dir.*/
     if (set_true) {
       dd_table->se_private_data().set(
           dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], set_true);
-    }
-    if (set_false) {
+    } else {
       dd_table->se_private_data().remove(
           dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
     }
   } else {
-    /* The table is partitioned table */
-    for (dd::Partition *part_obj : *dd_table->leaf_partitions()) {
-      std::string part_obj_name{part_obj->name()};
-      to_lower(part_obj_name);
-      if (part_obj_name == part_name) {
-        dd::Properties &part_options = part_obj->options();
-        bool dd_flag = part_obj->se_private_data().exists(
-            dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
-        bool set_true = !(MySQL_datadir_path.is_same_as(fpath) ||
-                          MySQL_datadir_path.is_ancestor(fpath)) &&
-                        !dd_flag;
-        bool set_false = MySQL_datadir_path.is_same_as(fpath) ||
-                         MySQL_datadir_path.is_ancestor(fpath);
-        if (set_true) {
-          part_obj->se_private_data().set(
-              dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], set_true);
-          /* Update data_file_name for dd::partition as we do not set data
-          directory for whole partitioned table. We acquire dd::partition later
-          and read from it*/
-          part_options.set(data_file_name_key, table_info.directory.c_str());
-        }
-        if (set_false) {
-          part_obj->se_private_data().remove(
-              dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
-          part_options.remove(data_file_name_key);
-        }
-      }
+    dd::Partition *part_obj = dd_table->get_leaf_partition(
+        (!table_info.subpartition.empty()) ? table_info.subpartition
+                                           : table_info.partition);
+    if (!part_obj) {
+      ut_d(ut_error);
+      ut_o(return DB_ERROR);
+    }
+    dd::Properties &part_options = part_obj->options();
+    if (set_true) {
+      part_obj->se_private_data().set(
+          dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
+      /* Update data_file_name for dd::partition as we do not set data
+      directory for whole partitioned table. We acquire dd::partition later
+      and read from it*/
+      part_options.set(data_file_name_key, table_info.directory.c_str());
+    } else {
+      part_obj->se_private_data().remove(
+          dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
+      part_options.remove(data_file_name_key);
     }
   }
 
@@ -7544,16 +7518,27 @@ std::optional<table_name_components> parse_tablespace_path(std::string path) {
   table_info.table_name = temp_table.substr(0, hash_pos);
   file_to_table(table_info.table_name, false);
 
+  std::string part_seperator(PART_SEPARATOR);
+  std::string sub_part_seperator(SUB_PART_SEPARATOR);
+
   // Check for partitions and subpartitions
   bool has_partitions = temp_table.find(PART_SEPARATOR) != std::string::npos;
+  if (!has_partitions) {
+    has_partitions = temp_table.find(ALT_PART_SEPARATOR) != std::string::npos;
+    if (has_partitions) {
+      part_seperator = ALT_PART_SEPARATOR;
+      sub_part_seperator = ALT_SUB_PART_SEPARATOR;
+    }
+  }
+
   bool has_subpartitions =
-      temp_table.find(SUB_PART_SEPARATOR) != std::string::npos;
+      temp_table.find(sub_part_seperator) != std::string::npos;
 
   if (has_partitions) {
     // Extract partition name
     size_t part_start =
-        temp_table.find(PART_SEPARATOR) + std::string(PART_SEPARATOR).length();
-    size_t part_end = has_subpartitions ? temp_table.find(SUB_PART_SEPARATOR)
+        temp_table.find(part_seperator) + std::string(part_seperator).length();
+    size_t part_end = has_subpartitions ? temp_table.find(sub_part_seperator)
                                         : temp_table.find('.');
 
     ut_ad(part_end != std::string::npos);
@@ -7565,8 +7550,8 @@ std::optional<table_name_components> parse_tablespace_path(std::string path) {
 
   if (has_subpartitions) {
     // Extract subpartition name
-    size_t sub_part_start = temp_table.find(SUB_PART_SEPARATOR) +
-                            std::string(SUB_PART_SEPARATOR).length();
+    size_t sub_part_start = temp_table.find(sub_part_seperator) +
+                            std::string(sub_part_seperator).length();
     size_t sub_part_end = temp_table.find('.');
     ut_ad(sub_part_end != std::string::npos);
     std::string temp_subpartition =

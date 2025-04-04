@@ -80,7 +80,9 @@ class MysqlRoutingXConnection
                                     context.source_ssl_mode(),
                                     std::make_unique<XProtocolState>()},
             TlsSwitchableConnection{nullptr, nullptr, context.dest_ssl_mode(),
-                                    std::make_unique<XProtocolState>()})} {}
+                                    std::make_unique<XProtocolState>()})} {
+    client_address(socket_splicer_->client_conn().endpoint());
+  }
 
  public:
   using connector_type = Connector<std::unique_ptr<ConnectionBase>>;
@@ -113,14 +115,6 @@ class MysqlRoutingXConnection
 
   SslMode dest_ssl_mode() const {
     return this->socket_splicer()->dest_ssl_mode();
-  }
-
-  std::string get_client_address() const override {
-    return socket_splicer()->client_conn().endpoint();
-  }
-
-  std::string get_server_address() const override {
-    return socket_splicer()->server_conn().endpoint();
   }
 
   void disconnect() override;

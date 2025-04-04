@@ -49,6 +49,9 @@ IF(protobuf_BUILD_SHARED_LIBS)
     DEBUG_POSTFIX ""
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+  IF(APPLE)
+    TARGET_LINK_OPTIONS(libprotoc PRIVATE LINKER:-no_warn_duplicate_libraries)
+  ENDIF()
   IF(WIN32)
     ADD_CUSTOM_COMMAND(TARGET libprotoc POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different

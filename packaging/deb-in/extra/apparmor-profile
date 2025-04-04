@@ -12,6 +12,7 @@
   /sys/devices/system/node/ r,
   /sys/devices/system/node/** r,
   /proc/*/status r,
+  /proc/*/mem r,
   capability sys_resource,
   capability dac_override,
   capability setuid,

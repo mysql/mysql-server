@@ -4391,9 +4391,20 @@ bool JOIN::make_tmp_tables_info() {
     computed for each group. Thus all MIN/MAX functions should be
     treated as regular functions, and there is no need to perform
     grouping in the main execution loop.
-    Notice that currently loose index scan is applicable only for
-    single table queries, thus it is sufficient to test only the first
-    join_tab element of the plan for its access method.
+    Currently loose index scan is only applicable for single table queries. The
+    only exception is when a single table query becomes a multi-table query
+    because of a semijoin transformation. We check the first join_tab element
+    of the plan for its access method here, which holds good even for the
+    multi-table query, but only when optimizer has picked nested loop joins.
+    Skip scan is enabled only for the original table in the query which is the
+    first table in the join order for a nested loop join. However, for hash
+    joins it does not hold good. So, we see an additional de-duplication step
+    when hash join is picked as it is not aware that de-duplication is taken
+    care by the access method picked.
+
+    TODO: Make optimize_distinct_group_order() understand that de-duplication
+    is taken care by the chosen access method, so that we avoid the additional
+    de-duplication step.
   */
   if (qep_tab && qep_tab[0].range_scan() &&
       is_loose_index_scan(qep_tab[0].range_scan()))

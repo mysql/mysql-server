@@ -1202,6 +1202,33 @@ DECLARE_NDBINFO_TABLE(CPUDATA_20SEC, 10) = {
          "Elapsed time in microseconds for measurement"},
     }};
 
+/* Transactions_full == Transactions schema */
+DECLARE_NDBINFO_TABLE(TRANSACTIONS_FULL, 11) = {
+    {"transactions_full", 11, 0,
+     [](const Ndbinfo::Counts &) {
+       /* It is difficult to estimate row counts for transactions, operations,
+          and acc_operations because they depend on current load. By guessing
+          5 transactions, 10 operations, and 15 acc_operations, we can keep the
+          three tables in correct relative order and allow the optimizer to
+          correctly rank them from largest to smallest most of the time.
+       */
+       return 5;
+     },
+     "transactions_full"},
+    {
+        {"node_id", Ndbinfo::Number, "node id"},
+        {"block_instance", Ndbinfo::Number, "TC instance no"},
+        {"objid", Ndbinfo::Number, "Object id of transaction object"},
+        {"apiref", Ndbinfo::Number, "API reference"},
+        {"transid0", Ndbinfo::Number, "Transaction id"},
+        {"transid1", Ndbinfo::Number, "Transaction id"},
+        {"state", Ndbinfo::Number, "Transaction state"},
+        {"flags", Ndbinfo::Number, "Transaction flags"},
+        {"c_ops", Ndbinfo::Number, "No of operations in transaction"},
+        {"outstanding", Ndbinfo::Number, "Currently outstanding request"},
+        {"timer", Ndbinfo::Number, "Timer (seconds)"},
+    }};
+
 #define DBINFOTBL(x) \
   { Ndbinfo::x##_TABLEID, (const Ndbinfo::Table *)&ndbinfo_##x }
 
@@ -1265,7 +1292,8 @@ static struct ndbinfo_table_list_entry {
     DBINFOTBL(CPUDATA_20SEC),
     DBINFOTBL_UNSUPPORTED(CERTIFICATES),
     DBINFOTBL(THREADBLOCK_DETAILS),
-    DBINFOTBL(TRANSPORTER_DETAILS)};
+    DBINFOTBL(TRANSPORTER_DETAILS),
+    DBINFOTBL(TRANSACTIONS_FULL)};
 
 static int no_ndbinfo_tables =
     sizeof(ndbinfo_tables) / sizeof(ndbinfo_tables[0]);

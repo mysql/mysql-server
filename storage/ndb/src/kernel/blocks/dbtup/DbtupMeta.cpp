@@ -2363,6 +2363,12 @@ void Dbtup::drop_fragment_fsremove_done(Signal *signal, TablerecPtr tabPtr,
     signal->theData[0] = ZREL_FRAG;
     signal->theData[1] = tabPtr.i;
     signal->theData[2] = logfile_group_id;
+    if (ERROR_INSERTED(4039)) {
+      jam();
+      // Delay fragment release
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 1000, 3);
+      return;
+    }
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
   } else {
     jam();

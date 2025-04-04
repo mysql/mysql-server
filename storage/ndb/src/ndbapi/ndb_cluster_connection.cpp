@@ -613,7 +613,14 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl() {
     NdbMutex_Destroy(ndb_print_state_mutex);
     ndb_print_state_mutex = nullptr;
 #endif
-    g_eventLogger->stopAsync();
+    if (g_eventLogger != nullptr) {
+      g_eventLogger->stopAsync();
+    } else {
+      [[maybe_unused]] int ret =
+          fprintf(stderr,
+                  "WARNING: g_eventLogger object is "
+                  "deleted. ndb_end() called too soon?\n");
+    }
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 

@@ -139,6 +139,16 @@ void set_mock_bootstrap_data(
     const std::string &cluster_specific_id);
 
 /**
+ * Sets the version reported by the mock server.
+ *
+ * @param http_port mock server's http port where it services the http requests
+ * @param version string with the version to be reported by the mock server
+ * query
+ */
+
+void set_mock_server_version(uint16_t http_port, const std::string &version);
+
+/**
  * Converts JSON object to string representation.
  */
 std::string json_to_string(const JsonValue &json_doc);

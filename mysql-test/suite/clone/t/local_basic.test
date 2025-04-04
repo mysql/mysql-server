@@ -1,6 +1,7 @@
 # Test clone command
 
 --source include/have_example_plugin.inc
+--source include/have_log_bin.inc
 --source ../include/clone_connection_begin.inc
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 

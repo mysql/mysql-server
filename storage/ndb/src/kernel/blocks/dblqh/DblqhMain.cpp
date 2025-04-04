@@ -15428,6 +15428,14 @@ Uint32 Dblqh::copyNextRange(Uint32 *dst, TcConnectionrec *tcPtrP) {
 
     tcPtrP->primKeyLen -= rangeLen;
 
+    if (ERROR_INSERTED(5112)) {
+      jam();
+      /* Scan with infinite results */
+      g_eventLogger->info("LQH %u : Repeating range scan", instance());
+      tcPtrP->primKeyLen += rangeLen;
+      return rangeLen;
+    }
+
     if (rangeLen == totalLen) {
       /* All range information has been copied, free the section */
       releaseSection(tcPtrP->keyInfoIVal);
@@ -16133,7 +16141,6 @@ void Dblqh::accScanCloseConfLab(Signal *signal,
     /* Start next range scan...*/
     m_scan_direct_count++;
     continueAfterReceivingAllAiLab(signal, tcConnectptr);
-    release_frag_access(prim_tab_fragptr.p);
     return;
   }
   TcConnectionrec *const regTcPtr = tcConnectptr.p;
@@ -17088,8 +17095,10 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal *signal, SimulatedBlock *block,
       return;
     }
     jamDebug();
+    /* Request to call again */
     ndbassert(m_in_send_next_scan == 2);
     m_in_send_next_scan = 0;
+    ndbrequire(have_frag_scan_access());
   } while (1);
 }
 
@@ -17513,6 +17522,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal *signal) {
     regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
   }
 
+  acquire_frag_scan_access_new(prim_tab_fragptr.p, tcConnectptr.p);
+
   {
     AccScanReq *req = (AccScanReq *)&signal->theData[0];
     Uint32 sig_request_info = 0;
@@ -17568,6 +17579,9 @@ void Dblqh::execCOPY_FRAGREQ(Signal *signal) {
       /* ACC_SCANCONF */
       jamEntry();
   accScanConfCopyLab(signal);
+
+  /* release_frag_access if not already released */
+  release_frag_access(prim_tab_fragptr.p);
   return;
 }  // Dblqh::execCOPY_FRAGREQ()
 
@@ -32274,7 +32288,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal) {
         TablerecPtr tabPtr;
         tabPtr.i = tableid;
         ptrAss(tabPtr, tablerec);
-        if (tabPtr.p->tableStatus != Tablerec::NOT_DEFINED) {
+        if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+            tabPtr.p->tableStatus == Tablerec::TABLE_READ_ONLY) {
           jam();
           // Loop over all fragments for this table.
           for (Uint32 f = 0; f < NDB_ARRAY_SIZE(tabPtr.p->fragrec); f++) {
@@ -32359,7 +32374,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal) {
         TablerecPtr tabPtr;
         tabPtr.i = tableid;
         ptrAss(tabPtr, tablerec);
-        if (tabPtr.p->tableStatus != Tablerec::NOT_DEFINED) {
+        if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+            tabPtr.p->tableStatus == Tablerec::TABLE_READ_ONLY) {
           jam();
           // Loop over the fragments of this table.
           for (Uint32 fragNo = 0; fragNo < NDB_ARRAY_SIZE(tabPtr.p->fragrec);
@@ -32368,7 +32384,6 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal) {
             if ((myFragPtr.i = tabPtr.p->fragrec[fragNo]) != RNIL) {
               jam();
               c_fragment_pool.getPtr(myFragPtr);
-
               /* Get fragment's stats from TUP */
               const Dbtup::FragStats fs =
                   c_tup->get_frag_stats(myFragPtr.p->tupFragptr);
@@ -33864,3 +33879,28 @@ void Dblqh::decrement_usage_count_for_table(Uint32 tableId) {
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
   tabPtr.p->usageCountR--;
 }
+
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+void Dblqh::checkInitGlobalVariables() {
+  /* Called between signal executions in the job buffer */
+  if (qt_likely(globalData.ndbMtQueryThreads > 0)) {
+    if (unlikely(m_fragment_lock_status != FRAGMENT_UNLOCKED)) {
+      jam();
+      jamLine(refToMain(reference()));
+      jamLine(refToInstance(reference()));
+      jamLine(m_fragment_lock_status);
+      jamLine(m_old_fragment_lock_status);
+
+      g_eventLogger->error(
+          "Block %u instance %u should be unlocked but has "
+          "fragment lock status %u "
+          "old status %u",
+          refToMain(reference()), refToInstance(reference()),
+          m_fragment_lock_status, m_old_fragment_lock_status);
+
+      const bool fragmentLockReleased = false;
+      ndbrequire(fragmentLockReleased);
+    }
+  }
+}
+#endif

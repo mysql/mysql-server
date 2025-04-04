@@ -5641,9 +5641,22 @@ extern "C" void *handle_slave_io(void *arg) {
           }
           queued_size = gtid_ev.get_trx_length();
         }
-        // allow waiting only if we are outside of a transaction
+
+        // If the used space exceeds the relay log limit, and the current
+        // position is on a transaction boundary, and the received event is not
+        // a FD/rotate event, wait for the applier to free space. The exception
+        // for FD/rotate events is important in case the server has just
+        // restarted with the relay log ending in a half transaction. In this
+        // case, the applier has no information indicating that the transaction
+        // is half-received, so it cannot rollback the transaction and free disk
+        // space. But when we write the FD/rotate events, the applier can deduce
+        // that the transaction is half-received, and then it can rollback and
+        // free disk space as needed.
         if (rli->log_space_limit && exceeds_relay_log_limit(rli, queued_size) &&
-            !mi->transaction_parser.is_inside_transaction()) {
+            !mi->transaction_parser.is_inside_transaction() &&
+            !(event_buf[EVENT_TYPE_OFFSET] ==
+                  binary_log::FORMAT_DESCRIPTION_EVENT ||
+              event_buf[EVENT_TYPE_OFFSET] == binary_log::ROTATE_EVENT)) {
           if (wait_for_relay_log_space(rli, queued_size)) {
             LogErr(
                 ERROR_LEVEL,

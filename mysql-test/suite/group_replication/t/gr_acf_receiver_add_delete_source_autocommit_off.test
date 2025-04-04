@@ -1,0 +1,6 @@
+################################################################################
+# Verifies that the same properties are present as in the source file when
+# autocommit is set to off.
+################################################################################
+
+--source gr_acf_receiver_add_delete_source.test

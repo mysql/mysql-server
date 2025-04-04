@@ -259,6 +259,8 @@ static void test_bootstrap() {
   ok(psi != nullptr, "mdl version 1");
   psi = mdl_boot->get_interface(PSI_MDL_VERSION_2);
   ok(psi != nullptr, "mdl version 2");
+  psi = mdl_boot->get_interface(PSI_MDL_VERSION_3);
+  ok(psi != nullptr, "mdl version 3");
 
   psi = idle_boot->get_interface(0);
   ok(psi == nullptr, "no idle version 0");
@@ -2654,7 +2656,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(417);
+  plan(418);
 
   MY_INIT("pfs-t");
   do_all_tests();

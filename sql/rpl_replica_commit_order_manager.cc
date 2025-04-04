@@ -30,6 +30,7 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
@@ -71,11 +72,15 @@ void Commit_order_manager::register_trx(Slave_worker *worker) {
 bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
   auto worker_thd = worker->info_thd;
   bool rollback_status{false};
+  bool allow_commit_out_of_order{false};
   raii::Sentry<> wait_status_guard{[&]() -> void {
     worker_thd->mdl_context.m_wait.reset_status();
     if (rollback_status)
       this->m_workers[worker->id].m_stage =
           cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED;
+    else if (allow_commit_out_of_order)
+      this->m_workers[worker->id].m_stage =
+          cs::apply::Commit_order_queue::enum_worker_stage::WAITED_OVERTAKE;
     else
       this->m_workers[worker->id].m_stage =
           cs::apply::Commit_order_queue::enum_worker_stage::WAITED;
@@ -102,20 +107,144 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
     raii::Sentry<> ticket_guard{
         [&]() -> void { worker_thd->mdl_context.done_waiting_for(); }};
 
+    /*
+      Wait up to a year for a MDL grant, but do it for 1 second
+      periods.
+    */
+    const unsigned long wait_time{1};
+    MDL_wait::enum_wait_status wait_status{MDL_wait::WS_EMPTY};
     struct timespec abs_timeout;
-    set_timespec(&abs_timeout, LONG_TIMEOUT);  // Wait for a year
-    auto wait_status = worker_thd->mdl_context.m_wait.timed_wait(
-        worker_thd, &abs_timeout, true,
-        &stage_worker_waiting_for_its_turn_to_commit);
+
+    for (unsigned long total_waited_time = 0; total_waited_time < LONG_TIMEOUT;
+         total_waited_time += wait_time) {
+      set_timespec(&abs_timeout, wait_time);
+      wait_status = worker_thd->mdl_context.m_wait.timed_wait(
+          worker_thd, &abs_timeout, false,
+          &stage_worker_waiting_for_its_turn_to_commit);
+
+      if (wait_status != MDL_wait::WS_EMPTY) {
+        break;
+      }
+
+      /*
+        We reach this point when abs_timeout elapses without a MDL_wait outcome.
+        If this worker session's BGC ticket is active and the BGC back ticket
+        was incremented, it means that there is a following
+        view_change_log_event. Then, we are in a situation where, unless we take
+        action here, a deadlock can potentially occur (but not necessarily; see
+        below).
+
+        * Description of deadlock situation
+
+        1) This server is the primary of Group Replication;
+        2) This is a inbound channel from a source outside of the group;
+        3) We had a commit order: T1, T2
+        4) Transactions were delivered to the group in order T2, T1.
+           This occurs because T2 "overtakes" T1 at any time from when the
+           transactions are assigned to worker until they are delivered to the
+           group. The most common reason is that T2 executes faster, perhaps
+           because T1 is big. However, note that there is no guarantee that
+           delivery order equals broadcast order, so the scenario is possible
+           even if T1 was broadcast before T2.)
+        5) A member joined between T2 and T1.
+
+        * Example of deadlock situation
+
+        Suppose the inbound channel receives transactions T1, T2, T3, T4 in this
+        order. They are run and broadcast in the order T3, T4, T2, T1.
+        Even when transactions are run and broadcast in T1, T2, T3, T4 order,
+        the group delivery may reorder them. A member joined in the middle.
+        Thus, the transactions are certified in the following order, and
+        assigned the tickets accordingly:
+          T3           ticket=1
+          T4           ticket=1
+          View_change  ticket=2
+          T2           ticket=3
+          T1           ticket=3
+
+        The ticket manager enforces the global order, the channel enforces the
+        channel order:
+          global order:  T3, T4, T2, T1
+          channel order: T1, T2, T3, T4
+
+        In order to unblock this situation we need to allow transactions ordered
+        before the member join to commit in a order that does not respect its
+        source. Which will not cause harm since these transactions can only run
+        concurrently when they do not have dependencies among them.
+
+        * False positives
+
+        Note that `is_ticket_on_its_turn_and_back_ticket_incremented` may give
+        false positives. It does not check if the delivery order was different
+        from the order required by replica-preserve-commit-order. Therefore, it
+        will allow transaction to commit out of order in cases where it would
+        have been possible to wait for the correct commit order without the risk
+        of a deadlock. Here is an example:
+
+        Example:
+          T2           ticket=1
+          T1           ticket=1
+          View_change  ticket=2
+
+        If T2 observes the MDL wait timeout and reaches the current point in the
+        code, `is_ticket_on_its_turn_and_back_ticket_incremented` will return
+        true and unblock it. Then T2 may commit before T1. But it would have
+        been safe for T2 to wait for T1.
+
+        A precise check could have checked if the ticket number for the current
+        transaction is lower than the ticket number for the preceding
+        transaction. However, it is hard to read the ticket number from the
+        preceding transaction without race conditions, so we use this coarser
+        condition.
+
+        * User impact
+
+        replica-preserve-commit-order mainly has two use cases: (1) to maintain
+        application-defined constraints, and (2) to avoid performance
+        bottlenecks in handling GTID gaps. The logic here may violate the
+        application constraints, but will not introduce significant performance
+        bottlenecks:
+
+         1. Suppose the user executes the following transactions on the upstream
+            source:
+
+            T1: INSERT INTO table1 ...
+            T2: INSERT INTO table2 SELECT ... FROM table1 WHERE ...
+
+            If T1 and T2 execute in parallel on the inbound channel of the group
+            primary, and T2 finishes first, and T2 is delivered to the group
+            before T1, and there is a view change before T1 is delivered, then
+            T2 may commit before T1. In case the user expects that table2 only
+            contains rows that exist in table1, then that constraint is
+            violated. It is now a limitation that replica-preserve-commit-order
+            on inbound channels allows such inconsistencies near view changes.
+
+         2. When transactions commit out-of-order, it results in temporary gaps
+            in gtid_executed. The gaps (or rather, the intervals) are stored in
+            a data structure. There are frequent operations on the data
+            structure which have CPU and memory costs that are linear in the
+            number of intervals. For that reason, enabling
+            replica-preserve-commit-order can increase the throughput for some
+            workloads. Now that we violate replica-preserve-commit-order, it may
+            introduce temporary gaps in gtid_executed. However, since the gaps
+            only occur for a very brief time near a view change, it is unlikely
+            that this has any noticeable impact on the overall throughput.
+      */
+      if (Commit_stage_manager::get_instance()
+              .is_ticket_on_its_turn_and_back_ticket_incremented(worker_thd)) {
+        char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
+        worker_thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
+                                                       true);
+        LogErr(WARNING_LEVEL, ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER, gtid_buf);
+        allow_commit_out_of_order = true;
+        return false;
+      }
+    }
 
     switch (wait_status) {
       case MDL_wait::GRANTED:
         return false;
       case MDL_wait::WS_EMPTY:
-        /* purecov: begin inspected */
-        assert(false);
-        return false;
-        /* purecov: end */
       case MDL_wait::TIMEOUT:
         /* purecov: begin inspected */
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
@@ -262,19 +391,28 @@ void Commit_order_manager::reset_server_status(THD *first_thd) {
 
 void Commit_order_manager::finish_one(Slave_worker *worker) {
   DBUG_TRACE;
+  const cs::apply::Commit_order_queue::enum_worker_stage worker_stage =
+      this->m_workers[worker->id].m_stage;
 
-  if (this->m_workers[worker->id].m_stage ==
-      cs::apply::Commit_order_queue::enum_worker_stage::WAITED) {
-    assert(this->m_workers.front() == worker->id);
-    assert(!this->m_workers.is_empty());
-
-    cs::apply::Commit_order_queue::sequence_type this_seq_nr{0};
+  if (worker_stage ==
+          cs::apply::Commit_order_queue::enum_worker_stage::WAITED ||
+      worker_stage ==
+          cs::apply::Commit_order_queue::enum_worker_stage::WAITED_OVERTAKE) {
     auto this_worker{cs::apply::Commit_order_queue::NO_WORKER};
-    std::tie(this_worker, this_seq_nr) = this->m_workers.pop();
-    auto next_seq_nr =
-        cs::apply::Commit_order_queue::get_next_sequence_nr(this_seq_nr);
-    assert(worker->id == this_worker);
+    cs::apply::Commit_order_queue::sequence_type next_seq_nr{0};
 
+    if (worker_stage ==
+        cs::apply::Commit_order_queue::enum_worker_stage::WAITED) {
+      assert(this->m_workers.front() == worker->id);
+      std::tie(this_worker, next_seq_nr) = this->m_workers.pop();
+    }
+
+    else if (worker_stage == cs::apply::Commit_order_queue::enum_worker_stage::
+                                 WAITED_OVERTAKE) {
+      std::tie(this_worker, next_seq_nr) = this->m_workers.remove(worker->id);
+    }
+
+    assert(worker->id == this_worker);
     auto next_worker = this->m_workers.front();
     if (next_worker !=
             cs::apply::Commit_order_queue::NO_WORKER &&  // There is a worker to
@@ -301,9 +439,13 @@ void Commit_order_manager::finish_one(Slave_worker *worker) {
 
 void Commit_order_manager::finish(Slave_worker *worker) {
   DBUG_TRACE;
+  const cs::apply::Commit_order_queue::enum_worker_stage worker_stage =
+      this->m_workers[worker->id].m_stage;
 
-  if (m_workers[worker->id].m_stage ==
-      cs::apply::Commit_order_queue::enum_worker_stage::WAITED) {
+  if (worker_stage ==
+          cs::apply::Commit_order_queue::enum_worker_stage::WAITED ||
+      worker_stage ==
+          cs::apply::Commit_order_queue::enum_worker_stage::WAITED_OVERTAKE) {
     DBUG_PRINT("info",
                ("Worker %lu is signalling next transaction", worker->id));
 

@@ -103,6 +103,10 @@ int set_transaction_ctx(
   Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id,
                                     true);
 
+#ifndef NDEBUG
+  static std::size_t gno = 0;
+#endif
+
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd_ptr) {
@@ -117,6 +121,10 @@ int set_transaction_ctx(
         arbitrator, thence matching the arbitrator's transactions
         order.
       */
+      DBUG_EXECUTE_IF(
+          "simulate_bgct_rpco_deadlock", ++gno; if (gno % 3 == 0) {
+            thd_ptr->rpl_thd_ctx.binlog_group_commit_ctx().push_new_ticket();
+          });
       thd_ptr->rpl_thd_ctx.binlog_group_commit_ctx().assign_ticket();
     }
   }

@@ -174,7 +174,9 @@ bool do_update_sctx(Security_context *sctx, LEX_USER *from_user);
 void update_sctx(Security_context *sctx, LEX_USER *to_user);
 
 void clear_and_init_db_cache();
-bool acl_reload(THD *thd, bool mdl_locked);
+bool acl_reload(THD *thd, bool mdl_locked,
+                bool preserve_temporary_account_locking,
+                Lock_state_list *modified_user_lock_state_list);
 bool grant_reload(THD *thd, bool mdl_locked);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
@@ -207,11 +209,12 @@ void acl_tables_setup_for_read(Table_ref *tables);
 
 void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(Table_ref *tables, bool report_error);
-bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
-                            std::set<LEX_USER *> *extra_users = nullptr,
-                            Rewrite_params *rewrite_params = nullptr,
-                            bool extra_error = false,
-                            bool log_to_binlog = true);
+bool log_and_commit_acl_ddl(
+    THD *thd, bool transactional_tables,
+    std::set<LEX_USER *> *extra_users = nullptr,
+    Rewrite_params *rewrite_params = nullptr, bool extra_error = false,
+    bool log_to_binlog = true,
+    Lock_state_list *modified_user_lock_state_list = nullptr);
 void acl_notify_htons(THD *thd, enum_sql_command operation,
                       const List<LEX_USER> *users,
                       std::set<LEX_USER *> *rewrite_users = nullptr,

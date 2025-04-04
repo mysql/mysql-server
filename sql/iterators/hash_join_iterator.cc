@@ -904,18 +904,27 @@ bool HashJoinIterator::WriteProbeRowToDiskIfApplicable() {
   // need to write it out to disk. Outer joins should always write the row out
   // to disk, since the probe/left input should return NULL-complemented rows
   // even if the join condition contains SQL NULL.
-  const bool write_rows_with_null_in_join_key = m_join_type == JoinType::OUTER;
   if (m_state == State::READING_FIRST_ROW_FROM_HASH_TABLE) {
     const bool found_match = m_current_row != nullptr;
 
     if ((m_join_type == JoinType::INNER || m_join_type == JoinType::OUTER) ||
         !found_match) {
       if (on_disk_hash_join() && m_current_chunk == -1) {
+        // For inner joins and semijoins, we can skip probe rows that have a
+        // NULL in the join key, unless the join condition uses NULL-safe equal
+        // (<=>), because we know that it won't have any match in the build
+        // table. For left outer join and antijoin, however, rows in the
+        // outer/probe table which have no match in the inner/build table, will
+        // be part of the join result, so we can't skip rows with NULLs for
+        // those join types. Hence, store_row_with_null_in_join_key must be true
+        // for left outer join and antijoin.
+        const bool store_row_with_null_in_join_key =
+            m_join_type == JoinType::OUTER || m_join_type == JoinType::ANTI;
         if (WriteRowToChunk(thd(), &m_chunk_files_on_disk,
                             false /* write_to_build_chunk */,
                             m_probe_input_tables, m_join_conditions,
                             kChunkPartitioningHashSeed, found_match,
-                            write_rows_with_null_in_join_key,
+                            store_row_with_null_in_join_key,
                             &m_temporary_row_and_join_key_buffer)) {
           return true;
         }

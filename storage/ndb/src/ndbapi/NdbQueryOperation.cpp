@@ -2594,7 +2594,7 @@ NdbQueryImpl::FetchResult NdbQueryImpl::awaitMoreResults(bool forceSend) {
         else if (likely(waitResult == FetchResult_ok))
           continue;
         else if (waitResult == FetchResult_timeOut)
-          setFetchTerminated(Err_ReceiveTimedOut, false);
+          setFetchTerminated(Err_ReceiveTimedOut, true);
         else
           setFetchTerminated(Err_NodeFailCausedAbort, false);
 
@@ -3517,6 +3517,7 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
   const Uint32 timeout = ndb->get_waitfor_timeout();
   const Uint32 nodeId = m_transaction.getConnectedNodeId();
   const Uint32 seq = m_transaction.theNodeSequence;
+  bool timeoutCase = (m_error.code == Err_ReceiveTimedOut);
 
   /* This part needs to be done under mutex due to synchronization with
    * receiver thread.
@@ -3536,9 +3537,10 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
     if (unlikely(ndb->getNodeSequence(nodeId) != seq))
       setFetchTerminated(Err_NodeFailCausedAbort, false);
     else if (unlikely(result != FetchResult_ok)) {
-      if (result == FetchResult_timeOut)
-        setFetchTerminated(Err_ReceiveTimedOut, false);
-      else
+      if (result == FetchResult_timeOut) {
+        setFetchTerminated(Err_ReceiveTimedOut, true);
+        timeoutCase = true;
+      } else
         setFetchTerminated(Err_NodeFailCausedAbort, false);
     }
     if (hasReceivedError()) {
@@ -3567,9 +3569,14 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
       if (unlikely(ndb->getNodeSequence(nodeId) != seq))
         setFetchTerminated(Err_NodeFailCausedAbort, false);
       else if (unlikely(result != FetchResult_ok)) {
-        if (result == FetchResult_timeOut)
-          setFetchTerminated(Err_ReceiveTimedOut, false);
-        else
+        if (result == FetchResult_timeOut) {
+          setFetchTerminated(Err_ReceiveTimedOut, true);
+          g_eventLogger->info(
+              "NdbQueryOperation :: closeTcCursor() 4008 scan close failed");
+          /* Kernel ApiConnectRecord in unknown state, cannot use it */
+          /* Still connected, so request TC to release */
+          m_scanTransaction->theForceReleaseOnClose = true;
+        } else
           setFetchTerminated(Err_NodeFailCausedAbort, false);
       }
       if (hasReceivedError()) {
@@ -3577,6 +3584,12 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
       }
     }  // while
   }    // if
+
+  if (unlikely(timeoutCase && (m_error.code == 0))) {
+    g_eventLogger->info(
+        "NdbQueryOperation :: closeTcCursor() Successfully closed scan after "
+        "timeout");
+  }
 
   return 0;
 }  // NdbQueryImpl::closeTcCursor

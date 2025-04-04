@@ -160,7 +160,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
 
     if (thd) {
-      bool reload_acl_failed = reload_acl_caches(thd, false);
+      bool reload_acl_failed = reload_acl_caches(thd, false, false, nullptr);
       bool reload_servers_failed = servers_reload(thd);
       notify_flush_event(thd);
       if (reload_acl_failed || reload_servers_failed) {

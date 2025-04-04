@@ -1,7 +1,7 @@
 
 #
 # Test of SYSTEM time zone handling ( for my_system_gmt_sec()).
-# This script must be run with TZ=MET
+# This script must be run with TZ=CET
 --source include/have_met_timezone.inc
 
 # Initialization
@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 # The following is because of daylight saving time
---replace_result MEST MET
+--replace_result CEST CET
 show variables like "system_time_zone";
 
 #

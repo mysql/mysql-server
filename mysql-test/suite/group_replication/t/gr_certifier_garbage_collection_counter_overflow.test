@@ -1,0 +1,117 @@
+###############################################################################
+# This test verifies certification info garbage collection metrics.
+#
+# Test:
+# 0. The test requires two servers: M1.
+# 1. Start Group Replication and force a garbage collect
+#    high number on write set of certification info.
+# 2. Run some transactions on the group to increase
+#    garbage collection size.
+# 3. Remove certification info higher gtid set ref and
+#    enable debug point that will simulate a one time
+#    overflow on garbage collect counter.
+# 4. As certification garbage collect simulates an overflow
+#    it will not delete values from certification info.
+# 5. Assert there are 3000 rows on certification info.
+# 6. Remove debug point, already unset in the code
+# 7. Execute one more transaction to update stable set and
+#    garbage collect will clean certification info.
+# 8. Cleanup
+###############################################################################
+
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source include/not_asan.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start Group Replication and force a garbage collect
+--echo #    high number on write set of certification info.
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $debug_point=group_replication_ci_rows_counter_high
+--source include/add_debug_point.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Run some transactions on the group to increase
+--echo #    garbage collection size.
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL, c3 INT UNIQUE KEY NOT NULL);
+--disable_query_log
+--let $cnt=1000
+while($cnt)
+{
+    --eval INSERT INTO t1 VALUES ($cnt, $cnt, $cnt)
+    --dec $cnt
+}
+--enable_query_log
+
+
+--echo
+--echo ############################################################
+--echo # 3. Remove certification info higher gtid set ref and
+--echo #    enable debug point that will simulate a one time
+--echo #    overflow on garbage collect counter.
+
+--let $debug_point=group_replication_ci_rows_counter_high
+--source include/remove_debug_point.inc
+
+--let $debug_point=group_replication_garbage_collect_counter_overflow
+--source include/add_debug_point.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. As certification garbage collect simulates an overflow
+--echo #    it will not delete values from certification info.
+
+--let $gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $wait_timeout= 150
+--let $wait_condition= SELECT received_transaction_set="$gtid_executed" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Assert there are 3000 rows on certification info.
+
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
+--let $assert_text= 'Count_transactions_rows_validating must be 3000'
+--let $assert_cond= $count_transactions_validating = 3000
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Remove debug point, already unset in the code
+
+--let $debug_point=group_replication_garbage_collect_counter_overflow
+--source include/remove_debug_point.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Execute one more transaction to update stable set and
+--echo #    garbage collect will clean certification info.
+
+INSERT INTO t1 VALUES (1001, 1001, 1001);
+
+--let $wait_timeout= 150
+--let $wait_condition= SELECT Count_transactions_rows_validating=3 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+
+--echo
+--echo #################################################################
+--echo # 8. Cleanup
+
+DROP TABLE t1;
+--source include/group_replication_end.inc

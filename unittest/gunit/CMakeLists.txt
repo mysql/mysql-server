@@ -88,7 +88,7 @@ ADD_STATIC_LIBRARY(gunit_large
   gunit_test_main_server.cc
   test_utils.cc
   thread_utils.cc
-  LINK_LIBRARIES ext::icu ext::zlib
+  LINK_LIBRARIES ext::icu ext::zlib extra::unordered_dense
 )
 
 # Add a library for enable_win_jemalloc.cc

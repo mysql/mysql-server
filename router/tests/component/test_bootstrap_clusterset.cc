@@ -45,6 +45,7 @@
 #include "router_component_clusterset.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
 
@@ -995,6 +996,89 @@ TEST_F(RouterClusterSetBootstrapTest, PrimaryClusterQueriedFirst) {
     }
   }
 }
+
+static constexpr const unsigned long max_supported_version =
+    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
+
+struct ServerCompatTestParam {
+  std::string description;
+  std::string server_version;
+  bool expect_failure;
+  std::string expected_error_msg;
+};
+
+class CheckServerCompatibilityTest
+    : public RouterClusterSetBootstrapTest,
+      public ::testing::WithParamInterface<ServerCompatTestParam> {};
+
+/**
+ * @test
+ *      Verifies that the server version is checked for compatibility when the
+ * Router is bootstrapped against the ClusterSet
+ */
+TEST_P(CheckServerCompatibilityTest, Spec) {
+  RecordProperty("Description", GetParam().description);
+
+  create_clusterset(view_id, 0, 0, "bootstrap_clusterset.js");
+
+  const auto http_port = clusterset_data_.clusters[0].nodes[0].http_port;
+  const auto classic_port = clusterset_data_.clusters[0].nodes[0].classic_port;
+
+  set_mock_server_version(http_port, GetParam().server_version);
+
+  std::vector<std::string> bootstrap_params = {
+      "--bootstrap=127.0.0.1:" + std::to_string(classic_port), "-d",
+      bootstrap_directory.name()};
+
+  const auto expected_exit_code =
+      GetParam().expect_failure ? EXIT_FAILURE : EXIT_SUCCESS;
+  auto &router =
+      launch_router_for_bootstrap(bootstrap_params, expected_exit_code);
+  check_exit_code(router, expected_exit_code);
+
+  if (GetParam().expect_failure) {
+    const std::string router_console_output = router.get_full_output();
+    EXPECT_TRUE(
+        pattern_found(router_console_output, GetParam().expected_error_msg))
+        << router_console_output;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CheckServerCompatibilityTest,
+    ::testing::Values(
+        ServerCompatTestParam{
+            "Server is the same version as Router - bootstrap OK",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            false, ""},
+        ServerCompatTestParam{
+            "Server major version is highier than Router - bootstrap should "
+            "fail",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
+            "version is '" +
+                std::to_string(max_supported_version) + "'."},
+        ServerCompatTestParam{
+            "Server minor version is highier than Router - bootstrap should "
+            "fail",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH),
+            true,
+            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
+            "version is '" +
+                std::to_string(max_supported_version) + "'."},
+        ServerCompatTestParam{
+            "Server patch version is highier than Router - bootstrap OK",
+            std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+                std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),
+            false, ""}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

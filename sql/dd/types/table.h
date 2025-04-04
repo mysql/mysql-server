@@ -290,6 +290,11 @@ class Table : virtual public Abstract_table {
 
   virtual Partition_leaf_vector *leaf_partitions() = 0;
 
+  virtual Partition *get_leaf_partition(const std::string &part_name) = 0;
+
+  virtual const Partition *get_leaf_partition(
+      const std::string &part_name) const = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // Trigger collection.
   /////////////////////////////////////////////////////////////////////////

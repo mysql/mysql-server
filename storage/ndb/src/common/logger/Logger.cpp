@@ -485,9 +485,9 @@ TAPTEST(logger) {
 
     static const std::string file = "file.log";
 #ifdef _WIN32
-    static constexpr int async_wait_time_ms = 150;
+    static constexpr int async_wait_time_ms = 250;
 #else
-    static constexpr int async_wait_time_ms = 50;
+    static constexpr int async_wait_time_ms = 100;
 #endif
     clearFile(file);
 

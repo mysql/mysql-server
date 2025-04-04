@@ -106,6 +106,9 @@ dberr_t RTree_inserter::batch_insert(trx_id_t trx_id,
 
     ut_ad(dtuple != nullptr);
 
+    /* If there is no sufficient space in the redo logs then deep copy the
+    cached records and release the page(s) latches as that would be required to
+    commit the mini-transaction. */
     if (log_free_check_is_required() IF_DEBUG(|| force_log_free_check)) {
       if (!latches_released) {
         deep_copy_tuples(it);

@@ -2144,13 +2144,7 @@ static void srv_update_cpu_usage() {
     return;
   }
 
-  int n_cpu = 0;
-  constexpr int MAX_CPU_N = 128;
-  for (int i = 0; i < MAX_CPU_N; ++i) {
-    if (CPU_ISSET(i, &cs)) {
-      ++n_cpu;
-    }
-  }
+  const int n_cpu = CPU_COUNT(&cs);
 
   srv_cpu_usage.n_cpu = n_cpu;
   MONITOR_SET(MONITOR_CPU_N, int64_t(n_cpu));

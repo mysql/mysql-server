@@ -2652,6 +2652,9 @@ void buf_pool_clear_hash_index(void) {
 
   DEBUG_SYNC_C("purge_wait_for_btr_search_latch");
 
+  bool pause_before_processing = DBUG_EVALUATE_IF(
+      "buf_pool_clear_hash_index_check_other_blocks", true, false);
+
   for (ulong p = 0; p < srv_buf_pool_instances; p++) {
     buf_pool_t *const buf_pool = buf_pool_from_array(p);
     buf_chunk_t *const chunks = buf_pool->chunks;
@@ -2671,6 +2674,13 @@ void buf_pool_clear_hash_index(void) {
           /* The block is already not in AHI, and it can't be added before the
           AHI is re-enabled, so there's nothing to be done here. */
           continue;
+        }
+
+        /* Identify target block and sync with test */
+        if (pause_before_processing && block->page.old &&
+            !block->page.is_dirty()) {
+          DEBUG_SYNC_C("buf_pool_clear_hash_index_will_process_block");
+          pause_before_processing = false;
         }
 
         /* This latch will prevent block state transitions. It is important for
@@ -2706,6 +2716,8 @@ void buf_pool_clear_hash_index(void) {
             /* No other state should have AHI */
             ut_ad(block->ahi.index == nullptr);
             ut_ad(block->ahi.n_pointers == 0);
+            /* Go to next block as AHI is already nullptr */
+            continue;
         }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -2717,6 +2729,13 @@ void buf_pool_clear_hash_index(void) {
         btr_search_set_block_not_cached(block);
       }
     }
+  }
+
+  /* Main intent was to identify target block. Due to rare race conditions, such
+  block is not found. To prevent timeout, unblock in case target block is not
+  found */
+  if (pause_before_processing) {
+    DEBUG_SYNC_C("buf_pool_clear_hash_index_will_process_block");
   }
 }
 
@@ -6845,3 +6864,15 @@ void buf_pool_free_all() {
   buf_pool_free();
 }
 #endif /* !UNIV_HOTBACKUP */
+
+uint16_t buf_block_t::get_page_level() const {
+  ut_ad(frame != nullptr);
+  ut_ad(get_page_type() == FIL_PAGE_INDEX);
+  uint16_t level = mach_read_from_2(frame + PAGE_HEADER + PAGE_LEVEL);
+  ut_ad(level <= BTR_MAX_NODE_LEVEL);
+  return level;
+}
+
+bool buf_block_t::is_empty() const {
+  return page_rec_is_supremum(page_rec_get_next(page_get_infimum_rec(frame)));
+}

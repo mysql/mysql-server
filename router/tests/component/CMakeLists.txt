@@ -21,6 +21,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+IF(NOT TARGET mysql_server_mock)
+  RETURN()
+ENDIF()
+
 ADD_HARNESS_PLUGIN(routertestplugin_logger NO_INSTALL
   DESTINATION harness
   SOURCES logger_testplugin.cc)

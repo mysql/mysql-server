@@ -205,8 +205,9 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
           for (size_t j = i + 1; j < batch_insert.size(); ++j) {
             batch_insert[j]->batch_insert_deep_copy_tuples(thread_id);
           }
-          thread_ctx->savepoint();
+          thread_ctx->save_previous_user_record_as_last_processed();
           latches_released = true;
+          DEBUG_SYNC_C("ddl_batch_inserter_latches_released");
         }
         return DB_SUCCESS;
       });
@@ -219,7 +220,8 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
     }
 
     if (latches_released) {
-      return thread_ctx->restore_from_savepoint();
+      /* Resume from the savepoint (above). */
+      thread_ctx->restore_to_first_unprocessed();
     }
 
     return DB_SUCCESS;
@@ -235,8 +237,9 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       const auto err = builder->add_row(*this, row, thread_id, [&]() {
         if (!latches_released &&
             thread_ctx->get_state() != Parallel_reader::State::THREAD) {
-          thread_ctx->savepoint();
+          thread_ctx->save_current_user_record_as_last_processed();
           latches_released = true;
+          DEBUG_SYNC_C("ddl_bulk_inserter_latches_released");
         }
         return DB_SUCCESS;
       });
@@ -249,7 +252,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
     if (latches_released) {
       ut_a(row.m_ptr != nullptr);
       /* Resume from the savepoint (above). */
-      return thread_ctx->restore_from_savepoint();
+      thread_ctx->restore_to_last_processed_user_record();
     }
 
     return DB_SUCCESS;

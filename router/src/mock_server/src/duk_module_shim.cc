@@ -36,7 +36,6 @@
 #endif
 #include <sys/stat.h>
 
-#include "duk_module_duktape.h"
 #include "duk_module_node.h"
 #include "duk_node_fs.h"
 #include "duktape.h"
@@ -760,6 +759,7 @@ void duk_module_shim_init(duk_context *ctx,
   duk_put_prop_string(ctx, -2, "resolve");
   duk_push_c_function(ctx, cb_load_module, DUK_VARARGS);
   duk_put_prop_string(ctx, -2, "load");
+
   duk_module_node_init(ctx);
 }
 

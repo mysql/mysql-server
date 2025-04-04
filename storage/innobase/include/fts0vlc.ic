@@ -34,87 +34,62 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef INNOBASE_FTS0VLC_IC
 #define INNOBASE_FTS0VLC_IC
 
+#include <cstddef>
+#include <cstdint>
 #include "fts0types.h"
 
-/** Return length of val if it were encoded using our VLC scheme.
- FIXME: We will need to be able encode 8 bytes value
- @return length of value encoded, in bytes */
-inline ulint fts_get_encoded_len(ulint val) /* in: value to encode */
-{
-  if (val <= 127) {
-    return (1);
-  } else if (val <= 16383) {
-    return (2);
-  } else if (val <= 2097151) {
-    return (3);
-  } else if (val <= 268435455) {
-    return (4);
-  } else {
-    /* Possibly we should care that on 64-bit machines ulint can
-    contain values that we can't encode in 5 bytes, but
-    fts_encode_int doesn't handle them either so it doesn't much
-    matter. */
-
-    return (5);
+inline unsigned int fts_get_encoded_len(uint64_t val) {
+  unsigned int length = 1;
+  for (;;) {
+    val >>= 7;
+    if (val != 0) {
+      ++length;
+    } else {
+      break;
+    }
   }
+  return length;
 }
 
-/** Encode an integer using our VLC scheme and return the length in bytes.
- @return length of value encoded, in bytes */
-inline ulint fts_encode_int(ulint val, /* in: value to encode */
-                            byte *buf) /* in: buffer, must have enough space */
-{
-  ulint len;
+inline unsigned int fts_encode_int(uint64_t val, byte *buf) {
+  constexpr unsigned int max_length = 10;
 
-  if (val <= 127) {
-    *buf = (byte)val;
-
-    len = 1;
-  } else if (val <= 16383) {
-    *buf++ = (byte)(val >> 7);
-    *buf = (byte)(val & 0x7F);
-
-    len = 2;
-  } else if (val <= 2097151) {
-    *buf++ = (byte)(val >> 14);
-    *buf++ = (byte)((val >> 7) & 0x7F);
-    *buf = (byte)(val & 0x7F);
-
-    len = 3;
-  } else if (val <= 268435455) {
-    *buf++ = (byte)(val >> 21);
-    *buf++ = (byte)((val >> 14) & 0x7F);
-    *buf++ = (byte)((val >> 7) & 0x7F);
-    *buf = (byte)(val & 0x7F);
-
-    len = 4;
-  } else {
-    /* Best to keep the limitations of the 32/64 bit versions
-    identical, at least for the time being. */
-    ut_ad(val <= 4294967295u);
-
-    *buf++ = (byte)(val >> 28);
-    *buf++ = (byte)((val >> 21) & 0x7F);
-    *buf++ = (byte)((val >> 14) & 0x7F);
-    *buf++ = (byte)((val >> 7) & 0x7F);
-    *buf = (byte)(val & 0x7F);
-
-    len = 5;
+  /* skip leading zeros */
+  unsigned int count = max_length - 1;
+  while (count > 0) {
+    /* We split the value into 7 bit batches); so val >= 2^63 need 10 bytes,
+       2^63 > val >= 2^56 needs 9 bytes, 2^56 > val >= 2^49 needs 8 bytes etc.
+    */
+    if (val >= uint64_t(1) << (count * 7)) {
+      break;
+    }
+    --count;
   }
 
-  /* High-bit on means "last byte in the encoded integer". */
-  *buf |= 0x80;
+  unsigned int length = count + 1;
 
-  return (len);
+  byte *bufptr{buf};
+
+  for (;;) {
+    *bufptr = (byte)((val >> (7 * count)) & 0x7f);
+    if (count == 0) {
+      /* High-bit on means "last byte in the encoded integer". */
+      *bufptr |= 0x80;
+      break;
+    } else {
+      --count;
+      ++bufptr;
+    }
+  }
+
+  ut_ad(length <= max_length);
+  ut_a(bufptr - buf == std::ptrdiff_t(length) - 1);
+
+  return length;
 }
 
-/** Decode and return the integer that was encoded using our VLC scheme.
- @return value decoded */
-inline ulint fts_decode_vlc(
-    byte **ptr) /* in: ptr to decode from, this ptr is
-                incremented by the number of bytes decoded */
-{
-  ulint val = 0;
+inline uint64_t fts_decode_vlc(byte **ptr) {
+  uint64_t val = 0;
 
   for (;;) {
     byte b = **ptr;
@@ -130,7 +105,7 @@ inline ulint fts_decode_vlc(
     }
   }
 
-  return (val);
+  return val;
 }
 
 #endif

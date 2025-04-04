@@ -1,0 +1,51 @@
+source include/have_ndb.inc;
+
+create table t1 (a int primary key,
+                 b int,
+                 c int,
+                 key(c)) engine = ndb;
+
+--echo Insert a number of rows
+let $rows=100;
+let $i=$rows;
+
+--disable_query_log
+--disable_result_log
+while($i)
+{
+  --eval insert into t1 values ($i, $i, $i);
+  --dec $i
+}
+--enable_result_log
+--enable_query_log
+
+--echo Define a statement that will use MRR to read
+
+let $q=  select * from t1 where
+    (c > 1 and c < 6) or        
+    (c > 20 and c < 30) or
+    (c > 60 and c < 65) or
+    (c > 70 and c < 73) or
+    (c > 200 and c < 210) order by a;
+
+#--echo Show use of MRR
+#--eval explain format=json into @e $q
+#select json_extract(@e, "$.query_block.ordering_operation.table.using_MRR") as using_MRR;
+
+
+--echo Run a number of iterations to likely get query thread usage
+
+--disable_query_log
+--disable_result_log
+let $iter=50;
+while ($iter)
+{
+  --eval $q
+  --dec $iter
+}
+--enable_result_log
+--enable_query_log
+
+--echo Cleanup
+
+drop table t1;

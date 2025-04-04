@@ -1357,8 +1357,7 @@ Uint32 Ndb::pollCompleted(NdbTransaction **aCopyArray) {
 }  // Ndb::pollCompleted()
 
 void Ndb::check_send_timeout() {
-  const Uint32 timeout =
-      theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
+  const Uint32 timeout = theImpl->get_waitfor_timeout();
   const Uint64 current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
 #ifndef NDEBUG
@@ -1389,7 +1388,7 @@ void Ndb::check_send_timeout() {
                             t2);
         // abort();
 #endif
-        a_con->theReleaseOnClose = true;
+        a_con->theForceReleaseOnClose = true;
         a_con->theError.code = 4012;
         a_con->setOperationErrorCodeAbort(4012);
         a_con->theCommitStatus = NdbTransaction::NeedAbort;

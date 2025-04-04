@@ -1,0 +1,84 @@
+##
+## Miscellaneous test cases for performance_schema.processlist
+##
+## Test cases:
+##   1. Verify naming of foreground system threads.
+##
+
+##
+## Test Case 1: Verify naming of foreground system threads.
+##
+## Foreground system threads should be named 'system user' except for 
+## singleton threads such as 'event_scheduler'.
+##
+## Reference: Bug#36895513 "Wrong result in P_S.processlist on replica node"
+## NOTE: Results must be manually verified.
+##
+
+# Configure two servers to be source and replica.
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# Wait until the replica SQL thread has been synced and all events have been copied over to the replica.
+include/sync_slave_sql_with_master.inc
+
+# Stop replica.
+include/stop_slave.inc
+
+# Start replica.
+include/start_slave.inc
+
+# Verify processlist user name is 'system_user'.
+
+select * from performance_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+
+# Create user 'test_processlist' then restart the replica and verify that
+# the processlist user name for the replica threads is 'system user'.
+
+CREATE USER 'test_processlist'@'localhost';
+GRANT ALL ON *.* TO 'test_processlist'@'localhost';
+
+# Stop replica.
+include/stop_slave.inc
+
+# Connect as 'test_processlist'.
+
+# Start replica as user 'test_processlist'.
+include/start_slave.inc
+
+# Verify processlist user name is 'system_user' for the replica threads.
+
+select * from performance_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	test_processlist	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+
+# Clean up.
+
+DROP USER 'test_processlist'@'localhost';
+include/rpl_end.inc

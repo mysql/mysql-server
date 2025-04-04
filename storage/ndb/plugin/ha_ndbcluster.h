@@ -739,5 +739,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 };
 
 int ndb_to_mysql_error(const NdbError *ndberr);
+int fail_index_offline(TABLE *t, int index);
 
 #endif

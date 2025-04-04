@@ -543,6 +543,16 @@ void Dbacc::set_tup_fragptr(Uint32 fragptr, Uint32 tup_fragptr) {
 void Dbacc::execACCFRAGREQ(Signal *signal) {
   const AccFragReq *const req = (AccFragReq *)&signal->theData[0];
   jamEntry();
+  if (ERROR_INSERTED(3006)) {
+    jam();
+    // Delay each GSN_ACCFRAGREQ only once
+    if (signal->senderBlockRef() != reference()) {
+      jam();
+      sendSignalWithDelay(reference(), GSN_ACCFRAGREQ, signal, 100,
+                          signal->getLength());
+      return;
+    }
+  }
   if (ERROR_INSERTED(3001)) {
     jam();
     addFragRefuse(signal, 1);

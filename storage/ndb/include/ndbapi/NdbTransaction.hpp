@@ -1157,9 +1157,10 @@ class NdbTransaction {
     InCompletedList
   } theListState;
 
-  Uint32 theDBnode;        // The database node we are connected to
-  Uint32 theNodeSequence;  // The sequence no of the db node
-  bool theReleaseOnClose;
+  Uint32 theDBnode;             // The database node we are connected to
+  Uint32 theNodeSequence;       // The sequence no of the db node
+  bool theReleaseOnClose;       // Data node gone, recycle API object
+  bool theForceReleaseOnClose;  // Data node out of sync, force TC release
 
   /**
    * handle transaction spanning

@@ -314,8 +314,8 @@ class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
   Uint8 m_noOfKeys;
   // if all pk = dk then this is zero!
   Uint8 m_noOfDistributionKeys;
-  Uint8 m_noOfBlobs;
-  Uint8 m_noOfDiskColumns;
+  Uint16 m_noOfBlobs;
+  Uint16 m_noOfDiskColumns;
   Uint8 m_replicaCount;
 
   /**

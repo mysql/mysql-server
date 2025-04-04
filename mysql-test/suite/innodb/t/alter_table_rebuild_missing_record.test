@@ -1,0 +1,245 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--enable_connect_log
+--connect (con1, localhost, root,,)
+
+--DELIMITER //
+
+CREATE PROCEDURE test.insert_records (IN record_count INT)
+BEGIN
+    DECLARE counter INT DEFAULT 1;
+
+    WHILE counter <= record_count DO
+        INSERT INTO test.t1 VALUES (0);
+        SET counter = counter + 1;
+    END WHILE;
+END //
+
+--DELIMITER ;
+
+--echo ##############################################################
+--echo # Bug#36846567 Inplace ALTER TABLE might cause lost rows if concurrent purge
+--echo ##############################################################
+--echo
+
+--connection default
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('bbbcc'), ('ccccc'), ('ddddd'), ('eeeee');
+
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+DELETE FROM t1 WHERE pk = 'bbbcc';
+
+--connection con1
+SET SESSION DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+--echo # Send ALTER TABLE INPLACE which rebuilds table.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE
+--reap
+SET SESSION DEBUG='-d,ddl_buf_add_two';
+
+--echo # Before the fix row 'ddddd' was missing from the table after ALTER.
+SELECT * FROM t1;
+
+--echo # Test cleanup
+--connection default
+DROP TABLE t1;
+
+--echo ##############################################################
+--echo # Test#2 Delete the first record
+--echo ##############################################################
+--echo
+
+--connection default
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('bbbcc'), ('ccccc'), ('ddddd'), ('eeeee');
+
+
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+DELETE FROM t1 WHERE pk = 'aaaaa';
+
+--connection con1
+SET SESSION DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+--echo # Send ALTER TABLE INPLACE which rebuilds table.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE
+--reap
+SET SESSION DEBUG='-d,ddl_buf_add_two';
+
+--echo # Verify intended records are present
+SELECT * FROM t1;
+
+--echo # Test cleanup
+--connection default
+DROP TABLE t1;
+
+--echo ##############################################################
+--echo # Test#3 Delete the second record
+--echo ##############################################################
+--echo
+
+--connection default
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('bbbcc'), ('ccccc'), ('ddddd'), ('eeeee');
+
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+DELETE FROM t1 WHERE pk = 'bbbbb';
+
+--connection con1
+SET SESSION DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+--echo # Send ALTER TABLE INPLACE which rebuilds table.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE
+--reap
+SET SESSION DEBUG='-d,ddl_buf_add_two';
+
+--echo # Verify intended records are present
+SELECT * FROM t1;
+
+--echo # Test cleanup
+--connection default
+DROP TABLE t1;
+
+--echo ##############################################################
+--echo # Test#4 Delete the fourth record
+--echo ##############################################################
+--echo
+
+--connection default
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('bbbcc'), ('ccccc'), ('ddddd'), ('eeeee');
+
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+DELETE FROM t1 WHERE pk = 'ccccc';
+
+--connection con1
+SET SESSION DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+--echo # Send ALTER TABLE INPLACE which rebuilds table.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE
+--reap
+SET SESSION DEBUG='-d,ddl_buf_add_two';
+
+--echo # Verify intended records are present
+SELECT * FROM t1;
+
+--echo # Test cleanup
+--connection default
+DROP TABLE t1;
+
+--echo ############################################################
+--echo # Test#5 Bug#37318367 Delete part of records from two pages
+--echo # to lose a record - pause in PCursor::move_to_next_block
+--echo ############################################################
+
+# Limit the max number of records per page to 3
+SET GLOBAL innodb_limit_optimistic_insert_debug=3;
+
+--connection default
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, PRIMARY KEY(id)) ENGINE=InnoDB;
+
+# 8 records are inserted into four pages as following due to
+# sysvar innodb_limit_optimistic_insert_debug=3 set above :
+# p1: {1},  p2: {2,3,4}, p3: {5,6,7}, p4: {8}
+CALL insert_records(8);
+
+SET GLOBAL innodb_purge_stop_now = ON;
+
+#  Remove records in right half of page p2 and left half of page p3
+DELETE FROM t1 WHERE id > 2 AND id < 7;
+
+let $before_count = `SELECT COUNT(*) FROM t1`;
+--connection con1
+SET DEBUG_SYNC='pcursor_move_to_next_block_latches_released SIGNAL latches_released WAIT_FOR go EXECUTE 2';
+
+--echo # Send ALTER TABLE INPLACE to rebuild the index.
+
+# Trick the PCursor::move_to_next_block to think the latch is congested
+SET SESSION debug="+d,pcursor_move_to_next_block_release_latches";
+# Save the cursor position at the end of record#4 and wait for the second
+# 'go'  signal to resume operation.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+# wait for the first hit of the sync point at the end of first page ...
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+# ... which we ignore by immediately resuming the alter table operation
+SET DEBUG_SYNC='now SIGNAL go';
+# Now wait for the second hit of the sync point at the end of second page
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+
+# Resume the alter table operation after page p2 is processed. Since the purge
+# is completed so remaining records are arranged as following :
+# p1: {1, 2, 7}, p4: {8}
+# Without the fix, cursor is positioned to record#8 instead of record#7 thus
+# latter is skipped.
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE.
+--reap;
+SET SESSION debug="-d,pcursor_move_to_next_block_release_latches";
+
+--echo # Ensure all data is present after index rebuild.
+let $after_count = `SELECT COUNT(*) FROM t1`;
+if($before_count != $after_count) {
+  --echo # Records, before rebuild=$before_count != after rebuild=$after_count"
+  SELECT id FROM t1;
+  --die "Test failed due to record count mismatch after index rebuild"
+}
+
+--echo # Test cleanup.
+--connection default
+DROP TABLE t1;
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+
+--echo #
+--echo # Cleanup.
+--connection default
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE test.insert_records;
+--disconnect con1
+--disable_connect_log
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

@@ -868,13 +868,14 @@ EXPLAIN
 -> Group (no aggregates)  (cost=0.45 rows=1)
     -> Table scan on t1  (cost=0.35 rows=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Limit: 1 row(s)  (cost=1.85..1.85 rows=1)
-        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=1.85..1.85 rows=1)
-            -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (cost=0.8..1.85 rows=4)
-                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (cost=1.4 rows=4)
-                    -> Materialize  (cost=0.45..0.45 rows=1)
-                        -> Table scan on t1  (cost=0.35 rows=1)
-                -> Table scan on d  (cost=2.52 rows=2)
+    -> Limit: 1 row(s)  (cost=1.95..1.95 rows=1)
+        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=1.95..1.95 rows=1)
+            -> Filter: <if>(outer_field_is_not_null, ((<cache>(t1.a) = d.a) or (d.a is null)), true)  (cost=1.95..1.95 rows=1)
+                -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (cost=0.8..1.85 rows=4)
+                    -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (cost=1.4 rows=4)
+                        -> Materialize  (cost=0.45..0.45 rows=1)
+                            -> Table scan on t1  (cost=0.35 rows=1)
+                    -> Table scan on d  (cost=2.52 rows=2)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.

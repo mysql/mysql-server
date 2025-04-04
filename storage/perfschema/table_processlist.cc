@@ -190,25 +190,29 @@ int table_processlist::make_row(PFS_thread *pfs) {
   bool user_name_set = false;
 
   if (pfs->m_class->is_system_thread()) {
-    if (username_len == 0 ||
-        (!strncmp(username, "root", 4) && username_len == 4)) {
+    bool is_named = username_len > 0;
+
+    // Assign 'system user' if:
+    // - user is not named, or
+    // -user is named and thread is not a singleton (e.g. event_scheduler)
+
+    if (!is_named || (is_named && !(pfs->m_class->is_singleton()))) {
       username = "system user";
-      username_len = strlen(username);
-      m_row.m_user_name.set(username, username_len);
       hostname_len = 0;
       user_name_set = true;
     }
   } else {
     if (username_len == 0) {
       username = "unauthenticated user";
-      username_len = strlen(username);
-      m_row.m_user_name.set(username, username_len);
       hostname_len = 0;
       user_name_set = true;
     }
   }
 
-  if (!user_name_set) {
+  if (user_name_set) {
+    username_len = strlen(username);
+    m_row.m_user_name.set(username, username_len);
+  } else {
     m_row.m_user_name = pfs->m_user_name;
   }
 
@@ -347,7 +351,8 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
             set_field_varchar_utf8mb4(f, m_row.m_hostname,
                                       m_row.m_hostname_length);
           } else {
-            f->set_null();
+            // Set to "" for compatibility with legacy processlist
+            set_field_varchar_utf8mb4(f, "");
           }
           break;
         case 3: /* DB */

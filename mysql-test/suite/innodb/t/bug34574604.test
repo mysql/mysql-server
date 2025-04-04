@@ -1,0 +1,297 @@
+--source include/have_debug_sync.inc
+
+--echo # Case 1. Extern BLOB with sec index on v_col undergoes UPDATE during online DDL
+
+CREATE TABLE t1 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t1 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t1;
+
+SHOW CREATE TABLE t1;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t1 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t1;
+UPDATE t1 SET c2=2;
+SELECT c1, c2, c4 FROM t1;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--echo # Case 2. BLOB with sec index on v_col undergoes UPDATE during online DDL
+
+CREATE TABLE t2 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t2 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t2;
+
+SHOW CREATE TABLE t2;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t2 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t2;
+UPDATE t2 SET c2=2;
+SELECT c1, c2, c4 FROM t2;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t2;
+CHECK TABLE t2;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t2;
+
+--echo # Case 3. (case 1) with update on base column of v_col
+
+CREATE TABLE t3 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t3 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t3;
+
+SHOW CREATE TABLE t3;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t3;
+UPDATE t3 SET c1=10;
+SELECT c1, c2, c4 FROM t3;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t3;
+CHECK TABLE t3;
+SHOW CREATE TABLE t3;
+
+DROP TABLE t3;
+
+--echo # Case 4. (case 2) with update on base column of v_col
+
+CREATE TABLE t4 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t4 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t4;
+
+SHOW CREATE TABLE t4;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t4 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t4;
+UPDATE t4 SET c1=10;
+SELECT c1, c2, c4 FROM t4;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t4;
+CHECK TABLE t4;
+SHOW CREATE TABLE t4;
+
+DROP TABLE t4;
+
+--echo # Case 5. (case 1) with update on BLOB without changing extern status
+
+CREATE TABLE t5 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t5 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t5;
+
+SHOW CREATE TABLE t5;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t5 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t5;
+UPDATE t5 SET c3=REPEAT('abcdefghcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281);
+UPDATE t5 SET c2=2;
+UPDATE t5 SET c1=10;
+SELECT c1, c2, c4 FROM t5;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t5;
+CHECK TABLE t5;
+SHOW CREATE TABLE t5;
+
+DROP TABLE t5;
+
+--echo # Case 6. (case 2) with update on BLOB without changing extern status
+
+CREATE TABLE t6 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t6 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t6;
+
+SHOW CREATE TABLE t6;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t6 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t6;
+UPDATE t6 SET c3=REPEAT('B', 256);
+UPDATE t6 SET c2=2;
+UPDATE t6 SET c1=10;
+SELECT c1, c2, c4 FROM t6;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t6;
+CHECK TABLE t6;
+SHOW CREATE TABLE t6;
+
+DROP TABLE t6;
+
+--echo # Case 7. (case 1) with update on BLOB inverting BLOB's extern status
+
+CREATE TABLE t7 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t7 VALUES (1, 1, REPEAT('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281), DEFAULT);
+SELECT c1, c2, c4 FROM t7;
+
+SHOW CREATE TABLE t7;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t7 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t7;
+UPDATE t7 SET c3=REPEAT('B', 256);
+UPDATE t7 SET c2=2;
+UPDATE t7 SET c1=10;
+SELECT c1, c2, c4 FROM t7;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t7;
+CHECK TABLE t7;
+SHOW CREATE TABLE t7;
+
+DROP TABLE t7;
+
+--echo # Case 8. (case 2) with update on BLOB inverting BLOB's extern status
+
+CREATE TABLE t8 (c1 INT, c2 INT, c3 BLOB, c4 INT AS (c1 + 1), INDEX id(c4) );
+INSERT INTO t8 VALUES (1, 1, REPEAT('A', 256), DEFAULT);
+SELECT c1, c2, c4 FROM t8;
+
+SHOW CREATE TABLE t8;
+
+connect (con1, localhost, root, , );
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL online WAIT_FOR upd';
+send;
+ALTER TABLE t8 ADD PRIMARY KEY (c1);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR online';
+
+SELECT c1, c2, c4 FROM t8;
+UPDATE t8 SET c3=REPEAT('abcdefghcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc', 281);
+UPDATE t8 SET c2=2;
+UPDATE t8 SET c1=10;
+SELECT c1, c2, c4 FROM t8;
+
+SET DEBUG_SYNC='now SIGNAL upd';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT c1, c2, c4 FROM t8;
+CHECK TABLE t8;
+SHOW CREATE TABLE t8;
+
+DROP TABLE t8;

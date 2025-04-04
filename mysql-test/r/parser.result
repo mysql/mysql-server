@@ -2627,6 +2627,14 @@ SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
 (SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
 SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
 (SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
+# Check that this also works with flatten_equal_set_ops
+# (minimum three operands to check this)
+SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var;
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var);
+SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
+SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
 #
 # Deprecation warning expected:
 #
@@ -2648,6 +2656,34 @@ Warning	3962	The INTO clause is deprecated inside query blocks of query expressi
 (SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
 Warnings:
 Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+# Check that warning also works with flatten_equal_set_ops
+# (minimum three operands to check this)
+SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FROM DUAL;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+# Check that PT_set_operation::has_into_clause works correctly
+# for more than two operands after flatten_equal_set_ops
+SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL) UNION SELECT 1;
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
+SELECT 1 UNION SELECT 1 UNION SELECT * FROM (SELECT 2 UNION SELECT 1 INTO @var FROM DUAL) t;
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
+SELECT 1 UNION SELECT 1 UNION SELECT * FROM (SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FROM DUAL) t;
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 #
 # Syntax error expected:
 #

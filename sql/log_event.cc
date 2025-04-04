@@ -4452,7 +4452,9 @@ static bool is_silent_error(THD *thd) {
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                     const char *query_arg, size_t q_len_arg) {
   DBUG_TRACE;
-  int expected_error, actual_error = 0;
+  DBUG_EXECUTE_IF("simulate_error_in_ddl", error_code = 1051;);
+  const int expected_error = error_code;
+  int actual_error = 0;
   auto post_filters_actions_guard = create_scope_guard(
       [&]() { thd->rpl_thd_ctx.post_filters_actions().clear(); });
 
@@ -4531,14 +4533,26 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     char llbuff[22];
     if ((error =
              rows_event_stmt_cleanup(const_cast<Relay_log_info *>(rli), thd))) {
+      char buff[MAX_SLAVE_ERRMSG]{0};
+      const char *buff_end = buff + sizeof(buff);
+      char *slider = buff;
+      Diagnostics_area::Sql_condition_iterator it =
+          thd->get_stmt_da()->sql_conditions();
+      for (const Sql_condition *err = it++;
+           err != nullptr && slider < buff_end - 1; err = it++) {
+        slider += snprintf(slider, buff_end - slider, " %s, Error_code: %d;",
+                           err->message_text(), err->mysql_errno());
+      }
       const_cast<Relay_log_info *>(rli)->report(
           ERROR_LEVEL, error,
           "Error in cleaning up after an event preceding the commit; "
-          "the group log file/position: %s %s",
+          "%s the group log file/position: %s %s",
+          buff,
           const_cast<Relay_log_info *>(rli)->get_group_master_log_name_info(),
           llstr(const_cast<Relay_log_info *>(rli)
                     ->get_group_master_log_pos_info(),
                 llbuff));
+      goto compare_errors;
     }
     /*
       Executing a part of rli->stmt_done() logics that does not deal
@@ -4581,9 +4595,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->set_query_id(next_query_id());
     DBUG_PRINT("query", ("%s", thd->query().str));
 
-    DBUG_EXECUTE_IF("simulate_error_in_ddl", error_code = 1051;);
-
-    if (ignored_error_code((expected_error = error_code)) ||
+    if (ignored_error_code((expected_error)) ||
         !unexpected_error_code(expected_error)) {
       if (flags2_inited)
         /*

@@ -1992,6 +1992,7 @@ void Gcs_suspicions_manager::process_view(
     std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
     bool is_killer_node, synode_no max_synode) {
   bool should_wake_up_manager = false;
+  std::vector<Gcs_member_identifier *> back_to_healthy;
 
   m_suspicions_mutex.lock();
 
@@ -1999,8 +2000,27 @@ void Gcs_suspicions_manager::process_view(
 
   m_config_id = config_id;
 
+  /* Remove the information about expels of members left because they
+   * have already taken effect(left). */
   m_expels_in_progress.forget_expels_that_have_taken_effect(config_id,
                                                             left_nodes);
+
+  /* Remove the information about expels of members alive because they
+   * have already taken effect(rejoined). */
+  if (m_expels_in_progress.size() && !alive_nodes.empty()) {
+    for (Gcs_member_identifier *const &live : alive_nodes) {
+      if (m_expels_in_progress.contains(*live)) {
+        MYSQL_GCS_LOG_DEBUG(
+            "%s: Expelled node %s, rejoined the group immediately.", __func__,
+            live->get_member_id().c_str());
+        back_to_healthy.push_back(live);
+      }
+    }
+    if (!back_to_healthy.empty())
+      m_expels_in_progress.forget_expels_that_have_taken_effect(
+          config_id, back_to_healthy);
+  }
+
   MYSQL_GCS_DEBUG_EXECUTE({
     /* Sanity check: all members in `m_expels_in_progress` must still be in
        `xcom_nodes` (the XCom view) at this point. Otherwise there is a bug in

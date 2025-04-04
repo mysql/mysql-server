@@ -1,0 +1,8 @@
+!include suite/ndb_rpl/my.cnf
+
+[mysqld.1.1]
+log-replica-updates=ON
+
+[mysqld.1.slave]
+replica-parallel-workers=2
+replica-transaction-retries=3

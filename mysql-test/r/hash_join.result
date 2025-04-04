@@ -4319,3 +4319,46 @@ id	j	i
 8	9223372036854775806	9223372036854775806
 9	9223372036854775807	9223372036854775807
 DROP TABLE t1, t2, t3;
+#
+# Bug#37161583: Incorrect result with LEFT JOIN and small
+#               join_buffer_size
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2(b INT);
+INSERT INTO t2
+WITH RECURSIVE
+s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 1000)
+SELECT n FROM s;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t2 WHERE a = b);
+EXPLAIN
+-> Hash antijoin (t2.b = t1.a)  (rows=1000)
+    -> Table scan on t1  (rows=1)
+    -> Hash
+        -> Table scan on t2  (rows=1000)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+TRUNCATE performance_schema.file_summary_by_event_name;
+SET join_buffer_size = DEFAULT;
+SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t2 WHERE a = b);
+a
+NULL
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+0
+TRUNCATE performance_schema.file_summary_by_event_name;
+SET join_buffer_size = 128;
+SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t2 WHERE a = b);
+a
+NULL
+SET join_buffer_size = DEFAULT;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+DROP TABLE t1, t2;

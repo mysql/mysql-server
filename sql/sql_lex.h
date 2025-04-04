@@ -2079,6 +2079,8 @@ class Query_block : public Query_term {
   */
   uint with_wild{0};
 
+  /// Original query table map before aj/sj processing.
+  table_map original_tables_map{};
   /// Number of leaf tables in this query block.
   uint leaf_table_count{0};
   /// Number of derived tables and views in this query block.
