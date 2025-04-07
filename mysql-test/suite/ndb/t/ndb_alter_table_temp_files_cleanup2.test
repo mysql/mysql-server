@@ -35,7 +35,7 @@ ALTER TABLE t1 ALGORITHM=COPY;
 --echo # verify that the temporary named table has been left behind - required to reproduce the bug
 SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
 
---replace_regex /sql-.*\./sql-XXXX_X\./
+--replace_regex /sql-[0-9a-f_]+ /sql-XXXX_X /
 ALTER TABLE t1 ALGORITHM=COPY;
 
 --echo # verify that original data has not been affected

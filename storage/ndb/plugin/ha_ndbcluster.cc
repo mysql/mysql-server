@@ -9484,7 +9484,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     if (ndbtab != nullptr) {
       thd_ndb->push_warning(
           "The temporary named table %s.%s already exists, it will be removed",
-          tabname, dbname);
+          dbname, tabname);
       if (ndb->getDictionary()->dropTableGlobal(*ndbtab, flag) != 0) {
         thd_ndb->push_warning(
             "Attempt to drop temporary named table %s.%s failed", dbname,
