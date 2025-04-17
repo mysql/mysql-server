@@ -1443,7 +1443,8 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache)
       m_send_thread_nodes(),
       m_has_data_trps(),
       m_tls_search_path(NDB_TLS_SEARCH_PATH),
-      m_tls_node_type(NODE_TYPE_API) {
+      m_tls_node_type(NODE_TYPE_API),
+      m_mgm_tls_level(0) {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   thePollMutex = NdbMutex_CreateWithName("PollMutex");
   sendPerformedLastInterval = 0;
