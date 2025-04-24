@@ -862,7 +862,7 @@ static const byte *read_2_bytes(const byte *ptr, const byte *end_ptr,
 /** Read 1 bytes from log buffer.
 @param[in]   ptr      pointer to buffer
 @param[in]   end_ptr  pointer to end of buffer
-@param[out]  val      read 2 bytes value */
+@param[out]  val      read 1 bytes value */
 static const byte *read_1_bytes(const byte *ptr, const byte *end_ptr,
                                 uint8_t &val) {
   if (end_ptr < ptr + 1) {
