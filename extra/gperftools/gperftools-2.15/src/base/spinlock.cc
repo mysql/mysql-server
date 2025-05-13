@@ -37,6 +37,10 @@
 #include "base/spinlock_internal.h"
 #include "base/sysinfo.h"   /* for GetSystemCPUsCount() */
 
+#if defined(__GNUC__) && defined(__aarch64__)
+#include <sys/auxv.h>
+#endif // end __aarch64__
+
 // NOTE on the Lock-state values:
 //
 // kSpinLockFree represents the unlocked state
@@ -68,7 +72,20 @@ inline void SpinlockPause(void) {
 #if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
   __asm__ __volatile__("rep; nop" : : );
 #elif defined(__GNUC__) && defined(__aarch64__)
-  __asm__ __volatile__("isb" : : );
+  static int use_spin_delay_sb = -1;
+
+  // Use SB instruction if available otherwise ISB
+  if (__builtin_expect(use_spin_delay_sb == 1, 1)) {
+    __asm__ __volatile__(".inst 0xd50330ff  \n");   // SB instruction encoding
+  } else if (use_spin_delay_sb == 0) {
+    __asm__ __volatile__(" isb;  \n");
+  } else {
+    // Initialize variable and use getauxval fuction as delay
+    if (getauxval(AT_HWCAP) & HWCAP_SB)
+      use_spin_delay_sb = 1;
+    else
+      use_spin_delay_sb = 0;
+    }
 #endif
 }
 

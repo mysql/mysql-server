@@ -56,6 +56,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <thread>
 #include <type_traits>
 
+#if defined(__GNUC__) && defined(__aarch64__)
+#include <sys/auxv.h>
+#endif // end __aarch64__
+
 #ifdef UNIV_DEBUG
 #include <limits>
 #include <random>
@@ -101,12 +105,33 @@ independent way by using YieldProcessor. */
 #define UT_RELAX_CPU() YieldProcessor()
 #elif defined(__aarch64__)
 /* A "yield" instruction in aarch64 is essentially a nop, and does not cause
-enough delay to help backoff. "isb" is a barrier that, especially inside a
-loop, creates a small delay without consuming ALU resources.
-Experiments shown that adding the isb instruction improves stability and reduces
-result jitter. Adding more delay to the UT_RELAX_CPU than a single isb reduces
-performance. */
-#define UT_RELAX_CPU() __asm__ __volatile__("isb" ::: "memory")
+enough delay to help backoff. For CPUs that support AArch64 <v8.5, an "isb"
+can be used in a loop.  It creates a small delay without consuming ALU resources,
+by forcing a CPU flush.  Experiments shown that adding the isb instruction improves
+stability and reduces result jitter.
+
+For CPUs supporting AArch64 >=v8.5 an "sb" is a better choice.  It also creates
+a small delay, but instead of flushing the CPU it does so by serializing older instructions
+to be non-speculative before it completes. This is less disruptive than an "isb" to high
+performance CPUs.
+*/
+#define UT_RELAX_CPU() spin_delay()
+static __inline__ void spin_delay(void) {
+  static int use_spin_delay_sb = -1;
+
+  // Use SB instruction if available otherwise ISB
+  if (__builtin_expect(use_spin_delay_sb == 1, 1)) {
+    __asm__ __volatile__(".inst 0xd50330ff  \n");   // SB instruction encoding
+  } else if (use_spin_delay_sb == 0) {
+    __asm__ __volatile__(" isb;  \n");
+  } else {
+    // Initialize variable and use getauxval fuction as delay
+    if (getauxval(AT_HWCAP) & HWCAP_SB)
+      use_spin_delay_sb = 1;
+    else
+      use_spin_delay_sb = 0;
+    }
+}
 #else
 #define UT_RELAX_CPU() __asm__ __volatile__("" ::: "memory")
 #endif
