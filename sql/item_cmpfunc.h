@@ -1607,6 +1607,8 @@ class Item_func_nullif final : public Item_bool_func2 {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   bool val_json(Json_wrapper *wr) override;
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
+  bool get_time(MYSQL_TIME *ltime) override;
   Item_result result_type() const override { return cached_result_type; }
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_VARCHAR;

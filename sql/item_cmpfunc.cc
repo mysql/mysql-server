@@ -3917,6 +3917,23 @@ bool Item_func_nullif::val_json(Json_wrapper *wr) {
   return res;
 }
 
+bool Item_func_nullif::get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return get_arg0_date(res, fuzzy_date);
+}
+bool Item_func_nullif::get_time(MYSQL_TIME *res) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return get_arg0_time(res);
+}
+
 bool Item_func_nullif::is_null() {
   const int result = cmp.compare();
   if (current_thd->is_error()) {
