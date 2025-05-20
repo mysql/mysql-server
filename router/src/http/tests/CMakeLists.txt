@@ -167,7 +167,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
       OpenSSL::SSL
       OpenSSL::Crypto
       extra::rapidjson
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_auth_backend
@@ -181,7 +180,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     fuzz_auth_method_basic.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/http_auth_method_basic.cc
     COMPONENT Router
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_auth_method_basic
@@ -194,7 +192,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_base64
     fuzz_base64.cc
     COMPONENT Router
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_base64
