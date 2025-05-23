@@ -2544,7 +2544,7 @@ class THD : public MDL_context_owner,
   bool m_server_idle;
 
   /*
-    Id of current query. Statement can be reused to execute several queries
+    Id of current query. Statement can be reused to execute several queries.
     query_id is global in context of the whole MySQL server.
     ID is automatically generated from mutex-protected counter.
     It's used in handler code for various purposes: to check which columns
