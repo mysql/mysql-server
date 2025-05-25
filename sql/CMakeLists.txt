@@ -1468,3 +1468,8 @@ ADD_CUSTOM_TARGET(distclean
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
+
+INCLUDE(../router/cmake/fuzzer.cmake)
+IF(LIBFUZZER_COMPILE_FLAGS)
+       ADD_SUBDIRECTORY(fuzz)
+ENDIF()
