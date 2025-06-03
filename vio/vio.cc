@@ -577,7 +577,8 @@ static const vio_string vio_type_names[] = {{"", 0},
                                             {STRING_WITH_LEN("SSL/TLS")},
                                             {STRING_WITH_LEN("Shared Memory")},
                                             {STRING_WITH_LEN("Internal")},
-                                            {STRING_WITH_LEN("Plugin")}};
+                                            {STRING_WITH_LEN("Plugin")},
+                                            {STRING_WITH_LEN("Fuzz")}};
 
 void get_vio_type_name(enum enum_vio_type vio_type, const char **str,
                        int *len) {

@@ -134,11 +134,41 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event) {
 #define VIO_DONTWAIT 0
 #endif
 
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+static const uint8_t *fuzzBuffer;
+static size_t fuzzSize;
+static size_t fuzzPos;
+
+void sock_initfuzz(const uint8_t *Data, size_t Size) {
+    fuzzPos = 0;
+    fuzzSize = Size;
+    fuzzBuffer = Data;
+}
+#endif
+
 size_t vio_read(Vio *vio, uchar *buf, size_t size) {
   ssize_t ret;
   int flags = 0;
   DBUG_TRACE;
 
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+  if (vio->type == VIO_TYPE_FUZZ) {
+    if (size > fuzzSize - fuzzPos) {
+        size = fuzzSize - fuzzPos;
+    }
+    if (fuzzPos < fuzzSize) {
+        memcpy(buf, fuzzBuffer + fuzzPos, size);
+    }
+    fuzzPos += size;
+#ifdef FUZZ_DEBUG
+    printf("net cli %zu ", size);
+    for (size_t i=0; i<size; i++)
+      printf("%02x ", bufp[i]);
+    printf("\n");
+#endif //FUZZ_DEBUG
+    return size;
+  }
+#endif
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously. */
   assert(vio->read_end == vio->read_pos);
 
@@ -215,6 +245,12 @@ size_t vio_write(Vio *vio, const uchar *buf, size_t size) {
   ssize_t ret;
   int flags = 0;
   DBUG_TRACE;
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+  if (vio->type == VIO_TYPE_FUZZ) {
+    return size;
+  }
+#endif
 
   /* If timeout is enabled, do not block. */
   if (vio->write_timeout >= 0) flags = VIO_DONTWAIT;

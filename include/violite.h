@@ -110,12 +110,14 @@ enum enum_vio_type : int {
   */
   VIO_TYPE_PLUGIN = 7,
 
+  VIO_TYPE_FUZZ = 8,
+
   FIRST_VIO_TYPE = VIO_TYPE_TCPIP,
   /*
     If a new type is added, please update LAST_VIO_TYPE. In addition, please
     change get_vio_type_name() in vio/vio.c to return correct name for it.
   */
-  LAST_VIO_TYPE = VIO_TYPE_PLUGIN
+  LAST_VIO_TYPE = VIO_TYPE_FUZZ
 };
 
 /**
@@ -452,5 +454,9 @@ struct Vio {
 };
 
 #define SSL_handle SSL *
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+void sock_initfuzz(const uint8_t *Data, size_t Size);
+#endif
 
 #endif /* vio_violite_h_ */
