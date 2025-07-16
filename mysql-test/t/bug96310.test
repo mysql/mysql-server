@@ -1,0 +1,25 @@
+--echo #
+--echo # Bug#96130 Traditional: INSERT accepts invalid date from default val With Binlog Open
+--echo #
+
+SET sql_mode='';
+
+CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
+
+INSERT INTO default_date VALUES();
+INSERT INTO default_date VALUES(DEFAULT);
+
+SET sql_mode=default;
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO default_date VALUES();
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO default_date VALUES(DEFAULT);
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO default_date VALUES('0000-00-00');
+
+SELECT * FROM default_date;
+
+DROP TABLE default_date;

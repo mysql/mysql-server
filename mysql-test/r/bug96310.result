@@ -1,0 +1,19 @@
+#
+# Bug#96130 Traditional: INSERT accepts invalid date from default val With Binlog Open
+#
+SET sql_mode='';
+CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
+INSERT INTO default_date VALUES();
+INSERT INTO default_date VALUES(DEFAULT);
+SET sql_mode=default;
+INSERT INTO default_date VALUES();
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT INTO default_date VALUES(DEFAULT);
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT INTO default_date VALUES('0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+SELECT * FROM default_date;
+a
+0000-00-00
+0000-00-00
+DROP TABLE default_date;

@@ -6146,8 +6146,7 @@ void TABLE::set_created() {
   as changed.
 */
 
-void TABLE::mark_columns_needed_for_insert(THD *thd) {
-  mark_columns_per_binlog_row_image(thd);
+void TABLE::mark_columns_needed_for_insert(THD *thd [[maybe_unused]]) {
 
   if (found_next_number_field) mark_auto_increment_column();
   /* Mark all generated columns as writable */
