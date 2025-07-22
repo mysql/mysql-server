@@ -178,6 +178,9 @@ undo_truncate_count	disabled
 undo_truncate_start_logging_count	disabled
 undo_truncate_done_logging_count	disabled
 undo_truncate_usec	disabled
+undo_truncate_snapshot_ticket_grant_count	disabled
+undo_truncate_snapshot_ticket_try_count	disabled
+undo_truncate_snapshot_ticket_wait_count	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
 log_lsn_current	disabled

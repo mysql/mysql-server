@@ -611,6 +611,8 @@ static ulonglong innobase_fts_flags() {
   return (FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
 }
 
+static constexpr uint innodb_undo_spaces_snapshot_tickets_max = 1048576;
+
 /** Find and Retrieve the FTS doc_id for the current result row
 @param[in,out]  fts_hdl FTS handler
 @return the document ID */
@@ -22315,6 +22317,13 @@ static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
                           1,          /* Minimum value */
                           1024, 0);   /* Maximum value */
 
+static MYSQL_SYSVAR_UINT(undo_spaces_snapshot_tickets, innodb_undo_spaces_snapshot_tickets,
+                          PLUGIN_VAR_OPCMDARG,
+                          "Ticket number of undo spaces snapshot.", nullptr,
+                          nullptr, 0, /* Default setting */
+                          0,          /* Minimum value */
+                          innodb_undo_spaces_snapshot_tickets_max, 0);   /* Maximum value */
+                          
 static MYSQL_SYSVAR_ULONG(
     fast_shutdown, srv_fast_shutdown, PLUGIN_VAR_OPCMDARG,
     "Speeds up the shutdown process of the InnoDB storage engine. Possible"
@@ -23605,6 +23614,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(undo_directory),
     MYSQL_SYSVAR(temp_tablespaces_dir),
     MYSQL_SYSVAR(sync_array_size),
+    MYSQL_SYSVAR(undo_spaces_snapshot_tickets),
     MYSQL_SYSVAR(compression_failure_threshold_pct),
     MYSQL_SYSVAR(compression_pad_pct_max),
     MYSQL_SYSVAR(default_row_format),

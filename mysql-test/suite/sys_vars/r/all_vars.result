@@ -48,6 +48,8 @@ innodb_log_spin_cpu_pct_hwm
 innodb_log_spin_cpu_pct_hwm
 innodb_log_wait_for_flush_spin_hwm
 innodb_log_wait_for_flush_spin_hwm
+innodb_undo_spaces_snapshot_tickets
+innodb_undo_spaces_snapshot_tickets
 keyring_operations
 keyring_operations
 log_replica_updates

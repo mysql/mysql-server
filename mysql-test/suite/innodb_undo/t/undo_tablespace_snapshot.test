@@ -1,0 +1,71 @@
+--echo #
+--echo # undo tablespace counter
+--echo #
+
+# This test uses debug settings like innodb_purge_stop_now.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+--source include/big_test.inc
+--source include/have_innodb_default_undo_tablespaces.inc
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+SET GLOBAL innodb_purge_stop_now=ON;
+
+--connect(conn1,localhost,root,,test)
+--connection conn1
+
+create table t1(
+  keyc int,
+  c1 char(255),
+  c2 char(255),
+  c3 char(255),
+  c4 char(255),
+  c5 char(255),
+  c6 char(255),
+  primary key(keyc)) engine = innodb;
+
+delimiter |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        while (i <= 20000) DO
+                insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+                SET i = i + 1;
+        END WHILE;
+END |
+delimiter ;|
+
+call populate_t1();
+delete from t1 where keyc < 10000;
+update t1 set c1 = 'mysql' where  keyc > 10000;
+update t1 set c2 = 'mysql' where  keyc > 10000;
+update t1 set c3= 'mysql' where keyc > 10000;
+update t1 set c4= 'mysql' where keyc > 10000;
+update t1 set c5= 'mysql' where keyc > 10000;
+update t1 set c6= 'mysql' where keyc > 10000;
+
+SELECT @@innodb_undo_spaces_snapshot_tickets;
+SET GLOBAL debug="+d,until_undo_spaces_snapshot_change,abort_if_use_undospace_latch";
+SET GLOBAL innodb_purge_run_now=ON;
+
+# Wait until until_undo_spaces_snapshot_change to be reached.
+--sleep 10
+
+connection default;
+SET GLOBAL debug="-d,until_undo_spaces_snapshot_change";
+# The command can succeed iff until_undo_spaces_snapshot_change loop has ended. Otherwise abort_if_use_undospace_latch will be triggered.
+update t1 set c6= 'modified' where keyc = 10000;
+
+# Cleanup
+SET GLOBAL debug="-d,abort_if_use_undospace_latch";
+drop PROCEDURE populate_t1;
+drop table t1;
+--disconnect conn1
+
+--sleep 5

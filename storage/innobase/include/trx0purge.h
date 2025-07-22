@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0purge_h
 #define trx0purge_h
 
+#include <atomic>
 #include "fil0fil.h"
 #include "mtr0mtr.h"
 #include "page0page.h"
@@ -49,6 +50,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t *purge_sys;
+
+extern unsigned int innodb_undo_spaces_snapshot_tickets;
 
 /** Calculates the file address of an undo log header when we have the file
  address of its history list node.
@@ -139,6 +142,9 @@ struct purge_iter_t {
 /* Namespace to hold all the related functions and variables needed
 to truncate an undo tablespace. */
 namespace undo {
+
+// Forward declaration
+class Undo_spaces_snapshot;
 
 /** Magic Number to indicate truncate action is complete. */
 const uint32_t s_magic = 76845412;
@@ -813,6 +819,8 @@ class Inject_failure_once {
 };
 
 #endif /* UNIV_DEBUG */
+
+extern Undo_spaces_snapshot *undo_spaces_snapshot;
 
 /** Create the truncate log file. Needed to track the state of truncate during
 a crash. An auxiliary redo log file undo_<space_id>_trunc.log will be created

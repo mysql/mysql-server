@@ -66,6 +66,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
+#include "undo_spaces_snapshot.h"
 
 #include "my_dbug.h"
 #include "mysql/plugin.h"
@@ -1137,12 +1138,31 @@ until the transaction is done with it.
 static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   undo::Tablespace *undo_space;
 
-  /* The number of undo tablespaces cannot be changed while
-  we have this s_lock. */
-  undo::spaces->s_lock();
+  bool use_no_latch = undo::undo_spaces_snapshot->request_ticket();
+  ulint target_undo_tablespaces = 0;
+  if (use_no_latch) {
+    target_undo_tablespaces =
+        undo::undo_spaces_snapshot->get_target_undo_tablespaces_size();
+    // Undospace marked for truancate is not included in target_undo_tablespaces.
+    if (target_undo_tablespaces == 0) {
+      undo::undo_spaces_snapshot->return_ticket();
+      use_no_latch = false;
+    }
+  }
 
-  /* Use all known undo tablespaces.  Some may be inactive. */
-  ulint target_undo_tablespaces = undo::spaces->size();
+  if (!use_no_latch) {
+    DBUG_EXECUTE_IF("abort_if_use_undospace_latch",{
+      ib::info() << "Server will crash by intention. This macro is used only in test cases.";
+      ut_error;
+    });
+
+    /* The number of undo tablespaces cannot be changed while
+    we have this s_lock. */
+    undo::spaces->s_lock();
+
+    /* Use all known undo tablespaces.  Some may be inactive. */
+    target_undo_tablespaces = undo::spaces->size();
+  }
 
   ut_ad(target_undo_tablespaces > 0);
 
@@ -1170,26 +1190,40 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
 
     current++;
 
-    undo_space = undo::spaces->at(spaces_slot);
-
-    /* Avoid any rseg that resides in a tablespace that has been made
-    inactive either explicitly or by being marked for truncate. We do
-    not want to wait here on an x_lock for an rseg in an undo tablespace
-    that is being truncated.  So check this first without the latch.
-    It could be set immediately after this, but that is a very short gap
-    and the get_active() call below will use an rseg->s_lock. */
-    if (!undo_space->is_active_no_latch()) {
-      continue;
+    if (use_no_latch) {
+      if (!undo::undo_spaces_snapshot->is_active_no_latch_for_undo_space(spaces_slot)) {
+        continue;
+      }
+      ut_ad(target_rollback_segments <= undo::undo_spaces_snapshot->get_rsegs_size_for_undo_space(spaces_slot));
+      rseg = undo::undo_spaces_snapshot->get_active_for_undo_space(spaces_slot, rseg_slot);
     }
+    else {
+      undo_space = undo::spaces->at(spaces_slot);
+      
+      /* Avoid any rseg that resides in a tablespace that has been made
+      inactive either explicitly or by being marked for truncate. We do
+      not want to wait here on an x_lock for an rseg in an undo tablespace
+      that is being truncated.  So check this first without the latch.
+      It could be set immediately after this, but that is a very short gap
+      and the get_active() call below will use an rseg->s_lock. */
+      if (!undo_space->is_active_no_latch()) {
+        continue;
+      }
 
-    /* This is done here because we know the rsegs() pointer is good. */
-    ut_ad(target_rollback_segments <= undo_space->rsegs()->size());
+      /* This is done here because we know the rsegs() pointer is good. */
+      ut_ad(target_rollback_segments <= undo_space->rsegs()->size());
 
-    /* Check again with a shared lock. */
-    rseg = undo_space->get_active(rseg_slot);
+      /* Check again with a shared lock. */
+      rseg = undo_space->get_active(rseg_slot);
+    }
   }
 
-  undo::spaces->s_unlock();
+  if (use_no_latch) {
+    undo::undo_spaces_snapshot->return_ticket();
+  }
+  else {
+    undo::spaces->s_unlock();
+  }
 
   ut_ad(rseg->trx_ref_count > 0);
 

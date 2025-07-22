@@ -864,6 +864,21 @@ static monitor_info_t innodb_counter_info[] = {
      "Time (in microseconds) spent to process undo truncation", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_MICROSECOND},
 
+    {"undo_truncate_snapshot_ticket_grant_count", "undo",
+     "Number of times during undo truncation a snapshot ticket was granted",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_SNAPSHOT_TICKET_GRANT_COUNT},
+
+    {"undo_truncate_snapshot_ticket_try_count", "undo",
+     "Number of times during undo truncation a snapshot ticket was tried",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_SNAPSHOT_TICKET_TRY_COUNT},
+
+    {"undo_truncate_snapshot_ticket_wait_count", "undo",
+     "Number of times during undo truncation the purge coordinator has waited until all tickets were returned",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_SNAPSHOT_TICKET_WAIT_COUNT},
+
     /* ========== Counters for Redo log Module ========== */
     {"module_log", "log", "Redo log Module", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_MODULE_REDO_LOG},
