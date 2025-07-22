@@ -111,7 +111,7 @@ constexpr ulint MAX_BUFFER_POOLS = (1 << MAX_BUFFER_POOLS_BITS);
 #define BUF_POOL_WATCH_SIZE (srv_n_purge_threads + 1)
 
 /** The maximum number of page_hash locks */
-constexpr ulint MAX_PAGE_HASH_LOCKS = 1024;
+constexpr ulint MAX_PAGE_HASH_LOCKS = 1048576;
 
 /** The buffer pools of the database */
 extern buf_pool_t *buf_pool_ptr;

@@ -22537,13 +22537,11 @@ static MYSQL_SYSVAR_ULONGLONG(
     ulonglong{srv_buf_pool_chunk_unit_max},
     ulonglong{srv_buf_pool_chunk_unit_blk_sz});
 
-#if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
 static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
                           PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
                           "Number of rw_locks protecting buffer pool "
                           "page_hash. Rounded up to the next power of 2",
                           nullptr, nullptr, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
-#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(
     validate_tablespace_paths, srv_validate_tablespace_paths,
@@ -23588,9 +23586,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(merge_threshold_set_all_debug),
     MYSQL_SYSVAR(semaphore_wait_timeout_debug),
 #endif /* UNIV_DEBUG */
-#if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),
-#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
     MYSQL_SYSVAR(validate_tablespace_paths),
     MYSQL_SYSVAR(use_fdatasync),
     MYSQL_SYSVAR(status_output),
