@@ -172,7 +172,6 @@ bool post_init_event_thread(THD *thd) {
 
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
-  thd_manager->inc_thread_running();
   return false;
 }
 
@@ -192,7 +191,6 @@ void deinit_event_thread(THD *thd) {
   DBUG_PRINT("exit", ("Event thread finishing"));
   thd->release_resources();
   thd_manager->remove_thd(thd);
-  thd_manager->dec_thread_running();
   delete thd;
 }
 

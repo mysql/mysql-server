@@ -84,14 +84,6 @@ TEST_F(ThreadManagerTest, AddRemoveTHDWithGuard) {
   EXPECT_EQ(0U, thd_manager->get_thd_count());
 }
 
-TEST_F(ThreadManagerTest, IncDecThreadRunning) {
-  EXPECT_EQ(0, thd_manager->get_num_thread_running());
-  thd_manager->inc_thread_running();
-  EXPECT_EQ(1, thd_manager->get_num_thread_running());
-  thd_manager->dec_thread_running();
-  EXPECT_EQ(0, thd_manager->get_num_thread_running());
-}
-
 TEST_F(ThreadManagerTest, IncThreadCreated) {
   EXPECT_EQ(0U, thd_manager->get_num_thread_created());
   thd_manager->inc_thread_created();

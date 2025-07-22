@@ -364,6 +364,31 @@ THD_ptr Global_THD_manager::find_thd(Find_thd_with_id *func) {
   return THD_ptr{nullptr};
 }
 
+/**
+  This class implements callback for do_for_all_thd().
+  It counts the total number of running threads from global thread list.
+*/
+class Count_thread_running : public Do_THD_Impl {
+  public:
+    Count_thread_running() : m_count(0) {}
+    ~Count_thread_running() {}
+  virtual void operator()(THD *thd) {
+    if (thd->get_command() != COM_SLEEP) {
+      m_count++;
+    }
+  }
+  int get_count() { return m_count; }
+
+  private:
+    int m_count;
+};
+
+void Global_THD_manager::count_num_thread_running() {
+  Count_thread_running count_thread_running;
+  do_for_all_thd(&count_thread_running);
+  atomic_num_thread_running = count_thread_running.get_count();
+}
+
 void inc_thread_created() {
   Global_THD_manager::get_instance()->inc_thread_created();
 }

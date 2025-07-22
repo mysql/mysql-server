@@ -254,20 +254,15 @@ class Global_THD_manager {
   void remove_thd(THD *thd);
 
   /**
+    Count thread running statistic variable.
+  */
+  void count_num_thread_running();
+
+  /**
     Retrieves thread running statistic variable.
     @return int Returns the total number of threads currently running
   */
   int get_num_thread_running() const { return atomic_num_thread_running; }
-
-  /**
-    Increments thread running statistic variable.
-  */
-  void inc_thread_running() { atomic_num_thread_running++; }
-
-  /**
-    Decrements thread running statistic variable.
-  */
-  void dec_thread_running() { atomic_num_thread_running--; }
 
   /**
     Retrieves thread created statistic variable.
