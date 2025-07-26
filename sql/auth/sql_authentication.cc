@@ -2012,7 +2012,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   or @ref page_protocol_basic_ok_packet.
   To avoid this the server will send all plugin data packets "wrapped"
   in a command \1.
-  Note that the client will continue sending its replies unrwapped:
+  Note that the client will continue sending its replies unwrapped:
   @ref page_protocol_connection_phase_packets_protocol_auth_switch_response
 
 
