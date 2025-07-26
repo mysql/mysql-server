@@ -363,6 +363,7 @@
 
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
+#cmakedefine GMOCK_FOUND 1
 
 /* From libmysql/CMakeLists.txt */
 #cmakedefine HAVE_UNIX_DNS_SRV @HAVE_UNIX_DNS_SRV@

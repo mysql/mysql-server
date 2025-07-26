@@ -38,6 +38,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  *******************************************************/
 
+#include <unistd.h>
+
 /* std::chrono::X */
 #include <chrono>
 
@@ -93,6 +95,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* os_event_wait_time_low */
 #include "os0event.h"
+
+#include "sql/sched_affinity_manager.h"
 
 /* MONITOR_INC, ... */
 #include "srv0mon.h"
@@ -914,6 +918,17 @@ static void log_consider_checkpoint(log_t &log) {
 }
 
 void log_checkpointer(log_t *log_ptr) {
+  auto sched_affinity_manager = sched_affinity::Sched_affinity_manager::get_instance();
+  bool is_registered_to_sched_affinity = false;
+  auto pid = sched_affinity::gettid();
+  if (sched_affinity_manager != nullptr &&
+      !(is_registered_to_sched_affinity =
+            sched_affinity_manager->register_thread(
+                sched_affinity::Thread_type::LOG_CHECKPOINTER, pid))) {
+    ib::error(ER_CANNOT_REGISTER_THREAD_TO_SCHED_AFFINIFY_MANAGER)
+        << "log_checkpointer";
+  }
+
   ut_a(log_ptr != nullptr);
 
   log_t &log = *log_ptr;
@@ -1006,6 +1021,12 @@ void log_checkpointer(log_t *log_ptr) {
       }
       /* We prefer to wait until all writing is done. */
     }
+  }
+
+  if (is_registered_to_sched_affinity &&
+      !sched_affinity_manager->unregister_thread(pid)) {
+    ib::error(ER_CANNOT_UNREGISTER_THREAD_FROM_SCHED_AFFINIFY_MANAGER)
+        << "log_checkpointer";
   }
 
   ut_d(destroy_internal_thd(log.m_checkpointer_thd));

@@ -10800,6 +10800,15 @@ ER_EXTERNAL_TABLE_ENGINE_NOT_SPECIFIED
 ER_LH_NO_FILES_FOUND_NO_SECURE_FILE_PRIV
   eng "No files found or files provided not under secure-file-priv."
 
+ER_INVALID_CPU_STRING
+  eng "Invalid cpu string %s."
+
+ER_CANNOT_UPDATE_SCHED_AFFINITY_PARAMETER
+  eng "Cannot update %s successfully."
+
+ER_CANNOT_UPDATE_SCHED_AFFINITY_NUMA_AWARE
+  eng "Cannot update sched_affinity_numa_aware successfully."
+
 #
 #  End of 9.x error messages (server-to-client).
 #

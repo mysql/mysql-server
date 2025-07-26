@@ -75,7 +75,9 @@ static inline size_t _cache_line_size() {
   }
 
   free(buffer);
-  return line_size;
+  long size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+  if (size == -1 || size == 0) return 64;
+  return static_cast<size_t>(size);
 }
 
 #elif defined(__GLIBC__)

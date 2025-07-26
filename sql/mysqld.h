@@ -463,6 +463,8 @@ extern PSI_mutex_key key_LOCK_group_replication_connection_mutex;
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_replica_worker_hash;
 
+extern PSI_mutex_key key_sched_affinity_mutex;
+
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
 extern PSI_rwlock_key key_rwlock_channel_lock;

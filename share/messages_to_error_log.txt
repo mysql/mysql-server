@@ -12847,6 +12847,45 @@ ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
 ER_TEMPTABLE_ENGINE_ERROR
   eng "Temptable: %s"
 
+ER_CANT_PARSE_CPU_STRING
+  eng "Cannot parse cpu string '%s'."
+
+ER_LIBNUMA_TEST_FAIL
+  eng "libnuma test fail."
+
+ER_NUMA_AVAILABLE_TEST_FAIL
+  eng "numa_available test fail."
+
+ER_CANNOT_SET_THREAD_SCHED_AFFINIFY
+  eng "Cannot set thread %s sched affinity."
+
+ER_CANNOT_UNSET_THREAD_SCHED_AFFINIFY
+  eng "Cannot unset thread %s sched affinity."
+
+ER_CANNOT_REGISTER_THREAD_TO_SCHED_AFFINIFY_MANAGER
+  eng "Cannot register thread %s sched affinity manager."
+
+ER_CANNOT_UNREGISTER_THREAD_FROM_SCHED_AFFINIFY_MANAGER
+  eng "Cannot unregister thread %s sched affinity manager."
+
+ER_USE_DUMMY_SCHED_AFFINITY_MANAGER
+  eng "use dummy sched_affinity_manager."
+
+ER_SCHED_AFFINITY_THREAD_PROCESS_CONFLICT
+  eng "Found sched affinity conflict between threads and process."
+
+ER_SCHED_AFFINITY_FOREGROUND_BACKGROUND_CONFLICT
+  eng "Found sched affinity conflict between foreground threads and background threads."
+
+ER_CANNOT_CREATE_SCHED_AFFINITY_MANAGER
+  eng "Cannot create sched affinity manager."
+
+ER_SET_FALLBACK_MODE
+  eng "sched_affinity_manager is set to fallback mode."
+
+ER_FALLBACK_DELEGATE_SCHED_AFFINITY_MANAGER_IS_CALLED
+  eng "sched_affinity_manager is in fallback mode. A fallback version of sched_affinity_manager is called, which does nothing."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -20,6 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
 
 ADD_WSHADOW_WARNING()
 
@@ -530,6 +531,7 @@ SET(SQL_SHARED_SOURCES
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
+  sched_affinity_manager.cc
   sd_notify.cc
   sdi_utils.cc
   session_tracker.cc

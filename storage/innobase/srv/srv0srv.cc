@@ -50,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysqld.h>
 #include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <limits>
@@ -78,6 +79,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0mysql.h"
+#include "sql/sched_affinity_manager.h"
 #include "sql/sql_class.h"
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
@@ -3037,6 +3039,17 @@ static void srv_purge_coordinator_suspend(
 
 /** Purge coordinator thread that schedules the purge tasks. */
 void srv_purge_coordinator_thread() {
+  auto sched_affinity_manager = sched_affinity::Sched_affinity_manager::get_instance();
+  bool is_registered_to_sched_affinity = false;
+  auto pid = sched_affinity::gettid();
+  if (sched_affinity_manager != nullptr &&
+      !(is_registered_to_sched_affinity =
+            sched_affinity_manager->register_thread(
+                sched_affinity::Thread_type::PURGE_COORDINATOR, pid))) {
+    ib::error(ER_CANNOT_REGISTER_THREAD_TO_SCHED_AFFINIFY_MANAGER)
+        << "purge_coordinator";
+  }
+
   srv_slot_t *slot;
 
   THD *thd = create_internal_thd();
@@ -3150,6 +3163,12 @@ void srv_purge_coordinator_thread() {
   srv_thread_delay_cleanup_if_needed(false);
 
   destroy_internal_thd(thd);
+
+  if (is_registered_to_sched_affinity &&
+      !sched_affinity_manager->unregister_thread(pid)) {
+    ib::error(ER_CANNOT_UNREGISTER_THREAD_FROM_SCHED_AFFINIFY_MANAGER)
+        << "purge_coordinator";
+  }
 }
 
 /** Enqueues a task to server task queue and releases a worker thread, if there

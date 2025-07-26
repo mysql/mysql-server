@@ -857,6 +857,7 @@ MySQL clients support the protocol:
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_source.h"   // max_binlog_dump_events
 #include "sql/rpl_trx_tracking.h"
+#include "sql/sched_affinity_manager.h"
 #include "sql/sd_notify.h"  // sd_notify_connect
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
@@ -1243,6 +1244,9 @@ bool opt_keyring_migration_from_component = false;
 bool opt_persist_sensitive_variables_in_plaintext{true};
 int argc_cached;
 char **argv_cached;
+
+extern std::map<sched_affinity::Thread_type, const char*> sched_affinity_parameter;
+extern bool sched_affinity_numa_aware;
 
 #if defined(_WIN32)
 /*
@@ -2897,6 +2901,7 @@ static void clean_up(bool print_message) {
   */
   sys_var_end();
   free_status_vars();
+  sched_affinity::Sched_affinity_manager::free_instance();
 
   finish_client_errs();
   deinit_errmessage();  // finish server errs
@@ -9829,6 +9834,11 @@ int mysqld_main(int argc, char **argv)
   /* Determine default TCP port and unix socket name */
   set_ports();
 
+  if (sched_affinity::Sched_affinity_manager::create_instance(sched_affinity_parameter, sched_affinity_numa_aware) == nullptr) {
+    LogErr(ERROR_LEVEL, ER_CANNOT_CREATE_SCHED_AFFINITY_MANAGER);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   if (init_server_components()) unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (!server_id_supplied)
@@ -11243,6 +11253,31 @@ static int show_queries(THD *thd, SHOW_VAR *var, char *) {
   return 0;
 }
 
+static int show_sched_affinity_status(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_CHAR;
+  var->value = buff;
+  std::string group_snapshot = sched_affinity::Sched_affinity_manager::get_instance()->take_group_snapshot();
+  strncpy(buff, group_snapshot.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
+  buff[SHOW_VAR_FUNC_BUFF_SIZE]='\0';
+  return 0;
+}
+
+static int show_sched_affinity_group_number(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_SIGNED_INT;
+  var->value = buff;
+  *(reinterpret_cast<int32 *>(buff)) = sched_affinity::Sched_affinity_manager::get_instance()
+                             ->get_total_node_number();                    
+  return 0;
+}
+
+static int show_sched_affinity_group_capacity(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_SIGNED_INT;
+  var->value = buff;
+  *(reinterpret_cast<int32 *>(buff)) = sched_affinity::Sched_affinity_manager::get_instance()
+                             ->get_cpu_number_per_node();
+  return 0;
+}
+
 static int show_net_compression(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_MY_BOOL;
   var->value = buff;
@@ -11871,6 +11906,12 @@ SHOW_VAR status_vars[] = {
     {"Queries", (char *)&show_queries, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Questions", (char *)offsetof(System_status_var, questions),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Sched_affinity_status", 
+    (char *)&show_sched_affinity_status, SHOW_FUNC, SHOW_SCOPE_ALL},
+    {"Sched_affinity_group_number", 
+    (char *)&show_sched_affinity_group_number, SHOW_FUNC, SHOW_SCOPE_ALL},
+    {"Sched_affinity_group_capacity", 
+    (char *)&show_sched_affinity_group_capacity, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Secondary_engine_execution_count",
      (char *)offsetof(System_status_var, secondary_engine_execution_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
@@ -13998,6 +14039,7 @@ PSI_mutex_key key_mutex_replica_worker_hash;
 PSI_mutex_key key_monitor_info_run_lock;
 PSI_mutex_key key_LOCK_delegate_connection_mutex;
 PSI_mutex_key key_LOCK_group_replication_connection_mutex;
+PSI_mutex_key key_sched_affinity_mutex;
 
 /* clang-format off */
 static PSI_mutex_info all_server_mutexes[]=
@@ -14094,6 +14136,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_group_replication_connection_mutex, "LOCK_group_replication_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"},
   { &key_LOCK_global_conn_mem_limit, "LOCK_global_conn_mem_limit", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_sched_affinity_mutex, "Sched_affinity::m_mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

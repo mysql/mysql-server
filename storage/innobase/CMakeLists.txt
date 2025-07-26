@@ -55,7 +55,10 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
+  ${GMOCK_INCLUDE_DIRS}
 )
+
+INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
 
 # Conflicting YYSTYPE, because we have multiple Bison grammars.
 # WL#11100 Migrate to Bison 3.x should fix this.
