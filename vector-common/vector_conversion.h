@@ -32,3 +32,12 @@ bool from_string_to_vector(const CHARSET_INFO *cs, const char *input,
 
 bool from_vector_to_string(const char *input, uint32_t input_dims, char *output,
                            uint32_t *max_output_len);
+
+bool vector_euclidean_distance(const char *input1, const char *input2,
+                               uint32_t input_dims, float *result);
+
+bool vector_cosine_distance(const char *input1, const char *input2,
+                            uint32_t input_dims, float *result);
+
+bool vector_dot_distance(const char *input1, const char *input2,
+                         uint32_t input_dims, float *result);

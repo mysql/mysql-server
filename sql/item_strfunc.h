@@ -1326,6 +1326,19 @@ class Item_func_from_vector final : public Item_str_ascii_func {
   String *val_str_ascii(String *str) override;
 };
 
+class Item_func_vector_distance final : public Item_real_func {
+ public:
+  Item_func_vector_distance(const POS &pos, Item *ilist1, Item *ilist2,
+                            Item *ilist3)
+      : Item_real_func(pos, ilist1, ilist2, ilist3) {
+    set_nullable(true);
+  }
+
+  double val_real() override;
+
+  const char *func_name() const override { return "vector_distance"; }
+};
+
 class Item_func_uncompress final : public Item_str_func {
   String buffer;
 

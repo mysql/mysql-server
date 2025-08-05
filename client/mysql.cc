@@ -1172,6 +1172,7 @@ static COMMANDS commands[] = {
     {"FROM_VECTOR", 0, nullptr, false, ""},
     {"VECTOR_TO_STRING", 0, nullptr, false, ""},
     {"VECTOR_DIM", 0, nullptr, false, ""},
+    {"DISTANCE", 0, nullptr, false, ""},
     {"UCASE", 0, nullptr, false, ""},
     {"UNCOMPRESS", 0, nullptr, false, ""},
     {"UNCOMPRESSED_LENGTH", 0, nullptr, false, ""},

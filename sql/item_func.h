@@ -844,6 +844,10 @@ class Item_real_func : public Item_func {
     set_data_type_double();
   }
 
+  Item_real_func(const POS &pos, Item *a, Item *b, Item *c) : Item_func(pos, a, b, c) {
+    set_data_type_double();
+  }
+
   explicit Item_real_func(mem_root_deque<Item *> *list) : Item_func(list) {
     set_data_type_double();
   }
