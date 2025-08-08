@@ -23,7 +23,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ];
+if [ "$1" = "purge" ] && [ -e /usr/share/debconf/confmodule ];
 then
 . /usr/share/debconf/confmodule
 fi
@@ -36,7 +36,7 @@ place_upstart_job_back () {
 }
 
 get_pcount () {
-	PSCOUNT=$(ps -ef | grep "/usr/sbin/mysqld" | wc -l)
+	PSCOUNT=$(pgrep -c -f "/usr/sbin/mysqld" 2>/dev/null)
 	echo "${PSCOUNT}"
 }
 
@@ -46,7 +46,7 @@ server_stop () {
 	while :; do
 		COUNT=$(( COUNT+1 ))
 		echo -n .
-		if [ "${PSCOUNT}" -eq 1 ];
+		if [ "${PSCOUNT}" -eq 0 ];
 		then
 			echo
 			break
