@@ -184,7 +184,13 @@ namespace std {
 
 // Required for Iterator.
 template <>
-struct iterator_traits<varlen_iterator> : iterator_traits<varlen_element *> {};
+struct iterator_traits<varlen_iterator> {
+  using difference_type = ptrdiff_t;
+  using value_type = varlen_element;
+  using pointer = varlen_element*;
+  using reference = varlen_element;  // 确保与operator*返回类型一致
+  using iterator_category = std::random_access_iterator_tag;
+};
 
 }  // namespace std
 
