@@ -13,10 +13,12 @@ TAGS_sorted_by_file
 [._]ss[a-gi-z]
 [._]sw[a-p]
 
-# Configuration files for Visual Studio Code
+# Configuration files for IDE
 .vscode/
+.idea/
 
 build/
+cmake-build-*/
 datatool/
 datatools/
 __pycache__/

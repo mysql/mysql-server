@@ -23,6 +23,7 @@
 
 #include <sys/types.h>
 #include <cerrno>
+#include <cfloat>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -170,4 +171,59 @@ bool from_vector_to_string(const char *input, uint32_t input_dims, char *output,
 
   *max_output_len = total_length;
   return false;
+}
+
+static float vector_data_at(const char *input, uint32_t index) {
+  return *(const float *)(input + index * sizeof(float));
+}
+
+bool vector_euclidean_distance(const char *input1, const char *input2,
+                               uint32_t input_dims, float *result) {
+  float distance = 0;
+  for (uint32_t i = 0; i < input_dims; i++) {
+    float d1 = vector_data_at(input1, i);
+    float d2 = vector_data_at(input2, i);
+    float dif = d1 - d2;
+    distance += dif * dif;
+  }
+
+  *result = sqrt(distance);
+  return true;
+}
+
+bool vector_cosine_distance(const char *input1, const char *input2,
+                            uint32_t input_dims, float *result) {
+  float dot_product = 0;
+  float norm1 = 0;
+  float norm2 = 0;
+
+  for (uint32_t i = 0; i < input_dims; i++) {
+    float d1 = vector_data_at(input1, i);
+    float d2 = vector_data_at(input2, i);
+    dot_product += d1 * d2;
+    norm1 += d1 * d1;
+    norm2 += d2 * d2;
+  }
+
+  if (norm1 < FLT_EPSILON || norm2 < FLT_EPSILON) {
+    return false;
+  }
+
+  float cos_sim = dot_product / (sqrt(norm1) * sqrt(norm2));
+  *result = 1.0 - cos_sim;
+  return true;
+}
+
+bool vector_dot_distance(const char *input1, const char *input2,
+                         uint32_t input_dims, float *result) {
+  float dot_product = 0;
+
+  for (uint32_t i = 0; i < input_dims; i++) {
+    float d1 = vector_data_at(input1, i);
+    float d2 = vector_data_at(input2, i);
+    dot_product += d1 * d2;
+  }
+
+  *result = dot_product;
+  return true;
 }

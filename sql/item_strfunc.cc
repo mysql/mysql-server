@@ -4326,6 +4326,74 @@ String *Item_func_from_vector::val_str_ascii(String *str) {
   return &buffer;
 }
 
+double Item_func_vector_distance::val_real() {
+  assert(fixed);
+
+  String tmp_value1;
+  String tmp_value2;
+  String tmp_value3;
+  String *res1 = args[0]->val_str(&tmp_value1);
+  String *res2 = args[1]->val_str(&tmp_value2);
+  String *res3 = args[2]->val_str(&tmp_value3);
+
+  if ((null_value =
+           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
+    assert(is_nullable());
+    return 0.0;
+  }
+
+  if (res1 == nullptr || res2 == nullptr) {
+    my_error(ER_VECTOR_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
+  if (res3 == nullptr || res3->ptr() == nullptr) {
+    return error_real();
+  }
+
+  uint32 dimensions1 = get_dimensions(res1->length(), Field_vector::precision);
+  if (dimensions1 == UINT32_MAX) {
+    my_error(ER_TO_VECTOR_CONVERSION, MYF(0), res1->length(), res1->ptr());
+    return error_real();
+  }
+
+  uint32 dimensions2 = get_dimensions(res2->length(), Field_vector::precision);
+  if (dimensions2 == UINT32_MAX) {
+    my_error(ER_TO_VECTOR_CONVERSION, MYF(0), res2->length(), res2->ptr());
+    return error_real();
+  }
+
+  if (dimensions1 != dimensions2) {
+    my_error(ER_VECTOR_DIM_NO_EQ, MYF(0), dimensions1, dimensions2);
+    return error_real();
+  }
+
+  float distance = 0.0;
+  bool success = true;
+
+  // COSINE, DOT, and EUCLIDEAN
+  if (res3->length() == 3 && memcmp(res3->ptr(), "DOT", 3) == 0) {
+    success =
+        vector_dot_distance(res1->ptr(), res2->ptr(), dimensions1, &distance);
+  } else if (res3->length() == 6 && memcmp(res3->ptr(), "COSINE", 6) == 0) {
+    success = vector_cosine_distance(res1->ptr(), res2->ptr(), dimensions1,
+                                     &distance);
+  } else if (res3->length() == 9 && memcmp(res3->ptr(), "EUCLIDEAN", 9) == 0) {
+    success = vector_euclidean_distance(res1->ptr(), res2->ptr(), dimensions1,
+                                        &distance);
+  } else {
+    my_error(ER_UNKNOWN_DISTANCE_TYPE, MYF(0), res3->length(), res3->ptr());
+    return error_real();
+  }
+
+  if (!success) {
+    // ex. Division by zero
+    return error_real();
+  }
+
+  return distance;
+}
+
 String *Item_func_uncompress::val_str(String *str) {
   assert(fixed);
   String *res = args[0]->val_str(str);
