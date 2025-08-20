@@ -192,11 +192,13 @@
   The MySQL protocol is used between MySQL Clients and a MySQL Server.
   It is implemented by:
     - Connectors (Connector/C, Connector/J, and so forth)
-    - MySQL Proxy
-    - Communication between master and slave replication servers
+    - MySQL Router
+    - Communication between source and replica replication servers
+    - MySQL Group Replication
+    - The Clone Plugin for cloning servers
 
   The protocol supports these features:
-    - Transparent encryption using SSL
+    - Transparent encryption using TLS
     - Transparent compression
     - A @ref page_protocol_connection_phase where capabilities and
       authentication data are exchanged
@@ -235,6 +237,10 @@ MySQL clients support the protocol:
 -  MySQL Connector/Net 7.0.2 or higher
 
 -  MySQL Connector/Node.js
+
+-  MySQL Connector/C++
+
+-  MySQL Shell
 */
 
 
