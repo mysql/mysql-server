@@ -2543,7 +2543,7 @@ static std::string binary_to_hex(std::string_view input) {
   std::stringstream ss;
   ss << std::hex << std::uppercase << std::setfill('0');
   for (char i : input) {
-    ss << std::setw(2) << static_cast<unsigned>(i);
+    ss << std::setw(2) << (static_cast<unsigned int>(i) & 0xFF);
   }
   return ss.str();
 }
