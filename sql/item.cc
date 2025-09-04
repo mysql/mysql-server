@@ -10704,17 +10704,26 @@ String *Item_values_column::val_str(String *tmp) {
   return tmp;
 }
 
+/**
+  Item_values_column is dualistic in nature: It represents both a set
+  of values, and, during evaluation, an individual value in this set.
+  Note that setting RAND_TABLE_BIT in the constructor prevents this
+  function from being called during resolving.
+
+  Returns true if the "current" value is NULL, false otherwise. When the values
+  list is empty (indicated with m_value_ref = nullptr), null_value is set
+  as false. This is required for the logic in Item_func_equal::val_int().
+*/
 bool Item_values_column::is_null() {
   assert(fixed);
   /*
-    Item_values_column is dualistic in nature: It represents both a set
-    of values, and, during evaluation, an individual value in this set.
-    This assert will ensure that we only check nullability of individual
-    values, since a set of values is never NULL. Note that setting
-    RAND_TABLE_BIT in the constructor prevents this function from being called
-    during resolving.
+    If VALUES list after processing contains zero elements, the whole value
+    is NULL, indicated with m_value_ref being NULL.
   */
-  assert(m_value_ref != nullptr);
+  if (m_value_ref == nullptr) {
+    null_value = false;
+    return false;
+  }
   bool tmp = m_value_ref->is_null();
   null_value = m_value_ref->null_value;
   return tmp;
