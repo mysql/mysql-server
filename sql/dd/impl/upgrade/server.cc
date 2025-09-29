@@ -826,6 +826,10 @@ static bool check_table_funs(THD *thd, std::unique_ptr<Schema> &schema,
         // increase global error count
         if (opt_check_table_funs == CHECK_TABLE_FUN_ABORT) (*error_count)++;
       }
+
+      // Close table after checking for error to avoid OOM during upgrade
+      if (thd->open_tables != nullptr)
+        close_thread_table(thd, &thd->open_tables);
     }
 
     return error_count->has_too_many_errors();
