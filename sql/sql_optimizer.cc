@@ -2343,7 +2343,6 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     ref_key = tab->index();
     ref_key_parts = actual_key_parts(&table->key_info[tab->index()]);
   }
-
   Opt_trace_context *const trace = &thd->opt_trace;
   const Opt_trace_object trace_wrapper_1(trace);
   Opt_trace_object trace_skip_sort_order(
@@ -9906,8 +9905,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   used_index(tab->range_scan()) != MAX_KEY) {
                 const uint ref_key = used_index(tab->range_scan());
                 bool skip_quick;
+                uint used_key_parts = 0;
                 read_direction = test_if_order_by_key(
-                    &join->order, tab->table(), ref_key, nullptr, &skip_quick);
+                    &join->order, tab->table(), ref_key, &used_key_parts, &skip_quick);
                 if (skip_quick) read_direction = 0;
                 /*
                   If the index provides order there is no need to recheck
@@ -9921,7 +9921,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 if (read_direction == 1 ||
                     (read_direction == -1 &&
                      reverse_sort_possible(tab->range_scan()) &&
-                     !make_reverse(get_used_key_parts(tab->range_scan()),
+                     !make_reverse(std::max(used_key_parts, get_used_key_parts(tab->range_scan())),
                                    tab->range_scan()))) {
                   recheck_reason = DONT_RECHECK;
                 }
