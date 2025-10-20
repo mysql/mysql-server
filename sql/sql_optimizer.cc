@@ -2343,6 +2343,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     ref_key = tab->index();
     ref_key_parts = actual_key_parts(&table->key_info[tab->index()]);
   }
+
   Opt_trace_context *const trace = &thd->opt_trace;
   const Opt_trace_object trace_wrapper_1(trace);
   Opt_trace_object trace_skip_sort_order(
