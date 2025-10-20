@@ -9906,8 +9906,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   used_index(tab->range_scan()) != MAX_KEY) {
                 const uint ref_key = used_index(tab->range_scan());
                 bool skip_quick;
+                uint used_key_parts = 0;
                 read_direction = test_if_order_by_key(
-                    &join->order, tab->table(), ref_key, nullptr, &skip_quick);
+                    &join->order, tab->table(), ref_key, &used_key_parts, &skip_quick);
                 if (skip_quick) read_direction = 0;
                 /*
                   If the index provides order there is no need to recheck
@@ -9921,7 +9922,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 if (read_direction == 1 ||
                     (read_direction == -1 &&
                      reverse_sort_possible(tab->range_scan()) &&
-                     !make_reverse(get_used_key_parts(tab->range_scan()),
+                     !make_reverse(std::max(used_key_parts, get_used_key_parts(tab->range_scan())),
                                    tab->range_scan()))) {
                   recheck_reason = DONT_RECHECK;
                 }

@@ -1,0 +1,67 @@
+#
+# Bug#119198 Reverse index range scan give incorrect result.
+#
+CREATE TABLE temp_table (
+id bigint unsigned NOT NULL AUTO_INCREMENT,
+col1 tinyint unsigned NOT NULL,
+col2 tinyint unsigned NOT NULL,
+PRIMARY KEY (id),
+KEY temp_table_idx01 (col1)
+) ENGINE=InnoDB;
+# 2. Insert Data
+INSERT INTO temp_table (id, col1, col2)
+VALUES (10, 1, 4);
+INSERT INTO temp_table (id, col1, col2)
+VALUES (20, 1, 4);
+# 3. Run Query
+SELECT * FROM temp_table;
+id	col1	col2
+10	1	4
+20	1	4
+# Verify table should contain 2 records id#10, id#20 respectively
+#
+EXPLAIN
+SELECT * FROM temp_table
+WHERE col1 >= 1 AND col1 <= 1
+ORDER BY col1 DESC, id DESC
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	temp_table	NULL	range	temp_table_idx01	temp_table_idx01	1	NULL	2	100.00	Using index condition; Backward index scan
+# Query should use reverse index scan range
+#
+SELECT * FROM temp_table
+WHERE col1 >= 1 AND col1 <= 1
+ORDER BY col1 DESC, id DESC
+LIMIT 1;
+id	col1	col2
+20	1	4
+# Query should return valid result with EQ_RANGE ordering by col1 desc limit 1 which is id#20
+#
+SELECT * FROM temp_table
+WHERE col1 >= 1 AND col1 <= 1
+ORDER BY col1 DESC, id DESC
+LIMIT 2;
+id	col1	col2
+20	1	4
+10	1	4
+# Query should return valid result with EQ_RANGE ordering by col1 desc limit 2 which are id#20, id#10
+#
+SELECT * FROM temp_table
+WHERE col1 >= 0 AND col1 <= 5
+ORDER BY col1 DESC, id DESC
+LIMIT 1;
+id	col1	col2
+20	1	4
+# Query should return valid result with EQ_RANGE ordering by col1 desc limit 1 which is id#20
+#
+SELECT * FROM temp_table
+WHERE col1 >= 0 AND col1 <= 5
+ORDER BY col1 DESC, id DESC
+LIMIT 2;
+id	col1	col2
+20	1	4
+10	1	4
+# Query should return valid result with EQ_RANGE ordering by col1 desc limit 2 which are id#20, id#10
+#
+# 4. Clean up
+DROP TABLE temp_table;
