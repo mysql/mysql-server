@@ -2441,7 +2441,7 @@ String *Item_func_format::val_str_ascii(String *str) {
         count will be initialized to -1 and
         we'll never get into this "if" anymore.
       */
-      if (count == 0) {
+      if ((count == 0) && (lc->thousand_sep != '\0')) {
         *--dst = lc->thousand_sep;
         if (grouping[1]) grouping++;
         count = *grouping;
