@@ -201,7 +201,7 @@ while ($k)
 {
    let $n= `select floor(rand()*$dbs + 1)`;
    let $m= `select floor(rand()*$tables + 1)`;
-   eval insert into d$n.t$n values (2);
+   eval insert into d$n.t$m values (2);
    dec $k;
 }
 --enable_warnings
