@@ -1,0 +1,219 @@
+# Test for Bug#119442: ORDER BY optimization with IS NULL conditions
+# The optimizer should treat "field IS NULL" as making the field effectively
+# constant for ORDER BY purposes, allowing it to be removed from ORDER BY
+# and avoiding unnecessary filesort operations.
+
+--echo #
+--echo # Bug#119442: Optimizer doesn't simplify ORDER BY when field IS NULL
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  category_id INT NOT NULL,
+  nullable_date DATETIME DEFAULT NULL,
+  created_by VARCHAR(50),
+  status VARCHAR(20),
+  priority TINYINT,
+  item_name VARCHAR(100),
+  description VARCHAR(200),
+  KEY idx_covering (category_id, nullable_date, created_by, status, priority, item_name, description)
+) ENGINE=InnoDB;
+
+# Insert test data with mix of NULL and non-NULL nullable_date
+INSERT INTO t1 (category_id, nullable_date, created_by, status, priority, item_name, description) VALUES
+(100, NULL, 'User1', 'Active', 0, 'Item A', 'Description 1'),
+(100, NULL, 'User1', 'Active', 0, 'Item B', 'Description 2'),
+(100, NULL, 'User1', 'Active', 0, 'Item C', 'Description 3'),
+(100, NULL, 'User1', 'Pending', 0, 'Item D', 'Description 4'),
+(100, '2024-01-01 10:00:00', 'User1', 'Active', 0, 'Item E', 'Description 5'),
+(200, NULL, 'User2', 'Active', 1, 'Item F', 'Description 6'),
+(200, NULL, 'User3', 'Pending', 0, 'Item G', 'Description 7');
+
+ANALYZE TABLE t1;
+
+--echo #
+--echo # Test 1: Basic IS NULL with ORDER BY - demonstrating covering index lookup
+--echo # Covering index is used for IS NULL lookup (category_id, nullable_date)
+--echo # but filesort still needed for item_name since intermediate fields aren't constant
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, nullable_date, item_name
+FROM t1 FORCE INDEX(idx_covering)
+WHERE category_id = 100 AND nullable_date IS NULL
+ORDER BY category_id, nullable_date, item_name;
+
+--echo #
+--echo # Test 2: Compound index with IS NULL - demonstrating NO filesort
+--echo # Unlike Test 1, all intermediate index fields are constant, allowing
+--echo # the index to provide ordering for item_name without filesort
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, status, priority, item_name, description
+FROM t1 FORCE INDEX(idx_covering)
+WHERE category_id = 100
+  AND nullable_date IS NULL
+  AND created_by = 'User1'
+  AND status = 'Active'
+  AND priority = 0
+  AND item_name >= 'Item B'
+ORDER BY category_id, nullable_date, created_by, status, priority, item_name ASC
+LIMIT 10;
+
+# Verify the query returns correct results
+SELECT id, category_id, status, priority, item_name
+FROM t1
+WHERE category_id = 100
+  AND nullable_date IS NULL
+  AND created_by = 'User1'
+  AND status = 'Active'
+  AND priority = 0
+  AND item_name >= 'Item B'
+ORDER BY category_id, nullable_date, created_by, status, priority, item_name ASC
+LIMIT 10;
+
+--echo #
+--echo # Test 3: Mix of equality and IS NULL with all intermediate fields constant
+--echo # All intermediate index fields are constant, so index can provide ordering
+--echo # for item_name without filesort (demonstrates IS NULL works like equality)
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, nullable_date, created_by, status, priority, item_name
+FROM t1 FORCE INDEX(idx_covering)
+WHERE category_id = 100 AND nullable_date IS NULL AND created_by = 'User1' AND status = 'Active' AND priority = 0
+ORDER BY category_id, nullable_date, created_by, status, priority, item_name;
+
+--echo #
+--echo # Test 4: IS NOT NULL should NOT be treated as constant
+--echo # This is a negative test - field can have many different non-NULL values
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, nullable_date, item_name
+FROM t1
+WHERE nullable_date IS NOT NULL
+ORDER BY nullable_date, item_name;
+
+--echo #
+--echo # Test 5: Test with optimizer trace to verify "equals_constant_in_where"
+--echo # The trace should show that nullable_date is recognized as constant
+--echo #
+SET optimizer_trace="enabled=on";
+
+SELECT id, category_id, nullable_date, item_name
+FROM t1 FORCE INDEX(idx_covering)
+WHERE category_id = 100 AND nullable_date IS NULL
+ORDER BY category_id, nullable_date, item_name
+LIMIT 2;
+
+SELECT IF(
+  LOCATE('"equals_constant_in_where": true', TRACE) > 0,
+  'PASS: nullable_date recognized as constant',
+  'FAIL: nullable_date not recognized as constant'
+) AS trace_check
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET optimizer_trace="enabled=off";
+
+--echo #
+--echo # Test 6: OR with IS NULL - field should NOT be treated as constant
+--echo # (nullable_date can be NULL OR have a value, so it's not constant)
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, nullable_date, item_name
+FROM t1
+WHERE category_id = 100 AND (nullable_date IS NULL OR nullable_date > '2024-01-01')
+ORDER BY nullable_date, item_name;
+
+# Verify results are correctly ordered
+SELECT id, category_id, nullable_date, item_name
+FROM t1
+WHERE category_id = 100 AND (nullable_date IS NULL OR nullable_date > '2024-01-01')
+ORDER BY nullable_date, item_name;
+
+--echo #
+--echo # Test 7: OR with multiple IS NULL - same field
+--echo # This is effectively the same as a single IS NULL, so field IS constant
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, nullable_date, item_name
+FROM t1 FORCE INDEX(idx_covering)
+WHERE category_id = 100 AND (nullable_date IS NULL OR nullable_date IS NULL)
+ORDER BY category_id, nullable_date, item_name;
+
+--echo #
+--echo # Test 8: Verify IS NULL works with DESC ordering
+--echo # When nullable_date IS NULL with other constants, index can still be used
+--echo # even with DESC on the non-constant field
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, category_id, nullable_date, created_by, status, priority, item_name
+FROM t1 FORCE INDEX(idx_covering)
+WHERE category_id = 100 AND nullable_date IS NULL AND created_by = 'User1' AND status = 'Active' AND priority = 0
+ORDER BY category_id, nullable_date, created_by, status, priority, item_name DESC;
+
+--echo #
+--echo # Test 9: Verify NULL ordering semantics with ASC
+--echo # NULLs should appear FIRST with ORDER BY ASC
+--echo #
+CREATE TABLE t_null_order (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  val INT,
+  name VARCHAR(10),
+  KEY idx_val (val, name)
+);
+
+INSERT INTO t_null_order (val, name) VALUES
+  (NULL, 'null1'),
+  (NULL, 'null2'),
+  (5, 'five'),
+  (10, 'ten'),
+  (NULL, 'null3'),
+  (1, 'one');
+
+ANALYZE TABLE t_null_order;
+
+SELECT id, val, name FROM t_null_order ORDER BY val ASC, name ASC;
+
+--echo #
+--echo # Test 10: Verify NULL ordering semantics with DESC
+--echo # NULLs should appear LAST with ORDER BY DESC
+--echo #
+SELECT id, val, name FROM t_null_order ORDER BY val DESC, name ASC;
+
+--echo #
+--echo # Test 11: Verify optimization works with DESC and preserves NULL ordering
+--echo # With val IS NULL, val is constant, so should only sort by name
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, val, name FROM t_null_order FORCE INDEX(idx_val)
+WHERE val IS NULL
+ORDER BY val DESC, name ASC;
+
+# Verify NULLs still appear correctly (all values are NULL, so just ordered by name)
+SELECT id, val, name FROM t_null_order FORCE INDEX(idx_val)
+WHERE val IS NULL
+ORDER BY val DESC, name ASC;
+
+--echo #
+--echo # Test 12: Mixed ASC/DESC with IS NULL constraint
+--echo #
+EXPLAIN FORMAT=TREE
+SELECT id, val, name FROM t_null_order FORCE INDEX(idx_val)
+WHERE val IS NULL
+ORDER BY val ASC, name DESC;
+
+SELECT id, val, name FROM t_null_order FORCE INDEX(idx_val)
+WHERE val IS NULL
+ORDER BY val ASC, name DESC;
+
+DROP TABLE t_null_order;
+
+# Cleanup
+DROP TABLE t1;
+
+--echo #
+--echo # End of test for Bug#119442
+--echo #
