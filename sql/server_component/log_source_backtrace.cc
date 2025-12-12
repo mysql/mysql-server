@@ -423,7 +423,7 @@ static log_service_error log_error_read_backtrace_loop(const char *log_file,
     size = max_backtrace;  // Correct size to the part we'll actually read.
 
     // Seek to the approximate position of the row to start reading at.
-    if (my_fseek(fh, (long)pos, SEEK_SET)) { /* purecov: begin inspected */
+    if (my_fseek(fh, (long)pos, SEEK_SET) == MY_FILEPOS_ERROR) { /* purecov: begin inspected */
       ret = LOG_SERVICE_SEEK_FAILED;
       goto fail_with_free; /* purecov: end */
     }
