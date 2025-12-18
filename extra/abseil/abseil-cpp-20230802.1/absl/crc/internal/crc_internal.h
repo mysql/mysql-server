@@ -27,6 +27,10 @@ ABSL_NAMESPACE_BEGIN
 
 namespace crc_internal {
 
+class CRCImpl;
+
+CRCImpl* TryNewCRC32AcceleratedRISCV();
+
 // Prefetch constants used in some Extend() implementations
 constexpr int kPrefetchHorizon = ABSL_CACHELINE_SIZE * 4;  // Prefetch this far
 // Shorter prefetch distance for smaller buffers
@@ -69,6 +73,10 @@ class CRCImpl : public CRC {  // Implementation of the abstract class CRC
 
   // The internal version of CRC::New().
   static CRCImpl* NewInternal();
+
+  // Try to create a RISC-V accelerated implementation.
+  // Returns nullptr if not available.
+  friend CRCImpl* TryNewCRC32AcceleratedRISCV();
 
   // Fill in a table for updating a CRC by one word of 'word_size' bytes
   // [last_lo, last_hi] contains the answer if the last bit in the word

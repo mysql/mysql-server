@@ -24,6 +24,11 @@
 #include <sys/auxv.h>
 #endif
 
+#if defined(__riscv) && defined(__linux__)
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
+
 #if defined(_WIN32) || defined(_WIN64)
 #include <intrin.h>
 #endif
@@ -256,6 +261,42 @@ CpuType GetCpuType() { return CpuType::kUnknown; }
 bool SupportsArmCRC32PMULL() { return false; }
 
 #endif
+
+bool SupportsRiscvCrc32() {
+#if defined(__riscv)
+#if defined(__linux__)
+  struct riscv_hwprobe {
+    int64_t key;
+    uint64_t value;
+  };
+#ifndef __NR_riscv_hwprobe
+#define __NR_riscv_hwprobe 258
+#endif
+#ifndef RISCV_HWPROBE_KEY_IMA_EXT_0
+#define RISCV_HWPROBE_KEY_IMA_EXT_0 4
+#endif
+#ifndef RISCV_HWPROBE_EXT_ZBC
+#define RISCV_HWPROBE_EXT_ZBC (1ULL << 7)
+#endif
+#ifndef RISCV_HWPROBE_EXT_ZBKC
+#define RISCV_HWPROBE_EXT_ZBKC (1ULL << 9)
+#endif
+
+  riscv_hwprobe pairs[] = {{RISCV_HWPROBE_KEY_IMA_EXT_0, 0}};
+  long ret = syscall(__NR_riscv_hwprobe, &pairs, 1, 0, nullptr, 0);
+  if (ret == 0) {
+    return (pairs[0].value & RISCV_HWPROBE_EXT_ZBC) ||
+           (pairs[0].value & RISCV_HWPROBE_EXT_ZBKC);
+  }
+  return false;
+#else
+  // TODO: Implement runtime detection on non-Linux systems.
+  return false;
+#endif
+#else
+  return false;
+#endif
+}
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END
