@@ -62,41 +62,45 @@ EXPLAIN SELECT * FROM t2 WHERE val = 5;
 DROP TABLE t1, t2;
 
 --echo #
---echo # Test 2: Index cardinality affects access method
+--echo # Test 2: Index cardinality affects optimizer row estimates
 --echo #
 
-CREATE TABLE t_unique (
-  id INT PRIMARY KEY,
-  category INT UNIQUE,
-  INDEX idx_cat (category)
-) ENGINE=InnoDB;
-
-CREATE TABLE t_duplicate (
+CREATE TABLE t_high_card (
   id INT PRIMARY KEY,
   category INT,
   INDEX idx_cat (category)
 ) ENGINE=InnoDB;
 
-# t_unique: each category value appears once
-INSERT INTO t_unique SELECT x, x FROM ten;
+CREATE TABLE t_low_card (
+  id INT PRIMARY KEY,
+  category INT,
+  INDEX idx_cat (category)
+) ENGINE=InnoDB;
 
-# t_duplicate: each category value appears multiple times
-INSERT INTO t_duplicate SELECT a.x * 10 + b.x, a.x FROM ten a, ten b;
+# t_high_card: 100 rows with 100 distinct category values (high cardinality)
+INSERT INTO t_high_card SELECT a.x * 10 + b.x, a.x * 10 + b.x FROM ten a, ten b;
 
-ANALYZE TABLE t_unique, t_duplicate;
+# t_low_card: 100 rows with only 2 distinct category values (low cardinality)
+INSERT INTO t_low_card SELECT a.x * 10 + b.x, (a.x * 10 + b.x) MOD 2 FROM ten a, ten b;
 
---echo # Check cardinality difference
+ANALYZE TABLE t_high_card, t_low_card;
+
+--echo # Check cardinality difference: high_card=100 distinct, low_card=2 distinct
 SELECT TABLE_NAME, INDEX_NAME, CARDINALITY
 FROM information_schema.statistics
 WHERE TABLE_SCHEMA = DATABASE()
-  AND TABLE_NAME IN ('t_unique', 't_duplicate')
+  AND TABLE_NAME IN ('t_high_card', 't_low_card')
   AND INDEX_NAME = 'idx_cat'
 ORDER BY TABLE_NAME;
 
---echo # Unique index should show different cardinality than non-unique
---echo # This affects optimizer cost calculations
+--echo # Cardinality affects row estimates in EXPLAIN
+--echo # High cardinality (100 distinct): expects ~1 row per value
+EXPLAIN SELECT * FROM t_high_card WHERE category = 5;
 
-DROP TABLE t_unique, t_duplicate;
+--echo # Low cardinality (2 distinct): expects ~50 rows per value
+EXPLAIN SELECT * FROM t_low_card WHERE category = 1;
+
+DROP TABLE t_high_card, t_low_card;
 
 --echo #
 --echo # Test 3: Verify InnoDB stores persistent statistics
@@ -133,22 +137,44 @@ DROP TABLE t_stats;
 CREATE TABLE t_hist (
   id INT PRIMARY KEY,
   status INT,
-  INDEX idx_status (status)
+  data VARCHAR(100)
 ) ENGINE=InnoDB;
 
 # Skewed distribution: 90% have status=1, 10% have status=0
 INSERT INTO t_hist SELECT a.x * 10 + b.x,
-  CASE WHEN (a.x * 10 + b.x) MOD 10 = 0 THEN 0 ELSE 1 END
+  CASE WHEN (a.x * 10 + b.x) MOD 10 = 0 THEN 0 ELSE 1 END,
+  REPEAT('x', 50)
 FROM ten a, ten b;
 
 ANALYZE TABLE t_hist;
+
+--echo # Without histogram: optimizer uses index cardinality only
+--echo # With 2 distinct values, it assumes uniform 50% distribution per value
+--echo # Check the 'filtered' column in EXPLAIN output
+EXPLAIN SELECT * FROM t_hist WHERE status = 0;
+EXPLAIN SELECT * FROM t_hist WHERE status = 1;
+
+--echo # Create histogram to capture actual skewed distribution (10% zeros, 90% ones)
 ANALYZE TABLE t_hist UPDATE HISTOGRAM ON status WITH 2 BUCKETS;
 
---echo # Histogram should show value distribution
+--echo # Histogram shows the true distribution: status=0 is 10%, status=1 is 90%
 SELECT HISTOGRAM->>'$."histogram-type"' as type,
        HISTOGRAM->>'$."buckets"' as buckets
 FROM information_schema.column_statistics
 WHERE TABLE_NAME = 't_hist' AND COLUMN_NAME = 'status';
+
+--echo # With histogram: optimizer now uses actual value distribution
+--echo # The 'filtered' column should now reflect the true distribution
+--echo # status=0 (10% of data) and status=1 (90% of data)
+EXPLAIN SELECT * FROM t_hist WHERE status = 0;
+EXPLAIN SELECT * FROM t_hist WHERE status = 1;
+
+--echo # Drop histogram and verify estimates revert
+ANALYZE TABLE t_hist DROP HISTOGRAM ON status;
+
+--echo # Without histogram: back to uniform distribution assumption
+EXPLAIN SELECT * FROM t_hist WHERE status = 0;
+EXPLAIN SELECT * FROM t_hist WHERE status = 1;
 
 DROP TABLE t_hist;
 

@@ -34,43 +34,58 @@ t2	100
 # Plans should use similar access methods
 EXPLAIN SELECT * FROM t1 WHERE val = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_val	idx_val	5	const	10	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_val	idx_val	5	const	10	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`val` AS `val` from `test`.`t1` where (`test`.`t1`.`val` = 5)
 EXPLAIN SELECT * FROM t2 WHERE val = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	idx_val	idx_val	5	const	10	100.00	NULL
+1	SIMPLE	t2	NULL	ref	idx_val	idx_val	5	const	10	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`val` AS `val` from `test`.`t2` where (`test`.`t2`.`val` = 5)
 DROP TABLE t1, t2;
 #
-# Test 2: Index cardinality affects access method
+# Test 2: Index cardinality affects optimizer row estimates
 #
-CREATE TABLE t_unique (
-id INT PRIMARY KEY,
-category INT UNIQUE,
-INDEX idx_cat (category)
-) ENGINE=InnoDB;
-CREATE TABLE t_duplicate (
+CREATE TABLE t_high_card (
 id INT PRIMARY KEY,
 category INT,
 INDEX idx_cat (category)
 ) ENGINE=InnoDB;
-INSERT INTO t_unique SELECT x, x FROM ten;
-INSERT INTO t_duplicate SELECT a.x * 10 + b.x, a.x FROM ten a, ten b;
-ANALYZE TABLE t_unique, t_duplicate;
+CREATE TABLE t_low_card (
+id INT PRIMARY KEY,
+category INT,
+INDEX idx_cat (category)
+) ENGINE=InnoDB;
+INSERT INTO t_high_card SELECT a.x * 10 + b.x, a.x * 10 + b.x FROM ten a, ten b;
+INSERT INTO t_low_card SELECT a.x * 10 + b.x, (a.x * 10 + b.x) MOD 2 FROM ten a, ten b;
+ANALYZE TABLE t_high_card, t_low_card;
 Table	Op	Msg_type	Msg_text
-test.t_unique	analyze	status	OK
-test.t_duplicate	analyze	status	OK
-# Check cardinality difference
+test.t_high_card	analyze	status	OK
+test.t_low_card	analyze	status	OK
+# Check cardinality difference: high_card=100 distinct, low_card=2 distinct
 SELECT TABLE_NAME, INDEX_NAME, CARDINALITY
 FROM information_schema.statistics
 WHERE TABLE_SCHEMA = DATABASE()
-AND TABLE_NAME IN ('t_unique', 't_duplicate')
+AND TABLE_NAME IN ('t_high_card', 't_low_card')
 AND INDEX_NAME = 'idx_cat'
 ORDER BY TABLE_NAME;
 TABLE_NAME	INDEX_NAME	CARDINALITY
-t_duplicate	idx_cat	10
-t_unique	idx_cat	10
-# Unique index should show different cardinality than non-unique
-# This affects optimizer cost calculations
-DROP TABLE t_unique, t_duplicate;
+t_high_card	idx_cat	100
+t_low_card	idx_cat	2
+# Cardinality affects row estimates in EXPLAIN
+# High cardinality (100 distinct): expects ~1 row per value
+EXPLAIN SELECT * FROM t_high_card WHERE category = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_high_card	NULL	ref	idx_cat	idx_cat	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_high_card`.`id` AS `id`,`test`.`t_high_card`.`category` AS `category` from `test`.`t_high_card` where (`test`.`t_high_card`.`category` = 5)
+# Low cardinality (2 distinct): expects ~50 rows per value
+EXPLAIN SELECT * FROM t_low_card WHERE category = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_low_card	NULL	ref	idx_cat	idx_cat	5	const	50	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_low_card`.`id` AS `id`,`test`.`t_low_card`.`category` AS `category` from `test`.`t_low_card` where (`test`.`t_low_card`.`category` = 1)
+DROP TABLE t_high_card, t_low_card;
 #
 # Test 3: Verify InnoDB stores persistent statistics
 #
@@ -107,24 +122,67 @@ DROP TABLE t_stats;
 CREATE TABLE t_hist (
 id INT PRIMARY KEY,
 status INT,
-INDEX idx_status (status)
+data VARCHAR(100)
 ) ENGINE=InnoDB;
 INSERT INTO t_hist SELECT a.x * 10 + b.x,
-CASE WHEN (a.x * 10 + b.x) MOD 10 = 0 THEN 0 ELSE 1 END
+CASE WHEN (a.x * 10 + b.x) MOD 10 = 0 THEN 0 ELSE 1 END,
+REPEAT('x', 50)
 FROM ten a, ten b;
 ANALYZE TABLE t_hist;
 Table	Op	Msg_type	Msg_text
 test.t_hist	analyze	status	OK
+# Without histogram: optimizer uses index cardinality only
+# With 2 distinct values, it assumes uniform 50% distribution per value
+# Check the 'filtered' column in EXPLAIN output
+EXPLAIN SELECT * FROM t_hist WHERE status = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_hist	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hist`.`id` AS `id`,`test`.`t_hist`.`status` AS `status`,`test`.`t_hist`.`data` AS `data` from `test`.`t_hist` where (`test`.`t_hist`.`status` = 0)
+EXPLAIN SELECT * FROM t_hist WHERE status = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_hist	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hist`.`id` AS `id`,`test`.`t_hist`.`status` AS `status`,`test`.`t_hist`.`data` AS `data` from `test`.`t_hist` where (`test`.`t_hist`.`status` = 1)
+# Create histogram to capture actual skewed distribution (10% zeros, 90% ones)
 ANALYZE TABLE t_hist UPDATE HISTOGRAM ON status WITH 2 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t_hist	histogram	status	Histogram statistics created for column 'status'.
-# Histogram should show value distribution
+# Histogram shows the true distribution: status=0 is 10%, status=1 is 90%
 SELECT HISTOGRAM->>'$."histogram-type"' as type,
 HISTOGRAM->>'$."buckets"' as buckets
 FROM information_schema.column_statistics
 WHERE TABLE_NAME = 't_hist' AND COLUMN_NAME = 'status';
 type	buckets
 singleton	[[0, 0.1], [1, 1.0]]
+# With histogram: optimizer now uses actual value distribution
+# The 'filtered' column should now reflect the true distribution
+# status=0 (10% of data) and status=1 (90% of data)
+EXPLAIN SELECT * FROM t_hist WHERE status = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_hist	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hist`.`id` AS `id`,`test`.`t_hist`.`status` AS `status`,`test`.`t_hist`.`data` AS `data` from `test`.`t_hist` where (`test`.`t_hist`.`status` = 0)
+EXPLAIN SELECT * FROM t_hist WHERE status = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_hist	NULL	ALL	NULL	NULL	NULL	NULL	100	90.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hist`.`id` AS `id`,`test`.`t_hist`.`status` AS `status`,`test`.`t_hist`.`data` AS `data` from `test`.`t_hist` where (`test`.`t_hist`.`status` = 1)
+# Drop histogram and verify estimates revert
+ANALYZE TABLE t_hist DROP HISTOGRAM ON status;
+Table	Op	Msg_type	Msg_text
+test.t_hist	histogram	status	Histogram statistics removed for column 'status'.
+# Without histogram: back to uniform distribution assumption
+EXPLAIN SELECT * FROM t_hist WHERE status = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_hist	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hist`.`id` AS `id`,`test`.`t_hist`.`status` AS `status`,`test`.`t_hist`.`data` AS `data` from `test`.`t_hist` where (`test`.`t_hist`.`status` = 0)
+EXPLAIN SELECT * FROM t_hist WHERE status = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_hist	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hist`.`id` AS `id`,`test`.`t_hist`.`status` AS `status`,`test`.`t_hist`.`data` AS `data` from `test`.`t_hist` where (`test`.`t_hist`.`status` = 1)
 DROP TABLE t_hist;
 #
 # Cleanup
