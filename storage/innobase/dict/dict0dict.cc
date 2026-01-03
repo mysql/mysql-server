@@ -53,6 +53,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0chkp.h"
 #include "log0write.h"
 #include "my_dbug.h"
+#include "srv0srv.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "clone0api.h"
@@ -623,9 +624,12 @@ void dict_table_close(dict_table_t *table, bool dict_locked, bool try_drop) {
   so that FLUSH TABLE can be used to forcibly fetch stats from disk
   if they have been manually modified. We reset table->stat_initialized
   only if table reference count is 0 because we do not want too frequent
-  stats re-reads (e.g. in other cases than FLUSH TABLE). */
+  stats re-reads (e.g. in other cases than FLUSH TABLE).
+  CUSTOM MODIFICATION: srv_stats_force_refresh bypasses ref_count check
+  to enable statistics import workflow. */
   if (strchr(table->name.m_name, '/') != nullptr &&
-      table->get_ref_count() == 0 && dict_stats_is_persistent_enabled(table)) {
+      (table->get_ref_count() == 0 || srv_stats_force_refresh) &&
+      dict_stats_is_persistent_enabled(table)) {
     DEBUG_SYNC(current_thd, "innodb.before_stats_deinit");
     dict_stats_deinit(table);
   }

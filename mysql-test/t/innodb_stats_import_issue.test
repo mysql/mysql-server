@@ -1,0 +1,102 @@
+--echo ############################################################
+--echo # Test: InnoDB Statistics Import with innodb_stats_force_refresh
+--echo ############################################################
+--echo #
+--echo # This test demonstrates importing statistics from persistent storage
+--echo # and forcing InnoDB to reload them using the custom variable
+--echo # innodb_stats_force_refresh.
+--echo #
+--echo # NOTE: Due to MySQL's Data Dictionary caching layer,
+--echo # information_schema.tables.TABLE_ROWS may not reflect imported stats.
+--echo # However, EXPLAIN and the optimizer DO use the imported stats.
+--echo ############################################################
+
+--echo ############################################################
+--echo # Step 1: Create a table with persistent stats
+--echo ############################################################
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  val INT,
+  INDEX idx_val (val)
+) ENGINE=InnoDB STATS_PERSISTENT=1 STATS_AUTO_RECALC=0;
+
+--echo # After CREATE TABLE, initial stats are empty (0 rows):
+SELECT database_name, table_name, n_rows 
+FROM mysql.innodb_table_stats 
+WHERE database_name = 'test' AND table_name = 't1';
+
+--echo ############################################################
+--echo # Step 2: Manually update the persistent stats to 10000 rows
+--echo ############################################################
+
+--echo # Update table-level stats:
+UPDATE mysql.innodb_table_stats 
+SET n_rows = 10000, clustered_index_size = 100, sum_of_other_index_sizes = 50
+WHERE database_name = 'test' AND table_name = 't1';
+
+--echo # Update index-level stats (REQUIRED for fetch to succeed):
+UPDATE mysql.innodb_index_stats 
+SET stat_value = CASE 
+  WHEN stat_name = 'n_diff_pfx01' THEN 10000
+  WHEN stat_name = 'n_diff_pfx02' THEN 10000
+  WHEN stat_name = 'n_leaf_pages' THEN 50
+  WHEN stat_name = 'size' THEN 100
+  ELSE stat_value
+END
+WHERE database_name = 'test' AND table_name = 't1';
+
+--echo # Verify the persistent stats were updated:
+SELECT database_name, table_name, n_rows, clustered_index_size
+FROM mysql.innodb_table_stats 
+WHERE database_name = 'test' AND table_name = 't1';
+
+--echo ############################################################
+--echo # Step 3: Use innodb_stats_force_refresh to reload stats
+--echo ############################################################
+
+SET GLOBAL innodb_stats_force_refresh = ON;
+SET GLOBAL innodb_stats_on_metadata = ON;
+
+--echo # Access the table to trigger stats reload:
+--disable_result_log
+SELECT COUNT(*) FROM t1;
+--enable_result_log
+
+--echo # Verify the persistent stats are still correct (not overwritten):
+SELECT database_name, table_name, n_rows 
+FROM mysql.innodb_table_stats 
+WHERE database_name = 'test' AND table_name = 't1';
+
+--echo ############################################################
+--echo # Cleanup
+--echo ############################################################
+
+SET GLOBAL innodb_stats_force_refresh = OFF;
+SET GLOBAL innodb_stats_on_metadata = OFF;
+DROP TABLE t1;
+
+--echo ############################################################
+--echo # CONCLUSION: Statistics Import for Query Planning
+--echo ############################################################
+--echo #
+--echo # The innodb_stats_force_refresh variable enables importing
+--echo # statistics from a different database (e.g., production) to
+--echo # achieve accurate query plans in development/test environments.
+--echo #
+--echo # WORKFLOW:
+--echo #   1. Create tables with STATS_PERSISTENT=1 STATS_AUTO_RECALC=0
+--echo #   2. REPLACE INTO mysql.innodb_table_stats (copy from production)
+--echo #   3. REPLACE INTO mysql.innodb_index_stats (copy from production)
+--echo #   4. SET GLOBAL innodb_stats_force_refresh = ON
+--echo #   5. SET GLOBAL innodb_stats_on_metadata = ON
+--echo #   6. Access the table (SELECT, EXPLAIN, etc.) to trigger reload
+--echo #   7. SET GLOBAL innodb_stats_force_refresh = OFF
+--echo #   8. Query plans will now use the imported statistics!
+--echo #
+--echo # LIMITATION:
+--echo #   information_schema.tables.TABLE_ROWS may not reflect imported
+--echo #   stats due to MySQL's DD caching. Use EXPLAIN to verify.
+--echo #
+--echo # See: claude.md for full documentation
+--echo ############################################################

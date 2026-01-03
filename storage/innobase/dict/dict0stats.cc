@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats.h"
 #include "dyn0buf.h"
 #include "ha_prototypes.h"
+#include "srv0srv.h"
 #include "lob0lob.h"
 #include "log0chkp.h"
 #include "m_string.h"
@@ -3212,8 +3213,11 @@ dberr_t dict_stats_update(dict_table_t *table,
 
       /* fetch requested, either fetch from persistent statistics
       storage or use the old method */
+      /* CUSTOM MODIFICATION: srv_stats_force_refresh bypasses
+      the stat_initialized check to force reload from persistent
+      storage after manual stats import. */
 
-      if (table->stat_initialized) {
+      if (table->stat_initialized && !srv_stats_force_refresh) {
         return (DB_SUCCESS);
       }
 

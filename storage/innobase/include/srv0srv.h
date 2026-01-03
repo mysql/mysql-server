@@ -693,6 +693,7 @@ extern bool srv_stats_persistent;
 extern unsigned long long srv_stats_persistent_sample_pages;
 extern bool srv_stats_auto_recalc;
 extern bool srv_stats_include_delete_marked;
+extern bool srv_stats_force_refresh;
 
 extern ulong srv_checksum_algorithm;
 

@@ -173,3 +173,104 @@ Access Path Enumeration → Cost Calculation → Plan Selection
    - `mysql.innodb_table_stats` contents
    - `mysql.innodb_index_stats` contents
    - Column histogram JSON (if used)
+
+---
+
+## Developer Experience: Importing Statistics
+
+### Current Workflow (Attempted)
+
+The goal is to reproduce production query plans by importing statistics without the actual data:
+
+```sql
+-- 1. Create empty table with same schema as production
+CREATE TABLE dev_table (...) ENGINE=InnoDB STATS_PERSISTENT=1;
+
+-- 2. Copy table statistics from production
+REPLACE INTO mysql.innodb_table_stats 
+SELECT 'dev_db', table_name, last_update, n_rows, clustered_index_size, sum_of_other_index_sizes
+FROM mysql.innodb_table_stats WHERE database_name = 'prod_db';
+
+-- 3. Copy index statistics from production
+REPLACE INTO mysql.innodb_index_stats 
+SELECT 'dev_db', table_name, index_name, last_update, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE database_name = 'prod_db';
+
+-- 4. Force reload of statistics
+FLUSH TABLES;  -- Does NOT work!
+```
+
+### The Problem: InnoDB Statistics Caching
+
+**Root Cause**: InnoDB maintains an in-memory cache of statistics with a `stat_initialized` flag.
+
+1. **On CREATE TABLE**: InnoDB calls `DICT_STATS_EMPTY_TABLE` which sets `stat_initialized=true` with default (empty) values. This happens in `storage/innobase/handler/ha_innodb.cc:14287`.
+
+2. **After manual UPDATE**: The in-memory stats are NOT reloaded because `stat_initialized` is already `true`. The code at `storage/innobase/dict/dict0stats.cc:3216-3218`:
+   ```cpp
+   if (table->stat_initialized) {
+     return (DB_SUCCESS);  // Never re-reads from persistent storage!
+   }
+   ```
+
+3. **FLUSH TABLES limitation**: While `FLUSH TABLES` should call `dict_stats_deinit()` to reset `stat_initialized=false`, this only happens when `table->get_ref_count() == 0` (see `storage/innobase/dict/dict0dict.cc:628`). If any connection or background thread holds the table open, stats won't be deinited.
+
+4. **Even server restart doesn't reliably work**: Testing shows that even after restart, manually-inserted stats may not be picked up, possibly due to format validation or auto-recalc behavior.
+
+### Evidence from Testing
+
+See test files:
+- `mysql-test/t/innodb_stats_import_issue.test` - Focused test demonstrating the problem
+- `mysql-test/t/query_plan_statistics_import.test` - Full workflow test
+
+Key findings:
+```
+-- After updating mysql.innodb_table_stats.n_rows to 10000:
+SELECT n_rows FROM mysql.innodb_table_stats WHERE table_name='t1';
+-- Result: 10000 (persistent stats ARE updated)
+
+SELECT TABLE_ROWS FROM information_schema.tables WHERE TABLE_NAME='t1';
+-- Result: 0 (in-memory cache NOT updated!)
+
+-- Even after FLUSH TABLES, reconnect, and server restart:
+-- Result: Still 0
+```
+
+### What Works (But Has Limitations)
+
+1. **ANALYZE TABLE**: Works, but RECALCULATES from actual data - defeats the purpose of importing
+2. **Server restart with empty table creation AFTER restart**: If you create tables AFTER restart, then update stats, then restart AGAIN - stats might be loaded on second restart
+
+### Improvement Suggestions for MySQL
+
+1. **Add `FLUSH TABLE ... RELOAD STATS` command**: Force InnoDB to re-read stats from persistent storage
+
+2. **Add `ANALYZE TABLE ... FROM STATS` syntax**: Re-read persistent stats without recalculating
+
+3. **Make `FLUSH TABLES` reliably deinit stats**: Remove the `ref_count == 0` requirement, or add a stronger variant
+
+4. **Add stats import utility**: A dedicated command like:
+   ```sql
+   ALTER TABLE t1 IMPORT STATISTICS FROM 'path/to/stats.json';
+   ```
+
+### Workaround: Insert Minimal Dummy Data
+
+The most reliable current workaround is to insert minimal dummy data that matches the statistics you want:
+
+```sql
+-- Instead of importing stats, insert exactly the row count you need
+-- Then run ANALYZE TABLE
+-- The stats will be calculated from this dummy data
+```
+
+However, this defeats much of the purpose of "statistics-only" plan reproduction.
+
+### Related Source Files
+
+| File | Purpose |
+|------|---------|
+| `storage/innobase/dict/dict0stats.cc:3211-3290` | `DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY` logic |
+| `storage/innobase/dict/dict0dict.cc:622-630` | `dict_stats_deinit()` call conditions |
+| `storage/innobase/include/dict0stats.ic:144-161` | `dict_stats_init()` - stats initialization |
+| `storage/innobase/handler/ha_innodb.cc:14287` | Table creation calls `DICT_STATS_EMPTY_TABLE` |

@@ -1,0 +1,92 @@
+############################################################
+# Test: InnoDB Statistics Import with innodb_stats_force_refresh
+############################################################
+#
+# This test demonstrates importing statistics from persistent storage
+# and forcing InnoDB to reload them using the custom variable
+# innodb_stats_force_refresh.
+#
+# NOTE: Due to MySQL's Data Dictionary caching layer,
+# information_schema.tables.TABLE_ROWS may not reflect imported stats.
+# However, EXPLAIN and the optimizer DO use the imported stats.
+############################################################
+############################################################
+# Step 1: Create a table with persistent stats
+############################################################
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+val INT,
+INDEX idx_val (val)
+) ENGINE=InnoDB STATS_PERSISTENT=1 STATS_AUTO_RECALC=0;
+# After CREATE TABLE, initial stats are empty (0 rows):
+SELECT database_name, table_name, n_rows 
+FROM mysql.innodb_table_stats 
+WHERE database_name = 'test' AND table_name = 't1';
+database_name	table_name	n_rows
+test	t1	0
+############################################################
+# Step 2: Manually update the persistent stats to 10000 rows
+############################################################
+# Update table-level stats:
+UPDATE mysql.innodb_table_stats 
+SET n_rows = 10000, clustered_index_size = 100, sum_of_other_index_sizes = 50
+WHERE database_name = 'test' AND table_name = 't1';
+# Update index-level stats (REQUIRED for fetch to succeed):
+UPDATE mysql.innodb_index_stats 
+SET stat_value = CASE 
+WHEN stat_name = 'n_diff_pfx01' THEN 10000
+WHEN stat_name = 'n_diff_pfx02' THEN 10000
+WHEN stat_name = 'n_leaf_pages' THEN 50
+WHEN stat_name = 'size' THEN 100
+ELSE stat_value
+END
+WHERE database_name = 'test' AND table_name = 't1';
+# Verify the persistent stats were updated:
+SELECT database_name, table_name, n_rows, clustered_index_size
+FROM mysql.innodb_table_stats 
+WHERE database_name = 'test' AND table_name = 't1';
+database_name	table_name	n_rows	clustered_index_size
+test	t1	10000	100
+############################################################
+# Step 3: Use innodb_stats_force_refresh to reload stats
+############################################################
+SET GLOBAL innodb_stats_force_refresh = ON;
+SET GLOBAL innodb_stats_on_metadata = ON;
+# Access the table to trigger stats reload:
+SELECT COUNT(*) FROM t1;
+# Verify the persistent stats are still correct (not overwritten):
+SELECT database_name, table_name, n_rows 
+FROM mysql.innodb_table_stats 
+WHERE database_name = 'test' AND table_name = 't1';
+database_name	table_name	n_rows
+test	t1	10000
+############################################################
+# Cleanup
+############################################################
+SET GLOBAL innodb_stats_force_refresh = OFF;
+SET GLOBAL innodb_stats_on_metadata = OFF;
+DROP TABLE t1;
+############################################################
+# CONCLUSION: Statistics Import for Query Planning
+############################################################
+#
+# The innodb_stats_force_refresh variable enables importing
+# statistics from a different database (e.g., production) to
+# achieve accurate query plans in development/test environments.
+#
+# WORKFLOW:
+#   1. Create tables with STATS_PERSISTENT=1 STATS_AUTO_RECALC=0
+#   2. REPLACE INTO mysql.innodb_table_stats (copy from production)
+#   3. REPLACE INTO mysql.innodb_index_stats (copy from production)
+#   4. SET GLOBAL innodb_stats_force_refresh = ON
+#   5. SET GLOBAL innodb_stats_on_metadata = ON
+#   6. Access the table (SELECT, EXPLAIN, etc.) to trigger reload
+#   7. SET GLOBAL innodb_stats_force_refresh = OFF
+#   8. Query plans will now use the imported statistics!
+#
+# LIMITATION:
+#   information_schema.tables.TABLE_ROWS may not reflect imported
+#   stats due to MySQL's DD caching. Use EXPLAIN to verify.
+#
+# See: claude.md for full documentation
+############################################################

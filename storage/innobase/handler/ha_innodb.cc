@@ -22261,6 +22261,13 @@ static MYSQL_SYSVAR_BOOL(
     "Include delete marked records when calculating persistent statistics",
     nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(
+    stats_force_refresh, srv_stats_force_refresh, PLUGIN_VAR_OPCMDARG,
+    "Force InnoDB to reload persistent statistics on FLUSH TABLES, "
+    "bypassing the table reference count check. Useful for importing "
+    "statistics from another database.",
+    nullptr, nullptr, false);
+
 static MYSQL_SYSVAR_ULONG(
     io_capacity, srv_io_capacity, PLUGIN_VAR_RQCMDARG,
     "Number of IOPs the server can do. Tunes the background IO rate", nullptr,
@@ -23550,6 +23557,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(doublewrite_files),
     MYSQL_SYSVAR(doublewrite_pages),
     MYSQL_SYSVAR(stats_include_delete_marked),
+    MYSQL_SYSVAR(stats_force_refresh),
     MYSQL_SYSVAR(api_enable_binlog),
     MYSQL_SYSVAR(api_enable_mdl),
     MYSQL_SYSVAR(api_disable_rowlock),
