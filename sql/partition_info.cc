@@ -503,9 +503,9 @@ bool partition_info::set_used_partition(
     if (part_fields_provided < bitmap_bits_set(&full_part_field_set))
       return true;
   } else {
-    Field *field = nullptr;
+    Field **field_ptr = table->field;
     for (Item *value : values) {
-      field = *table->field++;
+      Field *field = *field_ptr++;
       if (bitmap_is_set(&full_part_field_set, field->field_index())) {
         if (!(value->const_item() ||
               (tables_locked && value->const_for_execution())))
