@@ -483,16 +483,25 @@ bool partition_info::set_used_partition(
     const-for-execution.
   */
   if (!fields.empty()) {
+    uint part_fields_provided = 0;
     auto value_it = values.begin();
     for (Item *fld : fields) {
       Item *value = *value_it++;
       Item_field *field = fld->field_for_view_update();
       if (bitmap_is_set(&full_part_field_set, field->field->field_index())) {
+        part_fields_provided++;
         if (!(value->const_item() ||
               (tables_locked && value->const_for_execution())))
           return true;
       }
     }
+    /*
+      If any partition key field is not explicitly provided, it will
+      use its default value. Defaults like CURRENT_TIMESTAMP are
+      non-constant, so we cannot do constant-based partition pruning.
+    */
+    if (part_fields_provided < bitmap_bits_set(&full_part_field_set))
+      return true;
   } else {
     Field *field = nullptr;
     for (Item *value : values) {

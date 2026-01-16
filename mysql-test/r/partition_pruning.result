@@ -6440,3 +6440,60 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	insert into `test`.`t1` values (20,rand())
 DROP TABLE t1;
+
+# Test for Bug#37397306 - partition pruning regression with CURRENT_TIMESTAMP default
+# This test verifies that INSERT with CURRENT_TIMESTAMP default values
+# works correctly with partitioned tables using RANGE partitioning on timestamp
+DROP DATABASE IF EXISTS test_partition_regression;
+CREATE DATABASE test_partition_regression;
+USE test_partition_regression;
+CREATE PROCEDURE create_partition_table()
+BEGIN
+DECLARE start_time DATETIME;
+DECLARE partition_sql TEXT;
+DECLARE i INT DEFAULT 0;
+# Start 10 seconds ago, create 41 partitions (covers ~40 seconds ahead)
+SET start_time = DATE_FORMAT(NOW() - INTERVAL 10 SECOND, '%Y-%m-%d %H:%i:%s');
+SET partition_sql = CONCAT(
+'CREATE TABLE `dp_tb_partition_issue_test` (\n',
+'  `id` bigint NOT NULL,\n',
+'  `col1` bigint NOT NULL,\n',
+'  `pt_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n',
+'  PRIMARY KEY (`id`,`pt_timestamp`)\n',
+') ENGINE=InnoDB DEFAULT CHARSET=utf8mb3\n',
+'PARTITION BY RANGE (UNIX_TIMESTAMP(`pt_timestamp`))\n(\n'    );
+WHILE i < 41 DO
+SET partition_sql = CONCAT(
+partition_sql,
+'  PARTITION p', DATE_FORMAT(start_time + INTERVAL i SECOND, '%Y%m%d%H%i%s'),
+' VALUES LESS THAN (UNIX_TIMESTAMP(''',
+DATE_FORMAT(start_time + INTERVAL (i+1) SECOND, '%Y-%m-%d %H:%i:%s'),
+''')) ENGINE = InnoDB,\n'
+        );
+SET i = i + 1;
+END WHILE;
+SET partition_sql = CONCAT(partition_sql, '  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB\n);');
+DROP TABLE IF EXISTS dp_tb_partition_issue_test;
+# Create table
+SET @sql = partition_sql;
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+END|
+CREATE PROCEDURE `dp_insert_row`(IN i BIGINT)
+BEGIN
+INSERT INTO `dp_tb_partition_issue_test` (`id`, `col1`) VALUES (i, 999999);
+END|
+CALL create_partition_table();
+CALL dp_insert_row(1);
+SELECT SLEEP(2);
+SLEEP(2)
+0
+CALL dp_insert_row(1);
+SELECT COUNT(*) FROM dp_tb_partition_issue_test WHERE id = 1;
+COUNT(*)
+2
+DROP PROCEDURE create_partition_table;
+DROP PROCEDURE dp_insert_row;
+DROP TABLE dp_tb_partition_issue_test;
+DROP DATABASE test_partition_regression;
