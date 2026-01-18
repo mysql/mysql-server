@@ -970,6 +970,7 @@ ELSEIF(WITH_SHOW_PARSE_TREE_DEFAULT STREQUAL "default")
 ENDIF()
 
 TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
+  vector_common
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys library_mysys strings vio

@@ -10387,3 +10387,143 @@ longlong Item_func_internal_is_enabled_role::val_int() {
 
   return 0;
 }
+
+
+// Vector Distance Functions Implementation
+#include "vector-common/vector_operations.h"
+
+// L2_DISTANCE
+bool Item_func_l2_distance::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_VECTOR)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_VECTOR)) return true;
+  set_data_type_double();
+  set_nullable(true);
+  return false;
+}
+
+double Item_func_l2_distance::val_real() {
+  assert(fixed);
+  String *v1 = args[0]->val_str(&value1);
+  String *v2 = args[1]->val_str(&value2);
+  
+  if (!v1 || !v2) {
+    null_value = true;
+    return 0.0;
+  }
+  
+  uint32_t dims1 = v1->length() / sizeof(float);
+  uint32_t dims2 = v2->length() / sizeof(float);
+  
+  if (dims1 != dims2) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+  
+  const float *vec1 = reinterpret_cast<const float*>(v1->ptr());
+  const float *vec2 = reinterpret_cast<const float*>(v2->ptr());
+  
+  null_value = false;
+  return vector_operations::l2_distance(vec1, vec2, dims1);
+}
+
+// COSINE_DISTANCE
+bool Item_func_cosine_distance::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_VECTOR)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_VECTOR)) return true;
+  set_data_type_double();
+  set_nullable(true);
+  return false;
+}
+
+double Item_func_cosine_distance::val_real() {
+  assert(fixed);
+  String *v1 = args[0]->val_str(&value1);
+  String *v2 = args[1]->val_str(&value2);
+  
+  if (!v1 || !v2) {
+    null_value = true;
+    return 0.0;
+  }
+  
+  uint32_t dims1 = v1->length() / sizeof(float);
+  uint32_t dims2 = v2->length() / sizeof(float);
+  
+  if (dims1 != dims2) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+  
+  const float *vec1 = reinterpret_cast<const float*>(v1->ptr());
+  const float *vec2 = reinterpret_cast<const float*>(v2->ptr());
+  
+  null_value = false;
+  return vector_operations::cosine_distance(vec1, vec2, dims1);
+}
+
+// COSINE_SIMILARITY
+bool Item_func_cosine_similarity::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_VECTOR)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_VECTOR)) return true;
+  set_data_type_double();
+  set_nullable(true);
+  return false;
+}
+
+double Item_func_cosine_similarity::val_real() {
+  assert(fixed);
+  String *v1 = args[0]->val_str(&value1);
+  String *v2 = args[1]->val_str(&value2);
+  
+  if (!v1 || !v2) {
+    null_value = true;
+    return 0.0;
+  }
+  
+  uint32_t dims1 = v1->length() / sizeof(float);
+  uint32_t dims2 = v2->length() / sizeof(float);
+  
+  if (dims1 != dims2) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+  
+  const float *vec1 = reinterpret_cast<const float*>(v1->ptr());
+  const float *vec2 = reinterpret_cast<const float*>(v2->ptr());
+  
+  null_value = false;
+  return vector_operations::cosine_similarity(vec1, vec2, dims1);
+}
+
+// DOT_PRODUCT
+bool Item_func_dot_product::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_VECTOR)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_VECTOR)) return true;
+  set_data_type_double();
+  set_nullable(true);
+  return false;
+}
+
+double Item_func_dot_product::val_real() {
+  assert(fixed);
+  String *v1 = args[0]->val_str(&value1);
+  String *v2 = args[1]->val_str(&value2);
+  
+  if (!v1 || !v2) {
+    null_value = true;
+    return 0.0;
+  }
+  
+  uint32_t dims1 = v1->length() / sizeof(float);
+  uint32_t dims2 = v2->length() / sizeof(float);
+  
+  if (dims1 != dims2) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+  
+  const float *vec1 = reinterpret_cast<const float*>(v1->ptr());
+  const float *vec2 = reinterpret_cast<const float*>(v2->ptr());
+  
+  null_value = false;
+  return vector_operations::dot_product(vec1, vec2, dims1);
+}

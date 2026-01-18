@@ -1856,6 +1856,53 @@ class Item_func_vector_dim : public Item_int_func {
   }
 };
 
+
+// Vector distance functions
+class Item_func_l2_distance : public Item_real_func {
+ private:
+  String value1, value2;
+ public:
+  Item_func_l2_distance(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
+  using Item_func::fix;
+  bool resolve_type(THD *thd) override;
+  double val_real() override;
+  const char *func_name() const override { return "l2_distance"; }
+};
+
+class Item_func_cosine_distance : public Item_real_func {
+ private:
+  String value1, value2;
+ public:
+  Item_func_cosine_distance(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
+  using Item_func::fix;
+  bool resolve_type(THD *thd) override;
+  double val_real() override;
+  const char *func_name() const override { return "cosine_distance"; }
+};
+
+class Item_func_cosine_similarity : public Item_real_func {
+ private:
+  String value1, value2;
+ public:
+  Item_func_cosine_similarity(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
+  using Item_func::fix;
+  bool resolve_type(THD *thd) override;
+  double val_real() override;
+  const char *func_name() const override { return "cosine_similarity"; }
+};
+
+class Item_func_dot_product : public Item_real_func {
+ private:
+  String value1, value2;
+ public:
+  Item_func_dot_product(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
+  using Item_func::fix;
+  bool resolve_type(THD *thd) override;
+  double val_real() override;
+  const char *func_name() const override { return "dot_product"; }
+};
+
+
 class Item_func_bit_length final : public Item_func_length {
  public:
   Item_func_bit_length(const POS &pos, Item *a) : Item_func_length(pos, a) {}
