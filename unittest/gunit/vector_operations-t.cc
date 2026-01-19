@@ -1,3 +1,6 @@
+// Fixed unit test with correct namespace comment (Issue #6)
+// Changed "arrow_operations_unittest" -> "vector_operations_unittest"
+
 #include <gtest/gtest.h>
 #include "vector-common/vector_operations.h"
 #include <cmath>
@@ -43,4 +46,4 @@ TEST(VectorOperations, CosineSimilarity) {
   EXPECT_NEAR(1.0, result, 1e-6);
 }
 
-} // namespace arrow_operations_unittest
+}  // namespace vector_operations_unittest
