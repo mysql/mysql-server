@@ -108,7 +108,8 @@ enum ha_key_alg {
   HA_KEY_ALG_BTREE = 1,   /* B-tree. */
   HA_KEY_ALG_RTREE = 2,   /* R-tree, for spatial searches */
   HA_KEY_ALG_HASH = 3,    /* HASH keys (HEAP, NDB). */
-  HA_KEY_ALG_FULLTEXT = 4 /* FULLTEXT. */
+  HA_KEY_ALG_FULLTEXT = 4, /* FULLTEXT. */
+  HA_KEY_ALG_HNSW = 5      /* HNSW vector index. */
 };
 
 /* Storage media types */
