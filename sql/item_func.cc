@@ -10528,7 +10528,6 @@ double Item_func_dot_product::val_real() {
   return vector_operations::dot_product(vec1, vec2, dims1);
 }
 
-#include "vector-common/vector_operations.h"
 
 // Helper: Extract vector from String and validate type (Local version to avoid scope issues)
 static const float* get_vector_data_local(String *str, uint32_t *out_dims, 
@@ -10540,7 +10539,7 @@ static const float* get_vector_data_local(String *str, uint32_t *out_dims,
     // but assuming standard vector format is just float array for now.
     // Ideally use vector_constants::is_binary_string_vector if header available.
     // For now, simple length check + error.
-     my_printf_error(ER_UNKNOWN_ERROR, "Invalid vector format in function %s", MYF(0), func_name);
+     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name()), func_name);
      return nullptr;
   }
   
@@ -10581,7 +10580,7 @@ double Item_func_vector_distance::val_real() {
   }
   
   if (dims1 != dims2) {
-    my_printf_error(ER_UNKNOWN_ERROR, "Vector dimension mismatch: %u != %u", MYF(0), dims1, dims2);
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name()), dims1, dims2);
     return 0.0;
   }
   
@@ -10598,7 +10597,7 @@ double Item_func_vector_distance::val_real() {
              strcasecmp(metric_name, "INNER") == 0) {
     return vector_operations::dot_product(vec1, vec2, dims1);
   } else {
-    my_printf_error(ER_UNKNOWN_ERROR, "Unknown distance metric '%s'. Supported: L2, COSINE, DOT", MYF(0), metric_name);
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name()), metric_name);
     return 0.0;
   }
 }
