@@ -10527,3 +10527,78 @@ double Item_func_dot_product::val_real() {
   null_value = false;
   return vector_operations::dot_product(vec1, vec2, dims1);
 }
+
+#include "vector-common/vector_operations.h"
+
+// Helper: Extract vector from String and validate type (Local version to avoid scope issues)
+static const float* get_vector_data_local(String *str, uint32_t *out_dims, 
+                                     const char *func_name) {
+  if (!str) return nullptr;
+  
+  if (str->length() % sizeof(float) != 0) {
+    // Basic check since we can't access vector_constants easily if not included, 
+    // but assuming standard vector format is just float array for now.
+    // Ideally use vector_constants::is_binary_string_vector if header available.
+    // For now, simple length check + error.
+     my_printf_error(ER_UNKNOWN_ERROR, "Invalid vector format in function %s", MYF(0), func_name);
+     return nullptr;
+  }
+  
+  *out_dims = str->length() / sizeof(float);
+  return reinterpret_cast<const float*>(str->ptr());
+}
+
+// VECTOR_DISTANCE generic with metric selector
+bool Item_func_vector_distance::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_VECTOR)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_VECTOR)) return true;
+  // Third argument is metric name
+  set_data_type_double();
+  set_nullable(true);
+  return false;
+}
+
+double Item_func_vector_distance::val_real() {
+  assert(fixed);
+  
+  String *v1 = args[0]->val_str(&value1);
+  String *v2 = args[1]->val_str(&value2);
+  String metric_str;
+  String *metric = args[2]->val_str(&metric_str);
+  
+  if (!metric) {
+    this->null_value = true;
+    return 0.0;
+  }
+  
+  uint32_t dims1, dims2;
+  const float *vec1 = get_vector_data_local(v1, &dims1, func_name());
+  const float *vec2 = get_vector_data_local(v2, &dims2, func_name());
+  
+  if (!vec1 || !vec2) {
+    this->null_value = true;
+    return 0.0;
+  }
+  
+  if (dims1 != dims2) {
+    my_printf_error(ER_UNKNOWN_ERROR, "Vector dimension mismatch: %u != %u", MYF(0), dims1, dims2);
+    return 0.0;
+  }
+  
+  // Metric selector
+  const char *metric_name = metric->c_ptr_safe();
+  this->null_value = false;
+  
+  if (strcasecmp(metric_name, "L2") == 0 || 
+      strcasecmp(metric_name, "EUCLIDEAN") == 0) {
+    return vector_operations::l2_distance(vec1, vec2, dims1);
+  } else if (strcasecmp(metric_name, "COSINE") == 0) {
+    return vector_operations::cosine_distance(vec1, vec2, dims1);
+  } else if (strcasecmp(metric_name, "DOT") == 0 || 
+             strcasecmp(metric_name, "INNER") == 0) {
+    return vector_operations::dot_product(vec1, vec2, dims1);
+  } else {
+    my_printf_error(ER_UNKNOWN_ERROR, "Unknown distance metric '%s'. Supported: L2, COSINE, DOT", MYF(0), metric_name);
+    return 0.0;
+  }
+}

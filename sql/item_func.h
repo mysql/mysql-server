@@ -1863,7 +1863,6 @@ class Item_func_l2_distance : public Item_real_func {
   String value1, value2;
  public:
   Item_func_l2_distance(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
-  using Item_func::fix;
   bool resolve_type(THD *thd) override;
   double val_real() override;
   const char *func_name() const override { return "l2_distance"; }
@@ -1874,7 +1873,6 @@ class Item_func_cosine_distance : public Item_real_func {
   String value1, value2;
  public:
   Item_func_cosine_distance(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
-  using Item_func::fix;
   bool resolve_type(THD *thd) override;
   double val_real() override;
   const char *func_name() const override { return "cosine_distance"; }
@@ -1885,7 +1883,6 @@ class Item_func_cosine_similarity : public Item_real_func {
   String value1, value2;
  public:
   Item_func_cosine_similarity(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
-  using Item_func::fix;
   bool resolve_type(THD *thd) override;
   double val_real() override;
   const char *func_name() const override { return "cosine_similarity"; }
@@ -1896,7 +1893,6 @@ class Item_func_dot_product : public Item_real_func {
   String value1, value2;
  public:
   Item_func_dot_product(const POS &pos, Item *a, Item *b) : Item_real_func(pos, a, b) {}
-  using Item_func::fix;
   bool resolve_type(THD *thd) override;
   double val_real() override;
   const char *func_name() const override { return "dot_product"; }
@@ -4275,6 +4271,24 @@ extern bool volatile mqh_used;
 
 /// Checks if "item" is a function of the specified type.
 bool is_function_of_type(const Item *item, Item_func::Functype type);
+
+/**
+  Function: VECTOR_DISTANCE(vector1, vector2, metric)
+  Calcula distancia entre dos vectores usando m??trica especificada.
+  M??tricas soportadas: 'L2', 'COSINE'
+*/
+class Item_func_vector_distance : public Item_real_func {
+ private:
+  String value1, value2;
+  
+ public:
+  Item_func_vector_distance(const POS &pos, PT_item_list *list)
+      : Item_real_func(pos, list) {}
+  
+  double val_real() override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "vector_distance"; }
+};
 
 /// Checks if "item" contains a function of the specified type.
 bool contains_function_of_type(Item *item, Item_func::Functype type);

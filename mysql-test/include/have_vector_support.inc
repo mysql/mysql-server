@@ -1,0 +1,1 @@
+--echo # Checking for vector support
