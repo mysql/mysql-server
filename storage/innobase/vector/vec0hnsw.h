@@ -89,6 +89,20 @@ class HnswIndex {
     Get configuration.
   */
   const hnsw_config_t &config() const { return config_; }
+  
+  /**
+    Save the index to a binary file.
+    @param path   File path to save to
+    @return true on success, false on error
+  */
+  bool save_to_file(const char* path) const;
+  
+  /**
+    Load the index from a binary file.
+    @param path   File path to load from
+    @return true on success, false on error
+  */
+  bool load_from_file(const char* path);
 
  private:
   hnsw_config_t config_;

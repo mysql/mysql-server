@@ -12,6 +12,8 @@
 #include <queue>
 #include <cmath>
 #include <limits>
+#include <fstream>
+#include <cstring>
 
 namespace innodb_vector {
 
@@ -240,6 +242,105 @@ std::vector<hnsw_result_t> HnswIndex::search(const std::vector<float> &query,
   }
   
   return results;
+}
+
+bool HnswIndex::save_to_file(const char* path) const {
+  std::lock_guard<std::mutex> lock(index_mutex_);
+  
+  std::ofstream file(path, std::ios::binary);
+  if (!file) return false;
+  
+  // Write header/magic
+  const char magic[] = "HNSW";
+  file.write(magic, 4);
+  
+  // Write config
+  file.write(reinterpret_cast<const char*>(&config_), sizeof(config_));
+  
+  // Write state
+  file.write(reinterpret_cast<const char*>(&cur_elements_), sizeof(cur_elements_));
+  file.write(reinterpret_cast<const char*>(&max_level_), sizeof(max_level_));
+  file.write(reinterpret_cast<const char*>(&entry_point_), sizeof(entry_point_));
+  
+  // Write nodes
+  uint64_t node_count = nodes_.size();
+  file.write(reinterpret_cast<const char*>(&node_count), sizeof(node_count));
+  
+  for (const auto& node : nodes_) {
+    file.write(reinterpret_cast<const char*>(&node.id), sizeof(node.id));
+    file.write(reinterpret_cast<const char*>(&node.max_level), sizeof(node.max_level));
+    
+    // Write vector
+    uint32_t vec_size = static_cast<uint32_t>(node.vector.size());
+    file.write(reinterpret_cast<const char*>(&vec_size), sizeof(vec_size));
+    file.write(reinterpret_cast<const char*>(node.vector.data()), vec_size * sizeof(float));
+    
+    // Write neighbors per level
+    uint32_t level_count = static_cast<uint32_t>(node.neighbors.size());
+    file.write(reinterpret_cast<const char*>(&level_count), sizeof(level_count));
+    for (const auto& level_neighbors : node.neighbors) {
+      uint32_t neighbor_count = static_cast<uint32_t>(level_neighbors.size());
+      file.write(reinterpret_cast<const char*>(&neighbor_count), sizeof(neighbor_count));
+      file.write(reinterpret_cast<const char*>(level_neighbors.data()), 
+                 neighbor_count * sizeof(uint64_t));
+    }
+  }
+  
+  return file.good();
+}
+
+bool HnswIndex::load_from_file(const char* path) {
+  std::lock_guard<std::mutex> lock(index_mutex_);
+  
+  std::ifstream file(path, std::ios::binary);
+  if (!file) return false;
+  
+  // Check magic
+  char magic[4];
+  file.read(magic, 4);
+  if (std::strncmp(magic, "HNSW", 4) != 0) return false;
+  
+  // Read config
+  file.read(reinterpret_cast<char*>(&config_), sizeof(config_));
+  
+  // Read state
+  file.read(reinterpret_cast<char*>(&cur_elements_), sizeof(cur_elements_));
+  file.read(reinterpret_cast<char*>(&max_level_), sizeof(max_level_));
+  file.read(reinterpret_cast<char*>(&entry_point_), sizeof(entry_point_));
+  
+  // Read nodes
+  uint64_t node_count;
+  file.read(reinterpret_cast<char*>(&node_count), sizeof(node_count));
+  nodes_.clear();
+  nodes_.reserve(node_count);
+  
+  for (uint64_t i = 0; i < node_count; ++i) {
+    hnsw_node_t node;
+    file.read(reinterpret_cast<char*>(&node.id), sizeof(node.id));
+    file.read(reinterpret_cast<char*>(&node.max_level), sizeof(node.max_level));
+    
+    // Read vector
+    uint32_t vec_size;
+    file.read(reinterpret_cast<char*>(&vec_size), sizeof(vec_size));
+    node.vector.resize(vec_size);
+    file.read(reinterpret_cast<char*>(node.vector.data()), vec_size * sizeof(float));
+    
+    // Read neighbors per level
+    uint32_t level_count;
+    file.read(reinterpret_cast<char*>(&level_count), sizeof(level_count));
+    node.neighbors.resize(level_count);
+    for (uint32_t l = 0; l < level_count; ++l) {
+      uint32_t neighbor_count;
+      file.read(reinterpret_cast<char*>(&neighbor_count), sizeof(neighbor_count));
+      node.neighbors[l].resize(neighbor_count);
+      file.read(reinterpret_cast<char*>(node.neighbors[l].data()), 
+                neighbor_count * sizeof(uint64_t));
+    }
+    
+    nodes_.push_back(std::move(node));
+  }
+  
+  return file.good();
 }
 
 }  // namespace innodb_vector
