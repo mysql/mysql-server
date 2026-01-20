@@ -411,3 +411,5 @@ IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
     STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-error=alloc-size-larger-than=")
   ENDIF()
 ENDIF()
+
+ADD_SUBDIRECTORY(vector)

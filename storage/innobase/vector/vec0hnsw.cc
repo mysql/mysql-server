@@ -234,6 +234,11 @@ std::vector<hnsw_result_t> HnswIndex::search(const std::vector<float> &query,
     results.resize(k);
   }
   
+  // Map internal indices to external IDs
+  for (auto &result : results) {
+    result.id = nodes_[result.id].id;
+  }
+  
   return results;
 }
 

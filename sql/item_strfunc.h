@@ -1901,4 +1901,18 @@ inline void tohex(char *to, uint64_t from, uint len) {
   }
 }
 
+/** VECTOR_SEARCH(query, column, k) - ANN search function */
+class Item_func_vector_search : public Item_str_func {
+ private:
+  String result_buffer;
+ public:
+  Item_func_vector_search(const POS &pos, PT_item_list *list)
+      : Item_str_func(pos, list) {}
+  Item_func_vector_search(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b) {}
+  String *val_str(String *str) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "vector_search"; }
+};
+
 #endif /* ITEM_STRFUNC_INCLUDED */

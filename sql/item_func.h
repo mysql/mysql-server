@@ -4293,4 +4293,7 @@ class Item_func_vector_distance : public Item_real_func {
 /// Checks if "item" contains a function of the specified type.
 bool contains_function_of_type(Item *item, Item_func::Functype type);
 
+
+
+
 #endif /* ITEM_FUNC_INCLUDED */

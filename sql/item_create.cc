@@ -1655,6 +1655,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"FROM_VECTOR", SQL_FN(Item_func_from_vector, 1)},
     {"VECTOR_TO_STRING", SQL_FN(Item_func_from_vector, 1)},
     {"VECTOR_DIM", SQL_FN(Item_func_vector_dim, 1)},
+    {"VECTOR_SEARCH", SQL_FN_V(Item_func_vector_search, 2, 2)},
     {"COSINE_DISTANCE", SQL_FN(Item_func_cosine_distance, 2)},
     {"COSINE_SIMILARITY", SQL_FN(Item_func_cosine_similarity, 2)},
     {"DOT_PRODUCT", SQL_FN(Item_func_dot_product, 2)},
