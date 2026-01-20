@@ -3,6 +3,7 @@
 
 SET(VECTOR_SOURCES
   vec0hnsw.cc
+  vec0hnsw_registry.cc
 )
 
 ADD_CONVENIENCE_LIBRARY(innobase_vector
