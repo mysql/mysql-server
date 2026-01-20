@@ -411,6 +411,7 @@ SET(SQL_SHARED_SOURCES
   item_row.cc
   item_strfunc.cc
   item_vector_func.cc
+  item_hnsw_func.cc
   item_subselect.cc
   item_sum.cc
   window.cc
