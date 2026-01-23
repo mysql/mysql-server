@@ -51,8 +51,7 @@ class Optional_view_source_set
 
  public:
   /// Delegate construction to Optional_view_source
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Optional_view_source_set(Args_t &&...args)
       : Base_t(std::forward<Args_t>(args)...) {}
 

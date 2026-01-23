@@ -399,8 +399,9 @@ class Boundary_container : public mysql::sets::Basic_boundary_container_wrapper<
   ///
   /// (We override the Boundary_set_interface member because this is
   /// faster.)
+  template <typename Self_t, typename Hint_t>
   [[nodiscard]] static auto upper_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const auto &hint,
+      Self_t &self, const Hint_t &hint,
       const Element_t &element) noexcept {
     return Storage_t::upper_bound_dispatch(self.storage(), hint, element);
   }
@@ -414,8 +415,9 @@ class Boundary_container : public mysql::sets::Basic_boundary_container_wrapper<
   ///
   /// (We override the Boundary_set_interface member because this is
   /// faster.)
+  template <typename Self_t, typename Hint_t>
   [[nodiscard]] static auto lower_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const auto &hint,
+      Self_t &self, const Hint_t &hint,
       const Element_t &element) noexcept {
     return Storage_t::lower_bound_dispatch(self.storage(), hint, element);
   }

@@ -132,8 +132,7 @@ class Basic_boundary_container_wrapper
       Basic_boundary_container_wrapper<Self_tp, Wrapped_tp, shall_catch_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Basic_boundary_container_wrapper(Args_t &&...args)
       : Basic_set_container_wrapper_t(std::forward<Args_t>(args)...) {}
 

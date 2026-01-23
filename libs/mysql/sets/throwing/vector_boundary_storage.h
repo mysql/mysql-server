@@ -243,17 +243,17 @@ class Vector_boundary_storage
   [[nodiscard]] explicit operator bool() const { return (bool)vector(); }
 
   /// @return the upper bound for the given element in the given storage.
-  template <class Iter_t>
+  template <class Iter_t, typename Self_t>
   [[nodiscard]] static Iter_t upper_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const Iter_t &hint,
+      Self_t &self, const Iter_t &hint,
       const Element_t &element) {
     return std::upper_bound(hint, self.end(), element, Less_t());
   }
 
   /// Return the lower bound for the given element in the given storage.
-  template <class Iter_t>
+  template <class Iter_t, typename Self_t>
   [[nodiscard]] static Iter_t lower_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const Iter_t &hint,
+      Self_t &self, const Iter_t &hint,
       const Element_t &element) {
     return std::lower_bound(hint, self.end(), element, Less_t());
   }

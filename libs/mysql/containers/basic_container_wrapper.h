@@ -65,8 +65,7 @@ class Basic_container_wrapper
 
   /// Constructor that delegates all parameters to the constructor of the
   /// wrapped class.
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Basic_container_wrapper(Args_t &&...args) noexcept(
       noexcept(Wrapped_t(std::forward<Args_t>(args)...)))
       : m_wrapped(std::forward<Args_t>(args)...) {}

@@ -93,8 +93,7 @@ class Tsid : public detail::Tsid_interface<Tsid, Tag> {
  public:
   Tsid() = default;
 
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<Tsid, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<Tsid, Args_t...>::value, int> = 0>
   explicit Tsid(Args_t &&...args) : Base_t(std::forward<Args_t>(args)...) {}
 };
 
@@ -104,8 +103,7 @@ class Tsid_trivial : public detail::Tsid_interface<Tsid_trivial, Tag_trivial> {
  public:
   Tsid_trivial() = default;
 
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<Tsid_trivial, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<Tsid_trivial, Args_t...>::value, int> = 0>
   explicit Tsid_trivial(Args_t &&...args)
       : Base_t(std::forward<Args_t>(args)...) {}
 };

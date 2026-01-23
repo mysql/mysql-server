@@ -463,9 +463,10 @@ class Map_boundary_storage
   /// iterator hint.
   ///
   /// @return Iterator to the next point after the inserted point.
+  template <typename Inserter_t>
   [[nodiscard]] Iterator_t do_insert(const Iterator_t &position,
                                      const Element_t &v1, const Element_t &v2,
-                                     const auto &inserter) {
+                                     const Inserter_t &inserter) {
     // Verify the position is correct: prev(position) < v1 < v2 < position
     assert(position == begin() || lt(*std::prev(position), v1));
     assert(lt(v1, v2));

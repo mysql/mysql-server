@@ -48,6 +48,10 @@
 #include <unordered_map>
 #include <utility>
 
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#endif
+
 #include "integer_digits.h"
 #include "m_string.h"
 #include "map_helpers.h"

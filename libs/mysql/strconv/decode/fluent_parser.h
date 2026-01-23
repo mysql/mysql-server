@@ -195,7 +195,8 @@ class Fluent_parser {
   ///
   /// @param condition If this evaluates to false, the state will be "closed"
   /// while processing the following token.
-  Self_t &next_token_only_if(const std::invocable auto &condition) {
+  template <typename Func_t>
+  Self_t &next_token_only_if(const Func_t &condition) {
     return next_token_only_if(condition());
   }
 
@@ -204,7 +205,8 @@ class Fluent_parser {
   /// before the last token.
   ///
   /// @param checker Invocable to invoke.
-  Self_t &check_prev_token(const std::invocable auto &checker) {
+  template <typename Func_t>
+  Self_t &check_prev_token(const Func_t &checker) {
     switch (m_fluent_state) {
       case Fluent_state::open:  // Execute this check.
         checker();
@@ -253,7 +255,8 @@ class Fluent_parser {
   }
 
   /// Invoke the given invocable regardless o the open/closed state.
-  Self_t &call_unconditionally(const std::invocable auto &function) {
+  template <typename Func_t>
+  Self_t &call_unconditionally(const Func_t &function) {
     function();
     return *this;
   }
@@ -261,25 +264,29 @@ class Fluent_parser {
   // ==== read ====
 
   /// If the state is not "closed", read into the given object once.
-  Self_t &read(auto &obj) { return read_repeated(Repeat::one(), obj); }
+  template <typename T>
+  Self_t &read(T &obj) { return read_repeated(Repeat::one(), obj); }
 
   /// If the state is not "closed" read into the given object once; if that
   /// fails with parse error, restore to the previous position and suppress the
   /// error.
-  Self_t &read_optional(auto &obj) {
+  template <typename T>
+  Self_t &read_optional(T &obj) {
     return read_repeated(Repeat::optional(), obj);
   }
 
   /// If the state is not "closed" read repeatedly into the given object until
   /// it fails. Then, if the error is parse_error, restore to the previous
   /// position after the last successful read and suppress the error.
-  Self_t &read_any(auto &obj) { return read_repeated(Repeat::any(), obj); }
+  template <typename T>
+  Self_t &read_any(T &obj) { return read_repeated(Repeat::any(), obj); }
 
   /// If the state is not "closed" read repeatedly into the given object until
   /// it fails. Then, if the error is parse_error and at least `count` instances
   /// were read, restore to the previous position after the last successful read
   /// and suppress the error.
-  Self_t &read_at_least(std::size_t count, auto &obj) {
+  template <typename T>
+  Self_t &read_at_least(std::size_t count, T &obj) {
     return read_repeated(Repeat::at_least(count), obj);
   }
 
@@ -287,12 +294,14 @@ class Fluent_parser {
   /// `count` instances are found or it fails. If that failed with parse_error,
   /// restore to the previous position after the last successful read and
   /// suppress the error.
-  Self_t &read_at_most(std::size_t count, auto &obj) {
+  template <typename T>
+  Self_t &read_at_most(std::size_t count, T &obj) {
     return read_repeated(Repeat::at_most(count), obj);
   }
 
   /// If the state is not "closed", read into the given object `count` times.
-  Self_t &read_exact(std::size_t count, auto &obj) {
+  template <typename T>
+  Self_t &read_exact(std::size_t count, T &obj) {
     return read_repeated(Repeat::exact(count), obj);
   }
 
@@ -300,7 +309,8 @@ class Fluent_parser {
   /// `max` instances are found or it fails. If that failed with parse_error and
   /// at least `count` instances were read, restore to the previous position
   /// after the last successful read and suppress the error.
-  Self_t &read_range(std::size_t min, std::size_t max, auto &obj) {
+  template <typename T>
+  Self_t &read_range(std::size_t min, std::size_t max, T &obj) {
     return read_repeated(Repeat::range(min, max), obj);
   }
 
@@ -308,7 +318,8 @@ class Fluent_parser {
   /// by the given `Is_repeat` object. If that failed with parse_error and at
   /// least the minimum number of repetitions were read, restore to the previous
   /// position after the last successful read and suppress the error.
-  Self_t &read_repeated(const Is_repeat auto &repeat, auto &object) {
+  template <typename Repeat_t, typename T>
+  Self_t &read_repeated(const Repeat_t &repeat, T &object) {
     return call_repeated(
         repeat, [&] { std::ignore = m_parser.read(m_format, object); });
   }
@@ -316,21 +327,24 @@ class Fluent_parser {
   // ==== read_with_format ====
 
   /// If the state is not "closed", read into the given object once.
-  Self_t &read_with_format(const auto &format, auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format(const Fmt_t &format, T &obj) {
     return read_with_format_repeated(format, Repeat::one(), obj);
   }
 
   /// If the state is not "closed" read into the given object once; if that
   /// fails with parse error, restore to the previous position and suppress the
   /// error.
-  Self_t &read_with_format_optional(const auto &format, auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format_optional(const Fmt_t &format, T &obj) {
     return read_with_format_repeated(format, Repeat::optional(), obj);
   }
 
   /// If the state is not "closed" read repeatedly into the given object until
   /// it fails. Then, if the error is parse_error, restore to the previous
   /// position after the last successful read and suppress the error.
-  Self_t &read_with_format_any(const auto &format, auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format_any(const Fmt_t &format, T &obj) {
     return read_with_format_repeated(format, Repeat::any(), obj);
   }
 
@@ -338,8 +352,9 @@ class Fluent_parser {
   /// it fails. Then, if the error is parse_error and at least `count` instances
   /// were read, restore to the previous position after the last successful read
   /// and suppress the error.
-  Self_t &read_with_format_at_least(const auto &format, std::size_t count,
-                                    auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format_at_least(const Fmt_t &format, std::size_t count,
+                                    T &obj) {
     return read_with_format_repeated(format, Repeat::at_least(count), obj);
   }
 
@@ -347,14 +362,16 @@ class Fluent_parser {
   /// `count` instances are found or it fails. If that failed with parse_error,
   /// restore to the previous position after the last successful read and
   /// suppress the error.
-  Self_t &read_with_format_at_most(const auto &format, std::size_t count,
-                                   auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format_at_most(const Fmt_t &format, std::size_t count,
+                                   T &obj) {
     return read_with_format_repeated(format, Repeat::at_most(count), obj);
   }
 
   /// If the state is not "closed" read into the given object `count` times.
-  Self_t &read_with_format_exact(const auto &format, std::size_t count,
-                                 auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format_exact(const Fmt_t &format, std::size_t count,
+                                 T &obj) {
     return read_with_format_repeated(format, Repeat::exact(count), obj);
   }
 
@@ -362,8 +379,9 @@ class Fluent_parser {
   /// `max` instances are found or it fails. If that failed with parse_error and
   /// at least `count` instances were read, restore to the previous position
   /// after the last successful read and suppress the error.
-  Self_t &read_with_format_range(const auto &format, std::size_t min,
-                                 std::size_t max, auto &obj) {
+  template <typename Fmt_t, typename T>
+  Self_t &read_with_format_range(const Fmt_t &format, std::size_t min,
+                                 std::size_t max, T &obj) {
     return read_with_format_repeated(format, Repeat::range(min, max), obj);
   }
 
@@ -371,9 +389,10 @@ class Fluent_parser {
   /// by the given `Is_repeat` object. If that failed with parse_error and at
   /// least the minimum number of repetitions were read, restore to the previous
   /// position after the last successful read and suppress the error.
-  Self_t &read_with_format_repeated(const auto &format,
-                                    const Is_repeat auto &repeat,
-                                    auto &object) {
+  template <typename Fmt_t, typename Repeat_t, typename T>
+  Self_t &read_with_format_repeated(const Fmt_t &format,
+                                    const Repeat_t &repeat,
+                                    T &object) {
     return call_repeated(repeat,
                          [&] { std::ignore = m_parser.read(format, object); });
   }
@@ -417,7 +436,8 @@ class Fluent_parser {
   }
 
   /// Like `read_repeated`, but skips the given string literal.
-  Self_t &literal_repeated(const Is_repeat auto &repeat,
+  template <typename Repeat_t>
+  Self_t &literal_repeated(const Repeat_t &repeat,
                            const std::string_view &sv) {
     return do_call(repeat, [&] { std::ignore = m_parser.skip(m_format, sv); });
   }
@@ -425,52 +445,60 @@ class Fluent_parser {
   // ==== call ====
 
   /// Like `read`, but invokes the given function instead of reading an object.
-  Self_t &call(const std::invocable auto &function) {
+  template <typename Func_t>
+  Self_t &call(const Func_t &function) {
     return call_repeated(Repeat::one(), function);
   }
 
   /// Like `read_optional`, but invokes the given function instead of reading an
   /// object.
-  Self_t &call_optional(const std::invocable auto &function) {
+  template <typename Func_t>
+  Self_t &call_optional(const Func_t &function) {
     return call_repeated(Repeat::optional(), function);
   }
 
   /// Like `read_any`, but invokes the given function instead of reading an
   /// object.
-  Self_t &call_any(const std::invocable auto &function) {
+  template <typename Func_t>
+  Self_t &call_any(const Func_t &function) {
     return call_repeated(Repeat::any(), function);
   }
 
   /// Like `read_at_least`, but invokes the given function instead of reading an
   /// object.
+  template <typename Func_t>
   Self_t &call_at_least(std::size_t count,
-                        const std::invocable auto &function) {
+                        const Func_t &function) {
     return call_repeated(Repeat::at_least(count), function);
   }
 
   /// Like `read_at_most`, but invokes the given function instead of reading an
   /// object.
-  Self_t &call_at_most(std::size_t count, const std::invocable auto &function) {
+  template <typename Func_t>
+  Self_t &call_at_most(std::size_t count, const Func_t &function) {
     return call_repeated(Repeat::at_most(count), function);
   }
 
   /// Like `read_exact`, but invokes the given function instead of reading an
   /// object.
-  Self_t &call_exact(std::size_t count, const std::invocable auto &function) {
+  template <typename Func_t>
+  Self_t &call_exact(std::size_t count, const Func_t &function) {
     return call_repeated(Repeat::exact(count), function);
   }
 
   /// Like `read_range`, but invokes the given function instead of reading an
   /// object.
+  template <typename Func_t>
   Self_t &call_range(std::size_t min, std::size_t max,
-                     const std::invocable auto &function) {
+                     const Func_t &function) {
     return call_repeated(Repeat::range(min, max), function);
   }
 
   /// Like `read_repeated`, but invokes the given function instead of reading an
   /// object.
-  Self_t &call_repeated(const Is_repeat auto &repeat,
-                        const std::invocable auto &function) {
+  template <typename Repeat_t, typename Func_t>
+  Self_t &call_repeated(const Repeat_t &repeat,
+                        const Func_t &function) {
     return do_call(repeat, function);
   }
 
@@ -503,9 +531,10 @@ class Fluent_parser {
   /// @param trailing_separators If `yes`, the separator is required after the
   /// last read. If `no`, the separator is not read after the last read. If
   /// `optional`, a separator after the last read is optional.
+  template <typename T, typename Repeat_t>
   Self_t &read_repeated_with_separators(
-      auto &object, const std::string_view &separator,
-      const Is_repeat auto &repeat,
+      T &object, const std::string_view &separator,
+      const Repeat_t &repeat,
       Allow_repeated_separators allow_repeated_separators,
       Leading_separators leading_separators,
       Trailing_separators trailing_separators) {
@@ -517,9 +546,10 @@ class Fluent_parser {
 
   /// Like `read_repeated_with_separators`, but invokes a function instead of
   /// reads into an object. @see read_repeated_with_separators.
+  template <typename Func_t, typename Repeat_t>
   Self_t &call_repeated_with_separators(
-      const std::invocable auto &function, const std::string_view &separator,
-      const Is_repeat auto &repeat,
+      const Func_t &function, const std::string_view &separator,
+      const Repeat_t &repeat,
       Allow_repeated_separators allow_repeated_separators,
       Leading_separators leading_separators,
       Trailing_separators trailing_separators) {
@@ -574,8 +604,9 @@ class Fluent_parser {
   /// tracking the position before the token (used by subsequent
   /// check_prev_token calls), and of rewinding the position to
   /// m_backtrack_position after parse errors.
-  Self_t &do_call(const Is_repeat auto &repeat,
-                  const std::invocable auto &function) {
+  template <typename Repeat_t, typename Func_t>
+  Self_t &do_call(const Repeat_t &repeat,
+                  const Func_t &function) {
     switch (m_fluent_state) {
       case Fluent_state::last_suppressed:  // Forget previous token state,
                                            // execute this call.

@@ -145,8 +145,7 @@ class Map_boundary_container
   using This_t = Map_boundary_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Map_boundary_container(Args_t &&...args) noexcept(
       noexcept(Base_t(std::forward<Args_t>(args)...)))
       : Base_t(std::forward<Args_t>(args)...) {}
@@ -167,8 +166,7 @@ class Vector_boundary_container
   using This_t = Vector_boundary_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Vector_boundary_container(Args_t &&...args) noexcept(
       noexcept(Base_t(std::forward<Args_t>(args)...)))
       : Base_t(std::forward<Args_t>(args)...) {}
@@ -189,8 +187,7 @@ class Map_interval_container
   using This_t = Map_interval_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Map_interval_container(Args_t &&...args) noexcept(
       noexcept(Base_t(std::forward<Args_t>(args)...)))
       : Base_t(std::forward<Args_t>(args)...) {}
@@ -211,8 +208,7 @@ class Vector_interval_container
   using This_t = Vector_interval_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Vector_interval_container(Args_t &&...args) noexcept(
       noexcept(Base_t(std::forward<Args_t>(args)...)))
       : Base_t(std::forward<Args_t>(args)...) {}
@@ -237,8 +233,7 @@ class Map_boundary_container
   using This_t = Map_boundary_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Map_boundary_container(Args_t &&...args) noexcept
       : Base_t(std::forward<Args_t>(args)...) {}
 };
@@ -251,8 +246,7 @@ class Vector_boundary_container
   using This_t = Vector_boundary_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Vector_boundary_container(Args_t &&...args) noexcept
       : Base_t(std::forward<Args_t>(args)...) {}
 };
@@ -265,8 +259,7 @@ class Map_interval_container
   using This_t = Map_interval_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Map_interval_container(Args_t &&...args) noexcept
       : Base_t(std::forward<Args_t>(args)...) {}
 };
@@ -279,8 +272,7 @@ class Vector_interval_container
   using This_t = Vector_interval_container<Set_traits_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Vector_interval_container(Args_t &&...args) noexcept
       : Base_t(std::forward<Args_t>(args)...) {}
 };
@@ -293,8 +285,7 @@ class Map_nested_container
   using This_t = Map_nested_container<Key_traits_tp, Mapped_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Map_nested_container(Args_t &&...args) noexcept
       : Base_t(std::forward<Args_t>(args)...) {}
 };

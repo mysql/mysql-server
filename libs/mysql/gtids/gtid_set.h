@@ -128,8 +128,7 @@ class Gtid_interval_set : public detail::Gtid_interval_set_alias {
   using Base_t::Set_traits_t;
 
   /// Enable all constructors from Map_interval_container.
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<Gtid_interval_set, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<Gtid_interval_set, Args_t...>::value, int> = 0>
   explicit Gtid_interval_set(Args_t &&...args) noexcept
       : detail::Gtid_interval_set_alias(std::forward<Args_t>(args)...) {}
 };
@@ -149,8 +148,7 @@ class Gtid_set : public detail::Gtid_set_alias {
 
  public:
   /// Enable all constructors from Map_nested_container.
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<Gtid_set, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<Gtid_set, Args_t...>::value, int> = 0>
   explicit Gtid_set(Args_t &&...args) noexcept
       : Base_t(std::forward<Args_t>(args)...) {}
 

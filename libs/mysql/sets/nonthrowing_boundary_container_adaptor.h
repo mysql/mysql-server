@@ -349,8 +349,9 @@ class Nonthrowing_boundary_container_adaptor
 
   /// Return iterator to the leftmost boundary at or after `cursor` that is
   /// greater than the given element.
+  template <typename Self_t, typename Cursor_t>
   [[nodiscard]] static auto upper_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const auto &cursor,
+      Self_t &self, const Cursor_t &cursor,
       const Element_t &element) noexcept {
     return Throwing_boundary_container_t::upper_bound_impl(self.throwing(),
                                                            cursor, element);
@@ -358,8 +359,9 @@ class Nonthrowing_boundary_container_adaptor
 
   /// Return iterator to the leftmost boundary at or after `cursor` that is
   /// greater than or equal to the given element.
+  template <typename Self_t, typename Cursor_t>
   [[nodiscard]] static auto lower_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const auto &cursor,
+      Self_t &self, const Cursor_t &cursor,
       const Element_t &element) noexcept {
     return Throwing_boundary_container_t::lower_bound_impl(self.throwing(),
                                                            cursor, element);

@@ -166,8 +166,7 @@ class Basic_nested_container_wrapper
   // Collection_interface.
   using Nested_set_base_t::operator[];
 
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Basic_nested_container_wrapper(Args_t &&...args) noexcept(
       noexcept(Wrapper_base_t(std::forward<Args_t>(args)...)))
       : Wrapper_base_t(std::forward<Args_t>(args)...) {}

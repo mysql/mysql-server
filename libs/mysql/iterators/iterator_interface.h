@@ -183,9 +183,7 @@ class Dereferenceable_wrapper {
  public:
   using Value_t = Value_tp;
 
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<Dereferenceable_wrapper<Value_t>,
-                                      Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<Dereferenceable_wrapper<Value_t>, Args_t...>::value, int> = 0>
   explicit Dereferenceable_wrapper(Args_t &&...args)
       : m_value(std::forward<Args_t>(args)...) {}
 

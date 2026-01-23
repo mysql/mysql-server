@@ -451,8 +451,7 @@ class Policy_growable_ptr : public Representation_tp {
   static constexpr auto null_terminated = null_terminated_tp;
 
   /// Construct a new object, forwarding all arguments to the base class.
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Policy_growable_ptr(Args_t &&...args)
       : Representation_tp(std::forward<Args_t>(args)...) {}
 
@@ -513,8 +512,7 @@ class Policy_fixed : public Representation_tp {
   static constexpr auto null_terminated = null_terminated_tp;
 
   /// Construct a new object, forwarding all arguments to the base class.
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Policy_fixed(Args_t &&...args)
       : Representation_tp(std::forward<Args_t>(args)...) {}
 
@@ -604,8 +602,7 @@ class Out_str_fixed_ptrptr_z
   using This_t = Out_str_fixed_ptrptr_z<Char_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Out_str_fixed_ptrptr_z(Args_t &&...args)
       : detail::Out_str_fixed_ptrptr_z_alias<Char_tp>(
             std::forward<Args_t>(args)...) {}
@@ -619,8 +616,7 @@ class Out_str_fixed_ptrptr_nz
   using This_t = Out_str_fixed_ptrptr_nz<Char_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Out_str_fixed_ptrptr_nz(Args_t &&...args)
       : detail::Out_str_fixed_ptrptr_nz_alias<Char_tp>(
             std::forward<Args_t>(args)...) {}
@@ -634,8 +630,7 @@ class Out_str_fixed_ptrsize_z
   using This_t = Out_str_fixed_ptrsize_z<Size_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Out_str_fixed_ptrsize_z(Args_t &&...args)
       : detail::Out_str_fixed_ptrsize_z_alias<Size_tp>(
             std::forward<Args_t>(args)...) {}
@@ -649,8 +644,7 @@ class Out_str_fixed_ptrsize_nz
   using This_t = Out_str_fixed_ptrsize_nz<Size_tp>;
 
  public:
-  template <class... Args_t>
-    requires mysql::meta::Not_decayed<This_t, Args_t...>
+  template <class... Args_t, std::enable_if_t<!mysql::meta::detail::Is_decayed_helper<This_t, Args_t...>::value, int> = 0>
   explicit Out_str_fixed_ptrsize_nz(Args_t &&...args)
       : detail::Out_str_fixed_ptrsize_nz_alias<Size_tp>(
             std::forward<Args_t>(args)...) {}

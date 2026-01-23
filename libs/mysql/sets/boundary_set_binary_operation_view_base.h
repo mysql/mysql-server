@@ -118,9 +118,9 @@ class Boundary_set_binary_operation_view_base
   ///
   /// @return lower bound for the given element in the given
   /// Boundary_set_binary_operation_view_base object.
-  template <class Iter_t>
+  template <class Iter_t, typename Self_t>
   [[nodiscard]] static constexpr Iter_t lower_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const Iter_t &hint,
+      Self_t &self, const Iter_t &hint,
       const Element_t &element) {
     return Iter_t(self.m_source1.pointer(), self.m_source2.pointer(),
                   self.m_source1.lower_bound(hint.position1(), element),
@@ -131,9 +131,9 @@ class Boundary_set_binary_operation_view_base
   ///
   /// @return upper bound for the given element in the given
   /// Boundary_set_binary_operation_view_base object.
-  template <class Iter_t>
+  template <class Iter_t, typename Self_t>
   [[nodiscard]] static constexpr Iter_t upper_bound_impl(
-      mysql::meta::Is_same_ignore_const<This_t> auto &self, const Iter_t &hint,
+      Self_t &self, const Iter_t &hint,
       const Element_t &element) {
     return Iter_t(self.m_source1.pointer(), self.m_source2.pointer(),
                   self.m_source1.upper_bound(hint.position1(), element),

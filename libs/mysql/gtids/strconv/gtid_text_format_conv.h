@@ -157,8 +157,7 @@ void decode_impl(const Gtid_text_format &format, Parser &parser,
 
   // INTERVAL_SET
   auto parse_interval_set = [&] {
-    fluent                       //
-        .read(interval_set)      // parse INTERVAL_SET
+    fluent.read(interval_set)  // parse INTERVAL_SET
         .check_prev_token([&] {  // add to output
           if (gtid_set.inplace_union(tsid, std::move(interval_set)) !=
               mysql::utils::Return_status::ok) {
@@ -178,21 +177,18 @@ void decode_impl(const Gtid_text_format &format, Parser &parser,
 
   // TAG_SET := (":" TAG)* (":" INTERVAL_SET)?
   auto parse_tag_and_interval_set = [&] {
-    fluent                          //
-        .call_any([&] {             // (":" TAG)*
-          fluent                    //
-              .call(parse_sep)      // ":"
-              .read(tsid.tag());    // TAG
-        })                          //
-        .end_optional()             // may end here
-        .call(parse_sep)            // ":"
-        .call(parse_interval_set);  // INTERVAL_SET
+    fluent.call_any([&] {             // (":" TAG)*
+          fluent.call(parse_sep)      // ":"
+              .read(tsid.tag());      // TAG
+        })
+        .end_optional()               // may end here
+        .call(parse_sep)              // ":"
+        .call(parse_interval_set);    // INTERVAL_SET
   };
 
   // UUID_SET := UUID (TAG_SET)?
   auto parse_uuid_and_tags_and_interval_sets = [&] {
-    fluent                                      //
-        .read(tsid.uuid())                      // UUID
+    fluent.read(tsid.uuid())                    // UUID
         .end_optional()                         // may end here
         .call([&] { tsid.tag().clear(); })      // reset the tag
         .call_any(parse_tag_and_interval_set);  // TAG_SET
