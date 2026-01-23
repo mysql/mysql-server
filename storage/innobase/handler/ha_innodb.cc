@@ -196,6 +196,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 #include "ut0test.h"
 #include "ut0ut.h"
+#include "vec0hnsw_registry.h"
 #else
 #include <typelib.h>
 #include "buf0types.h"
@@ -9458,6 +9459,41 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
         break;
       default:
         break;
+    }
+  }
+
+  /* HNSW Vector Index: auto-insert vector into HNSW index if registered */
+  if (error == DB_SUCCESS) {
+    std::string hnsw_tbl_name(table->s->table_name.str);
+    auto &hnsw_registry = innodb_vector::HnswIndexRegistry::instance();
+    if (hnsw_registry.has_index(hnsw_tbl_name)) {
+      auto *hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name);
+      if (hnsw_idx) {
+        /* Get primary key value as node ID */
+        uint64_t hnsw_row_id = 0;
+        if (table->s->primary_key != MAX_KEY) {
+          KEY *pk = &table->key_info[table->s->primary_key];
+          Field *pk_field = table->field[pk->key_part[0].fieldnr - 1];
+          hnsw_row_id = static_cast<uint64_t>(pk_field->val_int());
+        }
+
+        /* Find first VECTOR column and extract data */
+        for (uint i = 0; i < table->s->fields; i++) {
+          Field *fld = table->field[i];
+          if (fld->type() == MYSQL_TYPE_VECTOR) {
+            String vec_buf;
+            fld->val_str(&vec_buf);
+            if (vec_buf.length() >= sizeof(float)) {
+              const float *vec_ptr =
+                  reinterpret_cast<const float *>(vec_buf.ptr());
+              size_t dims = vec_buf.length() / sizeof(float);
+              std::vector<float> vec_data(vec_ptr, vec_ptr + dims);
+              hnsw_idx->insert(hnsw_row_id, vec_data);
+            }
+            break; /* Only first VECTOR column */
+          }
+        }
+      }
     }
   }
 
