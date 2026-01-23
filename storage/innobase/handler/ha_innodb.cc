@@ -9462,36 +9462,50 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
     }
   }
 
-  /* HNSW Vector Index: auto-insert vector into HNSW index if registered */
+  /* HNSW Vector Index: auto-insert vectors into all registered HNSW indexes */
   if (error == DB_SUCCESS) {
     std::string hnsw_tbl_name(table->s->table_name.str);
     auto &hnsw_registry = innodb_vector::HnswIndexRegistry::instance();
-    if (hnsw_registry.has_index(hnsw_tbl_name)) {
-      auto *hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name);
-      if (hnsw_idx) {
-        /* Get primary key value as node ID */
-        uint64_t hnsw_row_id = 0;
-        if (table->s->primary_key != MAX_KEY) {
-          KEY *pk = &table->key_info[table->s->primary_key];
-          Field *pk_field = table->field[pk->key_part[0].fieldnr - 1];
-          hnsw_row_id = static_cast<uint64_t>(pk_field->val_int());
+
+    /* Get primary key value as node ID (shared across all indexes) */
+    uint64_t hnsw_row_id = 0;
+    bool pk_extracted = false;
+    bool legacy_used = false;
+
+    /* Iterate ALL VECTOR columns, insert into each registered index */
+    for (uint i = 0; i < table->s->fields; i++) {
+      Field *fld = table->field[i];
+      if (fld->type() == MYSQL_TYPE_VECTOR) {
+        std::string col_name(fld->field_name);
+
+        /* Check for column-specific index first, then legacy (table-only) */
+        auto *hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name, col_name);
+        if (!hnsw_idx) {
+          if (legacy_used) continue;
+          hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name, "");
+          if (!hnsw_idx) continue;
+          /* Legacy index: only use for the first VECTOR column */
+          legacy_used = true;
         }
 
-        /* Find first VECTOR column and extract data */
-        for (uint i = 0; i < table->s->fields; i++) {
-          Field *fld = table->field[i];
-          if (fld->type() == MYSQL_TYPE_VECTOR) {
-            String vec_buf;
-            fld->val_str(&vec_buf);
-            if (vec_buf.length() >= sizeof(float)) {
-              const float *vec_ptr =
-                  reinterpret_cast<const float *>(vec_buf.ptr());
-              size_t dims = vec_buf.length() / sizeof(float);
-              std::vector<float> vec_data(vec_ptr, vec_ptr + dims);
-              hnsw_idx->insert(hnsw_row_id, vec_data);
-            }
-            break; /* Only first VECTOR column */
+        /* Extract PK once */
+        if (!pk_extracted) {
+          if (table->s->primary_key != MAX_KEY) {
+            KEY *pk = &table->key_info[table->s->primary_key];
+            Field *pk_field = table->field[pk->key_part[0].fieldnr - 1];
+            hnsw_row_id = static_cast<uint64_t>(pk_field->val_int());
           }
+          pk_extracted = true;
+        }
+
+        String vec_buf;
+        fld->val_str(&vec_buf);
+        if (vec_buf.length() >= sizeof(float)) {
+          const float *vec_ptr =
+              reinterpret_cast<const float *>(vec_buf.ptr());
+          size_t dims = vec_buf.length() / sizeof(float);
+          std::vector<float> vec_data(vec_ptr, vec_ptr + dims);
+          hnsw_idx->insert(hnsw_row_id, vec_data);
         }
       }
     }
