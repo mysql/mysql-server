@@ -10217,6 +10217,54 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
     }
   }
 
+  /* HNSW Vector Index: update vectors in all registered HNSW indexes */
+  if (error == DB_SUCCESS) {
+    std::string hnsw_tbl_name(table->s->table_name.str);
+    auto &hnsw_registry = innodb_vector::HnswIndexRegistry::instance();
+
+    uint64_t hnsw_row_id = 0;
+    bool pk_extracted = false;
+    bool legacy_used = false;
+
+    for (uint i = 0; i < table->s->fields; i++) {
+      Field *fld = table->field[i];
+      if (fld->type() == MYSQL_TYPE_VECTOR) {
+        std::string col_name(fld->field_name);
+
+        auto *hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name, col_name);
+        if (!hnsw_idx) {
+          if (legacy_used) continue;
+          hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name, "");
+          if (!hnsw_idx) continue;
+          legacy_used = true;
+        }
+
+        if (!pk_extracted) {
+          if (table->s->primary_key != MAX_KEY) {
+            KEY *pk = &table->key_info[table->s->primary_key];
+            Field *pk_field = table->field[pk->key_part[0].fieldnr - 1];
+            hnsw_row_id = static_cast<uint64_t>(pk_field->val_int());
+          }
+          pk_extracted = true;
+        }
+
+        /* Use new_row data for the updated vector */
+        table->move_fields(table->field, new_row, table->record[0]);
+        String vec_buf;
+        fld->val_str(&vec_buf);
+        table->move_fields(table->field, table->record[0], new_row);
+
+        if (vec_buf.length() >= sizeof(float)) {
+          const float *vec_ptr =
+              reinterpret_cast<const float *>(vec_buf.ptr());
+          size_t dims = vec_buf.length() / sizeof(float);
+          std::vector<float> vec_data(vec_ptr, vec_ptr + dims);
+          hnsw_idx->update(hnsw_row_id, vec_data);
+        }
+      }
+    }
+  }
+
   innobase_srv_conc_exit_innodb(m_prebuilt);
 
 func_exit:
@@ -10285,6 +10333,54 @@ int ha_innobase::delete_row(
   if (error == DB_SUCCESS) {
     error = row_update_for_mysql((byte *)record, m_prebuilt);
     innobase_srv_conc_exit_innodb(m_prebuilt);
+  }
+
+  /* HNSW Vector Index: remove vectors from all registered HNSW indexes */
+  if (error == DB_SUCCESS) {
+    std::string hnsw_tbl_name(table->s->table_name.str);
+    auto &hnsw_registry = innodb_vector::HnswIndexRegistry::instance();
+
+    uint64_t hnsw_row_id = 0;
+    bool pk_extracted = false;
+    bool has_vector_col = false;
+
+    /* Check if table has any VECTOR columns with registered indexes */
+    for (uint i = 0; i < table->s->fields; i++) {
+      if (table->field[i]->type() == MYSQL_TYPE_VECTOR) {
+        has_vector_col = true;
+        break;
+      }
+    }
+
+    if (has_vector_col) {
+      /* Extract PK for the row being deleted */
+      if (table->s->primary_key != MAX_KEY) {
+        KEY *pk = &table->key_info[table->s->primary_key];
+        Field *pk_field = table->field[pk->key_part[0].fieldnr - 1];
+        hnsw_row_id = static_cast<uint64_t>(pk_field->val_int());
+        pk_extracted = true;
+      }
+
+      if (pk_extracted) {
+        bool legacy_used = false;
+        for (uint i = 0; i < table->s->fields; i++) {
+          Field *fld = table->field[i];
+          if (fld->type() == MYSQL_TYPE_VECTOR) {
+            std::string col_name(fld->field_name);
+
+            auto *hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name, col_name);
+            if (!hnsw_idx) {
+              if (legacy_used) continue;
+              hnsw_idx = hnsw_registry.get_index(hnsw_tbl_name, "");
+              if (!hnsw_idx) continue;
+              legacy_used = true;
+            }
+
+            hnsw_idx->remove(hnsw_row_id);
+          }
+        }
+      }
+    }
   }
 
   /* Tell the InnoDB server that there might be work for

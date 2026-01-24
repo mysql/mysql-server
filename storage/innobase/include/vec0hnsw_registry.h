@@ -34,17 +34,20 @@ class HnswIndexRegistry {
     @param dim         Vector dimensionality
     @param M           HNSW M parameter (connections per layer)
     @param ef_construction  HNSW ef parameter for construction
+    @param metric      Distance metric (L2, COSINE, DOT_PRODUCT)
     @return true on success, false if index already exists
   */
   bool register_index(const std::string& table_name,
                       const std::string& column_name,
                       size_t dim,
-                      size_t M = 16, size_t ef_construction = 200);
+                      size_t M = 16, size_t ef_construction = 200,
+                      hnsw_metric_t metric = hnsw_metric_t::L2);
 
   /** Backward-compat overload (no column). */
   bool register_index(const std::string& table_name, size_t dim,
-                      size_t M = 16, size_t ef_construction = 200) {
-    return register_index(table_name, "", dim, M, ef_construction);
+                      size_t M = 16, size_t ef_construction = 200,
+                      hnsw_metric_t metric = hnsw_metric_t::L2) {
+    return register_index(table_name, "", dim, M, ef_construction, metric);
   }
 
   /**
@@ -82,6 +85,18 @@ class HnswIndexRegistry {
     @return Vector of column names (empty string entries for legacy indexes)
   */
   std::vector<std::string> get_columns_for_table(const std::string& table_name);
+
+  /**
+    Parse a metric string to enum value.
+    @param metric_str  String: "l2", "cosine", "dot_product" (case-insensitive)
+    @return Corresponding enum value, defaults to L2 for unknown strings
+  */
+  static hnsw_metric_t parse_metric(const std::string& metric_str);
+
+  /**
+    Convert metric enum to string representation.
+  */
+  static const char* metric_to_string(hnsw_metric_t metric);
 
  private:
   HnswIndexRegistry() = default;

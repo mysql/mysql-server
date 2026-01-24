@@ -1656,7 +1656,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"VECTOR_TO_STRING", SQL_FN(Item_func_from_vector, 1)},
     {"VECTOR_DIM", SQL_FN(Item_func_vector_dim, 1)},
     {"VECTOR_SEARCH", SQL_FN_V(Item_func_vector_search, 3, 5)},
-    {"HNSW_CREATE_INDEX", SQL_FN_V_LIST_THD(Item_func_hnsw_create_index, 4, 5)},
+    {"HNSW_CREATE_INDEX", SQL_FN_V_LIST_THD(Item_func_hnsw_create_index, 4, 6)},
     {"HNSW_DROP_INDEX", SQL_FN_V_LIST_THD(Item_func_hnsw_drop_index, 1, 2)},
     {"HNSW_SAVE_INDEX", SQL_FN_V_LIST_THD(Item_func_hnsw_save_index, 2, 3)},
     {"HNSW_LOAD_INDEX", SQL_FN_V_LIST_THD(Item_func_hnsw_load_index, 2, 3)},

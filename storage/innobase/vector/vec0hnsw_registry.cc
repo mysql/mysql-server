@@ -6,6 +6,8 @@
 */
 
 #include "../include/vec0hnsw_registry.h"
+#include <algorithm>
+#include <cctype>
 
 namespace innodb_vector {
 
@@ -17,7 +19,8 @@ HnswIndexRegistry& HnswIndexRegistry::instance() {
 bool HnswIndexRegistry::register_index(const std::string& table_name,
                                         const std::string& column_name,
                                         size_t dim, size_t M,
-                                        size_t ef_construction) {
+                                        size_t ef_construction,
+                                        hnsw_metric_t metric) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   std::string key = make_key(table_name, column_name);
@@ -26,9 +29,11 @@ bool HnswIndexRegistry::register_index(const std::string& table_name,
   }
 
   hnsw_config_t config;
-  config.dimensions = dim;
-  config.M = M;
-  config.ef_construction = ef_construction;
+  config.dimensions = static_cast<uint32_t>(dim);
+  config.M = static_cast<uint32_t>(M);
+  config.M0 = static_cast<uint32_t>(M * 2);
+  config.ef_construction = static_cast<uint32_t>(ef_construction);
+  config.metric = metric;
   indexes_[key] = std::make_unique<HnswIndex>(config);
   return true;
 }
@@ -85,6 +90,35 @@ std::vector<std::string> HnswIndexRegistry::get_columns_for_table(
     }
   }
   return result;
+}
+
+hnsw_metric_t HnswIndexRegistry::parse_metric(const std::string& metric_str) {
+  std::string lower;
+  lower.reserve(metric_str.size());
+  for (char c : metric_str) {
+    lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+
+  if (lower == "cosine" || lower == "cos") {
+    return hnsw_metric_t::COSINE;
+  } else if (lower == "dot_product" || lower == "dot" || lower == "ip" ||
+             lower == "inner_product") {
+    return hnsw_metric_t::DOT_PRODUCT;
+  }
+  // Default: L2
+  return hnsw_metric_t::L2;
+}
+
+const char* HnswIndexRegistry::metric_to_string(hnsw_metric_t metric) {
+  switch (metric) {
+    case hnsw_metric_t::COSINE:
+      return "cosine";
+    case hnsw_metric_t::DOT_PRODUCT:
+      return "dot_product";
+    case hnsw_metric_t::L2:
+    default:
+      return "l2";
+  }
 }
 
 }  // namespace innodb_vector
