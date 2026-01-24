@@ -10169,7 +10169,9 @@ void Field_typed_array::make_send_field(Send_field *field) const {
 
 void Field_vector::make_send_field(Send_field *field) const {
   Field::make_send_field(field);
-  field->type = MYSQL_TYPE_VECTOR;
+  // Send as BLOB on the wire protocol for compatibility with clients
+  // that don't recognize MYSQL_TYPE_VECTOR (e.g., PHP mysqli).
+  field->type = MYSQL_TYPE_BLOB;
 }
 
 void Field_typed_array::set_field_index(uint16 field_index) {
