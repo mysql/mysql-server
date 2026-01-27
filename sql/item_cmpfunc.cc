@@ -3345,8 +3345,16 @@ bool Item_func_between::resolve_type(THD *thd) {
     Detect the comparison of DATE/DATETIME items.
     At least one of items should be a DATE/DATETIME item and other items
     should return the STRING result.
+
+    Also detect when all three arguments are temporal types (including YEAR).
+    When YEAR is mixed with DATE/DATETIME/TIMESTAMP, the aggregated cmp_type
+    becomes REAL_RESULT, but we still need proper temporal comparison to avoid
+    comparing incompatible numeric formats (e.g., DATE as YYYYMMDD vs
+    TIMESTAMP as YYYYMMDDHHMMSS). See Bug#119727.
   */
-  if (cmp_type == STRING_RESULT) {
+  const bool all_temporal =
+      args[0]->is_temporal() && args[1]->is_temporal() && args[2]->is_temporal();
+  if (cmp_type == STRING_RESULT || all_temporal) {
     for (int i = 0; i < 3; i++) {
       if (args[i]->is_temporal_with_date())
         datetime_items_found++;

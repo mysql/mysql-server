@@ -1,0 +1,65 @@
+#
+# Bug#119727: wrong result for 'value between a and null' for certain
+#             temporal types
+#
+# Test case 1: DATE, TIMESTAMP, YEAR(NULL) - was returning 0, should be NULL
+CREATE TABLE t1 (value DATE, a TIMESTAMP, b YEAR);
+INSERT INTO t1 VALUES ('2019-12-25', '2017-05-24', NULL);
+SELECT value BETWEEN a AND b FROM t1;
+value BETWEEN a AND b
+NULL
+DROP TABLE t1;
+# Test case 2: DATE, DATE, YEAR(NULL) - was already correct (NULL)
+CREATE TABLE t2 (value DATE, a DATE, b YEAR);
+INSERT INTO t2 VALUES ('2019-12-25', '2017-05-24', NULL);
+SELECT value BETWEEN a AND b FROM t2;
+value BETWEEN a AND b
+NULL
+DROP TABLE t2;
+# Test case 3: DATE, DATETIME, YEAR(NULL) - similar to case 1
+CREATE TABLE t3 (value DATE, a DATETIME, b YEAR);
+INSERT INTO t3 VALUES ('2019-12-25', '2017-05-24 00:00:00', NULL);
+SELECT value BETWEEN a AND b FROM t3;
+value BETWEEN a AND b
+NULL
+DROP TABLE t3;
+# Test case 4: Verify that when value < a, result is FALSE (not NULL)
+CREATE TABLE t4 (value DATE, a TIMESTAMP, b YEAR);
+INSERT INTO t4 VALUES ('2016-01-01', '2017-05-24', NULL);
+SELECT value BETWEEN a AND b FROM t4;
+value BETWEEN a AND b
+0
+DROP TABLE t4;
+# Test case 5: TIMESTAMP, DATE, YEAR(NULL)
+CREATE TABLE t5 (value TIMESTAMP, a DATE, b YEAR);
+INSERT INTO t5 VALUES ('2019-12-25 10:00:00', '2017-05-24', NULL);
+SELECT value BETWEEN a AND b FROM t5;
+value BETWEEN a AND b
+NULL
+DROP TABLE t5;
+# Test case 6: All three are temporal but none is NULL - verify normal behavior
+# Using DATE/DATETIME/TIMESTAMP (without YEAR) to avoid YEAR-DATE conversion edge cases
+CREATE TABLE t6 (value DATE, a TIMESTAMP, b DATETIME);
+INSERT INTO t6 VALUES ('2019-12-25', '2017-05-24', '2020-12-31 23:59:59');
+SELECT value BETWEEN a AND b FROM t6;
+value BETWEEN a AND b
+1
+INSERT INTO t6 VALUES ('2021-01-01', '2017-05-24', '2020-12-31 23:59:59');
+SELECT value BETWEEN a AND b FROM t6 WHERE value = '2021-01-01';
+value BETWEEN a AND b
+0
+DROP TABLE t6;
+# Test case 7: Lower bound is NULL
+CREATE TABLE t7 (value DATE, a YEAR, b TIMESTAMP);
+INSERT INTO t7 VALUES ('2019-12-25', NULL, '2020-05-24');
+SELECT value BETWEEN a AND b FROM t7;
+value BETWEEN a AND b
+NULL
+DROP TABLE t7;
+# Test case 8: Both bounds are NULL
+CREATE TABLE t8 (value DATE, a YEAR, b YEAR);
+INSERT INTO t8 VALUES ('2019-12-25', NULL, NULL);
+SELECT value BETWEEN a AND b FROM t8;
+value BETWEEN a AND b
+NULL
+DROP TABLE t8;
