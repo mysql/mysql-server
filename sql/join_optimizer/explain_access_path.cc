@@ -89,6 +89,7 @@
 #include "sql/window.h"
 #include "sql_string.h"
 #include "template_utils.h"
+#include "sql/iterators/hash_join_iterator.h"
 
 using std::string;
 using std::unique_ptr;
@@ -1638,6 +1639,18 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
       error |= AddMemberToObject<Json_string>(obj, "join_type", json_join_type);
       error |= AddMemberToObject<Json_string>(obj, "join_algorithm", "hash");
+
+      if (current_thd->lex->is_explain_analyze) {
+        bool spilled = false;
+        if (path->iterator != nullptr) {
+          const RowIterator *it = path->iterator->real_iterator();
+          if (const auto *hash_join = dynamic_cast<const HashJoinIterator *>(it)) {
+            spilled = hash_join->spilled_to_disk();
+          }
+        }
+        error |= AddMemberToObject<Json_boolean>(obj, "spilled_to_disk", spilled);
+      }
+
       children->push_back({path->hash_join().outer});
       children->push_back({path->hash_join().inner, "Hash"});
 
@@ -2398,6 +2411,7 @@ void Explain_format_tree::ExplainPrintTreeNode(const Json_dom *json, int level,
   assert(obj->get("operation")->json_type() == enum_json_type::J_STRING);
   *explain += down_cast<Json_string *>(obj->get("operation"))->value();
 
+  ExplainPrintWentOnDisk(obj, explain);
   ExplainPrintCosts(obj, explain);
 
   *explain += children_explain;
@@ -2460,6 +2474,28 @@ void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
     }
   }
   *explain += "\n";
+}
+
+void Explain_format_tree::ExplainPrintWentOnDisk(const Json_object *obj, string *explain) {  
+  const Json_dom *access_dom = obj->get("access_type");
+  if (access_dom == nullptr || access_dom->json_type() != enum_json_type::J_STRING) return;
+
+  const auto access_type = down_cast<const Json_string *>(access_dom)->value();
+  if (access_type != "join") return;
+
+  const Json_dom *algo_dom = obj->get("join_algorithm");
+  if (algo_dom == nullptr || algo_dom->json_type() != enum_json_type::J_STRING) return;
+
+  const auto join_algo = down_cast<const Json_string *>(algo_dom)->value();
+  if (join_algo != "hash") return;
+
+  const Json_dom *spill_dom = obj->get("spilled_to_disk");
+  if (spill_dom == nullptr || spill_dom->json_type() != enum_json_type::J_BOOLEAN) return;
+
+  const bool spilled_to_disk = down_cast<const Json_boolean *>(spill_dom)->value();
+  *explain += " (spilled_to_disk=";
+  *explain += spilled_to_disk ? "true" : "false";
+  *explain += ")";
 }
 
 /*

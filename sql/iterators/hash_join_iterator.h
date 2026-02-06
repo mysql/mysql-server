@@ -355,6 +355,8 @@ class HashJoinIterator final : public RowIterator {
 
   int ChunkCount() { return m_chunk_files_on_disk.size(); }
 
+  bool spilled_to_disk() const { return m_spilled_to_disk; }
+  
  private:
   bool DoInit() override;
 
@@ -706,6 +708,8 @@ class HashJoinIterator final : public RowIterator {
   /// degenerate antijoin.)
   /// @returns 'true' in case of error.
   bool InitHashTable();
+
+  bool m_spilled_to_disk{false};
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_ITERATOR_H_

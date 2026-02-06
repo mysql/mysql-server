@@ -593,6 +593,8 @@ bool HashJoinIterator::BuildHashTable() {
           return true;
         }
 
+        m_spilled_to_disk = true;
+
         // Write out the remaining rows from the build input out to chunk files.
         // The probe input will be written out to chunk files later; we will do
         // it _after_ we have checked the probe input for matches against the
