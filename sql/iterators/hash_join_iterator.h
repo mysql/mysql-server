@@ -355,7 +355,7 @@ class HashJoinIterator final : public RowIterator {
 
   int ChunkCount() { return m_chunk_files_on_disk.size(); }
 
-  bool spilled_to_disk() const { return m_spilled_to_disk; }
+  bool SpilledToDisk() const { return m_spilled_to_disk; }
   
  private:
   bool DoInit() override;

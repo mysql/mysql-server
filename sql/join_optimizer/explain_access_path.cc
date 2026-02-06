@@ -1645,7 +1645,7 @@ static unique_ptr<Json_object> SetObjectMembers(
         if (path->iterator != nullptr) {
           const RowIterator *it = path->iterator->real_iterator();
           if (const auto *hash_join = dynamic_cast<const HashJoinIterator *>(it)) {
-            spilled = hash_join->spilled_to_disk();
+            spilled = hash_join->SpilledToDisk();
           }
         }
         error |= AddMemberToObject<Json_boolean>(obj, "spilled_to_disk", spilled);
@@ -2411,7 +2411,7 @@ void Explain_format_tree::ExplainPrintTreeNode(const Json_dom *json, int level,
   assert(obj->get("operation")->json_type() == enum_json_type::J_STRING);
   *explain += down_cast<Json_string *>(obj->get("operation"))->value();
 
-  ExplainPrintWentOnDisk(obj, explain);
+  ExplainPrintSpilledToDisk(obj, explain);
   ExplainPrintCosts(obj, explain);
 
   *explain += children_explain;
@@ -2476,7 +2476,7 @@ void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
   *explain += "\n";
 }
 
-void Explain_format_tree::ExplainPrintWentOnDisk(const Json_object *obj, string *explain) {  
+void Explain_format_tree::ExplainPrintSpilledToDisk(const Json_object *obj, string *explain) {  
   const Json_dom *access_dom = obj->get("access_type");
   if (access_dom == nullptr || access_dom->json_type() != enum_json_type::J_STRING) return;
 
