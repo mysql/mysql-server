@@ -133,13 +133,17 @@ bool HashJoinChunk::WriteRowToChunk(String *buffer, bool matched,
     return true;
   }
 
+  size_t local_bytes = 0;
+
   if (m_uses_match_flags) {
+    local_bytes += sizeof(matched);
     if (my_b_write(&m_file, pointer_cast<const uchar *>(&matched),
                    sizeof(matched)) != 0) {
       my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
       return true;
     }
   } else if (set_index != std::numeric_limits<size_t>::max()) {
+    local_bytes += sizeof(set_index);
     if (my_b_write(&m_file, pointer_cast<const uchar *>(&set_index),
                    sizeof(set_index)) != 0) {
       my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
@@ -161,6 +165,11 @@ bool HashJoinChunk::WriteRowToChunk(String *buffer, bool matched,
     my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
     return true;
   }
+
+  local_bytes += sizeof(data_length);
+  local_bytes += data_length;
+  
+  m_bytes_written += local_bytes;
 
   m_num_rows++;
   return false;

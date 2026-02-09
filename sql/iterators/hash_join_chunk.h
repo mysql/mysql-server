@@ -153,6 +153,8 @@ class HashJoinChunk {
   /// @retval true on error
   bool ContinueRead();
 
+  size_t BytesWritten() const { return m_bytes_written; }
+
  private:
   // A collection of which tables the chunk file holds data from. Used to
   // determine where to read data from, and where to put the data back.
@@ -170,6 +172,8 @@ class HashJoinChunk {
   // Used to resume writing and reading from previous position
   size_t m_last_write_pos{0};
   size_t m_last_read_pos{0};
+
+  size_t m_bytes_written{0};
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_CHUNK_H_

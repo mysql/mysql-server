@@ -358,6 +358,8 @@ class HashJoinIterator final : public RowIterator {
   bool SpilledToDisk() const { return m_spilled_to_disk; }
 
   double BufferFillRatio() const;
+
+  size_t BuildMemoryRequiredBytes() const { return UsedBytes();} 
   
  private:
   bool DoInit() override;
@@ -712,6 +714,8 @@ class HashJoinIterator final : public RowIterator {
   bool InitHashTable();
 
   bool m_spilled_to_disk{false};
+
+  size_t UsedBytes() const;
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_ITERATOR_H_
