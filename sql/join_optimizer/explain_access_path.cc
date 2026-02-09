@@ -2417,9 +2417,7 @@ void Explain_format_tree::ExplainPrintTreeNode(const Json_dom *json, int level,
   assert(obj->get("operation")->json_type() == enum_json_type::J_STRING);
   *explain += down_cast<Json_string *>(obj->get("operation"))->value();
 
-  ExplainPrintSpilledToDisk(obj, explain);
-  ExplainPrintBufferFillRatio(obj, explain);
-  ExplainPrintBytesUsed(obj, explain);
+  ExplainPrintExtra(obj, explain);
   ExplainPrintCosts(obj, explain);
 
   *explain += children_explain;
@@ -2484,7 +2482,9 @@ void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
   *explain += "\n";
 }
 
-void Explain_format_tree::ExplainPrintBytesUsed(const Json_object *obj, string *explain) {
+void Explain_format_tree::ExplainPrintExtra(const Json_object *obj, string *explain) {
+  if (obj->get("actual_rows") == nullptr) return;
+
   const Json_dom *access_dom = obj->get("access_type");
   if (access_dom == nullptr || access_dom->json_type() != enum_json_type::J_STRING) return;
 
@@ -2497,31 +2497,16 @@ void Explain_format_tree::ExplainPrintBytesUsed(const Json_object *obj, string *
   const auto join_algo = down_cast<const Json_string *>(algo_dom)->value();
   if (join_algo != "hash") return;
 
-  const Json_dom *bytes_dom = obj->get("bytes_used");
-  if (bytes_dom == nullptr || bytes_dom->json_type() != enum_json_type::J_UINT) return;
-
-  const size_t bytes_used = down_cast<const Json_uint *>(bytes_dom)->value();
-  *explain += " (bytes_used=";
-  *explain += FormatNumberReadably(bytes_used);
-  *explain += ")";
+  ExplainPrintSpilledToDisk(obj, explain);
+  ExplainPrintBufferFillRatio(obj, explain);
+  ExplainPrintBytesUsed(obj, explain);
 }
 
 void Explain_format_tree::ExplainPrintSpilledToDisk(const Json_object *obj, string *explain) {  
-  const Json_dom *access_dom = obj->get("access_type");
-  if (access_dom == nullptr || access_dom->json_type() != enum_json_type::J_STRING) return;
-
-  const auto access_type = down_cast<const Json_string *>(access_dom)->value();
-  if (access_type != "join") return;
-
-  const Json_dom *algo_dom = obj->get("join_algorithm");
-  if (algo_dom == nullptr || algo_dom->json_type() != enum_json_type::J_STRING) return;
-
-  const auto join_algo = down_cast<const Json_string *>(algo_dom)->value();
-  if (join_algo != "hash") return;
-
   const Json_dom *spill_dom = obj->get("spilled_to_disk");
   if (spill_dom == nullptr || spill_dom->json_type() != enum_json_type::J_BOOLEAN) return;
 
+  // Create GetJSONBoolean function?
   const bool spilled_to_disk = down_cast<const Json_boolean *>(spill_dom)->value();
   *explain += " (spilled_to_disk=";
   *explain += spilled_to_disk ? "true" : "false";
@@ -2529,24 +2514,23 @@ void Explain_format_tree::ExplainPrintSpilledToDisk(const Json_object *obj, stri
 }
 
 void Explain_format_tree::ExplainPrintBufferFillRatio(const Json_object *obj, string *explain) {
-  const Json_dom *access_dom = obj->get("access_type");
-  if (access_dom == nullptr || access_dom->json_type() != enum_json_type::J_STRING) return;
-
-  const auto access_type = down_cast<const Json_string *>(access_dom)->value();
-  if (access_type != "join") return;
-
-  const Json_dom *algo_dom = obj->get("join_algorithm");
-  if (algo_dom == nullptr || algo_dom->json_type() != enum_json_type::J_STRING) return;
-
-  const auto join_algo = down_cast<const Json_string *>(algo_dom)->value();
-  if (join_algo != "hash") return;
-
   const Json_dom *fill_dom = obj->get("fill_ratio");
   if (fill_dom == nullptr || fill_dom->json_type() != enum_json_type::J_DOUBLE) return;
 
-  const double fill_ratio = down_cast<const Json_double *>(fill_dom)->value();
+  const double fill_ratio = GetJSONDouble(obj, "fill_ratio");
   *explain += " (fill_ratio=";
   *explain += FormatNumberReadably(fill_ratio);
+  *explain += ")";
+}
+
+void Explain_format_tree::ExplainPrintBytesUsed(const Json_object *obj, string *explain) {
+  const Json_dom *bytes_dom = obj->get("bytes_used");
+  if (bytes_dom == nullptr || bytes_dom->json_type() != enum_json_type::J_UINT) return;
+
+  // Create GetJSONUnit function?
+  const size_t bytes_used = down_cast<const Json_uint *>(bytes_dom)->value();
+  *explain += " (bytes_used=";
+  *explain += FormatNumberReadably(bytes_used);
   *explain += ")";
 }
 
