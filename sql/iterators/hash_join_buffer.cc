@@ -42,6 +42,7 @@
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
 #include "template_utils.h"
+#include "hash_join_buffer.h"
 
 using pack_rows::TableCollection;
 
@@ -349,6 +350,21 @@ std::optional<LinkedImmutableString> HashJoinRowBuffer::find(Key key) const {
 std::optional<LinkedImmutableString> HashJoinRowBuffer::first_row() const {
   if (m_hash_map->empty()) return {};
   return m_hash_map->begin()->second;
+}
+
+size_t hash_join_buffer::HashJoinRowBuffer::UsedMemoryBytes() const {
+  // Preious tried solution. 
+  // return m_allocated_bytes;
+  if (m_hash_map == nullptr) return 0;
+
+  const size_t hash_map_bytes = 
+    m_hash_map->bucket_count() * sizeof(HashMap::bucket_type) + 
+    m_hash_map->values().capacity() * 
+      sizeof(HashMap::value_container_type::value_type);
+  const size_t mem_root_bytes = m_mem_root.allocated_size();
+  const size_t overflow_bytes = m_overflow_mem_root.allocated_size();
+
+  return hash_map_bytes + mem_root_bytes + overflow_bytes;
 }
 
 }  // namespace hash_join_buffer

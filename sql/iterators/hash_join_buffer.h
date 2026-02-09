@@ -169,6 +169,9 @@ class HashJoinRowBuffer {
 
   bool contains(const Key &key) const { return find(key).has_value(); }
 
+  size_t UsedMemoryBytes() const;
+  size_t MaxMemoryAvailable() const { return m_max_mem_available; }
+
  private:
   // The type of hash map in which the rows are stored.
   class HashMap;

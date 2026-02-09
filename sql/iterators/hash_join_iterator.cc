@@ -53,6 +53,7 @@
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "hash_join_iterator.h"
 
 using hash_join_buffer::LoadImmutableStringIntoTableBuffers;
 
@@ -489,6 +490,17 @@ static bool InitializeChunkFiles(size_t estimated_rows_produced_by_join,
   }
 
   return false;
+}
+
+double HashJoinIterator::BufferFillRatio() const {
+  size_t used = m_row_buffer.UsedMemoryBytes();
+  size_t max = m_row_buffer.MaxMemoryAvailable();
+
+  // Taken from prv. master thesis, dont really see why.
+  if (max == 0) {
+    return 0.0;
+  }
+  return static_cast<double>(used) / static_cast<double>(max);
 }
 
 bool HashJoinIterator::BuildHashTable() {

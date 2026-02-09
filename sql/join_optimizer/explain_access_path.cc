@@ -1642,13 +1642,16 @@ static unique_ptr<Json_object> SetObjectMembers(
 
       if (current_thd->lex->is_explain_analyze) {
         bool spilled = false;
+        double fill_ratio = 0.0;
         if (path->iterator != nullptr) {
           const RowIterator *it = path->iterator->real_iterator();
           if (const auto *hash_join = dynamic_cast<const HashJoinIterator *>(it)) {
             spilled = hash_join->SpilledToDisk();
+            fill_ratio = hash_join->BufferFillRatio();
           }
         }
         error |= AddMemberToObject<Json_boolean>(obj, "spilled_to_disk", spilled);
+        error |= AddMemberToObject<Json_double>(obj, "fill_ratio", fill_ratio);
       }
 
       children->push_back({path->hash_join().outer});
@@ -2412,6 +2415,7 @@ void Explain_format_tree::ExplainPrintTreeNode(const Json_dom *json, int level,
   *explain += down_cast<Json_string *>(obj->get("operation"))->value();
 
   ExplainPrintSpilledToDisk(obj, explain);
+  ExplainPrintBufferFillRatio(obj, explain);
   ExplainPrintCosts(obj, explain);
 
   *explain += children_explain;
@@ -2495,6 +2499,28 @@ void Explain_format_tree::ExplainPrintSpilledToDisk(const Json_object *obj, stri
   const bool spilled_to_disk = down_cast<const Json_boolean *>(spill_dom)->value();
   *explain += " (spilled_to_disk=";
   *explain += spilled_to_disk ? "true" : "false";
+  *explain += ")";
+}
+
+void Explain_format_tree::ExplainPrintBufferFillRatio(const Json_object *obj, string *explain) {
+  const Json_dom *access_dom = obj->get("access_type");
+  if (access_dom == nullptr || access_dom->json_type() != enum_json_type::J_STRING) return;
+
+  const auto access_type = down_cast<const Json_string *>(access_dom)->value();
+  if (access_type != "join") return;
+
+  const Json_dom *algo_dom = obj->get("join_algorithm");
+  if (algo_dom == nullptr || algo_dom->json_type() != enum_json_type::J_STRING) return;
+
+  const auto join_algo = down_cast<const Json_string *>(algo_dom)->value();
+  if (join_algo != "hash") return;
+
+  const Json_dom *fill_dom = obj->get("fill_ratio");
+  if (fill_dom == nullptr || fill_dom->json_type() != enum_json_type::J_DOUBLE) return;
+
+  const double fill_ratio = down_cast<const Json_double *>(fill_dom)->value();
+  *explain += " (fill_ratio=";
+  *explain += FormatNumberReadably(fill_ratio);
   *explain += ")";
 }
 
