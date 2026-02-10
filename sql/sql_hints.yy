@@ -145,6 +145,8 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
   here, but that creates conflicts in gen_lex_token.cc. See comments there.
 */
 
+%token SET_HASH_JOIN_DISTRIBUTION 1050
+
 /*
   Please add new tokens right above this line.
 
@@ -167,6 +169,9 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
   qb_name_hint
   set_var_hint
   resource_group_hint
+  set_hash_join_distribution
+
+%type <num> distribution_func
 
 %type <hint_list> hint_list
 
@@ -232,6 +237,32 @@ hint_list:
           }
         ;
 
+set_hash_join_distribution:
+        SET_HASH_JOIN_DISTRIBUTION '(' distribution_func ')'
+        {
+            $$ = NEW_PTN PT_hint_set_hash_join_distribution(static_cast<DistributionFunc>($3));
+            if ($$ == nullptr)
+                YYABORT;
+        }
+        ;
+
+distribution_func:
+        HINT_ARG_IDENT
+        {
+            if (strcasecmp($1.str, "EQUAL") == 0)
+                $$ = static_cast<int>(DistributionFunc::EQUAL);
+            else if (strcasecmp($1.str, "PUSH_UP") == 0)
+                $$ = static_cast<int>(DistributionFunc::PUSH_UP);
+            else if (strcasecmp($1.str, "PUSH_DOWN") == 0)
+                $$ = static_cast<int>(DistributionFunc::PUSH_DOWN);
+            else
+            {
+                scanner->syntax_warning(ER_THD(thd, ER_UNKNOWN_DISTRIBUTION_FUNC));
+                YYABORT;
+            }
+        }
+        ;
+
 hint:
           index_level_hint
         | table_level_hint
@@ -240,6 +271,7 @@ hint:
         | max_execution_time_hint
         | set_var_hint
         | resource_group_hint
+        | set_hash_join_distribution
         ;
 
 

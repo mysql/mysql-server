@@ -47,6 +47,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "string_with_len.h"
+#include "parse_tree_hints.h"
 
 extern struct st_opt_hint_info opt_hint_info[];
 
@@ -603,5 +604,19 @@ bool PT_hint_resource_group::do_contextualize(Parse_context *pc) {
          m_resource_group_name.str, m_resource_group_name.length);
   pc->thd->resource_group_ctx()
       ->m_switch_resource_group_str[m_resource_group_name.length] = '\0';
+  return false;
+}
+
+bool PT_hint_set_hash_join_distribution::do_contextualize(Parse_context *pc) {
+  if (PT_hint::do_contextualize(pc)) return true;
+  
+  Opt_hints_qb *qb = pc->select->opt_hints_qb;
+  assert(qb);
+
+  qb->set_hash_join_distribution(m_func);
+  qb->set_hash_join_distribution_hint(this);
+
+  fprintf(stderr, "%s\n", DistributionFuncToString(m_func).c_str());
+
   return false;
 }

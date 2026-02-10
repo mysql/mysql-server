@@ -7539,6 +7539,9 @@ ER_WARN_OPTIMIZER_HINT_SYNTAX_ERROR
 ER_WARN_BAD_MAX_EXECUTION_TIME
   eng "Unsupported MAX_EXECUTION_TIME"
 
+ER_UNKNOWN_DISTRIBUTION_FUNC
+  eng "Unknown distribution function"
+
 ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME
   eng "MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only"
 

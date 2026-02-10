@@ -44,6 +44,7 @@
 #include "sql/sql_show.h"        // append_identifier_*
 #include "sql_string.h"          // String
 #include "string_with_len.h"
+#include "sql/distribution/distribution.h"
 
 enum class Subquery_strategy : int;
 class Item;
@@ -87,6 +88,7 @@ enum opt_hints_enum {
   GROUP_INDEX_HINT_ENUM,
   ORDER_INDEX_HINT_ENUM,
   DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
+  SET_HASH_JOIN_DISTRIBUTION_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -320,6 +322,11 @@ class Opt_hints {
   void check_unresolved(THD *thd);
   virtual void append_name(const THD *thd, String *str) = 0;
 
+  void set_hash_join_distribution(DistributionFunc func) {
+    m_hash_join_distribution = func;
+    set_switch(true, SET_HASH_JOIN_DISTRIBUTION_ENUM, false);
+  }
+
  private:
   /**
     Append hint type.
@@ -343,6 +350,8 @@ class Opt_hints {
   */
   virtual void print_irregular_hints(const THD *thd [[maybe_unused]],
                                      String *str [[maybe_unused]]) {}
+
+  DistributionFunc m_hash_join_distribution{DistributionFunc::EQUAL};
 };
 
 /**
@@ -370,6 +379,7 @@ class Opt_hints_global : public Opt_hints {
 };
 
 class PT_qb_level_hint;
+class PT_hint_set_hash_join_distribution;
 
 /**
   Query block level hints.
@@ -381,6 +391,7 @@ class Opt_hints_qb : public Opt_hints {
   char buff[32];         // Buffer to hold sys name
 
   PT_qb_level_hint *subquery_hint, *semijoin_hint;
+  PT_hint_set_hash_join_distribution *hash_join_distribution_hint;
 
   /// Array of join order hints
   Mem_root_array<PT_qb_level_hint *> join_order_hints;
@@ -498,6 +509,10 @@ class Opt_hints_qb : public Opt_hints {
     @param join JOIN object
   */
   void apply_join_order_hints(JOIN *join);
+
+  void set_hash_join_distribution_hint(PT_hint_set_hash_join_distribution *hint) {
+    hash_join_distribution_hint = hint;
+  }
 
  private:
   void register_join_order_hint(PT_qb_level_hint *hint_arg) {

@@ -86,6 +86,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"GROUP_INDEX", false, false, false},
     {"ORDER_INDEX", false, false, false},
     {"DERIVED_CONDITION_PUSHDOWN", true, true, false},
+    {"SET_HASH_JOIN_DISTRIBUTION", true, false, false},
     {nullptr, false, false, false}};
 
 /**
@@ -217,6 +218,8 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
   if (type == SEMIJOIN_HINT_ENUM) return semijoin_hint;
 
   if (type == SUBQUERY_HINT_ENUM) return subquery_hint;
+
+  if (type == SET_HASH_JOIN_DISTRIBUTION_ENUM) return hash_join_distribution_hint;
 
   assert(0);
   return nullptr;

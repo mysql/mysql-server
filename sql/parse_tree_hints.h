@@ -37,6 +37,7 @@
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_show.h"
 #include "sql_string.h"
+#include "sql/distribution/distribution.h"
 
 class Item;
 class THD;
@@ -350,6 +351,16 @@ class PT_hint_resource_group : public PT_hint {
     append_identifier(thd, str, m_resource_group_name.str,
                       m_resource_group_name.length);
   }
+};
+
+class PT_hint_set_hash_join_distribution : public PT_hint {
+  public:
+    PT_hint_set_hash_join_distribution(DistributionFunc func) : PT_hint(SET_HASH_JOIN_DISTRIBUTION_ENUM, true), m_func(func) { }
+
+    bool do_contextualize(Parse_context *pc) override;
+  
+    private:
+      DistributionFunc m_func = DistributionFunc::EQUAL;
 };
 
 #endif /* PARSE_TREE_HINTS_INCLUDED */
