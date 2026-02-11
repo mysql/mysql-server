@@ -714,10 +714,109 @@ const Mem_root_array<Item *> *GetExtraHashJoinConditions(
   return extra_conditions;
 }
 
+static std::unordered_map<const AccessPath *, size_t> HashJoinDepthMap(const AccessPath *root) {
+  std::unordered_map<const AccessPath *, size_t> depths;
+  if (root == nullptr) return depths;
+  struct Frame {
+    const AccessPath *path;
+    size_t depth;
+  };
+  std::vector<Frame> stack;
+  stack.push_back({root, 0});
+  while (!stack.empty()) {
+    Frame f = stack.back();
+    stack.pop_back();
+    const AccessPath *path = f.path;
+    if (path->type == AccessPath::HASH_JOIN) {
+      depths.emplace(path, f.depth);
+    }
+    switch (path->type) {
+      case AccessPath::HASH_JOIN: {
+        const auto &p = path->hash_join();
+        stack.push_back({p.outer, f.depth + 1});
+        stack.push_back({p.inner, f.depth + 1});
+        break;
+      }
+      case AccessPath::NESTED_LOOP_JOIN: {
+        const auto &p = path->nested_loop_join();
+        stack.push_back({p.outer, f.depth + 1});
+        stack.push_back({p.inner, f.depth + 1});
+        break;
+      }
+      case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL: {
+        const auto &p = path->nested_loop_semijoin_with_duplicate_removal();
+        stack.push_back({p.outer, f.depth + 1});
+        stack.push_back({p.inner, f.depth + 1});
+        break;
+      }
+      case AccessPath::BKA_JOIN: {
+        const auto &p = path->bka_join();
+        stack.push_back({p.outer, f.depth + 1});
+        stack.push_back({p.inner, f.depth + 1});
+        break;
+      }
+      case AccessPath::FILTER:
+        stack.push_back({path->filter().child, f.depth + 1});
+        break;
+      case AccessPath::SORT:
+        stack.push_back({path->sort().child, f.depth + 1});
+        break;
+      case AccessPath::AGGREGATE:
+        stack.push_back({path->aggregate().child, f.depth + 1});
+        break;
+      case AccessPath::TEMPTABLE_AGGREGATE:
+        stack.push_back({path->temptable_aggregate().subquery_path, f.depth + 1});
+        stack.push_back({path->temptable_aggregate().table_path, f.depth + 1});
+        break;
+      case AccessPath::LIMIT_OFFSET:
+        stack.push_back({path->limit_offset().child, f.depth + 1});
+        break;
+      case AccessPath::STREAM:
+        stack.push_back({path->stream().child, f.depth + 1});
+        break;
+      case AccessPath::WINDOW:
+        stack.push_back({path->window().child, f.depth + 1});
+        break;
+      case AccessPath::MATERIALIZE:
+        stack.push_back({path->materialize().table_path, f.depth + 1});
+        if (path->materialize().param != nullptr) {
+          for (const auto &op : path->materialize().param->m_operands) {
+            stack.push_back({op.subquery_path, f.depth + 1});
+          }
+        }
+        break;
+      case AccessPath::APPEND:
+        for (const auto &child : *path->append().children) {
+          stack.push_back({child.path, f.depth + 1});
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return depths;
+}
+
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, MEM_ROOT *mem_root, AccessPath *top_path, JOIN *top_join,
     bool top_eligible_for_batch_mode) {
   assert(IteratorsAreNeeded(thd, top_path));
+
+  std::unordered_map<const AccessPath *, size_t> depths;
+
+  // Only count hash join if hint is given.
+  if (top_join != nullptr && 
+      top_join->query_block != nullptr && 
+      top_join->query_block->opt_hints_qb != nullptr && 
+      top_join->query_block->opt_hints_qb->is_specified(
+        SET_HASH_JOIN_DISTRIBUTION_ENUM)) {
+    
+    // Are able to get a map with depth of each hash join, still hard to compare.
+    // Need to find solution to wheter or not to add or remove memory. 
+    // For the example query it is easy, since there are only two hash joins in the plan.
+    // use: size_t depth = depths.at(path) or auto it = depths.find(path);
+    depths = HashJoinDepthMap(top_path);
+  }
 
   unique_ptr_destroy_only<RowIterator> ret;
   Mem_root_array<IteratorToBeCreated> todo(mem_root);
@@ -1183,13 +1282,49 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 ? HashJoinInput::kProbe
                 : HashJoinInput::kBuild;
 
+        // Intercept max memory and change it here:
+        size_t hash_join_iterator_max_memory = thd->variables.join_buff_size;
+        if (!depths.empty()) {
+          const size_t count = depths.size();
+          const size_t total_budget = thd->variables.join_buff_size * count;
+
+          size_t max_depth = 0;
+          for (const auto &entry: depths) {
+            max_depth = std::max(max_depth, entry.second);
+          }
+
+          DistributionFunc distribution_mode = join->query_block->opt_hints_qb->hash_join_distribution();
+          auto weight_for_depth = [&](size_t depth) -> size_t {
+            switch (distribution_mode)
+            {
+            case DistributionFunc::EQUAL:
+              return 1;
+            case DistributionFunc::PUSH_DOWN:
+              return depth + 1;
+            case DistributionFunc::PUSH_UP:
+              return (max_depth - depth + 1);
+            }
+            return 1;
+          };
+
+          size_t sum_weights = 0;
+          for (const auto &entry: depths) {
+            sum_weights += weight_for_depth(entry.second);
+          }
+
+          size_t depth = depths.at(path);
+          size_t weight = weight_for_depth(depth);
+
+          hash_join_iterator_max_memory = (total_budget * weight) / sum_weights;
+        }
+
         iterator = NewIterator<HashJoinIterator>(
             thd, mem_root, std::move(job.children[1]),
             GetUsedTables(param.inner, /*include_pruned_tables=*/true),
             estimated_build_rows, std::move(job.children[0]),
             GetUsedTables(param.outer, /*include_pruned_tables=*/true),
             param.store_rowids, param.tables_to_get_rowid_for,
-            thd->variables.join_buff_size, std::move(conditions),
+            hash_join_iterator_max_memory, std::move(conditions),
             param.allow_spill_to_disk, join_type, *extra_conditions,
             CollectSingleRowIndexLookups(thd, path), first_input,
             probe_input_batch_mode, hash_table_generation);
