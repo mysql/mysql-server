@@ -5017,7 +5017,6 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
         force_hash_join = true;
       }
 
-      fprintf(stderr, "force_hash_join: %d \n", force_hash_join);
 
       if(!force_hash_join){
         ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
