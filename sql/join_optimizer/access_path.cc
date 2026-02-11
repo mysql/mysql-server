@@ -1296,6 +1296,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           auto weight_for_depth = [&](size_t depth) -> size_t {
             switch (distribution_mode)
             {
+            case DistributionFunc::EQUAL:
+              return 1;
             case DistributionFunc::PUSH_DOWN:
               return depth + 1;
             case DistributionFunc::PUSH_UP:
