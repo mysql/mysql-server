@@ -616,7 +616,7 @@ bool PT_hint_set_hash_join_distribution::do_contextualize(Parse_context *pc) {
   qb->set_hash_join_distribution(m_func);
   qb->set_hash_join_distribution_hint(this);
 
-  fprintf(stderr, "%s\n", DistributionFuncToString(m_func).c_str());
+  // fprintf(stderr, "%s\n", DistributionFuncToString(m_func).c_str());
 
   return false;
 }

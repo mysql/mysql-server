@@ -327,6 +327,8 @@ class Opt_hints {
     set_switch(true, SET_HASH_JOIN_DISTRIBUTION_ENUM, false);
   }
 
+  DistributionFunc hash_join_distribution() const { return m_hash_join_distribution; }
+
  private:
   /**
     Append hint type.
