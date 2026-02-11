@@ -101,8 +101,8 @@ HashJoinIterator::HashJoinIterator(
       m_single_row_index_lookups(single_row_index_lookups) {
   assert(m_build_input != nullptr);
   assert(m_probe_input != nullptr);
-  
-  m_max_memory_avilable = max_memory_available;
+
+  m_max_memory_available = max_memory_available;
 
   // If there are multiple extra conditions, merge them into a single AND-ed
   // condition, so evaluation of the item is a bit easier.
