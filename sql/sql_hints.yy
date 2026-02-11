@@ -147,6 +147,9 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 
 %token SET_HASH_JOIN_DISTRIBUTION 1050
 
+%token FORCE_HASH_JOIN 1051
+
+
 /*
   Please add new tokens right above this line.
 
@@ -170,6 +173,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
   set_var_hint
   resource_group_hint
   set_hash_join_distribution
+  force_hash_join
 
 %type <num> distribution_func
 
@@ -246,6 +250,15 @@ set_hash_join_distribution:
         }
         ;
 
+force_hash_join:
+        FORCE_HASH_JOIN '(' opt_qb_name ')'
+        {
+            $$= NEW_PTN PT_qb_level_hint($3, true, FORCE_HASH_JOIN_ENUM, 0);
+            if ($$ == nullptr)
+                YYABORT; // OOM
+        }
+        ;
+
 distribution_func:
         HINT_ARG_IDENT
         {
@@ -272,6 +285,7 @@ hint:
         | set_var_hint
         | resource_group_hint
         | set_hash_join_distribution
+        | force_hash_join
         ;
 
 

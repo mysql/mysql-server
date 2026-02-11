@@ -228,6 +228,7 @@ void Hint_scanner::add_hint_token_digest() {
           case DERIVED_CONDITION_PUSHDOWN_HINT:
           case NO_DERIVED_CONDITION_PUSHDOWN_HINT:
           case SET_HASH_JOIN_DISTRIBUTION:
+          case FORCE_HASH_JOIN:
             break;
           default:
             assert(false);

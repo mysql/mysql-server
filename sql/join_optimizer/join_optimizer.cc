@@ -5012,15 +5012,23 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
           propose_left_build(can_rewrite_semi_to_inner);
         }
       }
+      bool force_hash_join = false;
+      if (m_query_block->opt_hints_qb && m_query_block->opt_hints_qb->has_force_hash_join_hint()) {
+        force_hash_join = true;
+      }
 
-      ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
-                            /*rewrite_semi_to_inner=*/false, new_fd_set,
-                            new_obsolete_orderings, &wrote_trace);
-      if (is_reorderable) {
-        ProposeNestedLoopJoin(
-            right, left, right_path, left_path, edge,
-            /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
-            new_obsolete_orderings, &wrote_trace);
+      fprintf(stderr, "force_hash_join: %d \n", force_hash_join);
+
+      if(!force_hash_join){
+        ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
+                              /*rewrite_semi_to_inner=*/false, new_fd_set,
+                              new_obsolete_orderings, &wrote_trace);
+        if (is_reorderable) {
+          ProposeNestedLoopJoin(
+              right, left, right_path, left_path, edge,
+              /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
+              new_obsolete_orderings, &wrote_trace);
+        }
       }
       m_overflow_bitset_mem_root.ClearForReuse();
 

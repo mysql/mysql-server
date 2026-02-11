@@ -87,6 +87,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"ORDER_INDEX", false, false, false},
     {"DERIVED_CONDITION_PUSHDOWN", true, true, false},
     {"SET_HASH_JOIN_DISTRIBUTION", true, false, false},
+    {"FORCE_HASH_JOIN", false, true, false},  
     {nullptr, false, false, false}};
 
 /**
@@ -207,6 +208,7 @@ Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg, MEM_ROOT *mem_root_arg,
       select_number(select_number_arg),
       subquery_hint(nullptr),
       semijoin_hint(nullptr),
+      force_hash_join_hint(nullptr),
       join_order_hints(mem_root_arg),
       join_order_hints_ignored(0) {
   sys_name.str = buff;
@@ -220,6 +222,7 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
   if (type == SUBQUERY_HINT_ENUM) return subquery_hint;
 
   if (type == SET_HASH_JOIN_DISTRIBUTION_ENUM) return hash_join_distribution_hint;
+  if (type == FORCE_HASH_JOIN_ENUM) return force_hash_join_hint; 
 
   assert(0);
   return nullptr;
@@ -533,6 +536,9 @@ bool Opt_hints_qb::has_join_order_hints() const {
 */
 void Opt_hints_qb::clear_join_order_hints() { join_order_hints.clear(); }
 
+bool Opt_hints_qb::has_force_hash_join_hint() const {
+  return force_hash_join_hint != nullptr;
+}
 /**
  Check if a join table matches a hinted table. If the join table is an outer
  join, semijoin or antijoin, check all its nested tables for a match with the

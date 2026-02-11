@@ -272,10 +272,15 @@ bool PT_qb_level_hint::do_contextualize(Parse_context *pc) {
       else
         pc->select->add_base_options(SELECT_STRAIGHT_JOIN);
       break;
+    case FORCE_HASH_JOIN_ENUM:
+      if (qb->force_hash_join_hint)
+        conflict = true;
+      else if (!qb->force_hash_join_hint)
+        qb->force_hash_join_hint = this;
+      break;
     default:
       assert(0);
   }
-
   if (conflict ||
       // Set hint or detect if hint has been set before
       (qb->set_switch(switch_on(), type(), false) && !no_warn))
