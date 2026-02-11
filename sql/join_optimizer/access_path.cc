@@ -809,12 +809,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       top_join->query_block != nullptr && 
       top_join->query_block->opt_hints_qb != nullptr && 
       top_join->query_block->opt_hints_qb->is_specified(
-        SET_HASH_JOIN_DISTRIBUTION_ENUM)) {
-    
-    // Are able to get a map with depth of each hash join, still hard to compare.
-    // Need to find solution to wheter or not to add or remove memory. 
-    // For the example query it is easy, since there are only two hash joins in the plan.
-    // use: size_t depth = depths.at(path) or auto it = depths.find(path);
+        SET_HASH_JOIN_DISTRIBUTION_ENUM) &&
+      top_join->query_block->opt_hints_qb->hash_join_distribution() != 
+        DistributionFunc::EQUAL) {
+    // Hint was given and mode is not EQUAL, so we need to count hash joins
+    // and find the depths of said hash joins. 
     depths = HashJoinDepthMap(top_path);
   }
 
@@ -1297,8 +1296,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           auto weight_for_depth = [&](size_t depth) -> size_t {
             switch (distribution_mode)
             {
-            case DistributionFunc::EQUAL:
-              return 1;
             case DistributionFunc::PUSH_DOWN:
               return depth + 1;
             case DistributionFunc::PUSH_UP:
