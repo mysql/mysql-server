@@ -360,6 +360,8 @@ class HashJoinIterator final : public RowIterator {
   double BufferFillRatio() const;
 
   size_t BuildMemoryRequiredBytes() const { return UsedBytes();} 
+
+  size_t BufferSize() const { return m_max_memory_avilable; }
   
  private:
   bool DoInit() override;
@@ -716,6 +718,8 @@ class HashJoinIterator final : public RowIterator {
   bool m_spilled_to_disk{false};
 
   size_t UsedBytes() const;
+
+  size_t m_max_memory_avilable;
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_ITERATOR_H_

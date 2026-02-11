@@ -1643,17 +1643,20 @@ static unique_ptr<Json_object> SetObjectMembers(
       if (current_thd->lex->is_explain_analyze) {
         bool spilled = false;
         double fill_ratio = 0.0;
-        int bytes_used = 0;
+        size_t buffer_size = 0;
+        size_t bytes_used = 0;
         if (path->iterator != nullptr) {
           const RowIterator *it = path->iterator->real_iterator();
           if (const auto *hash_join = dynamic_cast<const HashJoinIterator *>(it)) {
             spilled = hash_join->SpilledToDisk();
             fill_ratio = hash_join->BufferFillRatio();
+            buffer_size = hash_join->BufferSize();
             bytes_used = hash_join->BuildMemoryRequiredBytes();
           }
         }
         error |= AddMemberToObject<Json_boolean>(obj, "spilled_to_disk", spilled);
         error |= AddMemberToObject<Json_double>(obj, "fill_ratio", fill_ratio);
+        error |= AddMemberToObject<Json_uint>(obj, "buffer_size", buffer_size);
         error |= AddMemberToObject<Json_uint>(obj, "bytes_used", bytes_used);
       }
 
@@ -2499,6 +2502,7 @@ void Explain_format_tree::ExplainPrintExtra(const Json_object *obj, string *expl
 
   ExplainPrintSpilledToDisk(obj, explain);
   ExplainPrintBufferFillRatio(obj, explain);
+  ExplainPrintBufferSize(obj, explain);
   ExplainPrintBytesUsed(obj, explain);
 }
 
@@ -2520,6 +2524,16 @@ void Explain_format_tree::ExplainPrintBufferFillRatio(const Json_object *obj, st
   const double fill_ratio = GetJSONDouble(obj, "fill_ratio");
   *explain += " (fill_ratio=";
   *explain += FormatNumberReadably(fill_ratio);
+  *explain += ")";
+}
+
+void Explain_format_tree::ExplainPrintBufferSize(const Json_object *obj, string *explain) {
+  const Json_dom *size_dom = obj->get("buffer_size");
+  if (size_dom == nullptr || size_dom->json_type() != enum_json_type::J_UINT) return;
+
+  const size_t buffer_size = down_cast<const Json_uint *>(size_dom)->value();
+  *explain += " (buffer_size=";
+  *explain += FormatNumberReadably(buffer_size);
   *explain += ")";
 }
 
