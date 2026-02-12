@@ -268,6 +268,8 @@ distribution_func:
                 $$ = static_cast<int>(DistributionFunc::PUSH_UP);
             else if (strcasecmp($1.str, "PUSH_DOWN") == 0)
                 $$ = static_cast<int>(DistributionFunc::PUSH_DOWN);
+            else if (strcasecmp($1.str, "CARDINALITYBASED") == 0)
+                $$ = static_cast<int>(DistributionFunc::CARDINALITYBASED);
             else
             {
                 scanner->syntax_warning(ER_THD(thd, ER_UNKNOWN_DISTRIBUTION_FUNC));

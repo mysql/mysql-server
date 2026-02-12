@@ -1293,9 +1293,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           }
 
           DistributionFunc distribution_mode = join->query_block->opt_hints_qb->hash_join_distribution();
-          auto weight_for_depth = [&](size_t depth) -> size_t {
+          auto weight_for_depth = [&](size_t depth) -> int64_t {
             switch (distribution_mode)
             {
+            case DistributionFunc::CARDINALITYBASED:
+              return -1;
             case DistributionFunc::EQUAL:
               return 1;
             case DistributionFunc::PUSH_DOWN:
@@ -1310,11 +1312,29 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           for (const auto &entry: depths) {
             sum_weights += weight_for_depth(entry.second);
           }
+          std::unordered_map<const AccessPath *, double> expected_build_rows_map;
+          for (const auto &entry : depths) {
+            const AccessPath *hash_join_path = entry.first;
+            const double build_rows = hash_join_path->hash_join().inner->num_output_rows();
+            expected_build_rows_map[hash_join_path] = (build_rows < 0.0) ? 1048576.0 : build_rows;
+          }
 
           size_t depth = depths.at(path);
-          size_t weight = weight_for_depth(depth);
-
-          hash_join_iterator_max_memory = (total_budget * weight) / sum_weights;
+          int64_t weight = weight_for_depth(depth);
+          if(weight != -1){
+            hash_join_iterator_max_memory = (total_budget * weight) / sum_weights;
+          }else{
+            double this_expected_rows = expected_build_rows_map.at(path);
+            
+            double total_expected_rows = 0.0;
+            for (const auto &entry : depths) {
+              total_expected_rows += expected_build_rows_map.at(entry.first);
+            }
+            
+            // Direct proportional: (this_rows / total_rows) * total_budget
+            hash_join_iterator_max_memory = static_cast<size_t>(
+                (this_expected_rows / total_expected_rows) * total_budget);
+          }
         }
 
         iterator = NewIterator<HashJoinIterator>(
