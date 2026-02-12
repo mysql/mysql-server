@@ -783,4 +783,8 @@ class HashJoinCost final {
   double m_cost;
 };
 
+size_t CalculateOptimalHashBufferSize(const HashJoinMetrics &metrics, 
+                                   size_t max_allowed_size,
+                                   double safety_margin);
+
 #endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_

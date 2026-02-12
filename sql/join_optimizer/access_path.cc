@@ -1323,7 +1323,47 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           int64_t weight = weight_for_depth(depth);
           if(weight != -1){
             hash_join_iterator_max_memory = (total_budget * weight) / sum_weights;
-          }else{
+          } else if (distribution_mode == DistributionFunc::CARDINALITYBASED) {
+            // Use dynamic buffer size calculation for optimal utilization
+            const AccessPath *build_path = path->hash_join().inner;
+            const AccessPath *probe_path = path->hash_join().outer;
+            
+            // Simple key width estimate
+            double key_width = static_cast<double>(EstimateHashJoinKeyWidth(join_predicate->expr));
+            
+            // Get result row count
+            double num_output_rows = path->num_output_rows();
+            
+            // Simple row size estimates using table read sets
+            double build_row_size = 0.0;
+            double probe_row_size = 0.0;
+            
+            TABLE *build_table = GetBasicTable(build_path);
+            TABLE *probe_table = GetBasicTable(probe_path);
+            
+            if (build_table != nullptr) {
+              build_row_size = static_cast<double>(CalculateReadSetWidth(build_table));
+            }
+            if (probe_table != nullptr) {
+              probe_row_size = static_cast<double>(CalculateReadSetWidth(probe_table));
+            }
+            
+            // Build metrics for buffer calculation
+            HashJoinMetrics metrics{
+                .build_rows = estimated_build_rows,
+                .build_row_size = build_row_size,
+                .key_size = key_width,
+                .probe_rows = probe_path->num_output_rows(),
+                .probe_row_size = probe_row_size,
+                .result_rows = num_output_rows
+            };
+            
+            // Calculate optimal buffer size (95% utilization target)
+            hash_join_iterator_max_memory = 
+                CalculateOptimalHashBufferSize(metrics, thd->variables.join_buff_size, 0.05);
+                
+          } else {
+            // Fallback to original proportional distribution
             double this_expected_rows = expected_build_rows_map.at(path);
             
             double total_expected_rows = 0.0;
@@ -1334,8 +1374,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             // Direct proportional: (this_rows / total_rows) * total_budget
             hash_join_iterator_max_memory = static_cast<size_t>(
                 (this_expected_rows / total_expected_rows) * total_budget);
-          }
-        }
+            }
+          }      
 
         iterator = NewIterator<HashJoinIterator>(
             thd, mem_root, std::move(job.children[1]),

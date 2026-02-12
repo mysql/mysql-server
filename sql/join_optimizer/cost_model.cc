@@ -405,6 +405,40 @@ int64_t CalculateReadSetWidth(const TABLE *table) {
   return width;
 }
 
+size_t CalculateOptimalHashBufferSize(const HashJoinMetrics &metrics, 
+                                   size_t max_allowed_size,
+                                   double safety_margin = 0.05) {
+  constexpr int kHashValueOverhead{8};  
+  constexpr int kHashKeyOverhead{25}; 
+  
+  const double estimated_distinct_keys = std::min(metrics.build_rows, 
+                                           std::pow(metrics.build_rows, 0.9)); 
+  
+  // Add sanity check for very low utilization scenarios
+  double conservative_estimated_usage =
+      metrics.build_rows * (metrics.build_row_size + kHashValueOverhead) +
+      estimated_distinct_keys * (kHashKeyOverhead + metrics.key_size);
+      
+  // If estimated usage is very small compared to available buffer, 
+  // be more aggressive to prevent waste
+  double target_usage = 1.0 - safety_margin;
+  if (conservative_estimated_usage < max_allowed_size * 0.1) {
+    // If we're estimating less than 10% of buffer, use 90% target instead of 95%
+    target_usage = 0.9;
+    // Add minimum reasonable usage estimate
+    conservative_estimated_usage = std::max(conservative_estimated_usage, 
+                                          max_allowed_size * 0.05);
+  }
+  
+  const size_t optimal_size = static_cast<size_t>(conservative_estimated_usage / target_usage);
+  
+  // More aggressive minimum - 16KB instead of 64KB
+  const size_t min_size = 16 * 1024;
+  return std::clamp(optimal_size, min_size, max_allowed_size);
+}
+
+
+
 BytesPerTableRow EstimateBytesPerRowWideTable(const TABLE *table) {
   // The expected size of the b-tree record.
   double record_size{0.0};
