@@ -1690,6 +1690,7 @@ static void write_diagnostics_area_to_error_log(THD *thd, std::string db_name,
 */
 static void prepare_session_context(THD *thd) {
   thd->reset_for_next_command();
+  thd->get_stmt_da()->reset_condition_info(thd);
   lex_start(thd);
 }
 
