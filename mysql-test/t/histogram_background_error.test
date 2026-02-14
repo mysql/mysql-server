@@ -16,12 +16,12 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
 --source include/save_error_log_position.inc
 INSERT INTO t1 VALUES (1), (2), (3);
 
--- echo # Wait for an error to show up in the error log.
-let $wait_condition = SELECT COUNT(*) > 0 FROM performance_schema.error_log WHERE Prio = 'Error';
+-- echo # Wait for a warning to show up in the error log.
+let $wait_condition = SELECT COUNT(*) > 0 FROM performance_schema.error_log WHERE Prio = 'Warning';
 let $wait_timeout = 15;
 --source include/wait_condition.inc
 
--- echo # Verify that the error comes from the background histogram update.
+-- echo # Verify that the warning comes from the background histogram update.
 --let $error_pattern = Background histogram update on test.t1: Unable to build histogram statistics for column 'field' in table 'schema'.'table'
 --source include/assert_error_log.inc
 
