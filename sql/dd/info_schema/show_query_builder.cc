@@ -76,7 +76,7 @@ bool Select_lex_builder::add_to_select_item_list(Item *expr) {
 // Add item representing star in "SELECT '*' ...".
 bool Select_lex_builder::add_star_select_item() {
   Item_asterisk *ident_star =
-      new (m_thd->mem_root) Item_asterisk(*m_pos, nullptr, nullptr);
+  new (m_thd->mem_root) Item_asterisk(*m_pos, nullptr, nullptr, nullptr);
   if (ident_star == nullptr) return true;
 
   return add_to_select_item_list(ident_star);

@@ -1,0 +1,26 @@
+# edge cases for SELECT ... EXCLUDE(...)
+
+CREATE TABLE e_exclude (
+  id INT PRIMARY KEY,
+  c1 INT,
+  c2 INT,
+  c3 INT
+) ENGINE=InnoDB;
+
+INSERT INTO e_exclude VALUES (1, 10, 20, 30);
+
+# EXCLUDE with nonexistent column
+SELECT * EXCLUDE (nonexistent) FROM e_exclude ORDER BY id;
+
+# EXCLUDE all columns -> in this implementation excluding id,c1,c2 returns c3 only
+SELECT * EXCLUDE (id, c1, c2) FROM e_exclude ORDER BY id;
+
+# Duplicate names in exclude list should be tolerated
+SELECT * EXCLUDE (c1, c1, c2) FROM e_exclude ORDER BY id;
+
+# Nested select with EXCLUDE in subquery
+SELECT x.* FROM (SELECT * EXCLUDE (c2) FROM e_exclude) x ORDER BY id;
+
+DROP TABLE e_exclude;
+
+
