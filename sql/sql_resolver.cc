@@ -1524,8 +1524,9 @@ bool Query_block::setup_wild(THD *thd) {
                            MY_INT64_NUM_DECIMAL_DIGITS);
       } else {
         assert(item_field->context == &this->context);
-        if (insert_fields(thd, this, item_field->db_name,
-                          item_field->table_name, &fields, &it, any_privileges))
+  if (insert_fields(thd, this, item_field->db_name,
+    item_field->table_name, &fields, &it, any_privileges,
+    down_cast<Item_asterisk *>(item_field)->m_exclude_list))
           return true;
       }
 

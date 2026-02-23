@@ -198,7 +198,7 @@ static Query_block *build_query(const POS &pos, THD *thd,
 
   /* SELECT * ... */
   Item_asterisk *ident_star;
-  ident_star = new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr);
+  ident_star = new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr, nullptr);
   if (ident_star == nullptr) return nullptr;
 
   PT_select_item_list *item_list1;

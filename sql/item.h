@@ -4797,7 +4797,18 @@ class Item_asterisk : public Item_field {
   */
   Item_asterisk(const POS &pos, const char *opt_schema_name,
                 const char *opt_table_name)
-      : super(pos, opt_schema_name, opt_table_name, "*") {}
+      : super(pos, opt_schema_name, opt_table_name, "*"), m_exclude_list(nullptr) {}
+
+  Item_asterisk(const POS &pos, const char *opt_schema_name,
+                const char *opt_table_name, List<String> *exclude_list)
+      : super(pos, opt_schema_name, opt_table_name, "*"),
+        m_exclude_list(exclude_list) {}
+
+  /*
+    Optional list of column names to exclude when expanding this asterisk.
+    Allocated in parser memory (List<String>), may be nullptr.
+  */
+  List<String> *m_exclude_list;
 
   bool do_itemize(Parse_context *pc, Item **res) override;
   bool fix_fields(THD *, Item **) override {

@@ -9645,7 +9645,8 @@ class Tables_in_user_order_iterator {
 
 bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
                    const char *table_name, mem_root_deque<Item *> *fields,
-                   mem_root_deque<Item *>::iterator *it, bool any_privileges) {
+                   mem_root_deque<Item *>::iterator *it, bool any_privileges,
+                   List<String> *exclude_list) {
   char name_buff[NAME_LEN + 1];
   DBUG_TRACE;
   DBUG_PRINT("arena", ("stmt arena: %p", thd->stmt_arena));
@@ -9740,6 +9741,13 @@ bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
                       !test_if_string_in_list(field->field_name,
                                               tables->join_using_fields));
         if (is_hidden) continue;
+
+        /* If this column is present in the EXCLUDE(...) list for this star,
+           skip it. Unqualified names match the column name case-insensitively.
+         */
+        if (exclude_list != nullptr) {
+          if (test_if_string_in_list(field->field_name, exclude_list)) continue;
+        }
 
         /* cache the table for the Item_fields inserted by expanding stars */
         if (tables->cacheable_table) field->m_table_ref = tables;
