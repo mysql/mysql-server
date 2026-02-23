@@ -1,0 +1,20 @@
+CREATE TABLE e_exclude (
+id INT PRIMARY KEY,
+c1 INT,
+c2 INT,
+c3 INT
+) ENGINE=InnoDB;
+INSERT INTO e_exclude VALUES (1, 10, 20, 30);
+SELECT * EXCLUDE (nonexistent) FROM e_exclude ORDER BY id;
+id	c1	c2	c3
+1	10	20	30
+SELECT * EXCLUDE (id, c1, c2) FROM e_exclude ORDER BY id;
+c3
+30
+SELECT * EXCLUDE (c1, c1, c2) FROM e_exclude ORDER BY id;
+id	c3
+1	30
+SELECT x.* FROM (SELECT * EXCLUDE (c2) FROM e_exclude) x ORDER BY id;
+id	c1	c3
+1	10	30
+DROP TABLE e_exclude;
