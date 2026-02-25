@@ -161,8 +161,8 @@ bool HashJoinChunk::WriteRowToChunk(String *buffer, bool matched,
     my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
     return true;
   }
-  
-  m_bytes_written += data_length;
+  size_t row_buffer_size = ComputeRowSizeUpperBound(m_tables);
+  m_bytes_written += row_buffer_size;
   m_num_rows++;
   return false;
 }
