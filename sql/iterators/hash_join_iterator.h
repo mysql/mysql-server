@@ -359,10 +359,7 @@ class HashJoinIterator final : public RowIterator {
 
   double BufferFillRatio() const;
 
-
   size_t BufferSize() const { return m_max_memory_available; }
-
-
 
   size_t BuildMemoryRequiredBytes() const {
   return m_build_bytes_needed_at_spill != 0 ? m_build_bytes_needed_at_spill
@@ -373,8 +370,6 @@ class HashJoinIterator final : public RowIterator {
   bool DoInit() override;
 
   int DoRead() override;
-
-  size_t m_build_bytes_needed_at_spill{0};
 
   /// Read all rows from the build input and store the rows into the in-memory
   /// hash table. If the hash table goes full, the rest of the rows are written
@@ -725,9 +720,9 @@ class HashJoinIterator final : public RowIterator {
 
   bool m_spilled_to_disk{false};
 
-  size_t UsedBytes() const;
-
   size_t m_max_memory_available;
+
+  size_t m_build_bytes_needed_at_spill{0};
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_ITERATOR_H_

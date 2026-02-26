@@ -1249,11 +1249,3 @@ void HashJoinIterator::SetReadingProbeRowState() {
       break;
   }
 }
-
-size_t HashJoinIterator::UsedBytes() const {
-  size_t spilled = 0;
-  for (const ChunkPair &p : m_chunk_files_on_disk) {
-    spilled += p.build_chunk.BytesWritten();
-  }
-  return spilled + m_row_buffer.UsedMemoryBytes();
-}
