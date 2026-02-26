@@ -359,14 +359,22 @@ class HashJoinIterator final : public RowIterator {
 
   double BufferFillRatio() const;
 
-  size_t BuildMemoryRequiredBytes() const { return UsedBytes();} 
 
   size_t BufferSize() const { return m_max_memory_available; }
+
+
+
+  size_t BuildMemoryRequiredBytes() const {
+  return m_build_bytes_needed_at_spill != 0 ? m_build_bytes_needed_at_spill
+                                            : m_row_buffer.UsedMemoryBytes();
+}
   
  private:
   bool DoInit() override;
 
   int DoRead() override;
+
+  size_t m_build_bytes_needed_at_spill{0};
 
   /// Read all rows from the build input and store the rows into the in-memory
   /// hash table. If the hash table goes full, the rest of the rows are written

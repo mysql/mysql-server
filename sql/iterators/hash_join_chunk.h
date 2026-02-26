@@ -155,11 +155,14 @@ class HashJoinChunk {
 
   size_t BytesWritten() const { return m_bytes_written; }
 
+  size_t BytesWrittenExact() const { return m_bytes_written_exact; }
+
  private:
   // A collection of which tables the chunk file holds data from. Used to
   // determine where to read data from, and where to put the data back.
   pack_rows::TableCollection m_tables;
 
+  size_t m_bytes_written_exact{0};
   // The number of rows in this chunk file.
   ha_rows m_num_rows{0};
 

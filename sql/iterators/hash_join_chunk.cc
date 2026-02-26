@@ -161,8 +161,16 @@ bool HashJoinChunk::WriteRowToChunk(String *buffer, bool matched,
     my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
     return true;
   }
-  size_t row_buffer_size = ComputeRowSizeUpperBound(m_tables);
-  m_bytes_written += row_buffer_size;
+  size_t bytes_written = 0;
+  if (m_uses_match_flags) {
+    bytes_written += sizeof(matched);
+  } else if (set_index != std::numeric_limits<size_t>::max()) {
+    bytes_written += sizeof(set_index);
+  }
+  bytes_written += sizeof(data_length);
+  bytes_written += data_length;
+  m_bytes_written_exact += bytes_written;
+  
   m_num_rows++;
   return false;
 }

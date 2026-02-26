@@ -627,6 +627,12 @@ bool HashJoinIterator::BuildHashTable() {
           return true;
         }
 
+        size_t bytes_on_disk = 0;
+        for (const ChunkPair &chunk_pair : m_chunk_files_on_disk) {
+          bytes_on_disk += chunk_pair.build_chunk.BytesWrittenExact();
+        }
+        m_build_bytes_needed_at_spill = m_row_buffer.UsedMemoryBytes() + bytes_on_disk;
+
         // Flush and position all chunk files from the build input at the
         // beginning.
         for (ChunkPair &chunk_pair : m_chunk_files_on_disk) {
