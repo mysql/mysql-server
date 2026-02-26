@@ -714,6 +714,68 @@ const Mem_root_array<Item *> *GetExtraHashJoinConditions(
   return extra_conditions;
 }
 
+static size_t ComputeHashJoinMemoryBudget(
+    size_t join_buffer_size,
+    const std::unordered_map<const AccessPath *, size_t> &depths,
+    const AccessPath *path,
+    DistributionFunc distribution_mode) {
+  
+  bool debug = false;
+  if (debug) {
+    const size_t depth = depths.at(path);
+    // fprintf(stderr, "depth=%lu\n", depth);
+    if (depth == 1) {
+      return 1231072;
+    }
+    else if (depth == 2) {
+      return 1231168;
+    }
+    else if (depth == 6) {
+      return 20512;
+    }
+    else {
+      return 512512;
+    }
+  
+  }
+  
+  if (distribution_mode == DistributionFunc::EQUAL) {
+    return join_buffer_size;
+  } else {
+    return join_buffer_size;
+  }
+
+  size_t max_depth = 0;
+  for (const auto &entry : depths) {
+    max_depth = std::max(max_depth, entry.second);
+  }
+
+  auto weight_for_depth = [&](size_t depth) -> size_t {
+    switch (distribution_mode) {
+      case DistributionFunc::EQUAL:
+        return 1;
+      case DistributionFunc::PUSH_DOWN:
+        return depth + 1;
+      case DistributionFunc::PUSH_UP:
+        return (max_depth - depth + 1);
+      case DistributionFunc::CARDINALITYBASED:
+        return 1;
+    }
+    return 1;
+  };
+
+  size_t sum_weights = 0;
+  for (const auto &entry : depths) {
+    sum_weights += weight_for_depth(entry.second);
+  }
+
+  const size_t total_budget = depths.size() * join_buffer_size;
+  const size_t depth = depths.at(path);
+  const size_t weight = weight_for_depth(depth);
+  
+  return (total_budget * weight) / sum_weights;
+}
+
 static std::unordered_map<const AccessPath *, size_t> HashJoinDepthMap(const AccessPath *root) {
   std::unordered_map<const AccessPath *, size_t> depths;
   if (root == nullptr) return depths;
@@ -1284,98 +1346,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // Intercept max memory and change it here:
         size_t hash_join_iterator_max_memory = thd->variables.join_buff_size;
         if (!depths.empty()) {
-          const size_t count = depths.size();
-          const size_t total_budget = thd->variables.join_buff_size * count;
-
-          size_t max_depth = 0;
-          for (const auto &entry: depths) {
-            max_depth = std::max(max_depth, entry.second);
-          }
-
-          DistributionFunc distribution_mode = join->query_block->opt_hints_qb->hash_join_distribution();
-          auto weight_for_depth = [&](size_t depth) -> int64_t {
-            switch (distribution_mode)
-            {
-            case DistributionFunc::CARDINALITYBASED:
-              return -1;
-            case DistributionFunc::EQUAL:
-              return 1;
-            case DistributionFunc::PUSH_DOWN:
-              return depth + 1;
-            case DistributionFunc::PUSH_UP:
-              return (max_depth - depth + 1);
-            }
-            return 1;
-          };
-
-          size_t sum_weights = 0;
-          for (const auto &entry: depths) {
-            sum_weights += weight_for_depth(entry.second);
-          }
-          std::unordered_map<const AccessPath *, double> expected_build_rows_map;
-          for (const auto &entry : depths) {
-            const AccessPath *hash_join_path = entry.first;
-            const double build_rows = hash_join_path->hash_join().inner->num_output_rows();
-            expected_build_rows_map[hash_join_path] = (build_rows < 0.0) ? 1048576.0 : build_rows;
-          }
-
-          size_t depth = depths.at(path);
-          int64_t weight = weight_for_depth(depth);
-          if(weight != -1){
-            hash_join_iterator_max_memory = (total_budget * weight) / sum_weights;
-          } else if (distribution_mode == DistributionFunc::CARDINALITYBASED) {
-            // Use dynamic buffer size calculation for optimal utilization
-            const AccessPath *build_path = path->hash_join().inner;
-            const AccessPath *probe_path = path->hash_join().outer;
-            
-            // Simple key width estimate
-            double key_width = static_cast<double>(EstimateHashJoinKeyWidth(join_predicate->expr));
-            
-            // Get result row count
-            double num_output_rows = path->num_output_rows();
-            
-            // Simple row size estimates using table read sets
-            double build_row_size = 0.0;
-            double probe_row_size = 0.0;
-            
-            TABLE *build_table = GetBasicTable(build_path);
-            TABLE *probe_table = GetBasicTable(probe_path);
-            
-            if (build_table != nullptr) {
-              build_row_size = static_cast<double>(CalculateReadSetWidth(build_table));
-            }
-            if (probe_table != nullptr) {
-              probe_row_size = static_cast<double>(CalculateReadSetWidth(probe_table));
-            }
-            
-            // Build metrics for buffer calculation
-            HashJoinMetrics metrics{
-                .build_rows = estimated_build_rows,
-                .build_row_size = build_row_size,
-                .key_size = key_width,
-                .probe_rows = probe_path->num_output_rows(),
-                .probe_row_size = probe_row_size,
-                .result_rows = num_output_rows
-            };
-            
-            // Calculate optimal buffer size (95% utilization target)
-            hash_join_iterator_max_memory = 
-                CalculateOptimalHashBufferSize(metrics, thd->variables.join_buff_size, 0.05);
-                
-          } else {
-            // Fallback to original proportional distribution
-            double this_expected_rows = expected_build_rows_map.at(path);
-            
-            double total_expected_rows = 0.0;
-            for (const auto &entry : depths) {
-              total_expected_rows += expected_build_rows_map.at(entry.first);
-            }
-            
-            // Direct proportional: (this_rows / total_rows) * total_budget
-            hash_join_iterator_max_memory = static_cast<size_t>(
-                (this_expected_rows / total_expected_rows) * total_budget);
-            }
-          }      
+          hash_join_iterator_max_memory = ComputeHashJoinMemoryBudget(
+              thd->variables.join_buff_size, depths, path, 
+              top_join->query_block->opt_hints_qb->hash_join_distribution()
+          );
+        }
 
         iterator = NewIterator<HashJoinIterator>(
             thd, mem_root, std::move(job.children[1]),
