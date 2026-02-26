@@ -720,30 +720,6 @@ static size_t ComputeHashJoinMemoryBudget(
     const AccessPath *path,
     DistributionFunc distribution_mode) {
   
-  bool debug = false;
-  if (debug) {
-    const size_t depth = depths.at(path);
-    // fprintf(stderr, "depth=%lu\n", depth);
-    if (depth == 1) {
-      return 1231072;
-    }
-    else if (depth == 2) {
-      return 1231168;
-    }
-    else if (depth == 6) {
-      return 20512;
-    }
-    else {
-      return 512512;
-    }
-  
-  }
-  
-  if (distribution_mode == DistributionFunc::EQUAL) {
-    return join_buffer_size;
-  } else {
-    return join_buffer_size;
-  }
 
   size_t max_depth = 0;
   for (const auto &entry : depths) {
