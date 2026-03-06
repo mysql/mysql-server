@@ -1,0 +1,64 @@
+#
+# Bug #119990 Proactive handling of InnoDB tablespace full condition
+#
+SET @old_threshold = @@global.innodb_tablespace_size_warning_threshold;
+SET @old_enabled = @@global.innodb_tablespace_size_warning_enabled;
+SET @old_pct = @@global.innodb_tablespace_size_warning_pct;
+# Test system variables
+SHOW VARIABLES LIKE 'innodb_tablespace_size_warning_threshold';
+Variable_name	Value
+innodb_tablespace_size_warning_threshold	17592186044416
+SHOW VARIABLES LIKE 'innodb_tablespace_size_warning_enabled';
+Variable_name	Value
+innodb_tablespace_size_warning_enabled	ON
+SHOW VARIABLES LIKE 'innodb_tablespace_size_warning_pct';
+Variable_name	Value
+innodb_tablespace_size_warning_pct	70
+# Test basic warning emission
+SET GLOBAL innodb_tablespace_size_warning_threshold = 10485760;
+SET GLOBAL innodb_tablespace_size_warning_pct = 70;
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+data LONGBLOB
+) ENGINE=InnoDB;
+Pattern "Tablespace 'test/t1' size .* bytes .* exceeds warning threshold" found
+DROP TABLE t1;
+# Test configurable warning percentage
+SET GLOBAL innodb_tablespace_size_warning_threshold = 10485760;
+SET GLOBAL innodb_tablespace_size_warning_pct = 80;
+CREATE TABLE t1b (
+id INT AUTO_INCREMENT PRIMARY KEY,
+data LONGBLOB
+) ENGINE=InnoDB;
+Pattern "Tablespace 'test/t1b' size .* bytes .* exceeds warning threshold" found
+DROP TABLE t1b;
+# Test threshold set to zero disables warnings
+SET GLOBAL innodb_tablespace_size_warning_threshold = 0;
+CREATE TABLE t2 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+data LONGBLOB
+) ENGINE=InnoDB;
+DROP TABLE t2;
+# Test andon cord disable/enable
+SET GLOBAL innodb_tablespace_size_warning_threshold = 10485760;
+SET GLOBAL innodb_tablespace_size_warning_pct = 70;
+SET GLOBAL innodb_tablespace_size_warning_enabled = FALSE;
+CREATE TABLE t3 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+data LONGBLOB
+) ENGINE=InnoDB;
+SET GLOBAL innodb_tablespace_size_warning_enabled = TRUE;
+Pattern "Tablespace 'test/t3' size .* bytes .* exceeds warning threshold" found
+DROP TABLE t3;
+# Test TRUNCATE TABLE resets warning state
+CREATE TABLE t4 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+data LONGBLOB
+) ENGINE=InnoDB;
+Pattern "Tablespace 'test/t4' size .* bytes .* exceeds warning threshold" found
+TRUNCATE TABLE t4;
+Pattern "Tablespace 'test/t4' size .* bytes .* exceeds warning threshold" found
+DROP TABLE t4;
+SET GLOBAL innodb_tablespace_size_warning_threshold = @old_threshold;
+SET GLOBAL innodb_tablespace_size_warning_enabled = @old_enabled;
+SET GLOBAL innodb_tablespace_size_warning_pct = @old_pct;

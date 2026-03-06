@@ -633,6 +633,15 @@ to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong srv_innodb_stats_method;
 
+/** Threshold in bytes for tablespace size warnings (0 = disabled) */
+extern unsigned long long srv_tablespace_size_warning_threshold;
+
+/** Percentage at which to start emitting tablespace size warnings */
+extern unsigned int srv_tablespace_size_warning_pct;
+
+/** Enable/disable tablespace size warning feature */
+extern bool srv_tablespace_size_warning_enabled;
+
 /** Returns current value of the "innodb_open_files" configuration variable. */
 long innobase_get_open_files_limit();
 /** Sets new value of the "innodb_open_files" configuration variable to present

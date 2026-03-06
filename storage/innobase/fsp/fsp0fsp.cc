@@ -1218,6 +1218,89 @@ page_no_t fsp_header_get_tablespace_size(void) {
   return (size);
 }
 
+/** Check if tablespace size exceeds warning threshold.
+@param[in,out]  space     Tablespace
+@param[in]      new_size  New size in pages
+@return true if warning was emitted */
+static bool fsp_check_size_warning(fil_space_t *space,
+                                   page_no_t new_size) {
+  /* Named constant for high-resolution warning threshold */
+  constexpr uint8_t high_resolution_pct = 90;
+
+  if (!srv_tablespace_size_warning_enabled) {
+    return false;
+  }
+
+  if (srv_tablespace_size_warning_threshold == 0) {
+    return false;
+  }
+
+  /* Reset state if threshold changed */
+  if (space->m_last_warning_threshold !=
+      srv_tablespace_size_warning_threshold) {
+    space->m_last_size_warning_pct = 0;
+    space->m_last_warning_threshold = srv_tablespace_size_warning_threshold;
+    space->m_warning_count_in_decade = 0;
+  }
+
+  const page_size_t page_size(space->flags);
+  uint64_t current_bytes =
+      static_cast<uint64_t>(new_size) * page_size.physical();
+  uint64_t current_pct =
+      (current_bytes * 100) / srv_tablespace_size_warning_threshold;
+  uint64_t display_pct = std::min(current_pct, static_cast<uint64_t>(100));
+
+  if (display_pct < srv_tablespace_size_warning_pct) {
+    return false;
+  }
+
+  bool should_warn = false;
+
+  if (display_pct >= high_resolution_pct) {
+    /* Above high_resolution_pct: print on every 1% increase */
+    should_warn = (display_pct > space->m_last_size_warning_pct);
+  } else {
+    /* Between tablespace_size_warning_pct and high_resolution_pct:
+       print at most twice per 10% (e.g., 70%, 77%, 81%, 89%) */
+    uint8_t current_decade = static_cast<uint8_t>(display_pct / 10);
+    uint8_t last_decade = space->m_last_size_warning_pct / 10;
+
+    /* If we've moved to a new decade, reset the counter */
+    if (current_decade > last_decade) {
+      space->m_warning_count_in_decade = 0;
+    }
+
+    /* Warn if we haven't warned twice yet in this decade, percentage
+       increased, and there's at least a 5% gap since last warning
+       (or it's the first warning) */
+    if (space->m_warning_count_in_decade < 2 &&
+        display_pct > space->m_last_size_warning_pct &&
+        (space->m_warning_count_in_decade == 0 ||
+         display_pct >=
+             static_cast<uint64_t>(space->m_last_size_warning_pct + 5))) {
+      should_warn = true;
+    }
+  }
+
+  if (should_warn) {
+    ib::warn() << "Tablespace '" << space->name << "' size " << current_bytes
+               << " bytes (" << display_pct << "%)"
+               << " exceeds warning threshold of "
+               << srv_tablespace_size_warning_threshold << " bytes";
+
+    space->m_last_size_warning_pct = static_cast<uint8_t>(display_pct);
+
+    /* Increment counter only for the tiered warning range */
+    if (display_pct < high_resolution_pct) {
+      space->m_warning_count_in_decade++;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
 /** Try to extend a single-table tablespace so that a page would fit in the
 data file.
 @param[in,out]  space   Tablespace
@@ -1381,6 +1464,9 @@ static UNIV_COLD bool fsp_try_extend_data_file(fil_space_t *space,
       ut_calc_align_down(space->size, (1024 * 1024) / page_size.physical());
 
   fsp_header_size_update(header, space->size_in_header, mtr);
+
+  /* Check if tablespace size exceeds warning threshold */
+  fsp_check_size_warning(space, space->size_in_header);
 
   return true;
 }

@@ -507,6 +507,15 @@ NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
 ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
+/* Threshold in bytes for tablespace size warnings (0 = disabled) */
+unsigned long long srv_tablespace_size_warning_threshold = 17592186044416ULL;
+
+/* Percentage at which to start emitting tablespace size warnings */
+unsigned int srv_tablespace_size_warning_pct = 70;
+
+/* Enable/disable tablespace size warning feature */
+bool srv_tablespace_size_warning_enabled = true;
+
 bool tbsp_extend_and_initialize = true;
 
 #ifndef UNIV_HOTBACKUP

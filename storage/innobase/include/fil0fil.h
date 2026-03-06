@@ -329,6 +329,15 @@ struct fil_space_t {
   becomes bigger than both this and srv_max_undo_log_size. */
   page_no_t m_undo_initial{};
 
+  /** Last percentage at which we emitted a size warning (0-100) */
+  uint8_t m_last_size_warning_pct{0};
+
+  /** Threshold value used for the last warning */
+  uint64_t m_last_warning_threshold{0};
+
+  /** Count of warnings emitted in the current decade (0-2) */
+  uint8_t m_warning_count_in_decade{0};
+
   /** Tablespace name */
   char *name{};
 
