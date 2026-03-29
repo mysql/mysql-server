@@ -850,6 +850,49 @@ fi
 )
 %endif # 0%{?compatlib} && %{rhel} > 7
 
+# Common cmake flags shared across debug, release, and PGO builds.
+# Conditional parts are resolved here once; the macro is then reused below.
+%if 0%{?ssl_default}
+%global cmake_ssl_flags -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1
+%else
+%global cmake_ssl_flags -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 -DWITH_AUTHENTICATION_WEBAUTHN=0 -DWITH_AUTHENTICATION_KERBEROS=0 -DWITH_AUTHENTICATION_OPENID_CONNECT=0 -DWITH_AUTHENTICATION_LDAP=0 -DWITH_AUTHENTICATION_OCI=0 -DWITH_COMPONENT_KEYRING_HASHICORP=0 -DWITH_COMPONENT_KEYRING_KMIP=0 -DWITH_COMPONENT_KEYRING_OCI=0 -DWITH_CURL=0 -DWITH_KEYRING_HASHICORP=0
+%endif
+
+%if 0%{?cluster}
+%global cmake_cluster_flags -DWITH_NDB=1
+%else
+%global cmake_cluster_flags %{nil}
+%endif
+
+%if 0%{?commercial}
+%global cmake_commercial_flags -DWITH_MEB=%{with_meb} -DWITH_MLE=1 %{?aws_sdk_option}
+%else
+%global cmake_commercial_flags %{nil}
+%endif
+
+%if 0%{?mrs_jit_executor_lib:1}
+%global cmake_mrs_flags -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}"
+%else
+%global cmake_mrs_flags %{nil}
+%endif
+
+%global cmake_common_flags \\\
+           -DBUILD_CONFIG=mysql_release \\\
+           -DINSTALL_LAYOUT=RPM \\\
+           %{cmake_ssl_flags} \\\
+           -DWITH_CURL=system \\\
+           -DWITH_SYSTEMD=1 \\\
+           -DWITH_ROUTER=%{with_router} \\\
+           %{cmake_cluster_flags} \\\
+           %{cmake_commercial_flags} \\\
+           %{?ssl_option} \\\
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \\\
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \\\
+           -DWITH_NUMA=1 \\\
+           %{?mecab_option} \\\
+           %{cmake_mrs_flags} \\\
+           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+
 # Build debug versions of mysqld
 mkdir debug
 (
@@ -861,48 +904,12 @@ mkdir debug
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' -e 's/%{_lto_cflags}/ /')
 %endif
   %{cmake3} ../%{src_dir} \
-           -DBUILD_CONFIG=mysql_release \
-           -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-%if 0%{?ssl_default}
-           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
-%else
-           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
-           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
-           -DWITH_AUTHENTICATION_KERBEROS=0 \
-           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
-           -DWITH_AUTHENTICATION_LDAP=0 \
-           -DWITH_AUTHENTICATION_OCI=0 \
-           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
-           -DWITH_COMPONENT_KEYRING_KMIP=0 \
-           -DWITH_COMPONENT_KEYRING_OCI=0 \
-           -DWITH_CURL=0 \
-           -DWITH_KEYRING_HASHICORP=0 \
-%endif # ssl_default
-           -DWITH_CURL=system \
-           -DWITH_SYSTEMD=1 \
-           -DWITH_ROUTER=%{with_router} \
-%if 0%{?cluster}
-           -DWITH_NDB=1 \
-%endif
-%if 0%{?commercial}
-           -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
-           %{?aws_sdk_option} \
-%endif
-           %{?ssl_option} \
-           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
-           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DWITH_NUMA=1 \
-           %{?mecab_option} \
-%if 0%{?mrs_jit_executor_lib:1}
-    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
-%endif
+           %{cmake_common_flags} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/my_config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -913,48 +920,12 @@ mkdir release
   cd release
   %{cmake3} ../%{src_dir} \
            %{?pgo:-DFPROFILE_GENERATE=1} \
-           -DBUILD_CONFIG=mysql_release \
-           -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-%if 0%{?ssl_default}
-           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
-%else
-           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
-           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
-           -DWITH_AUTHENTICATION_KERBEROS=0 \
-           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
-           -DWITH_AUTHENTICATION_LDAP=0 \
-           -DWITH_AUTHENTICATION_OCI=0 \
-           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
-           -DWITH_COMPONENT_KEYRING_KMIP=0 \
-           -DWITH_COMPONENT_KEYRING_OCI=0 \
-           -DWITH_CURL=0 \
-           -DWITH_KEYRING_HASHICORP=0 \
-%endif # ssl_default
-           -DWITH_CURL=system \
-           -DWITH_SYSTEMD=1 \
-           -DWITH_ROUTER=%{with_router} \
-%if 0%{?cluster}
-           -DWITH_NDB=1 \
-%endif
-%if 0%{?commercial}
-           -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
-           %{?aws_sdk_option} \
-%endif
-           %{?ssl_option} \
-           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
-           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DWITH_NUMA=1 \
-           %{?mecab_option} \
-%if 0%{?mrs_jit_executor_lib:1}
-    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
-%endif
+           %{cmake_common_flags} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/my_config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -970,51 +941,14 @@ mkdir release
   # Build again with profile data present
   rm -rf release
   mkdir release && pushd release
-  cmake3 ../%{src_dir} \
+  %{cmake3} ../%{src_dir} \
            -DFPROFILE_USE=1 \
-           -DBUILD_CONFIG=mysql_release \
-           -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-%if 0%{?ssl_default}
-%else
-           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
-           -DWITH_AUTHENTICATION_FIDO=0 \
-           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
-           -DWITH_AUTHENTICATION_KERBEROS=0 \
-           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
-           -DWITH_AUTHENTICATION_LDAP=0 \
-           -DWITH_AUTHENTICATION_OCI=0 \
-           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
-           -DWITH_COMPONENT_KEYRING_KMIP=0 \
-           -DWITH_COMPONENT_KEYRING_OCI=0 \
-           -DWITH_CURL=0 \
-           -DWITH_KEYRING_HASHICORP=0 \
-           -DWITH_KEYRING_OCI=0 \
-%endif # ssl_default
-           -DWITH_CURL=system \
-           -DWITH_SYSTEMD=1 \
-           -DWITH_ROUTER=%{with_router} \
-%if 0%{?cluster}
-           -DWITH_NDB=1 \
-%endif
-%if 0%{?commercial}
-           -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
-           %{?aws_sdk_option} \
-%endif
-           %{?ssl_option} \
-           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
-           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DWITH_NUMA=1 \
-           %{?mecab_option} \
-%if 0%{?mrs_jit_executor_lib:1}
-    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
-%endif
+           %{cmake_common_flags} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}"
   make %{?_smp_mflags} VERBOSE=1
 )
 %endif # pgo
