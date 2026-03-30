@@ -41,6 +41,21 @@ else
 endif
 
 
+# Common cmake flags shared between debug and release builds
+CMAKE_COMMON_FLAGS = \
+		-DBUILD_CONFIG=mysql_release \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+		-DSYSCONFDIR=/etc/mysql \
+		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+		-DWITH_MECAB=system \
+		-DWITH_ZLIB=@DEB_ZLIB_OPTION@ \
+		-DWITH_NUMA=ON \
+		-DINSTALL_LAYOUT=DEB \
+		-DREPRODUCIBLE_BUILD=OFF \
+		-DDEB_PRODUCT=@DEB_PRODUCT@ \
+		@DEB_CMAKE_EXTRAS@
+
 override_dh_auto_configure:
 	@echo "RULES.$@"
 
@@ -51,20 +66,9 @@ override_dh_auto_configure:
 	mkdir release && cd release && \
 	cmake .. \
 		$(PROFILE) \
-		-DBUILD_CONFIG=mysql_release \
-		-DCMAKE_INSTALL_PREFIX=/usr \
-		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
-		-DSYSCONFDIR=/etc/mysql \
-		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
-		-DWITH_MECAB=system \
-		-DWITH_ZLIB=@DEB_ZLIB_OPTION@ \
-		-DWITH_NUMA=ON \
+		$(CMAKE_COMMON_FLAGS) \
 		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ - @DEB_LICENSENAME@" \
-		-DCOMPILATION_COMMENT_SERVER="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
-		-DINSTALL_LAYOUT=DEB \
-		-DREPRODUCIBLE_BUILD=OFF \
-		-DDEB_PRODUCT=@DEB_PRODUCT@ \
-		@DEB_CMAKE_EXTRAS@
+		-DCOMPILATION_COMMENT_SERVER="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@"
 
 	touch $@
 
