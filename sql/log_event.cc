@@ -6210,7 +6210,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
     rli_ptr->set_group_relay_log_name(new_group_relay_log_name);
     rli_ptr->set_group_relay_log_pos(new_group_relay_log_pos);
 
-    DBUG_PRINT("info", ("Updating positions on succesful commit to group source"
+    DBUG_PRINT("info", ("Updating positions on successful commit to group source"
                         " %s %llu  group relay %s %llu\n",
                         rli_ptr->get_group_master_log_name(),
                         rli_ptr->get_group_master_log_pos(),
