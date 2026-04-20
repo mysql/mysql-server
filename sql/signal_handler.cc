@@ -178,7 +178,7 @@ static void print_extra_signal_information(int sig, siginfo_t *info) {
           extra_info = "Invalid address alignment";
           break;
         case BUS_ADRERR:
-          extra_info = "Non-existant physical address";
+          extra_info = "Non-existent physical address";
           break;
         case BUS_OBJERR:
           extra_info = "Object specific hardware error";

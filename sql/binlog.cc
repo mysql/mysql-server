@@ -2242,7 +2242,7 @@ class Binlog_cache_compressor {
   /// Size after compression, if compression succeeded. Otherwise,
   /// size before compression.
   size_t m_compressed_size;
-  /// Compression algorithm, if compression succeded; otherwise NONE.
+  /// Compression algorithm, if compression succeeded; otherwise NONE.
   mysql::binlog::event::compression::type m_compression_type;
 };
 
@@ -2315,7 +2315,7 @@ int binlog_cache_data::finalize(THD *thd, Log_event *end_event, XID_STATE *xs) {
 ///   @param thd Thread variable
 ///
 ///   @retval 0 Success.
-///   @retval non-zero Error occured writing to cache
+///   @retval non-zero Error occurred writing to cache
 ///
 ///   @note This function handles previous error while writing to the cache by
 ///   attempting to write (something hopefully smaller) to the cache and thus it
