@@ -1,0 +1,34 @@
+--echo #
+--echo # Bug: ALTER INSTANCE ENABLE INNODB REDO_LOG hits ut_error in debug build
+--echo #      when innodb_checkpoint_disabled is set.
+--echo #
+--echo # Repro steps:
+--echo #   ALTER INSTANCE DISABLE INNODB REDO_LOG;
+--echo #   SET GLOBAL innodb_checkpoint_disabled=1;
+--echo #   ALTER INSTANCE ENABLE INNODB REDO_LOG;  -- crashed here
+--echo #
+
+# innodb_checkpoint_disabled is a debug-only variable
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
+--echo # Disable redo logging
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+
+--echo # Disable checkpointing (debug-only)
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Re-enable redo logging while checkpoint is disabled.
+--echo # This used to hit ut_error in log_request_latest_checkpoint().
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+--echo # Verify redo logging is now enabled
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+
+--echo # Cleanup
+SET GLOBAL innodb_checkpoint_disabled = OFF;

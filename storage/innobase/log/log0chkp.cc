@@ -605,6 +605,12 @@ void log_request_checkpoint(log_t &log, bool sync) {
 bool log_request_latest_checkpoint(log_t &log, lsn_t &requested_lsn) {
   const lsn_t lsn = log_get_lsn(log);
 
+#ifdef UNIV_DEBUG
+  if (srv_checkpoint_disabled) {
+    return false;
+  }
+#endif
+
   if (lsn <= log.last_checkpoint_lsn.load()) {
     return false;
   }

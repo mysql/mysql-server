@@ -1,0 +1,25 @@
+#
+# Bug: ALTER INSTANCE ENABLE INNODB REDO_LOG hits ut_error in debug build
+#      when innodb_checkpoint_disabled is set.
+#
+# Repro steps:
+#   ALTER INSTANCE DISABLE INNODB REDO_LOG;
+#   SET GLOBAL innodb_checkpoint_disabled=1;
+#   ALTER INSTANCE ENABLE INNODB REDO_LOG;  -- crashed here
+#
+# Disable redo logging
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
+# Disable checkpointing (debug-only)
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Re-enable redo logging while checkpoint is disabled.
+# This used to hit ut_error in log_request_latest_checkpoint().
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+# Verify redo logging is now enabled
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+# Cleanup
+SET GLOBAL innodb_checkpoint_disabled = OFF;
