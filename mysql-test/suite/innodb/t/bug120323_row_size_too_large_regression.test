@@ -1,0 +1,136 @@
+# Test for Bug#120323: "Row size too large (> 8126)" regression
+# https://bugs.mysql.com/bug.php?id=120323
+#
+# MySQL 8.0.46 / 8.4.9 introduced a regression where CREATE TABLE fails
+# for tables with many varchar(41-255) columns using ROW_FORMAT=DYNAMIC.
+# The root cause is a DATA_BIG_COL(col) guard in get_field_max_size()
+# that prevents columns with col->len <= 255 from being counted as
+# external-storage eligible, inflating the row-size estimate.
+
+--disable_warnings
+DROP DATABASE IF EXISTS bug120323;
+--enable_warnings
+CREATE DATABASE bug120323;
+USE bug120323;
+
+--echo #
+--echo # Test 1: 100 x varchar(200) latin1 columns with ROW_FORMAT=DYNAMIC
+--echo # This is the minimal repro - fails without the fix.
+--echo #
+
+--let $create_stmt= CREATE TABLE t_varchar200 (
+--let $i= 1
+while ($i <= 100)
+{
+  if ($i > 1)
+  {
+    --let $create_stmt= $create_stmt,
+  }
+  --let $create_stmt= $create_stmt c$i varchar(200)
+  --inc $i
+}
+--let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
+--eval $create_stmt
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar200';
+DROP TABLE t_varchar200;
+
+--echo #
+--echo # Test 2: 100 x varchar(255) latin1 - boundary at DATA_BIG_COL threshold
+--echo #
+
+--let $create_stmt= CREATE TABLE t_varchar255 (
+--let $i= 1
+while ($i <= 100)
+{
+  if ($i > 1)
+  {
+    --let $create_stmt= $create_stmt,
+  }
+  --let $create_stmt= $create_stmt c$i varchar(255)
+  --inc $i
+}
+--let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
+--eval $create_stmt
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar255';
+DROP TABLE t_varchar255;
+
+--echo #
+--echo # Test 3: varchar(256) columns - these always worked because
+--echo # col->len > 255 satisfies DATA_BIG_COL. Verify no regression.
+--echo #
+
+--let $create_stmt= CREATE TABLE t_varchar256 (
+--let $i= 1
+while ($i <= 100)
+{
+  if ($i > 1)
+  {
+    --let $create_stmt= $create_stmt,
+  }
+  --let $create_stmt= $create_stmt c$i varchar(256)
+  --inc $i
+}
+--let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
+--eval $create_stmt
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar256';
+DROP TABLE t_varchar256;
+
+--echo #
+--echo # Test 4: Mixed varchar lengths (41-255) simulating real-world schema
+--echo #
+
+CREATE TABLE t_mixed (
+  c1 varchar(41), c2 varchar(50), c3 varchar(80), c4 varchar(100),
+  c5 varchar(120), c6 varchar(150), c7 varchar(180), c8 varchar(200),
+  c9 varchar(220), c10 varchar(255), c11 varchar(41), c12 varchar(50),
+  c13 varchar(80), c14 varchar(100), c15 varchar(120), c16 varchar(150),
+  c17 varchar(180), c18 varchar(200), c19 varchar(220), c20 varchar(255),
+  c21 varchar(41), c22 varchar(50), c23 varchar(80), c24 varchar(100),
+  c25 varchar(120), c26 varchar(150), c27 varchar(180), c28 varchar(200),
+  c29 varchar(220), c30 varchar(255), c31 varchar(41), c32 varchar(50),
+  c33 varchar(80), c34 varchar(100), c35 varchar(120), c36 varchar(150),
+  c37 varchar(180), c38 varchar(200), c39 varchar(220), c40 varchar(255),
+  c41 varchar(41), c42 varchar(50), c43 varchar(80), c44 varchar(100),
+  c45 varchar(120), c46 varchar(150), c47 varchar(180), c48 varchar(200),
+  c49 varchar(220), c50 varchar(255), c51 varchar(41), c52 varchar(50),
+  c53 varchar(80), c54 varchar(100), c55 varchar(120), c56 varchar(150),
+  c57 varchar(180), c58 varchar(200), c59 varchar(220), c60 varchar(255),
+  c61 varchar(41), c62 varchar(50), c63 varchar(80), c64 varchar(100),
+  c65 varchar(120), c66 varchar(150), c67 varchar(180), c68 varchar(200),
+  c69 varchar(220), c70 varchar(255), c71 varchar(41), c72 varchar(50),
+  c73 varchar(80), c74 varchar(100), c75 varchar(120), c76 varchar(150),
+  c77 varchar(180), c78 varchar(200), c79 varchar(220), c80 varchar(255)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+
+--echo # Verify INSERT and SELECT work
+INSERT INTO t_mixed (c1, c2, c3) VALUES ('a', 'b', 'c');
+SELECT c1, c2, c3 FROM t_mixed;
+
+--echo # Verify CREATE TABLE LIKE works (upgrade path scenario)
+CREATE TABLE t_mixed_copy LIKE t_mixed;
+DROP TABLE t_mixed_copy;
+DROP TABLE t_mixed;
+
+--echo #
+--echo # Test 5: 100 x varchar(40) latin1 - at the external storage threshold
+--echo # (get_max_size() <= BTR_EXTERN_LOCAL_STORED_MAX_SIZE, never stored externally).
+--echo # Should work regardless of fix. Sanity check.
+--echo #
+
+--let $create_stmt= CREATE TABLE t_varchar40 (
+--let $i= 1
+while ($i <= 100)
+{
+  if ($i > 1)
+  {
+    --let $create_stmt= $create_stmt,
+  }
+  --let $create_stmt= $create_stmt c$i varchar(40)
+  --inc $i
+}
+--let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
+--eval $create_stmt
+DROP TABLE t_varchar40;
+
+# cleanup
+DROP DATABASE bug120323;

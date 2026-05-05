@@ -1,0 +1,66 @@
+# Bug#120323: Row size too large regression - INSERT boundary test
+#
+# This test documents the known trade-off of the fix: CREATE TABLE succeeds
+# for schemas with many varchar(41-255) columns, but INSERT will fail with
+# DB_TOO_BIG_RECORD if every column is filled to its maximum declared length.
+#
+# This is the same behavior as all MySQL versions prior to 8.0.46 and is
+# expected because the record format cannot flag columns with col->len <= 255
+# for external storage (1-byte length encoding has no external storage bit).
+
+--disable_warnings
+DROP DATABASE IF EXISTS bug120323;
+--enable_warnings
+CREATE DATABASE bug120323;
+USE bug120323;
+
+--echo #
+--echo # Create a table with 100 x varchar(200) latin1 DYNAMIC.
+--echo # With the fix, CREATE TABLE succeeds.
+--echo #
+
+--let $create_stmt= CREATE TABLE t1 (
+--let $i= 1
+while ($i <= 100)
+{
+  if ($i > 1)
+  {
+    --let $create_stmt= $create_stmt,
+  }
+  --let $create_stmt= $create_stmt c$i varchar(200)
+  --inc $i
+}
+--let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
+--eval $create_stmt
+
+--echo #
+--echo # INSERT with short data succeeds - row fits on page.
+--echo #
+
+INSERT INTO t1 (c1, c2, c3) VALUES ('a', 'b', 'c');
+
+--echo #
+--echo # INSERT with all 100 columns at max length (200 bytes each) fails.
+--echo # Total payload = 100 * 200 = 20000 bytes, exceeds page limit.
+--echo # InnoDB cannot store these columns externally because col->len <= 255
+--echo # (1-byte length encoding has no external storage flag).
+--echo # This is expected and matches pre-8.0.46 behavior.
+--echo #
+
+--let $insert_vals=
+--let $i= 1
+while ($i <= 100)
+{
+  if ($i > 1)
+  {
+    --let $insert_vals= $insert_vals,
+  }
+  --let $insert_vals= $insert_vals REPEAT('x', 200)
+  --inc $i
+}
+
+--error ER_TOO_BIG_ROWSIZE
+--eval INSERT INTO t1 VALUES ($insert_vals)
+
+# cleanup
+DROP DATABASE bug120323;

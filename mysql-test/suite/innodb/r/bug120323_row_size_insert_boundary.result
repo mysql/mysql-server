@@ -1,0 +1,22 @@
+DROP DATABASE IF EXISTS bug120323;
+CREATE DATABASE bug120323;
+USE bug120323;
+#
+# Create a table with 100 x varchar(200) latin1 DYNAMIC.
+# With the fix, CREATE TABLE succeeds.
+#
+CREATE TABLE t1 ( c1 varchar(200), c2 varchar(200), c3 varchar(200), c4 varchar(200), c5 varchar(200), c6 varchar(200), c7 varchar(200), c8 varchar(200), c9 varchar(200), c10 varchar(200), c11 varchar(200), c12 varchar(200), c13 varchar(200), c14 varchar(200), c15 varchar(200), c16 varchar(200), c17 varchar(200), c18 varchar(200), c19 varchar(200), c20 varchar(200), c21 varchar(200), c22 varchar(200), c23 varchar(200), c24 varchar(200), c25 varchar(200), c26 varchar(200), c27 varchar(200), c28 varchar(200), c29 varchar(200), c30 varchar(200), c31 varchar(200), c32 varchar(200), c33 varchar(200), c34 varchar(200), c35 varchar(200), c36 varchar(200), c37 varchar(200), c38 varchar(200), c39 varchar(200), c40 varchar(200), c41 varchar(200), c42 varchar(200), c43 varchar(200), c44 varchar(200), c45 varchar(200), c46 varchar(200), c47 varchar(200), c48 varchar(200), c49 varchar(200), c50 varchar(200), c51 varchar(200), c52 varchar(200), c53 varchar(200), c54 varchar(200), c55 varchar(200), c56 varchar(200), c57 varchar(200), c58 varchar(200), c59 varchar(200), c60 varchar(200), c61 varchar(200), c62 varchar(200), c63 varchar(200), c64 varchar(200), c65 varchar(200), c66 varchar(200), c67 varchar(200), c68 varchar(200), c69 varchar(200), c70 varchar(200), c71 varchar(200), c72 varchar(200), c73 varchar(200), c74 varchar(200), c75 varchar(200), c76 varchar(200), c77 varchar(200), c78 varchar(200), c79 varchar(200), c80 varchar(200), c81 varchar(200), c82 varchar(200), c83 varchar(200), c84 varchar(200), c85 varchar(200), c86 varchar(200), c87 varchar(200), c88 varchar(200), c89 varchar(200), c90 varchar(200), c91 varchar(200), c92 varchar(200), c93 varchar(200), c94 varchar(200), c95 varchar(200), c96 varchar(200), c97 varchar(200), c98 varchar(200), c99 varchar(200), c100 varchar(200) ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+#
+# INSERT with short data succeeds - row fits on page.
+#
+INSERT INTO t1 (c1, c2, c3) VALUES ('a', 'b', 'c');
+#
+# INSERT with all 100 columns at max length (200 bytes each) fails.
+# Total payload = 100 * 200 = 20000 bytes, exceeds page limit.
+# InnoDB cannot store these columns externally because col->len <= 255
+# (1-byte length encoding has no external storage flag).
+# This is expected and matches pre-8.0.46 behavior.
+#
+INSERT INTO t1 VALUES ( REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200), REPEAT('x', 200));
+ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP DATABASE bug120323;

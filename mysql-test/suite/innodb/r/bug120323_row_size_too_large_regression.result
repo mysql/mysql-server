@@ -1,0 +1,71 @@
+DROP DATABASE IF EXISTS bug120323;
+CREATE DATABASE bug120323;
+USE bug120323;
+#
+# Test 1: 100 x varchar(200) latin1 columns with ROW_FORMAT=DYNAMIC
+# This is the minimal repro - fails without the fix.
+#
+CREATE TABLE t_varchar200 ( c1 varchar(200), c2 varchar(200), c3 varchar(200), c4 varchar(200), c5 varchar(200), c6 varchar(200), c7 varchar(200), c8 varchar(200), c9 varchar(200), c10 varchar(200), c11 varchar(200), c12 varchar(200), c13 varchar(200), c14 varchar(200), c15 varchar(200), c16 varchar(200), c17 varchar(200), c18 varchar(200), c19 varchar(200), c20 varchar(200), c21 varchar(200), c22 varchar(200), c23 varchar(200), c24 varchar(200), c25 varchar(200), c26 varchar(200), c27 varchar(200), c28 varchar(200), c29 varchar(200), c30 varchar(200), c31 varchar(200), c32 varchar(200), c33 varchar(200), c34 varchar(200), c35 varchar(200), c36 varchar(200), c37 varchar(200), c38 varchar(200), c39 varchar(200), c40 varchar(200), c41 varchar(200), c42 varchar(200), c43 varchar(200), c44 varchar(200), c45 varchar(200), c46 varchar(200), c47 varchar(200), c48 varchar(200), c49 varchar(200), c50 varchar(200), c51 varchar(200), c52 varchar(200), c53 varchar(200), c54 varchar(200), c55 varchar(200), c56 varchar(200), c57 varchar(200), c58 varchar(200), c59 varchar(200), c60 varchar(200), c61 varchar(200), c62 varchar(200), c63 varchar(200), c64 varchar(200), c65 varchar(200), c66 varchar(200), c67 varchar(200), c68 varchar(200), c69 varchar(200), c70 varchar(200), c71 varchar(200), c72 varchar(200), c73 varchar(200), c74 varchar(200), c75 varchar(200), c76 varchar(200), c77 varchar(200), c78 varchar(200), c79 varchar(200), c80 varchar(200), c81 varchar(200), c82 varchar(200), c83 varchar(200), c84 varchar(200), c85 varchar(200), c86 varchar(200), c87 varchar(200), c88 varchar(200), c89 varchar(200), c90 varchar(200), c91 varchar(200), c92 varchar(200), c93 varchar(200), c94 varchar(200), c95 varchar(200), c96 varchar(200), c97 varchar(200), c98 varchar(200), c99 varchar(200), c100 varchar(200) ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar200';
+COUNT(*)
+100
+DROP TABLE t_varchar200;
+#
+# Test 2: 100 x varchar(255) latin1 - boundary at DATA_BIG_COL threshold
+#
+CREATE TABLE t_varchar255 ( c1 varchar(255), c2 varchar(255), c3 varchar(255), c4 varchar(255), c5 varchar(255), c6 varchar(255), c7 varchar(255), c8 varchar(255), c9 varchar(255), c10 varchar(255), c11 varchar(255), c12 varchar(255), c13 varchar(255), c14 varchar(255), c15 varchar(255), c16 varchar(255), c17 varchar(255), c18 varchar(255), c19 varchar(255), c20 varchar(255), c21 varchar(255), c22 varchar(255), c23 varchar(255), c24 varchar(255), c25 varchar(255), c26 varchar(255), c27 varchar(255), c28 varchar(255), c29 varchar(255), c30 varchar(255), c31 varchar(255), c32 varchar(255), c33 varchar(255), c34 varchar(255), c35 varchar(255), c36 varchar(255), c37 varchar(255), c38 varchar(255), c39 varchar(255), c40 varchar(255), c41 varchar(255), c42 varchar(255), c43 varchar(255), c44 varchar(255), c45 varchar(255), c46 varchar(255), c47 varchar(255), c48 varchar(255), c49 varchar(255), c50 varchar(255), c51 varchar(255), c52 varchar(255), c53 varchar(255), c54 varchar(255), c55 varchar(255), c56 varchar(255), c57 varchar(255), c58 varchar(255), c59 varchar(255), c60 varchar(255), c61 varchar(255), c62 varchar(255), c63 varchar(255), c64 varchar(255), c65 varchar(255), c66 varchar(255), c67 varchar(255), c68 varchar(255), c69 varchar(255), c70 varchar(255), c71 varchar(255), c72 varchar(255), c73 varchar(255), c74 varchar(255), c75 varchar(255), c76 varchar(255), c77 varchar(255), c78 varchar(255), c79 varchar(255), c80 varchar(255), c81 varchar(255), c82 varchar(255), c83 varchar(255), c84 varchar(255), c85 varchar(255), c86 varchar(255), c87 varchar(255), c88 varchar(255), c89 varchar(255), c90 varchar(255), c91 varchar(255), c92 varchar(255), c93 varchar(255), c94 varchar(255), c95 varchar(255), c96 varchar(255), c97 varchar(255), c98 varchar(255), c99 varchar(255), c100 varchar(255) ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar255';
+COUNT(*)
+100
+DROP TABLE t_varchar255;
+#
+# Test 3: varchar(256) columns - these always worked because
+# col->len > 255 satisfies DATA_BIG_COL. Verify no regression.
+#
+CREATE TABLE t_varchar256 ( c1 varchar(256), c2 varchar(256), c3 varchar(256), c4 varchar(256), c5 varchar(256), c6 varchar(256), c7 varchar(256), c8 varchar(256), c9 varchar(256), c10 varchar(256), c11 varchar(256), c12 varchar(256), c13 varchar(256), c14 varchar(256), c15 varchar(256), c16 varchar(256), c17 varchar(256), c18 varchar(256), c19 varchar(256), c20 varchar(256), c21 varchar(256), c22 varchar(256), c23 varchar(256), c24 varchar(256), c25 varchar(256), c26 varchar(256), c27 varchar(256), c28 varchar(256), c29 varchar(256), c30 varchar(256), c31 varchar(256), c32 varchar(256), c33 varchar(256), c34 varchar(256), c35 varchar(256), c36 varchar(256), c37 varchar(256), c38 varchar(256), c39 varchar(256), c40 varchar(256), c41 varchar(256), c42 varchar(256), c43 varchar(256), c44 varchar(256), c45 varchar(256), c46 varchar(256), c47 varchar(256), c48 varchar(256), c49 varchar(256), c50 varchar(256), c51 varchar(256), c52 varchar(256), c53 varchar(256), c54 varchar(256), c55 varchar(256), c56 varchar(256), c57 varchar(256), c58 varchar(256), c59 varchar(256), c60 varchar(256), c61 varchar(256), c62 varchar(256), c63 varchar(256), c64 varchar(256), c65 varchar(256), c66 varchar(256), c67 varchar(256), c68 varchar(256), c69 varchar(256), c70 varchar(256), c71 varchar(256), c72 varchar(256), c73 varchar(256), c74 varchar(256), c75 varchar(256), c76 varchar(256), c77 varchar(256), c78 varchar(256), c79 varchar(256), c80 varchar(256), c81 varchar(256), c82 varchar(256), c83 varchar(256), c84 varchar(256), c85 varchar(256), c86 varchar(256), c87 varchar(256), c88 varchar(256), c89 varchar(256), c90 varchar(256), c91 varchar(256), c92 varchar(256), c93 varchar(256), c94 varchar(256), c95 varchar(256), c96 varchar(256), c97 varchar(256), c98 varchar(256), c99 varchar(256), c100 varchar(256) ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar256';
+COUNT(*)
+100
+DROP TABLE t_varchar256;
+#
+# Test 4: Mixed varchar lengths (41-255) simulating real-world schema
+#
+CREATE TABLE t_mixed (
+c1 varchar(41), c2 varchar(50), c3 varchar(80), c4 varchar(100),
+c5 varchar(120), c6 varchar(150), c7 varchar(180), c8 varchar(200),
+c9 varchar(220), c10 varchar(255), c11 varchar(41), c12 varchar(50),
+c13 varchar(80), c14 varchar(100), c15 varchar(120), c16 varchar(150),
+c17 varchar(180), c18 varchar(200), c19 varchar(220), c20 varchar(255),
+c21 varchar(41), c22 varchar(50), c23 varchar(80), c24 varchar(100),
+c25 varchar(120), c26 varchar(150), c27 varchar(180), c28 varchar(200),
+c29 varchar(220), c30 varchar(255), c31 varchar(41), c32 varchar(50),
+c33 varchar(80), c34 varchar(100), c35 varchar(120), c36 varchar(150),
+c37 varchar(180), c38 varchar(200), c39 varchar(220), c40 varchar(255),
+c41 varchar(41), c42 varchar(50), c43 varchar(80), c44 varchar(100),
+c45 varchar(120), c46 varchar(150), c47 varchar(180), c48 varchar(200),
+c49 varchar(220), c50 varchar(255), c51 varchar(41), c52 varchar(50),
+c53 varchar(80), c54 varchar(100), c55 varchar(120), c56 varchar(150),
+c57 varchar(180), c58 varchar(200), c59 varchar(220), c60 varchar(255),
+c61 varchar(41), c62 varchar(50), c63 varchar(80), c64 varchar(100),
+c65 varchar(120), c66 varchar(150), c67 varchar(180), c68 varchar(200),
+c69 varchar(220), c70 varchar(255), c71 varchar(41), c72 varchar(50),
+c73 varchar(80), c74 varchar(100), c75 varchar(120), c76 varchar(150),
+c77 varchar(180), c78 varchar(200), c79 varchar(220), c80 varchar(255)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+# Verify INSERT and SELECT work
+INSERT INTO t_mixed (c1, c2, c3) VALUES ('a', 'b', 'c');
+SELECT c1, c2, c3 FROM t_mixed;
+c1	c2	c3
+a	b	c
+# Verify CREATE TABLE LIKE works (upgrade path scenario)
+CREATE TABLE t_mixed_copy LIKE t_mixed;
+DROP TABLE t_mixed_copy;
+DROP TABLE t_mixed;
+#
+# Test 5: 100 x varchar(40) latin1 - at the external storage threshold
+# (get_max_size() <= BTR_EXTERN_LOCAL_STORED_MAX_SIZE, never stored externally).
+# Should work regardless of fix. Sanity check.
+#
+CREATE TABLE t_varchar40 ( c1 varchar(40), c2 varchar(40), c3 varchar(40), c4 varchar(40), c5 varchar(40), c6 varchar(40), c7 varchar(40), c8 varchar(40), c9 varchar(40), c10 varchar(40), c11 varchar(40), c12 varchar(40), c13 varchar(40), c14 varchar(40), c15 varchar(40), c16 varchar(40), c17 varchar(40), c18 varchar(40), c19 varchar(40), c20 varchar(40), c21 varchar(40), c22 varchar(40), c23 varchar(40), c24 varchar(40), c25 varchar(40), c26 varchar(40), c27 varchar(40), c28 varchar(40), c29 varchar(40), c30 varchar(40), c31 varchar(40), c32 varchar(40), c33 varchar(40), c34 varchar(40), c35 varchar(40), c36 varchar(40), c37 varchar(40), c38 varchar(40), c39 varchar(40), c40 varchar(40), c41 varchar(40), c42 varchar(40), c43 varchar(40), c44 varchar(40), c45 varchar(40), c46 varchar(40), c47 varchar(40), c48 varchar(40), c49 varchar(40), c50 varchar(40), c51 varchar(40), c52 varchar(40), c53 varchar(40), c54 varchar(40), c55 varchar(40), c56 varchar(40), c57 varchar(40), c58 varchar(40), c59 varchar(40), c60 varchar(40), c61 varchar(40), c62 varchar(40), c63 varchar(40), c64 varchar(40), c65 varchar(40), c66 varchar(40), c67 varchar(40), c68 varchar(40), c69 varchar(40), c70 varchar(40), c71 varchar(40), c72 varchar(40), c73 varchar(40), c74 varchar(40), c75 varchar(40), c76 varchar(40), c77 varchar(40), c78 varchar(40), c79 varchar(40), c80 varchar(40), c81 varchar(40), c82 varchar(40), c83 varchar(40), c84 varchar(40), c85 varchar(40), c86 varchar(40), c87 varchar(40), c88 varchar(40), c89 varchar(40), c90 varchar(40), c91 varchar(40), c92 varchar(40), c93 varchar(40), c94 varchar(40), c95 varchar(40), c96 varchar(40), c97 varchar(40), c98 varchar(40), c99 varchar(40), c100 varchar(40) ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1;
+DROP TABLE t_varchar40;
+DROP DATABASE bug120323;
