@@ -313,7 +313,14 @@ inline void ResolveFieldToFakeTable(
   WalkItem(item_arg, enum_walk::POSTFIX, [&](Item *item) {
     if (item->type() == Item::FIELD_ITEM) {
       Item_field *item_field = down_cast<Item_field *>(item);
-      Fake_TABLE *table = fake_tables.at(item_field->table_name);
+      Fake_TABLE *table = nullptr;
+      if (item_field->table_name == nullptr) {
+        // Unqualified field; assume there's only one table.
+        assert(fake_tables.size() == 1);
+        table = fake_tables.begin()->second;
+      } else {
+        table = fake_tables.at(item_field->table_name);
+      }
       item_field->m_table_ref = table->pos_in_table_list;
       Field *field = nullptr;
       if (strcmp(item_field->field_name, "x") == 0) {

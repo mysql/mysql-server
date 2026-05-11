@@ -1,0 +1,15 @@
+In file included from sql/join_optimizer/access_path.cc:24:
+./sql/join_optimizer/access_path.h:36:10: fatal error: 'my_alloc.h' file not found
+   36 | #include "my_alloc.h"
+      |          ^~~~~~~~~~~~
+1 error generated.
+In file included from sql/iterators/composite_iterators.cc:24:
+./sql/iterators/composite_iterators.h:52:10: fatal error: 'my_alloc.h' file not found
+   52 | #include "my_alloc.h"
+      |          ^~~~~~~~~~~~
+1 error generated.
+In file included from sql/sql_executor.cc:34:
+./sql/sql_executor.h:36:10: fatal error: 'my_alloc.h' file not found
+   36 | #include "my_alloc.h"
+      |          ^~~~~~~~~~~~
+1 error generated.

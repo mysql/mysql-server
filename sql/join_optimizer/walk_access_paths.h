@@ -207,6 +207,11 @@ void ForEachChild(AccessPathPtr path, JoinPtr join,
     case AccessPath::WINDOW:
       func(path->window().child, join);
       break;
+    case AccessPath::REORDER:
+      /* A REORDER path has a single child whose columns are reordered; visit
+         that child so traversal continues into the subtree. */
+      func(path->reorder().child, join);
+      break;
     case AccessPath::WEEDOUT:
       func(path->weedout().child, join);
       break;
@@ -315,6 +320,14 @@ void WalkTablesUnderAccessPath(const AccessPath *root_path, Func &&func,
             return false;
           case AccessPath::WINDOW:
             return func(path->window().temp_table);
+          case AccessPath::REORDER:
+            /* REORDER does not introduce new tables; descend into the child
+               so tables below it are collected. */
+            if (path->reorder().child != nullptr) {
+              WalkTablesUnderAccessPath(path->reorder().child, func,
+                                        include_pruned_tables);
+            }
+            return false;
           case AccessPath::AGGREGATE:
           case AccessPath::APPEND:
           case AccessPath::BKA_JOIN:

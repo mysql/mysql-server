@@ -50,6 +50,10 @@
 #include "sql/sql_class.h"
 #include "sql/table.h"
 
+namespace pack_rows {
+class TableCollection;
+}
+
 class Cost_model_server;
 class Filesort;
 class HashJoinCondition;
@@ -192,6 +196,17 @@ struct AppendPathParameters {
   JOIN *join;
 };
 
+struct ReorderPathParameters {
+  AccessPath *child;
+  // A lightweight descriptor of the target table layout (logical ordering
+  // of fields) that the Reorder iterator should emit. We store both the
+  // source and target TableCollection pointers so the Reorder iterator can
+  // pack the incoming row using the source layout and then unpack it into
+  // the target layout.
+  pack_rows::TableCollection *source_collection;
+  pack_rows::TableCollection *target_collection;
+};
+
 /// To indicate that a row estimate is not yet made.
 inline constexpr double kUnknownRowCount = -1.0;
 
@@ -259,7 +274,7 @@ struct AccessPath {
     INDEX_SKIP_SCAN,
     GROUP_INDEX_SKIP_SCAN,
     DYNAMIC_INDEX_RANGE_SCAN,
-
+    // Joins.
     // Basic access paths that don't correspond to a specific table.
     TABLE_VALUE_CONSTRUCTOR,
     FAKE_SINGLE_ROW,
@@ -281,9 +296,16 @@ struct AccessPath {
     TEMPTABLE_AGGREGATE,
     LIMIT_OFFSET,
     STREAM,
-    MATERIALIZE,
-    MATERIALIZE_INFORMATION_SCHEMA_TABLE,
-    APPEND,
+  MATERIALIZE,
+  MATERIALIZE_INFORMATION_SCHEMA_TABLE,
+  // A lightweight iterator that reorders columns/fields of its single child
+  // so that emitted rows follow a canonical column ordering. Used to
+  // normalize output from swapped join branches (e.g. when lowering
+  // FULL OUTER JOIN into two joins where the second child emits probe-then-
+  // build ordering). The iterator reads rows from the child and rewrites
+  // them into the desired ordering without materializing to disk.
+  REORDER,
+  APPEND,
     WINDOW,
     WEEDOUT,
     REMOVE_DUPLICATES,
@@ -859,6 +881,14 @@ struct AccessPath {
     assert(type == APPEND);
     return u.append;
   }
+  auto &reorder() {
+    assert(type == REORDER);
+    return u.reorder.reorder;
+  }
+  const auto &reorder() const {
+    assert(type == REORDER);
+    return u.reorder.reorder;
+  }
   auto &window() {
     assert(type == WINDOW);
     return u.window;
@@ -1294,6 +1324,9 @@ struct AccessPath {
     struct {
       Mem_root_array<AppendPathParameters> *children;
     } append;
+    struct {
+      ReorderPathParameters reorder;
+    } reorder;
     struct {
       AccessPath *child;
       Window *window;
@@ -1792,6 +1825,25 @@ inline AccessPath *NewAppendAccessPath(
         AddRowCount(num_output_rows, child.path->num_output_rows());
   }
   path->set_num_output_rows(num_output_rows);
+  return path;
+}
+
+inline AccessPath *NewReorderAccessPath(THD *thd, AccessPath *child,
+                                        pack_rows::TableCollection *source,
+                                        pack_rows::TableCollection *target) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::REORDER;
+  path->reorder().child = child;
+  path->reorder().source_collection = source;
+  path->reorder().target_collection = target;
+  // By default, propagate properties from the child.
+  path->has_group_skip_scan = child->has_group_skip_scan;
+  path->ordering_state = child->ordering_state;
+  path->safe_for_rowid = child->safe_for_rowid;
+  path->set_num_output_rows(child->num_output_rows());
+  path->set_cost(child->cost());
+  path->set_init_cost(child->init_cost());
+  path->set_init_once_cost(child->init_once_cost());
   return path;
 }
 

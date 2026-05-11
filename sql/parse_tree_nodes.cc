@@ -30,6 +30,7 @@
 #include <limits>
 #include <utility>
 #include <vector>
+#include <stdio.h>
 
 #include "field_types.h"
 #include "lex_string.h"
@@ -199,6 +200,37 @@ bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
       m_right_table_ref->join_order_swapped = true;
       m_right_table_ref->query_block->set_right_joins();
     }
+  }
+
+  // If this is a FULL join, both sides are considered outer for semantic
+  // purposes (they can produce unmatched rows). Mark the left side as outer
+  // as well so that downstream code is aware.
+  if (m_type & JTT_FULL) {
+    m_left_table_ref->outer_join = true;
+    m_right_table_ref->outer_join = true;
+    /* Preserve parser-level FULL join marker so resolver simplification
+       doesn't remove the parser's intent; optimizer should consult
+       Table_ref::is_full_join when deciding to build FULL_OUTER_JOIN
+       relational expressions. */
+    m_left_table_ref->is_full_join = true;
+    m_right_table_ref->is_full_join = true;
+  DBUG_PRINT(
+    "ast",
+    ("PT_joined_table: FULL join - left and right marked outer; left alias='%s', right alias='%s'",
+     (m_left_table_ref->alias ? m_left_table_ref->alias
+                  : (m_left_table_ref->table_name ? m_left_table_ref->table_name
+                                 : "(unknown)")),
+     (m_right_table_ref->alias ? m_right_table_ref->alias
+                   : (m_right_table_ref->table_name ? m_right_table_ref->table_name
+                                  : "(unknown)"))));
+  fprintf(stderr,
+      "[FULL_JOIN_DEBUG] PT_joined_table: FULL join - left='%s' right='%s'\n",
+      (m_left_table_ref->alias ? m_left_table_ref->alias
+                   : (m_left_table_ref->table_name ? m_left_table_ref->table_name
+                                  : "(unknown)")),
+      (m_right_table_ref->alias ? m_right_table_ref->alias
+                    : (m_right_table_ref->table_name ? m_right_table_ref->table_name
+                                     : "(unknown)")));
   }
 
   return false;
@@ -414,6 +446,19 @@ bool PT_group::allocate_grouping_sets(Parse_context *pc,
   return false;
 }
 
+bool PT_group::add_group_by_all(Parse_context *pc) {
+  Query_block *qb = pc->select;
+  THD *thd = pc->thd;
+
+  for (Item *item : qb->visible_fields()) {
+    if (item->has_aggregation() || item->has_wf() || item->has_grouping_func())
+      continue;
+    if (qb->add_grouping_expr(thd, item)) return true;
+  }
+
+  return false;
+}
+
 /**
   Populate the grouping set bitvector if the query block has non-primitive
   GROUPING SETS
@@ -580,18 +625,22 @@ bool PT_group::do_contextualize(Parse_context *pc) {
     return true;
   }
 
-  for (auto *elem : group_list) {
-    if (elem->contextualize(pc)) return true;
-    /*
-       Link the elements from the grouping sets into the GROUP BY list.
-       e.g.: if a query has GROUPING SETS ((c1), (c1,c2)),
-       The group by list will be c1->c1->c2->NULL
-       Presence of duplicate 'c1' will be eliminated later.
-     */
-    for (ORDER *order_elem = elem->value.first; order_elem != nullptr;) {
-      auto *next_elem = order_elem->next;
-      qb->group_list.link_in_list(order_elem, &order_elem->next);
-      order_elem = next_elem;
+  if (group_all) {
+    if (add_group_by_all(pc)) return true;
+  } else {
+    for (auto *elem : group_list) {
+      if (elem->contextualize(pc)) return true;
+      /*
+         Link the elements from the grouping sets into the GROUP BY list.
+         e.g.: if a query has GROUPING SETS ((c1), (c1,c2)),
+         The group by list will be c1->c1->c2->NULL
+         Presence of duplicate 'c1' will be eliminated later.
+       */
+      for (ORDER *order_elem = elem->value.first; order_elem != nullptr;) {
+        auto *next_elem = order_elem->next;
+        qb->group_list.link_in_list(order_elem, &order_elem->next);
+        order_elem = next_elem;
+      }
     }
   }
 

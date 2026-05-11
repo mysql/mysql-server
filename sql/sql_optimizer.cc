@@ -8772,6 +8772,23 @@ static Item *add_found_match_trig_cond(JOIN *join, plan_idx idx, Item *cond,
 bool JOIN::attach_join_condition_to_nest(plan_idx first_inner,
                                          plan_idx last_tab, Item *join_cond,
                                          bool is_sj_mat_cond) {
+  /* Diagnostic: print indices and table info to debug potential NULL refs */
+  fprintf(stderr,
+          "[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=%d last_tab=%d tables=%u const_tables=%u\n",
+          first_inner, last_tab, (unsigned)tables, (unsigned)const_tables);
+  if ((uint)first_inner < (uint)tables && best_ref[first_inner]) {
+    fprintf(stderr, "[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=%d last_inner=%d prefix_tables=0x%llx added_tables=0x%llx\n",
+            best_ref[first_inner]->first_inner(), best_ref[first_inner]->last_inner(),
+            (unsigned long long)best_ref[first_inner]->prefix_tables(),
+            (unsigned long long)best_ref[first_inner]->added_tables());
+  } else {
+    fprintf(stderr, "[FULL_JOIN_DEBUG] best_ref[first_inner] is NULL or out of range\n");
+  }
+  if (join_cond)
+    fprintf(stderr, "[FULL_JOIN_DEBUG] join_cond is non-NULL\n");
+  else
+    fprintf(stderr, "[FULL_JOIN_DEBUG] join_cond is NULL\n");
+
   /*
     Add the constant part of the join condition to the first inner table
     of the outer join.
@@ -8896,7 +8913,27 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
       same outer join:
     */
     Item *const join_cond = best_ref[first_inner]->join_cond();
-    assert(join_cond);
+    if (!join_cond) {
+      /* Defensive: some join nests may have no join condition here; skip. */
+      fprintf(stderr,
+              "[FULL_JOIN_DEBUG] attach_join_conditions: join_cond is NULL for first_inner=%d last_tab=%d - skipping\n",
+              (int)first_inner, (int)last_tab);
+      continue;
+    }
+    /* Narrow diagnostic: print context for attach_join_condition_to_nest */
+    fprintf(stderr,
+            "[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=%d first_inner=%d tables=%u const_tables=%u join_cond=%p\n",
+            (int)last_tab, (int)first_inner, (unsigned)tables,
+            (unsigned)const_tables, (void *)join_cond);
+    if ((uint)first_inner >= (uint)tables) {
+      fprintf(stderr, "[FULL_JOIN_DEBUG] attach_join_conditions: WARNING first_inner out of range: %d >= %u\n",
+              (int)first_inner, (unsigned)tables);
+    } else if (!best_ref[first_inner]) {
+      fprintf(stderr, "[FULL_JOIN_DEBUG] attach_join_conditions: WARNING best_ref[first_inner] is NULL\n");
+    } else {
+      fprintf(stderr, "[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=%d last_inner=%d\n",
+              best_ref[first_inner]->first_inner(), best_ref[first_inner]->last_inner());
+    }
     if (attach_join_condition_to_nest(first_inner, last_tab, join_cond, false))
       return true;
   }

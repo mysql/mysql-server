@@ -1,0 +1,22 @@
+CREATE TABLE t_exclude (
+id INT PRIMARY KEY,
+name VARCHAR(50),
+salary INT,
+passport_number VARCHAR(32)
+)
+ENGINE=InnoDB;
+INSERT INTO t_exclude VALUES (1, 'Alice', 100, 'P123456');
+INSERT INTO t_exclude VALUES (2, 'Bob', 200, 'P234567');
+SELECT * EXCLUDE (salary) FROM t_exclude ORDER BY id;
+id	name	passport_number
+1	Alice	P123456
+2	Bob	P234567
+SELECT t.* EXCLUDE (passport_number) FROM t_exclude t ORDER BY id;
+id	name	salary
+1	Alice	100
+2	Bob	200
+SELECT * EXCLUDE (nonexistent) FROM t_exclude ORDER BY id;
+id	name	salary	passport_number
+1	Alice	100	P123456
+2	Bob	200	P234567
+DROP TABLE t_exclude;

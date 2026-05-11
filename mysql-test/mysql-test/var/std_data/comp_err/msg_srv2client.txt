@@ -1,0 +1,10 @@
+languages english=eng latin1;
+
+start-error-number 1000
+
+ER_NO
+	eng "NO"
+
+ER_YES
+	eng "YES"
+

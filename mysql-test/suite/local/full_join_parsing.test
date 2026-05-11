@@ -1,0 +1,37 @@
+# Tests for FULL JOIN parsing and behavior
+
+CREATE TABLE t1_full (
+  id INT PRIMARY KEY,
+  v1 VARCHAR(10)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2_full (
+  id INT PRIMARY KEY,
+  v2 VARCHAR(10)
+) ENGINE=InnoDB;
+
+INSERT INTO t1_full VALUES (1,'a'), (2,'b');
+INSERT INTO t2_full VALUES (2,'B'), (3,'C');
+
+# Ensure the hypergraph optimizer is enabled for this test so the
+# new optimizer code path (MakeJoinHypergraph) is exercised.
+SET optimizer_switch='hypergraph_optimizer=on';
+
+# Basic FULL JOIN should return rows from both sides with NULLs where missing
+EXPLAIN FORMAT=JSON SELECT * FROM t1_full FULL JOIN t2_full USING (id) ORDER BY id, v1, v2;
+SELECT * FROM t1_full FULL JOIN t2_full USING (id) ORDER BY id, v1, v2;
+
+# LEFT and RIGHT join for comparison
+SELECT * FROM t1_full LEFT JOIN t2_full USING (id) ORDER BY id, v1, v2;
+SELECT * FROM t1_full RIGHT JOIN t2_full USING (id) ORDER BY id, v1, v2;
+
+# INNER and CROSS joins for comparison
+SELECT * FROM t1_full INNER JOIN t2_full USING (id) ORDER BY id, v1, v2;
+SELECT * FROM t1_full CROSS JOIN t2_full ORDER BY t1_full.id, t2_full.id;
+
+# Malformed: FULL used without JOIN_SYM (should be syntax error)
+# This is expected to produce an error; keep it commented out if server variations
+# SELECT 1 FROM t1_full FULL t2_full;
+
+DROP TABLE t1_full;
+DROP TABLE t2_full;

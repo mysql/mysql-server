@@ -340,6 +340,7 @@ TABLE *GetBasicTable(const AccessPath *path) {
     case AccessPath::ZERO_ROWS_AGGREGATED:
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
     case AccessPath::UNQUALIFIED_COUNT:
+  case AccessPath::REORDER:
 
     // Note, some other AccessPaths may use its own temporary (derived) table.
     // We intentionally do not return such TABLEs.
@@ -426,6 +427,8 @@ std::string_view AccessPathTypeName(AccessPath::Type type) {
       return "MATERIALIZE_INFORMATION_SCHEMA_TABLE";
     case AccessPath::APPEND:
       return "APPEND";
+    case AccessPath::REORDER:
+      return "REORDER";
     case AccessPath::WINDOW:
       return "WINDOW";
     case AccessPath::WEEDOUT:
@@ -1183,7 +1186,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 ? HashJoinInput::kProbe
                 : HashJoinInput::kBuild;
 
-        iterator = NewIterator<HashJoinIterator>(
+  fprintf(stderr, "[DEBUG] Creating HashJoinIterator join_type=%d allow_spill=%d\n",
+    static_cast<int>(join_type), param.allow_spill_to_disk);
+  iterator = NewIterator<HashJoinIterator>(
             thd, mem_root, std::move(job.children[1]),
             GetUsedTables(param.inner, /*include_pruned_tables=*/true),
             estimated_build_rows, std::move(job.children[0]),
@@ -1424,8 +1429,26 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         for (unique_ptr_destroy_only<RowIterator> &child : job.children) {
           children.push_back(std::move(child));
         }
-        iterator =
-            NewIterator<AppendIterator>(thd, mem_root, std::move(children));
+    fprintf(stderr, "[DEBUG] Creating AppendIterator with %zu children\n", param.children->size());
+    iterator =
+      NewIterator<AppendIterator>(thd, mem_root, std::move(children));
+        break;
+      }
+      case AccessPath::REORDER: {
+        const auto &param = path->reorder();
+        if (job.children.is_null()) {
+          SetupJobsForChildren(mem_root, param.child, join,
+                               eligible_for_batch_mode, &job, &todo);
+          continue;
+        }
+        // Create a ReorderIterator that will read rows from the child and
+        // rewrite them into the target ordering. The AccessPath stores
+        // pointers to the source and target TableCollection objects; copy
+        // them into the iterator.
+    fprintf(stderr, "[DEBUG] Creating ReorderIterator (child present=%d)\n", param.child != nullptr);
+    iterator = NewIterator<ReorderIterator>(
+      thd, mem_root, std::move(job.children[0]),
+      *param.source_collection, *param.target_collection);
         break;
       }
       case AccessPath::WINDOW: {

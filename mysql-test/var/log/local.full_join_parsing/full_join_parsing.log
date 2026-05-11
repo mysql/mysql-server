@@ -1,0 +1,11 @@
+CREATE TABLE t1_full (
+id INT PRIMARY KEY,
+v1 VARCHAR(10)
+) ENGINE=InnoDB;
+CREATE TABLE t2_full (
+id INT PRIMARY KEY,
+v2 VARCHAR(10)
+) ENGINE=InnoDB;
+INSERT INTO t1_full VALUES (1,'a'), (2,'b');
+INSERT INTO t2_full VALUES (2,'B'), (3,'C');
+SET optimizer_switch='hypergraph_optimizer=on';

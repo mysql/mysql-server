@@ -3966,6 +3966,13 @@ class Table_ref {
   /// argument of LEFT JOIN, if argument of INNER JOIN; RIGHT JOINs are
   /// converted to LEFT JOIN during contextualization).
   bool outer_join{false};
+  /**
+    @brief True if this Table_ref was marked as part of a parser-level FULL JOIN
+    @details The parser will mark both sides of a FULL join; this flag is
+    preserved to allow the optimizer to detect FULL joins even if
+    `outer_join` is modified by resolver simplification.
+  */
+  bool is_full_join{false};
   /// True if was originally the left argument of a RIGHT JOIN, before we
   /// made it the right argument of a LEFT JOIN.
   bool join_order_swapped{false};

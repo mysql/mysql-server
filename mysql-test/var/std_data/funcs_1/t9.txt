@@ -1,0 +1,10 @@
+-5000	a`	-5000
+-4999	aaa	-4999
+-4998	abaa	-4998
+-4997	acaaa	-4997
+-4996	adaaaa	-4996
+-4995	aeaaaaa	-4995
+-4994	afaaaaaa	-4994
+-4993	agaaaaaaa	-4993
+-4992	a^aaaaaaaa	-4992
+-4991	a_aaaaaaaaa	-4991
