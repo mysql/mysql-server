@@ -1,0 +1,55 @@
+################################################################################
+# Variable Name: innodb_hll_notification_threshold
+# Scope:         GLOBAL
+# Access Type:   Dynamic
+# Data Type:     Numeric (ulong)
+# Default Value: 5000000
+# Range:         0 .. UINT32_MAX
+################################################################################
+
+--source include/load_sysvars.inc
+
+SET @start_value = @@global.innodb_hll_notification_threshold;
+SELECT @start_value;
+
+# Default
+SET @@global.innodb_hll_notification_threshold = DEFAULT;
+SELECT @@global.innodb_hll_notification_threshold;
+
+# Session scope is rejected
+--ERROR ER_GLOBAL_VARIABLE
+SET innodb_hll_notification_threshold = 1;
+
+# Valid values
+SET @@global.innodb_hll_notification_threshold = 0;
+SELECT @@global.innodb_hll_notification_threshold;
+SET @@global.innodb_hll_notification_threshold = 1;
+SELECT @@global.innodb_hll_notification_threshold;
+SET @@global.innodb_hll_notification_threshold = 4294967295;
+SELECT @@global.innodb_hll_notification_threshold;
+
+# Out of range — clamped to UINT32_MAX
+--disable_warnings
+SET @@global.innodb_hll_notification_threshold = 4294967296;
+--enable_warnings
+SELECT @@global.innodb_hll_notification_threshold IN (4294967296, 4294967295);
+
+# Negative value — clamped to 0
+SET @@global.innodb_hll_notification_threshold = -1;
+SELECT @@global.innodb_hll_notification_threshold;
+
+# Invalid types
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_hll_notification_threshold = 'T';
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_hll_notification_threshold = 1.1;
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_hll_notification_threshold = ON;
+
+# Match against performance_schema
+SELECT @@global.innodb_hll_notification_threshold = VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'innodb_hll_notification_threshold';
+
+# Restore
+SET @@global.innodb_hll_notification_threshold = @start_value;

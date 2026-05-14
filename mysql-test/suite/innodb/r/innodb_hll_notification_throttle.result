@@ -1,0 +1,15 @@
+SET GLOBAL innodb_hll_notification_interval_minutes = 2;
+SET GLOBAL innodb_hll_notification_threshold = 1;
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+include/assert_grep.inc [Exactly 1 HLL warning after first interval]
+include/assert_grep.inc [Still exactly 1 HLL warning (throttled within interval)]
+COMMIT;
+DROP TABLE hll_test;
+SET GLOBAL innodb_hll_notification_threshold = DEFAULT;
+SET GLOBAL innodb_hll_notification_interval_minutes = DEFAULT;

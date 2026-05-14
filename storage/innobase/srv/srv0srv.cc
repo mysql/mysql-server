@@ -578,6 +578,10 @@ ulong srv_n_spin_wait_rounds = 30;
 ulong srv_spin_wait_delay = 6;
 bool srv_priority_boost = true;
 
+bool srv_disable_hll_notification = false;
+ulong srv_hll_notification_threshold = 5000000;
+ulong srv_hll_notification_interval_minutes = 180;
+
 #ifndef UNIV_HOTBACKUP
 static ulint srv_n_rows_inserted_old = 0;
 static ulint srv_n_rows_updated_old = 0;
@@ -2839,6 +2843,24 @@ void srv_worker_thread() {
   destroy_internal_thd(thd);
 }
 
+/** Log a warning to the MySQL error log when the InnoDB history list length
+exceeds srv_hll_notification_threshold. The warning is throttled: at most one
+message per srv_hll_notification_interval_minutes window. */
+static void check_hll_and_log() {
+  if (srv_disable_hll_notification) return;
+
+  const auto hll = trx_sys->rseg_history_len.load();
+  if (hll <= srv_hll_notification_threshold) return;
+
+  static auto last_warning_time = std::chrono::steady_clock::now();
+  const auto now = std::chrono::steady_clock::now();
+  if (now - last_warning_time >
+      std::chrono::minutes{srv_hll_notification_interval_minutes}) {
+    ib::warn(ER_IB_MSG_HLL_WARNING, (ulong)hll);
+    last_warning_time = now;
+  }
+}
+
 /** Do the actual purge operation.
 @param[in,out]  n_total_purged  Total pages purged in this call
 @return length of history list before the last purge batch. */
@@ -2912,6 +2934,7 @@ static ulint srv_do_purge(ulint *n_total_purged) {
           (undo::spaces->find_first_inactive_explicit(nullptr) != nullptr);
       undo::spaces->s_unlock();
     }
+    check_hll_and_log();
   } while (purge_sys->state == PURGE_STATE_RUN &&
            (n_pages_purged > 0 || need_explicit_truncate) &&
            !srv_purge_should_exit(n_pages_purged));

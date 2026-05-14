@@ -1,0 +1,54 @@
+################################################################################
+# Variable Name: innodb_hll_notification_interval_minutes
+# Scope:         GLOBAL
+# Access Type:   Dynamic
+# Data Type:     Numeric (ulong)
+# Default Value: 180
+# Range:         1 .. 14400
+################################################################################
+
+--source include/load_sysvars.inc
+
+SET @start_value = @@global.innodb_hll_notification_interval_minutes;
+SELECT @start_value;
+
+# Default
+SET @@global.innodb_hll_notification_interval_minutes = DEFAULT;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+
+# Session scope is rejected
+--ERROR ER_GLOBAL_VARIABLE
+SET innodb_hll_notification_interval_minutes = 1;
+
+# Valid values
+SET @@global.innodb_hll_notification_interval_minutes = 1;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+SET @@global.innodb_hll_notification_interval_minutes = 14400;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+
+# Out of range — clamped
+--disable_warnings
+SET @@global.innodb_hll_notification_interval_minutes = 0;
+--enable_warnings
+SELECT @@global.innodb_hll_notification_interval_minutes;
+
+--disable_warnings
+SET @@global.innodb_hll_notification_interval_minutes = 14401;
+--enable_warnings
+SELECT @@global.innodb_hll_notification_interval_minutes;
+
+# Invalid types
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_hll_notification_interval_minutes = 'T';
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_hll_notification_interval_minutes = 1.1;
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_hll_notification_interval_minutes = ON;
+
+# Match against performance_schema
+SELECT @@global.innodb_hll_notification_interval_minutes = VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'innodb_hll_notification_interval_minutes';
+
+# Restore
+SET @@global.innodb_hll_notification_interval_minutes = @start_value;

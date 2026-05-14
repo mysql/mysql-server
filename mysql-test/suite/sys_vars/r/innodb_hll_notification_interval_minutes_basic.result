@@ -1,0 +1,38 @@
+SET @start_value = @@global.innodb_hll_notification_interval_minutes;
+SELECT @start_value;
+@start_value
+180
+SET @@global.innodb_hll_notification_interval_minutes = DEFAULT;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+@@global.innodb_hll_notification_interval_minutes
+180
+SET innodb_hll_notification_interval_minutes = 1;
+ERROR HY000: Variable 'innodb_hll_notification_interval_minutes' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.innodb_hll_notification_interval_minutes = 1;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+@@global.innodb_hll_notification_interval_minutes
+1
+SET @@global.innodb_hll_notification_interval_minutes = 14400;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+@@global.innodb_hll_notification_interval_minutes
+14400
+SET @@global.innodb_hll_notification_interval_minutes = 0;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+@@global.innodb_hll_notification_interval_minutes
+1
+SET @@global.innodb_hll_notification_interval_minutes = 14401;
+SELECT @@global.innodb_hll_notification_interval_minutes;
+@@global.innodb_hll_notification_interval_minutes
+14400
+SET @@global.innodb_hll_notification_interval_minutes = 'T';
+ERROR 42000: Incorrect argument type to variable 'innodb_hll_notification_interval_minutes'
+SET @@global.innodb_hll_notification_interval_minutes = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_hll_notification_interval_minutes'
+SET @@global.innodb_hll_notification_interval_minutes = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_hll_notification_interval_minutes'
+SELECT @@global.innodb_hll_notification_interval_minutes = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'innodb_hll_notification_interval_minutes';
+@@global.innodb_hll_notification_interval_minutes = VARIABLE_VALUE
+1
+SET @@global.innodb_hll_notification_interval_minutes = @start_value;

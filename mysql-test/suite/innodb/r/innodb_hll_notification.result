@@ -1,0 +1,85 @@
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+@@GLOBAL.innodb_hll_notification_interval_minutes
+180
+SET GLOBAL innodb_hll_notification_interval_minutes = 60;
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+@@GLOBAL.innodb_hll_notification_interval_minutes
+60
+SET GLOBAL innodb_hll_notification_interval_minutes = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_hll_notification_interval_minutes value: '0'
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+@@GLOBAL.innodb_hll_notification_interval_minutes
+1
+SET GLOBAL innodb_hll_notification_interval_minutes = 99999;
+Warnings:
+Warning	1292	Truncated incorrect innodb_hll_notification_interval_minutes value: '99999'
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+@@GLOBAL.innodb_hll_notification_interval_minutes
+14400
+SET GLOBAL innodb_hll_notification_interval_minutes = DEFAULT;
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+@@GLOBAL.innodb_hll_notification_interval_minutes
+180
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+@@GLOBAL.innodb_hll_notification_threshold
+5000000
+SET GLOBAL innodb_hll_notification_threshold = 10000000;
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+@@GLOBAL.innodb_hll_notification_threshold
+10000000
+SET GLOBAL innodb_hll_notification_threshold = 0;
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+@@GLOBAL.innodb_hll_notification_threshold
+0
+SET GLOBAL innodb_hll_notification_threshold = DEFAULT;
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+@@GLOBAL.innodb_hll_notification_threshold
+5000000
+SET GLOBAL innodb_disable_hll_notification = ON;
+SET GLOBAL innodb_hll_notification_threshold = 1;
+SET GLOBAL innodb_hll_notification_interval_minutes = 1;
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+include/assert_grep.inc [No HLL warning when disable flag is ON]
+COMMIT;
+DROP TABLE hll_test;
+SET GLOBAL innodb_disable_hll_notification = DEFAULT;
+SET GLOBAL innodb_hll_notification_threshold = 100000000;
+SET GLOBAL innodb_hll_notification_interval_minutes = 1;
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+include/assert_grep.inc [No HLL warning when threshold is very high]
+COMMIT;
+DROP TABLE hll_test;
+SET GLOBAL innodb_hll_notification_threshold = 1;
+SET GLOBAL innodb_hll_notification_interval_minutes = 1;
+SHOW GLOBAL VARIABLES LIKE 'innodb_hll_notification%';
+Variable_name	Value
+innodb_hll_notification_interval_minutes	1
+innodb_hll_notification_threshold	1
+SHOW GLOBAL VARIABLES LIKE 'innodb_disable_hll_notification';
+Variable_name	Value
+innodb_disable_hll_notification	OFF
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+include/assert_grep.inc [HLL warning should be present in error log]
+COMMIT;
+DROP TABLE hll_test;
+SET GLOBAL innodb_hll_notification_threshold = DEFAULT;
+SET GLOBAL innodb_hll_notification_interval_minutes = DEFAULT;

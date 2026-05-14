@@ -711,6 +711,10 @@ extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_spin_wait_delay;
 extern bool srv_priority_boost;
 
+extern bool srv_disable_hll_notification;
+extern ulong srv_hll_notification_threshold;
+extern ulong srv_hll_notification_interval_minutes;
+
 extern ulint srv_truncated_status_writes;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

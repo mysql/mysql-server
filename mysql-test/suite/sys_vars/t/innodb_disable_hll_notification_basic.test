@@ -1,0 +1,46 @@
+################################################################################
+# Variable Name: innodb_disable_hll_notification
+# Scope:         GLOBAL
+# Access Type:   Dynamic
+# Data Type:     Boolean
+# Default Value: OFF
+################################################################################
+
+--source include/load_sysvars.inc
+
+SET @start_value = @@global.innodb_disable_hll_notification;
+SELECT @start_value;
+
+# Default
+SET @@global.innodb_disable_hll_notification = DEFAULT;
+SELECT @@global.innodb_disable_hll_notification;
+
+# Session scope is rejected
+--ERROR ER_GLOBAL_VARIABLE
+SET innodb_disable_hll_notification = ON;
+
+# Valid values
+SET @@global.innodb_disable_hll_notification = ON;
+SELECT @@global.innodb_disable_hll_notification;
+SET @@global.innodb_disable_hll_notification = OFF;
+SELECT @@global.innodb_disable_hll_notification;
+SET @@global.innodb_disable_hll_notification = 1;
+SELECT @@global.innodb_disable_hll_notification;
+SET @@global.innodb_disable_hll_notification = 0;
+SELECT @@global.innodb_disable_hll_notification;
+
+# Invalid types
+--ERROR ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_disable_hll_notification = 'foo';
+--ERROR ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_disable_hll_notification = 2;
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_disable_hll_notification = 1.1;
+
+# Match against performance_schema
+SELECT @@global.innodb_disable_hll_notification = VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'innodb_disable_hll_notification';
+
+# Restore
+SET @@global.innodb_disable_hll_notification = @start_value;

@@ -22463,6 +22463,26 @@ static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
                           0L,                   /* Minimum value */
                           10000000UL, 0);       /* Maximum value */
 
+static MYSQL_SYSVAR_BOOL(disable_hll_notification, srv_disable_hll_notification,
+                         PLUGIN_VAR_OPCMDARG,
+                         "Disable the high history-list-length warning written"
+                         " to the error log.",
+                         nullptr, nullptr, false);
+
+static MYSQL_SYSVAR_ULONG(
+    hll_notification_threshold, srv_hll_notification_threshold,
+    PLUGIN_VAR_RQCMDARG,
+    "InnoDB history list length above which a warning is written to the error"
+    " log.",
+    nullptr, nullptr, 5000000UL, 0, UINT32_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    hll_notification_interval_minutes,
+    srv_hll_notification_interval_minutes, PLUGIN_VAR_RQCMDARG,
+    "Minimum number of minutes between successive history-list-length warnings"
+    " in the error log.",
+    nullptr, nullptr, 180UL, 1UL, 14400UL, 0);
+
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
                          "Roll back the complete transaction on lock wait "
@@ -23659,6 +23679,9 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(flushing_avg_loops),
     MYSQL_SYSVAR(max_purge_lag),
     MYSQL_SYSVAR(max_purge_lag_delay),
+    MYSQL_SYSVAR(disable_hll_notification),
+    MYSQL_SYSVAR(hll_notification_threshold),
+    MYSQL_SYSVAR(hll_notification_interval_minutes),
     MYSQL_SYSVAR(old_blocks_pct),
     MYSQL_SYSVAR(old_blocks_time),
     MYSQL_SYSVAR(open_files),

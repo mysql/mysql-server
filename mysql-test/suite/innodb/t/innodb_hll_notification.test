@@ -1,0 +1,160 @@
+# Test innodb_hll_notification_* knobs, error-log warning emission, and the
+# kill switch innodb_disable_hll_notification.
+
+--source include/not_parallel.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* The InnoDB history list length \\(HLL\\) is very high");
+--enable_query_log
+
+# ============================================================
+# Part 1: Basic knob validation (interval_minutes)
+# ============================================================
+
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+
+SET GLOBAL innodb_hll_notification_interval_minutes = 60;
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+
+# Boundary clamping (min = 1, max = 14400)
+SET GLOBAL innodb_hll_notification_interval_minutes = 0;
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+SET GLOBAL innodb_hll_notification_interval_minutes = 99999;
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+
+SET GLOBAL innodb_hll_notification_interval_minutes = DEFAULT;
+SELECT @@GLOBAL.innodb_hll_notification_interval_minutes;
+
+# ============================================================
+# Part 2: innodb_hll_notification_threshold boundary behavior
+# ============================================================
+
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+
+SET GLOBAL innodb_hll_notification_threshold = 10000000;
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+
+# Lower bound (0 is allowed)
+SET GLOBAL innodb_hll_notification_threshold = 0;
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+
+SET GLOBAL innodb_hll_notification_threshold = DEFAULT;
+SELECT @@GLOBAL.innodb_hll_notification_threshold;
+
+# ============================================================
+# Part 3: kill switch — innodb_disable_hll_notification = ON
+# ============================================================
+
+SET GLOBAL innodb_disable_hll_notification = ON;
+SET GLOBAL innodb_hll_notification_threshold = 1;
+SET GLOBAL innodb_hll_notification_interval_minutes = 1;
+
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+
+connect (long_trx, localhost, root,,);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connection default;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+
+# Wait long enough for the purge coordinator to observe HLL and (under normal
+# conditions) emit the warning. Kill switch should suppress it.
+--sleep 70
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text= No HLL warning when disable flag is ON
+--let $assert_select= The InnoDB history list length \(HLL\) is very high
+--let $assert_count= 0
+--let $assert_only_after= CURRENT_TEST: innodb.innodb_hll_notification
+--source include/assert_grep.inc
+
+connection long_trx;
+COMMIT;
+disconnect long_trx;
+
+connection default;
+DROP TABLE hll_test;
+SET GLOBAL innodb_disable_hll_notification = DEFAULT;
+
+# ============================================================
+# Part 4: very high threshold — no warning emitted
+# Drive the HLL up but keep it well below the threshold.
+# ============================================================
+
+SET GLOBAL innodb_hll_notification_threshold = 100000000;
+SET GLOBAL innodb_hll_notification_interval_minutes = 1;
+
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+
+connect (long_trx_hi, localhost, root,,);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connection default;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+
+--sleep 70
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text= No HLL warning when threshold is very high
+--let $assert_select= The InnoDB history list length \(HLL\) is very high
+--let $assert_count= 0
+--let $assert_only_after= CURRENT_TEST: innodb.innodb_hll_notification
+--source include/assert_grep.inc
+
+connection long_trx_hi;
+COMMIT;
+disconnect long_trx_hi;
+
+connection default;
+DROP TABLE hll_test;
+
+# ============================================================
+# Part 5: warning is emitted when threshold is breached
+# ============================================================
+
+SET GLOBAL innodb_hll_notification_threshold = 1;
+SET GLOBAL innodb_hll_notification_interval_minutes = 1;
+SHOW GLOBAL VARIABLES LIKE 'innodb_hll_notification%';
+SHOW GLOBAL VARIABLES LIKE 'innodb_disable_hll_notification';
+
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+
+connect (long_trx2, localhost, root,,);
+# CONSISTENT SNAPSHOT pins a read view that blocks purge of the undo records
+# generated below — drives the HLL up.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connection default;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+
+--sleep 70
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text= HLL warning should be present in error log
+--let $assert_select= The InnoDB history list length \(HLL\) is very high
+--let $assert_count=
+--let $assert_count_condition= >= 1
+--let $assert_only_after= CURRENT_TEST: innodb.innodb_hll_notification
+--source include/assert_grep.inc
+
+connection long_trx2;
+COMMIT;
+disconnect long_trx2;
+
+connection default;
+DROP TABLE hll_test;
+
+SET GLOBAL innodb_hll_notification_threshold = DEFAULT;
+SET GLOBAL innodb_hll_notification_interval_minutes = DEFAULT;

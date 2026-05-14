@@ -1,0 +1,53 @@
+# Verify the HLL warning is throttled: at most one warning per
+# innodb_hll_notification_interval_minutes window.
+
+--source include/not_parallel.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* The InnoDB history list length \\(HLL\\) is very high");
+--enable_query_log
+
+SET GLOBAL innodb_hll_notification_interval_minutes = 2;
+SET GLOBAL innodb_hll_notification_threshold = 1;
+
+CREATE TABLE hll_test (id INT AUTO_INCREMENT PRIMARY KEY, val INT) ENGINE=InnoDB;
+
+connect (long_trx, localhost, root,,);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connection default;
+INSERT INTO hll_test (val) VALUES (1);
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+INSERT INTO hll_test (val) SELECT val FROM hll_test;
+
+# Wait long enough for the first warning to fire (must exceed interval_minutes
+# from the first time the threshold is observed exceeded).
+--sleep 130
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text= Exactly 1 HLL warning after first interval
+--let $assert_select= The InnoDB history list length \(HLL\) is very high
+--let $assert_count= 1
+--let $assert_only_after= CURRENT_TEST: innodb.innodb_hll_notification_throttle
+--source include/assert_grep.inc
+
+# Stay inside the same 2-minute window — count must not increase.
+--sleep 30
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text= Still exactly 1 HLL warning (throttled within interval)
+--let $assert_select= The InnoDB history list length \(HLL\) is very high
+--let $assert_count= 1
+--let $assert_only_after= CURRENT_TEST: innodb.innodb_hll_notification_throttle
+--source include/assert_grep.inc
+
+connection long_trx;
+COMMIT;
+disconnect long_trx;
+
+connection default;
+DROP TABLE hll_test;
+SET GLOBAL innodb_hll_notification_threshold = DEFAULT;
+SET GLOBAL innodb_hll_notification_interval_minutes = DEFAULT;

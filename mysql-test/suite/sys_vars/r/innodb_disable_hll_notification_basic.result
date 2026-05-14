@@ -1,0 +1,40 @@
+SET @start_value = @@global.innodb_disable_hll_notification;
+SELECT @start_value;
+@start_value
+0
+SET @@global.innodb_disable_hll_notification = DEFAULT;
+SELECT @@global.innodb_disable_hll_notification;
+@@global.innodb_disable_hll_notification
+0
+SET innodb_disable_hll_notification = ON;
+ERROR HY000: Variable 'innodb_disable_hll_notification' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.innodb_disable_hll_notification = ON;
+SELECT @@global.innodb_disable_hll_notification;
+@@global.innodb_disable_hll_notification
+1
+SET @@global.innodb_disable_hll_notification = OFF;
+SELECT @@global.innodb_disable_hll_notification;
+@@global.innodb_disable_hll_notification
+0
+SET @@global.innodb_disable_hll_notification = 1;
+SELECT @@global.innodb_disable_hll_notification;
+@@global.innodb_disable_hll_notification
+1
+SET @@global.innodb_disable_hll_notification = 0;
+SELECT @@global.innodb_disable_hll_notification;
+@@global.innodb_disable_hll_notification
+0
+SET @@global.innodb_disable_hll_notification = 'foo';
+ERROR 42000: Variable 'innodb_disable_hll_notification' can't be set to the value of 'foo'
+SET @@global.innodb_disable_hll_notification = 2;
+ERROR 42000: Variable 'innodb_disable_hll_notification' can't be set to the value of '2'
+SET @@global.innodb_disable_hll_notification = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_disable_hll_notification'
+SELECT @@global.innodb_disable_hll_notification = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'innodb_disable_hll_notification';
+@@global.innodb_disable_hll_notification = VARIABLE_VALUE
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
+SET @@global.innodb_disable_hll_notification = @start_value;

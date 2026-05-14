@@ -13356,6 +13356,9 @@ ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
 ER_AUDIT_LOG_DATABASE_NAME_EMPTY
   eng "Database name cannot be empty."
 
+ER_IB_MSG_HLL_WARNING
+  eng "The InnoDB history list length (HLL) is very high: %lu. Take actions to reduce the HLL, such as ending long-running transactions or tuning the purge parameters."
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.
