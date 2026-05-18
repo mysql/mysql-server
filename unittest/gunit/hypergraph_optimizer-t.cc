@@ -1796,6 +1796,34 @@ TEST_F(HypergraphOptimizerTest, SingleTable) {
   EXPECT_FLOAT_EQ(100.0F, root->num_output_rows());
 }
 
+TEST_F(HypergraphOptimizerTest, GroupByAll) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT x, y FROM t1 GROUP BY ALL", /*nullable=*/true);
+
+  EXPECT_EQ(query_block->group_list.elements, 2);
+  EXPECT_EQ(query_block->group_list.first->item[0], query_block->fields[0]);
+  EXPECT_EQ(query_block->group_list.first->next->item[0], query_block->fields[1]);
+}
+
+TEST_F(HypergraphOptimizerTest, GroupByAllSkipsAggregates) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT x, SUM(y) FROM t1 GROUP BY ALL", /*nullable=*/true);
+
+  EXPECT_EQ(query_block->group_list.elements, 1);
+  EXPECT_EQ(query_block->group_list.first->item[0], query_block->fields[0]);
+}
+
+TEST_F(HypergraphOptimizerTest, GroupByAllWithCount) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT x, y, z, COUNT(*) FROM t1 GROUP BY ALL", /*nullable=*/true);
+
+  EXPECT_EQ(query_block->group_list.elements, 3);
+  EXPECT_EQ(query_block->group_list.first->item[0], query_block->fields[0]);
+  EXPECT_EQ(query_block->group_list.first->next->item[0], query_block->fields[1]);
+  EXPECT_EQ(query_block->group_list.first->next->next->item[0],
+            query_block->fields[2]);
+}
+
 TEST_F(HypergraphOptimizerTest, NumberOfAccessPaths) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 "

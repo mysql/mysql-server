@@ -67,6 +67,7 @@
 #include "sql/nested_join.h"
 #include "sql/opt_hints.h"
 #include "sql/query_options.h"
+#include "sql/log.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
@@ -356,6 +357,20 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const Query_block *query_block,
     const mem_root_deque<Table_ref *> &join_list_arg, bool toplevel) {
   assert(!join_list_arg.empty());
+  // Early debug: dump the incoming join_list and each Table_ref's alias and
+  // outer_join flag so we can confirm what the optimizer is receiving from
+  // the resolver. This prints on stderr and will appear in the server logs.
+    sql_print_error("[FULL_JOIN_DEBUG] optimizer: MakeRelationalExpressionFromJoinList called with %zu tables\n",
+                    join_list_arg.size());
+  size_t __i = 0;
+  for (const Table_ref *tr : join_list_arg) {
+    const char *name = tr && tr->alias ? tr->alias
+                           : (tr && tr->table_name ? tr->table_name : "(null)");
+    int outer = tr ? (int)tr->outer_join : 0;
+    sql_print_error("[FULL_JOIN_DEBUG] optimizer: join_list[%zu] name='%s' outer_join=%d nested_join=%d\n",
+                    __i, name, outer, tr ? (tr->nested_join != nullptr) : 0);
+    ++__i;
+  }
   bool join_order_hinted = false;
   const mem_root_deque<Table_ref *> *join_list = &join_list_arg;
 
@@ -378,7 +393,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
 
     RelationalExpression *join = new (thd->mem_root) RelationalExpression(thd);
     join->left = ret;
-    if (tl->is_sj_or_aj_nest()) {
+      if (tl->is_sj_or_aj_nest()) {
       join->right = MakeRelationalExpressionFromJoinList(
           thd, query_block, tl->nested_join->m_tables);
       join->type = tl->is_sj_nest() ? RelationalExpression::SEMIJOIN
@@ -388,7 +403,49 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
       }
     } else {
       join->right = MakeRelationalExpression(thd, query_block, tl);
-      if (tl->outer_join) {
+      // Detect FULL OUTER JOIN: when both sides are simple TABLE nodes and
+      // both underlying Table_ref instances are marked outer. The parser
+      // marks both sides for a FULL join by setting tl->outer_join on the
+      // involved Table_ref items. When we see this shape here, prefer the
+      // FULL_OUTER_JOIN relational expression so the planner and executor
+      // can lower it correctly.
+      if (join->left->type == RelationalExpression::TABLE &&
+          join->right->type == RelationalExpression::TABLE) {
+        const Table_ref *left_tr = join->left->table;
+        const Table_ref *right_tr = join->right->table;
+        if (left_tr != nullptr && right_tr != nullptr && left_tr->outer_join &&
+            right_tr->outer_join) {
+    join->type = RelationalExpression::FULL_OUTER_JOIN;
+    sql_print_error("[FULL_JOIN_DEBUG] optimizer: detected FULL_OUTER_JOIN candidate left='%s' right='%s' left_outer=%d right_outer=%d\n",
+        left_tr->alias ? left_tr->alias
+             : (left_tr->table_name ? left_tr->table_name : "(unknown)"),
+        right_tr->alias ? right_tr->alias
+              : (right_tr->table_name ? right_tr->table_name : "(unknown)"),
+        (int)left_tr->outer_join, (int)right_tr->outer_join);
+        } else if (tl->outer_join) {
+          join->type = RelationalExpression::LEFT_JOIN;
+        } else if (tl->straight || Overlaps(query_block->active_options(),
+                                            SELECT_STRAIGHT_JOIN)) {
+          join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+        } else if (join_order_hinted &&
+                   query_block->opt_hints_qb->check_join_order_hints(
+                       join->left, join->right, join_list)) {
+          join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+        } else if (join_order_hinted &&
+                   query_block->opt_hints_qb->check_join_order_hints(
+                       join->right, join->left, join_list)) {
+          std::swap(join->left, join->right);
+          join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+        } else if (thd->secondary_engine_optimization() ==
+                       Secondary_engine_optimization::SECONDARY &&
+                   IsTableFunction(join->right) &&
+                   Overlaps(join->left->tables_in_subtree,
+                            join->right->table->table_function->used_tables())) {
+          join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+        } else {
+          join->type = RelationalExpression::INNER_JOIN;
+        }
+      } else if (tl->outer_join) {
         join->type = RelationalExpression::LEFT_JOIN;
       } else if (tl->straight || Overlaps(query_block->active_options(),
                                           SELECT_STRAIGHT_JOIN)) {
@@ -412,6 +469,63 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
         join->type = RelationalExpression::INNER_JOIN;
       }
     }
+    // Debug: print the constructed join type and whether the immediate
+    // left/right leaves are TABLE nodes and have their Table_ref->outer_join
+    // flags set. This helps verify whether the optimizer sees the FULL
+    // outer-join markers propagated from the resolver/parser.
+    const char *join_type_str = "unknown";
+    switch (join->type) {
+      case RelationalExpression::TABLE:
+        join_type_str = "TABLE";
+        break;
+      case RelationalExpression::INNER_JOIN:
+        join_type_str = "INNER_JOIN";
+        break;
+      case RelationalExpression::STRAIGHT_INNER_JOIN:
+        join_type_str = "STRAIGHT_INNER_JOIN";
+        break;
+      case RelationalExpression::MULTI_INNER_JOIN:
+        join_type_str = "MULTI_INNER_JOIN";
+        break;
+      case RelationalExpression::LEFT_JOIN:
+        join_type_str = "LEFT_JOIN";
+        break;
+      case RelationalExpression::SEMIJOIN:
+        join_type_str = "SEMIJOIN";
+        break;
+      case RelationalExpression::ANTIJOIN:
+        join_type_str = "ANTIJOIN";
+        break;
+      case RelationalExpression::FULL_OUTER_JOIN:
+        join_type_str = "FULL_OUTER_JOIN";
+        break;
+    }
+    const char *left_name = "(expr)";
+    const char *right_name = "(expr)";
+    int left_outer = 0;
+    int right_outer = 0;
+    if (join->left && join->left->type == RelationalExpression::TABLE &&
+        join->left->table) {
+      left_name = join->left->table->alias
+                      ? join->left->table->alias
+                      : (join->left->table->table_name
+                             ? join->left->table->table_name
+                             : "(unknown)");
+      left_outer = (int)join->left->table->outer_join;
+    }
+    if (join->right && join->right->type == RelationalExpression::TABLE &&
+        join->right->table) {
+      right_name = join->right->table->alias
+                       ? join->right->table->alias
+                       : (join->right->table->table_name
+                              ? join->right->table->table_name
+                              : "(unknown)");
+      right_outer = (int)join->right->table->outer_join;
+    }
+    sql_print_error("[FULL_JOIN_DEBUG] optimizer: constructed join type=%s left_type=%d right_type=%d left='%s' left_outer=%d right='%s' right_outer=%d\n",
+                    join_type_str, (int)join->left->type, (int)join->right->type,
+                    left_name, left_outer, right_name, right_outer);
+
     join->tables_in_subtree =
         join->left->tables_in_subtree | join->right->tables_in_subtree;
     if (tl->is_aj_nest()) {
@@ -966,31 +1080,21 @@ bool ComesFromMultipleEquality(Item *item, Item_multi_eq *equal) {
 
 int FindSourceMultipleEquality(Item *item,
                                const Mem_root_array<Item_multi_eq *> &equals) {
-  if (!is_function_of_type(item, Item_func::EQ_FUNC)) {
+  if (!is_function_of_type(item, Item_func::EQ_FUNC))
     return -1;
-  }
-  Item_func_eq *eq = down_cast<Item_func_eq *>(item);
-  for (size_t equals_idx = 0; equals_idx < equals.size(); ++equals_idx) {
-    if (eq->source_multiple_equality == equals[equals_idx]) {
-      return static_cast<int>(equals_idx);
-    }
+  for (size_t i = 0; i < equals.size(); ++i) {
+    if (ComesFromMultipleEquality(item, equals[i])) return (int)i;
   }
   return -1;
 }
 
-bool MultipleEqualityAlreadyExistsOnJoin(Item_multi_eq *equal,
-                                         const RelationalExpression &expr) {
-  // Could be called both before and after MakeHashJoinConditions(),
-  // so check for join_conditions and equijoin_conditions.
+// Returns true if any equality on "expr" originates from the given
+// multiple-equality item_equal.
+bool MultipleEqualityAlreadyExistsOnJoin(Item_multi_eq *item_equal,
+                                        const RelationalExpression &expr) {
+  if (item_equal == nullptr) return false;
   for (Item *item : expr.join_conditions) {
-    if (ComesFromMultipleEquality(item, equal)) {
-      return true;
-    }
-  }
-  for (Item_eq_base *item : expr.equijoin_conditions) {
-    if (item->source_multiple_equality == equal) {
-      return true;
-    }
+    if (ComesFromMultipleEquality(item, item_equal)) return true;
   }
   return false;
 }
@@ -3821,6 +3925,22 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
   if (num_tables <= 1) {
     return MakeSingleTableHypergraph(thd, query_block, graph,
                                      where_is_always_false);
+  }
+
+  // Extra debug: print the top-level join_list we will hand to the
+  // MakeRelationalExpressionFromJoinList call. This is a redundant but
+  // more-widely-executed logging location and helps ensure the optimizer
+  // sees the markers we expect.
+  fprintf(stderr, "[FULL_JOIN_DEBUG] optimizer: MakeJoinHypergraph will call MakeRelationalExpressionFromJoinList with %zu tables\n",
+    query_block->m_table_nest.size());
+  size_t __j = 0;
+  for (const Table_ref *tr : query_block->m_table_nest) {
+    const char *name = tr && tr->alias ? tr->alias
+         : (tr && tr->table_name ? tr->table_name : "(null)");
+    int outer = tr ? (int)tr->outer_join : 0;
+    fprintf(stderr, "[FULL_JOIN_DEBUG] optimizer: top-level join_list[%zu] name='%s' outer_join=%d nested_join=%d\n",
+      __j, name, outer, tr ? (tr->nested_join != nullptr) : 0);
+    ++__j;
   }
 
   RelationalExpression *root = MakeRelationalExpressionFromJoinList(

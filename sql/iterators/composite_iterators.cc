@@ -118,6 +118,35 @@ int FilterIterator::DoRead() {
   }
 }
 
+ReorderIterator::ReorderIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> source,
+    pack_rows::TableCollection source_tables,
+    pack_rows::TableCollection target)
+    : RowIterator(thd), m_source(std::move(source)),
+      m_source_tables(std::move(source_tables)), m_target(std::move(target)) {
+  // Reserve a small buffer to avoid frequent reallocations.
+  m_buffer.reserve(256);
+}
+
+bool ReorderIterator::DoInit() { return m_source->Init(); }
+
+int ReorderIterator::DoRead() {
+  int err = m_source->Read();
+  if (err != 0) return err;
+
+  // Pack the current row from the tables described by the source layout.
+  // Use the project's String API to reset length to zero (String has no clear()).
+  m_buffer.length(0);
+  if (pack_rows::StoreFromTableBuffers(m_source_tables, &m_buffer)) {
+    return 1; /* error */
+  }
+
+  const uchar *ptr = reinterpret_cast<const uchar *>(m_buffer.c_ptr());
+  pack_rows::LoadIntoTableBuffers(m_target, ptr);
+
+  return 0;
+}
+
 bool LimitOffsetIterator::DoInit() {
   if (m_source->Init()) {
     return true;
@@ -4525,6 +4554,7 @@ int AppendIterator::DoRead() {
   if (++m_current_iterator_index >= m_sub_iterators.size()) {
     return -1;
   }
+  fprintf(stderr, "[DEBUG] AppendIterator switching to child index %d\n", m_current_iterator_index);
   if (m_sub_iterators[m_current_iterator_index]->Init()) {
     return 1;
   }

@@ -1,0 +1,41 @@
+Certificate Revocation List (CRL):
+        Version 2 (0x1)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: /C=IN/ST=Karnataka/L=Bengaluru/O=Oracle/OU=MySQL/CN=MySQL CRL test ca certificate
+        Last Update: Jul  1 07:54:29 2020 GMT
+        Next Update: May 10 07:54:29 2030 GMT
+        CRL extensions:
+            X509v3 CRL Number: 
+                4096
+Revoked Certificates:
+    Serial Number: 03
+        Revocation Date: Jul  1 07:54:18 2020 GMT
+    Signature Algorithm: sha256WithRSAEncryption
+         8d:76:b6:c6:84:2d:f5:14:fa:34:2f:0b:64:7c:20:c0:65:03:
+         60:8a:6b:9d:42:0d:b7:51:93:92:75:b5:28:5d:2f:47:0e:6d:
+         a2:df:c7:a1:b9:95:49:c2:83:5e:36:41:77:63:b4:25:8b:60:
+         d9:f8:25:4e:6e:45:94:3f:a3:86:a3:b5:cc:f0:b5:eb:68:4e:
+         1e:f6:d9:5d:e2:50:a6:e5:50:0e:a0:6f:e8:4b:66:9f:1f:0d:
+         5e:e1:63:e9:c9:96:7d:98:b6:56:5e:ce:3f:d2:42:b4:d3:18:
+         73:ca:ce:7a:42:71:29:7b:1f:bf:07:88:cf:d2:8e:1d:31:9c:
+         00:92:a2:5d:bc:78:0f:7b:f1:02:fe:ed:d7:b1:dc:8d:25:9a:
+         d5:01:c1:d8:ac:fd:a2:41:96:bd:9b:72:cb:95:f5:85:a9:88:
+         b3:74:30:c9:82:5d:8b:c8:d6:8a:5c:92:e8:e7:09:f1:13:73:
+         fa:05:56:1c:e2:dd:9e:b5:49:71:82:67:e6:e3:57:53:c8:f7:
+         df:66:44:7a:d6:f8:4f:44:5f:7e:30:eb:7b:d9:15:db:e2:d0:
+         85:45:9a:7b:d4:c2:f8:44:0f:5f:8c:d0:35:45:a1:c6:82:e8:
+         43:49:73:09:3b:ba:9a:24:00:1f:3c:7a:38:bd:e6:b5:b8:45:
+         e3:33:d3:c9
+-----BEGIN X509 CRL-----
+MIIB7jCB1wIBATANBgkqhkiG9w0BAQsFADB+MQswCQYDVQQGEwJJTjESMBAGA1UE
+CAwJS2FybmF0YWthMRIwEAYDVQQHDAlCZW5nYWx1cnUxDzANBgNVBAoMBk9yYWNs
+ZTEOMAwGA1UECwwFTXlTUUwxJjAkBgNVBAMMHU15U1FMIENSTCB0ZXN0IGNhIGNl
+cnRpZmljYXRlFw0yMDA3MDEwNzU0MjlaFw0zMDA1MTAwNzU0MjlaMBQwEgIBAxcN
+MjAwNzAxMDc1NDE4WqAPMA0wCwYDVR0UBAQCAhAAMA0GCSqGSIb3DQEBCwUAA4IB
+AQCNdrbGhC31FPo0LwtkfCDAZQNgimudQg23UZOSdbUoXS9HDm2i38ehuZVJwoNe
+NkF3Y7Qli2DZ+CVObkWUP6OGo7XM8LXraE4e9tld4lCm5VAOoG/oS2afHw1e4WPp
+yZZ9mLZWXs4/0kK00xhzys56QnEpex+/B4jP0o4dMZwAkqJdvHgPe/EC/u3XsdyN
+JZrVAcHYrP2iQZa9m3LLlfWFqYizdDDJgl2LyNaKXJLo5wnxE3P6BVYc4t2etUlx
+gmfm41dTyPffZkR61vhPRF9+MOt72RXb4tCFRZp71ML4RA9fjNA1RaHGguhDSXMJ
+O7qaJAAfPHo4vea1uEXjM9PJ
+-----END X509 CRL-----

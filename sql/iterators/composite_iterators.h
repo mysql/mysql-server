@@ -433,6 +433,38 @@ class CacheInvalidatorIterator final : public RowIterator {
   std::string m_name;
 };
 
+/**
+  An iterator that reorders fields/columns of rows produced by its single
+  child so that they follow the ordering described by a target
+  pack_rows::TableCollection. It operates in-memory and avoids materializing
+  to disk.
+*/
+class ReorderIterator final : public RowIterator {
+ public:
+  ReorderIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
+                  pack_rows::TableCollection source_tables,
+                  pack_rows::TableCollection target_tables);
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
+  void UnlockRow() override { m_source->UnlockRow(); }
+
+ private:
+  bool DoInit() override;
+  int DoRead() override;
+
+  unique_ptr_destroy_only<RowIterator> m_source;
+  pack_rows::TableCollection m_source_tables;
+  pack_rows::TableCollection m_target;
+  String m_buffer;
+};
+
 namespace materialize_iterator {
 /**
    An operand (query block) to be materialized by MaterializeIterator.

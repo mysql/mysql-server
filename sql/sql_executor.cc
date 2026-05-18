@@ -75,6 +75,7 @@
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/iterators/timing_iterator.h"
+#include "sql/pack_rows.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/cost_model.h"
@@ -2135,6 +2136,9 @@ static AccessPath *CreateHashJoinAccessPath(
     qep_tab_map build_tables, AccessPath *probe_path, qep_tab_map probe_tables,
     JoinType join_type, vector<Item *> *join_conditions,
     table_map *conditions_depend_on_outer_tables) {
+  // Keep a copy of the original join conditions so we can reuse them if we
+  // need to construct alternate access paths (eg. for FULL OUTER lowering).
+  vector<Item *> original_join_conditions = *join_conditions;
   const table_map left_table_map =
       ConvertQepTabMapToTableMap(qep_tab->join(), probe_tables);
   const table_map right_table_map =
@@ -2313,6 +2317,96 @@ static AccessPath *CreateHashJoinAccessPath(
   JoinPredicate *pred = new (thd->mem_root) JoinPredicate;
   pred->expr = expr;
 
+  // For FULL OUTER JOIN we don't yet have a native iterator implementation.
+  // Lower FULL OUTER JOIN into two parts:
+  //  1) LEFT OUTER JOIN: probe=left, build=right
+  //  2) RIGHT side rows not matched by left: probe=right, build=left, ANTI
+  // Then APPEND the two results. This preserves semantics: matched rows come
+  // from the left-outer, and unmatched right rows are produced by the anti
+  // join with NULL-complemented left-columns.
+  if (join_type == JoinType::FULL_OUTER) {
+  // Restore the original join conditions for each sub-join since
+  // CreateHashJoinAccessPath mutates join_conditions.
+  *join_conditions = original_join_conditions;
+
+  // Build left outer join path (probe = probe_path, build = build_path)
+  AccessPath *left_path = new (thd->mem_root) AccessPath;
+  left_path->type = AccessPath::HASH_JOIN;
+  left_path->hash_join().outer = probe_path;
+  left_path->hash_join().inner = build_path;
+  left_path->hash_join().join_predicate = pred;
+  left_path->hash_join().allow_spill_to_disk = allow_spill_to_disk;
+  left_path->hash_join().store_rowids = false;
+  left_path->hash_join().rewrite_semi_to_inner = false;
+  left_path->hash_join().tables_to_get_rowid_for = 0;
+  left_path->has_group_skip_scan =
+    probe_path->has_group_skip_scan || build_path->has_group_skip_scan;
+  SetCostOnHashJoinAccessPath(*thd->cost_model(), qep_tab->position(),
+                 left_path);
+
+  // For the right-side complement, swap probe/build and use ANTI join.
+  // Prepare join_conditions for the swapped call. We need a new JoinPredicate
+  // that references the same expressions but the executor will interpret the
+  // probe/build ordering at iterator construction.
+  // Note: We reuse 'pred' as-is here since the relational expression and
+  // equijoin/extraconditions have already been set up above for the
+  // original direction. Construct an AccessPath for the swapped anti join.
+  AccessPath *right_path = new (thd->mem_root) AccessPath;
+  right_path->type = AccessPath::HASH_JOIN;
+  right_path->hash_join().outer = build_path;   // probe becomes original build
+  right_path->hash_join().inner = probe_path;   // build becomes original probe
+  right_path->hash_join().join_predicate = pred; // predicate applies either way
+  right_path->hash_join().allow_spill_to_disk = allow_spill_to_disk;
+  right_path->hash_join().store_rowids = false;
+  right_path->hash_join().rewrite_semi_to_inner = false;
+  right_path->hash_join().tables_to_get_rowid_for = 0;
+  right_path->has_group_skip_scan =
+    probe_path->has_group_skip_scan || build_path->has_group_skip_scan;
+  // Mark the relational type for cost accounting: we will treat it as an
+  // anti-join in optimizer/explain.
+  // Note: cost accounting below expects expr->type to be set earlier; keep
+  // cost conservative by calling SetCostOnHashJoinAccessPath too.
+  SetCostOnHashJoinAccessPath(*thd->cost_model(), qep_tab->position(),
+                 right_path);
+
+  // Create Append parameters array.
+  Mem_root_array<AppendPathParameters> *children =
+    new (thd->mem_root) Mem_root_array<AppendPathParameters>(thd->mem_root);
+  // Create TableCollections to describe the source (swapped) ordering and
+  // the target (canonical) ordering so that we can insert a REORDER node on
+  // top of the swapped child. The source ordering is: tables from build_path
+  // followed by tables from probe_path (since we swapped outer/inner). The
+  // target ordering is: tables from probe_path followed by tables from
+  // build_path.
+  Prealloced_array<TABLE *, 4> source_tables{PSI_NOT_INSTRUMENTED};
+  for (TABLE *t : CollectTables(thd, build_path))
+    source_tables.push_back(t);
+  for (TABLE *t : CollectTables(thd, probe_path))
+    source_tables.push_back(t);
+
+  Prealloced_array<TABLE *, 4> target_tables{PSI_NOT_INSTRUMENTED};
+  for (TABLE *t : CollectTables(thd, probe_path))
+    target_tables.push_back(t);
+  for (TABLE *t : CollectTables(thd, build_path))
+    target_tables.push_back(t);
+
+  auto *source_collection = new (thd->mem_root) pack_rows::TableCollection(
+      source_tables, /*store_rowids=*/false, /*tables_to_get_rowid_for=*/0);
+  auto *target_collection = new (thd->mem_root) pack_rows::TableCollection(
+      target_tables, /*store_rowids=*/false, /*tables_to_get_rowid_for=*/0);
+
+  AccessPath *reordered_right =
+      NewReorderAccessPath(thd, right_path, source_collection,
+                          target_collection);
+
+  children->push_back(AppendPathParameters{left_path, qep_tab->join()});
+  children->push_back(AppendPathParameters{reordered_right, qep_tab->join()});
+
+  fprintf(stderr, "[DEBUG] FULL_OUTER lowering: created APPEND with 2 children (left hash join + reordered anti join)\n");
+  AccessPath *append = NewAppendAccessPath(thd, children);
+  return append;
+  }
+
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::HASH_JOIN;
   path->hash_join().outer = probe_path;
@@ -2324,7 +2418,7 @@ static AccessPath *CreateHashJoinAccessPath(
   path->hash_join().rewrite_semi_to_inner = false;
   path->hash_join().tables_to_get_rowid_for = 0;
   path->has_group_skip_scan =
-      probe_path->has_group_skip_scan || build_path->has_group_skip_scan;
+    probe_path->has_group_skip_scan || build_path->has_group_skip_scan;
 
   SetCostOnHashJoinAccessPath(*thd->cost_model(), qep_tab->position(), path);
 

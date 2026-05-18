@@ -600,10 +600,12 @@ class PT_joined_table : public PT_table_reference {
     static_assert(has_single_bit(unsigned{JTT_NATURAL}), "not a single bit");
     static_assert(has_single_bit(unsigned{JTT_LEFT}), "not a single bit");
     static_assert(has_single_bit(unsigned{JTT_RIGHT}), "not a single bit");
+  static_assert(has_single_bit(unsigned{JTT_FULL}), "not a single bit");
 
     assert(type == JTT_INNER || type == JTT_STRAIGHT_INNER ||
-           type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||
-           type == JTT_NATURAL_RIGHT || type == JTT_LEFT || type == JTT_RIGHT);
+      type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||
+      type == JTT_NATURAL_RIGHT || type == JTT_LEFT || type == JTT_RIGHT ||
+      type == JTT_FULL || type == JTT_NATURAL_FULL);
   }
 
   /**
@@ -709,6 +711,7 @@ class PT_group : public Parse_tree_node {
 
   Mem_root_array_YY<PT_order_list *> group_list;
   olap_type olap;
+  bool group_all{false};
 
  protected:
   void add_json_info(Json_object *obj) override {
@@ -719,12 +722,15 @@ class PT_group : public Parse_tree_node {
 
  public:
   PT_group(const POS &pos, Mem_root_array_YY<PT_order_list *> group_list_arg,
-           olap_type olap_arg)
-      : super(pos), group_list(group_list_arg), olap(olap_arg) {}
+           olap_type olap_arg, bool group_all_arg = false)
+      : super(pos), group_list(group_list_arg), olap(olap_arg),
+        group_all(group_all_arg) {}
 
   bool do_contextualize(Parse_context *pc) override;
 
   bool set_olap_type(Parse_context *pc);
+
+  bool add_group_by_all(Parse_context *pc);
 
   bool set_num_grouping_sets(Parse_context *pc, int &num_grouping_sets);
 

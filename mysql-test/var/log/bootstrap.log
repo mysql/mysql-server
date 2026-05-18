@@ -1,0 +1,24 @@
+/Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld --no-defaults --initialize-insecure --loose-skip-ndbcluster --tmpdir=/Users/hlosukwakha/Development/mysql-server/mysql-test/var/tmp/ --core-file --datadir=/Users/hlosukwakha/Development/mysql-server/mysql-test/var/data/ --secure-file-priv=/Users/hlosukwakha/Development/mysql-server/mysql-test/var --innodb_buffer_pool_size=24M --innodb-redo-log-capacity=10M --innodb_autoextend_increment=8 --character-sets-dir=/Users/hlosukwakha/Development/mysql-server/share/charsets --loose-auto_generate_certs=OFF --loose-sha256_password_auto_generate_rsa_keys=OFF --loose-caching_sha2_password_auto_generate_rsa_keys=OFF --init-file=/Users/hlosukwakha/Development/mysql-server/mysql-test/var/tmp/bootstrap.sql
+2026-02-26T21:33:38.930206Z 0 [System] [MY-015017] [Server] MySQL Server Initialization - start.
+2026-02-26T21:33:38.932037Z 0 [System] [MY-013169] [Server] /Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld (mysqld 9.6.0) initializing of server in progress as process 36657
+2026-02-26T21:33:38.932086Z 0 [ERROR] [MY-010338] [Server] Can't find error-message file '/Users/hlosukwakha/Development/mysql-server/share/english/errmsg.sys'. Check error-message file location and 'lc-messages-dir' configuration directive.
+2026-02-26T21:33:38.933104Z 0 [Warning] [MY-010159] [Server] Setting lower_case_table_names=2 because file system for /Users/hlosukwakha/Development/mysql-server/mysql-test/var/data/ is case insensitive
+2026-02-26T21:33:38.937863Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+2026-02-26T21:33:38.983511Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+2026-02-26T21:33:39.233959Z 0 [Warning] [MY-013595] [Server] Failed to initialize TLS for channel: mysql_main. See below for the description of exact issue.
+2026-02-26T21:33:39.233992Z 0 [Warning] [MY-010069] [Server] Failed to set up SSL because of the following SSL library error: SSL context is not usable without certificate and private key
+2026-02-26T21:33:39.234033Z 0 [Warning] [MY-010284] [Server] RSA private key file not found: /Users/hlosukwakha/Development/mysql-server/mysql-test/var/data//private_key.pem. Some authentication plugins will not work.
+2026-02-26T21:33:39.234045Z 0 [Warning] [MY-010284] [Server] RSA public key file not found: /Users/hlosukwakha/Development/mysql-server/mysql-test/var/data//public_key.pem. Some authentication plugins will not work.
+2026-02-26T21:33:39.234053Z 0 [Warning] [MY-010284] [Server] RSA private key file not found: /Users/hlosukwakha/Development/mysql-server/mysql-test/var/data//private_key.pem. Some authentication plugins will not work.
+2026-02-26T21:33:39.234061Z 0 [Warning] [MY-010284] [Server] RSA public key file not found: /Users/hlosukwakha/Development/mysql-server/mysql-test/var/data//public_key.pem. Some authentication plugins will not work.
+2026-02-26T21:33:39.234514Z 5 [Warning] [MY-010453] [Server] root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option.
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='engines' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='INNODB_TABLESPACES' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='engines' outer_join=0 nested_join=0
+2026-02-26T21:33:39.314372Z 0 [Warning] [MY-014084] [InnoDB] Threads are unable to reserve space in redo log which can't be reclaimed due to the 'log_checkpointer' consumer still lagging behind at LSN = 2399391. Consider increasing innodb_redo_log_capacity.
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='plugin' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tables_priv' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='user' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='proxies_priv' outer_join=0 nested_join=0
+2026-02-26T21:33:39.718322Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 9.6.0).
+2026-02-26T21:33:40.191252Z 0 [System] [MY-015018] [Server] MySQL Server Initialization - end.
