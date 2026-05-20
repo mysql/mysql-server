@@ -1,0 +1,74 @@
+# ==== Purpose ====
+#
+# Verify that the server does not crash when applying an ALTER USER
+# statement for a non-existent user while authentication_policy_list
+# is empty.
+#
+# ==== Implementation ====
+#
+# 1. Create a user on source and sync to replica.
+# 2. Stop replication and drop the user on replica only.
+# 3. On replica, set debug flag to clear authentication_policy_list
+#    at the point of access.
+# 4. Execute ALTER USER ... ACCOUNT LOCK on source.
+# 5. Start replication on replica and verify it does not crash.
+#
+# ==== References ====
+#
+# Bug#120480 Crash in set_and_validate_user_attributes during relay
+#            log recovery
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/not_have_privilege_checks_user.inc
+--source include/master-slave.inc
+
+--connection slave
+call mtr.add_suppression("Replica SQL for channel.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+
+# 1. Create user on source and sync to replica
+
+--connection master
+CREATE USER 'testuser'@'%' IDENTIFIED WITH mysql_native_password BY 'pass';
+--source include/sync_slave_sql_with_master.inc
+
+# 2. Stop replication and drop the user on replica only
+
+--connection slave
+--source include/stop_slave_sql.inc
+DROP USER 'testuser'@'%';
+
+# 3. Set debug flag to simulate empty authentication_policy_list
+
+SET GLOBAL DEBUG='+d,empty_authentication_policy_list';
+
+# 4. Execute ALTER USER on source
+
+--connection master
+ALTER USER 'testuser'@'%' ACCOUNT LOCK;
+
+# 5. Start SQL thread on replica. Without the fix, this crashes due to
+#    accessing authentication_policy_list[0] on an empty vector.
+
+--connection slave
+START REPLICA SQL_THREAD;
+
+--let $slave_sql_errno= 1396
+--source include/wait_for_slave_sql_error.inc
+
+# Cleanup
+
+SET GLOBAL DEBUG='-d,empty_authentication_policy_list';
+--source include/stop_slave.inc
+--let $rpl_skip_change_master= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_reset_slave.inc
+--source include/start_slave.inc
+
+--connection master
+DROP USER 'testuser'@'%';
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

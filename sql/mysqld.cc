@@ -8147,6 +8147,16 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
+  if (opt_authentication_policy &&
+      validate_authentication_policy(opt_authentication_policy)) {
+    /* --authentication_policy is set to invalid value */
+    LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
+    return 1;
+  } else {
+    /* update the value */
+    update_authentication_policy();
+  }
+
   ReplicaInitializer replica_initializer(opt_initialize, opt_skip_replica_start,
                                          rpl_channel_filters,
                                          &opt_replica_skip_errors);
@@ -8172,15 +8182,6 @@ int mysqld_main(int argc, char **argv)
   //  Start signal handler thread.
   start_signal_handler();
 #endif
-  if (opt_authentication_policy &&
-      validate_authentication_policy(opt_authentication_policy)) {
-    /* --authentication_policy is set to invalid value */
-    LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
-    return 1;
-  } else {
-    /* update the value */
-    update_authentication_policy();
-  }
   /* set all persistent options */
   if (persisted_variables_cache.set_persisted_options(false)) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);

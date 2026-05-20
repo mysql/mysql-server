@@ -1110,7 +1110,7 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
       (mfa ? mfa->get_multi_factor_auth_list() : nullptr);
 
   DBUG_TRACE;
-  assert(!auth_policy_list.empty());
+  if (auth_policy_list.empty()) return false;
 
   uint nth_factor = user_name->first_factor_auth_info.nth_factor;
   /* check 1FA method */
@@ -1581,7 +1581,10 @@ bool set_and_validate_user_attributes(
     */
     if (!Str->first_factor_auth_info.uses_identified_with_clause) {
       mysql_mutex_lock(&LOCK_authentication_policy);
-      if (authentication_policy_list[0].compare("*") == 0)
+      DBUG_EXECUTE_IF("empty_authentication_policy_list",
+                      { authentication_policy_list.clear(); });
+      if (authentication_policy_list.empty() ||
+          authentication_policy_list[0].compare("*") == 0)
         Str->first_factor_auth_info.plugin = default_auth_plugin_name;
       else
         lex_string_strmake(thd->mem_root, &Str->first_factor_auth_info.plugin,

@@ -1,0 +1,22 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Replica SQL for channel.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+CREATE USER 'testuser'@'%' IDENTIFIED WITH mysql_native_password BY 'pass';
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+DROP USER 'testuser'@'%';
+SET GLOBAL DEBUG='+d,empty_authentication_policy_list';
+ALTER USER 'testuser'@'%' ACCOUNT LOCK;
+START REPLICA SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1396]
+SET GLOBAL DEBUG='-d,empty_authentication_policy_list';
+include/stop_slave.inc
+include/rpl_reset_slave.inc
+include/start_slave.inc
+DROP USER 'testuser'@'%';
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc
