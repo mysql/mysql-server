@@ -23,6 +23,7 @@
 
 #include "sql/sql_audit.h"
 
+#include <openssl/ssl.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
@@ -935,6 +936,15 @@ int mysql_event_tracking_connection_notify(
   event.ip = {ip.str, ip.length};
   event.database = {db.str, db.length};
   event.connection_type = thd->get_vio_type();
+  event.port = thd->peer_port;
+  event.tls_version.str = "";
+  event.tls_version.length = 0;
+
+  if (thd->get_net()->vio && thd->get_net()->vio->ssl_arg) {
+    event.tls_version.str =
+        SSL_get_version((SSL *)(thd->get_net()->vio->ssl_arg));
+    event.tls_version.length = strlen(event.tls_version.str);
+  }
 
   struct st_mysql_event_generic event_generic;
   event_generic.event = &event;

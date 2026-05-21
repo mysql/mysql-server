@@ -185,6 +185,10 @@ struct mysql_event_connection {
         - 5 Shared memory
   */
   int connection_type;
+  /** Client TCP port number. */
+  unsigned int port;
+  /** TLS version used for this connection. */
+  MYSQL_LEX_CSTRING tls_version;
 };
 
 /**

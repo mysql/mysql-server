@@ -424,6 +424,8 @@ struct mysql_event_connection {
   MYSQL_LEX_CSTRING ip;
   MYSQL_LEX_CSTRING database;
   int connection_type;
+  unsigned int port;
+  MYSQL_LEX_CSTRING tls_version;
 };
 typedef enum {
   MYSQL_AUDIT_PARSE_PREPARSE = 1 << 0,
