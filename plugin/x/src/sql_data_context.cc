@@ -32,6 +32,8 @@
 
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/mysql_admin_session.h"
+#include "mysql/components/services/defs/mysql_string_defs.h"
+#include "mysql/components/services/mysql_thd_attributes.h"
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
 #include "sql/debug_sync.h"
@@ -224,6 +226,31 @@ ngs::Error_code Sql_data_context::set_connection_type(
   if (0 != srv_session_info_set_connection_type(m_mysql_session, vio_type))
     return ngs::Error_code(ER_X_SESSION,
                            "Could not set session connection type");
+
+  return ngs::Error_code();
+}
+
+ngs::Error_code Sql_data_context::set_tls_version(
+    const std::string &tls_version) {
+  MYSQL_THD thd = get_thd();
+  if (thd == nullptr)
+    return ngs::Error_code(ER_X_SESSION, "Could not set session TLS version");
+
+  SERVICE_TYPE(registry) *registry = mysql_plugin_registry_acquire();
+  bool failed = true;
+  {
+    my_service<SERVICE_TYPE(mysql_thd_attributes)> thd_attributes(
+        "mysql_thd_attributes", registry);
+    if (thd_attributes.is_valid()) {
+      mysql_cstring_with_length value{tls_version.c_str(),
+                                      tls_version.length()};
+      failed = thd_attributes->set(thd, "tls_version", &value);
+    }
+  }
+  mysql_plugin_registry_release(registry);
+
+  if (failed)
+    return ngs::Error_code(ER_X_SESSION, "Could not set session TLS version");
 
   return ngs::Error_code();
 }

@@ -1640,6 +1640,20 @@ class THD : public MDL_context_owner,
   uint32 file_id;  // for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
+  /**
+    TLS protocol version negotiated by a transport that does not keep its
+    Vio in THD::net (e.g. X Plugin sessions). Empty when not set.
+    @sa get_tls_version()
+  */
+  std::string m_external_tls_version;
+
+  /**
+    Get the TLS protocol version (e.g. "TLSv1.3") of the client connection.
+
+    @returns TLS version, or an empty string for unencrypted connections.
+             The value is valid for the lifetime of the session.
+  */
+  LEX_CSTRING get_tls_version() const;
   struct timeval start_time;
   struct timeval user_time;
   /**

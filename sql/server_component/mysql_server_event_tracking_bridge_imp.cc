@@ -989,6 +989,14 @@ DEFINE_BOOL_METHOD(Event_connection_bridge_implementation::notify,
     plugin_data.ip = TO_LEXCSTRING(data->ip);
     plugin_data.database = TO_LEXCSTRING(data->database);
     plugin_data.connection_type = data->connection_type;
+    /*
+      Client port and TLS version are not part of
+      mysql_event_tracking_connection_data (to keep the component service
+      ABI stable), so obtain them from the session directly.
+    */
+    plugin_data.port = thd != nullptr ? thd->peer_port : 0;
+    plugin_data.tls_version =
+        thd != nullptr ? thd->get_tls_version() : MYSQL_LEX_CSTRING{"", 0};
 
     return event_class_dispatch(thd, MYSQL_AUDIT_CONNECTION_CLASS,
                                 &plugin_data);

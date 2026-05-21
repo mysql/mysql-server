@@ -1,0 +1,66 @@
+INSTALL PLUGIN null_audit SONAME 'adt_null.so';
+CREATE USER tls_user@'%' IDENTIFIED BY 'tls_pw';
+GRANT SELECT ON performance_schema.* TO tls_user@'%';
+# Classic protocol over TCP with TLS
+port_matches	tls_matches	is_tls
+1	1	1
+# Classic protocol over TCP without TLS
+port_matches	tls_matches	is_tls
+1	1	0
+# Classic protocol over a Unix socket reports port 0
+SELECT (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_port') AS port, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') AS tls_version;
+port	tls_version
+0	
+# X Protocol over TCP with TLS
+has_port	tls_matches	is_tls
+1	1	1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# X Protocol over TCP without TLS
+has_port	tls_matches	is_tls
+1	1	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# X Protocol session recreated on a TLS connection (Session.Reset)
+connecting...
+active session is now 'tls_sess'
+Mysqlx.Ok {
+}
+
+Login OK
+# Non-TLS session overwrites the last recorded CONNECT event
+connecting...
+active session is now 'plain_sess'
+Login OK
+has_port	tls_matches	is_tls
+1	1	0
+0 rows affected
+# Recreate the session on the existing TLS connection
+Mysqlx.Ok {
+}
+
+Login OK
+has_port	tls_matches	is_tls
+1	1	1
+0 rows affected
+closing session tls_sess
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+closing session plain_sess
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+ok
+DROP USER tls_user@'%';
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
