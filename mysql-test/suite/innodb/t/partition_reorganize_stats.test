@@ -1,0 +1,62 @@
+# Test for Bug: ALTER TABLE REORGANIZE PARTITION does not update partition statistics
+# After REORGANIZE PARTITION, partition statistics should reflect actual row counts
+# without requiring manual ANALYZE TABLE
+#
+# This test verifies persistent stats mode (innodb_stats_persistent=ON).
+# Common test cases are in partition_reorganize_stats.inc.
+# Additional persistent-stats-specific test (restart) is inline below.
+
+--source include/have_innodb_max_16k.inc
+
+# Ensure we're using persistent stats
+SET @saved_innodb_stats_persistent = @@GLOBAL.innodb_stats_persistent;
+SET GLOBAL innodb_stats_persistent = 1;
+
+# Source common tests (1-10)
+--let $use_persistent_stats = 1
+--source suite/innodb/include/partition_reorganize_stats.inc
+
+--echo #
+--echo # Test 11: Statistics persistence after server restart
+--echo #
+CREATE TABLE sales_restart (
+  id INT AUTO_INCREMENT,
+  sale_date DATE NOT NULL,
+  amount DECIMAL(10,2),
+  PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+  PARTITION p2020 VALUES LESS THAN (2021),
+  PARTITION p2021 VALUES LESS THAN (2022)
+);
+
+INSERT INTO sales_restart (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2020-12-10', 2000.00),
+('2021-03-05', 2500.00);
+
+--echo # Ensure statistics are populated
+ANALYZE TABLE sales_restart;
+
+ALTER TABLE sales_restart REORGANIZE PARTITION p2021 INTO (
+  PARTITION p2021 VALUES LESS THAN (2022),
+  PARTITION p2022 VALUES LESS THAN (2023)
+);
+
+--echo # Check stats before restart
+--replace_column 3 #
+SELECT * FROM mysql.innodb_table_stats WHERE table_name LIKE '%sales_restart%';
+
+SET GLOBAL innodb_stats_persistent = @saved_innodb_stats_persistent;
+--source include/restart_mysqld.inc
+
+--echo # Check stats after restart (should still be correct)
+--replace_column 3 #
+SELECT * FROM mysql.innodb_table_stats WHERE table_name LIKE '%sales_restart%';
+
+DROP TABLE sales_restart;
+
+--echo #
+--echo # End of test
+--echo #

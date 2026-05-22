@@ -1,0 +1,583 @@
+SET @saved_innodb_stats_persistent = @@GLOBAL.innodb_stats_persistent;
+SET GLOBAL innodb_stats_persistent = 0;
+#
+# Test 1: REORGANIZE PARTITION updates statistics correctly
+#
+CREATE TABLE sales_data (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+region VARCHAR(50),
+status VARCHAR(20),
+PRIMARY KEY (id, sale_date),
+KEY idx_status (status)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023),
+PARTITION p2023 VALUES LESS THAN (2024)
+);
+# Insert test data
+INSERT INTO sales_data (sale_date, amount, region, status) VALUES
+('2020-01-15', 1000.00, 'North', 'completed'),
+('2020-06-20', 1500.00, 'South', 'completed'),
+('2020-12-10', 2000.00, 'East', 'pending'),
+('2021-03-05', 2500.00, 'West', 'completed'),
+('2021-08-15', 3000.00, 'North', 'pending'),
+('2021-11-25', 3500.00, 'South', 'completed'),
+('2022-02-14', 4000.00, 'East', 'pending'),
+('2022-07-04', 4500.00, 'West', 'completed'),
+('2022-10-31', 5000.00, 'North', 'pending'),
+('2023-01-20', 5500.00, 'South', 'completed'),
+('2023-05-12', 6000.00, 'East', 'pending'),
+('2023-09-08', 6500.00, 'West', 'completed');
+# Ensure statistics are populated
+ANALYZE TABLE sales_data;
+Table	Op	Msg_type	Msg_text
+test.sales_data	analyze	status	OK
+# Check statistics before REORGANIZE PARTITION
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_data' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	3
+p2021	3
+p2022	3
+p2023	3
+# Verify actual row counts match statistics
+SELECT 
+'p2020' as partition_name,
+COUNT(*) as actual_rows
+FROM sales_data PARTITION (p2020)
+UNION ALL
+SELECT 'p2021', COUNT(*) FROM sales_data PARTITION (p2021)
+UNION ALL
+SELECT 'p2022', COUNT(*) FROM sales_data PARTITION (p2022)
+UNION ALL
+SELECT 'p2023', COUNT(*) FROM sales_data PARTITION (p2023)
+ORDER BY partition_name;
+partition_name	actual_rows
+p2020	3
+p2021	3
+p2022	3
+p2023	3
+# Perform REORGANIZE PARTITION (split p2022 and p2023 into smaller partitions)
+ALTER TABLE sales_data REORGANIZE PARTITION p2022, p2023 INTO (
+PARTITION p2022 VALUES LESS THAN (2023),
+PARTITION p2023 VALUES LESS THAN (2024),
+PARTITION p2024 VALUES LESS THAN (2025)
+);
+# Check statistics AFTER REORGANIZE PARTITION (should show correct row counts)
+# Without the fix, the reorganized partitions (p2022, p2023) and the new
+# partition (p2024) would report n_rows=0 here, because their statistics
+# are never recalculated after the data is copied. With the fix, p2022 and
+# p2023 correctly show n_rows=3 and p2024 shows n_rows=0 (it is empty).
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_data' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	3
+p2021	3
+p2022	3
+p2023	3
+p2024	0
+# Verify actual row counts in ALL partitions (including untouched ones)
+SELECT 
+'p2020' as partition_name,
+COUNT(*) as actual_rows
+FROM sales_data PARTITION (p2020)
+UNION ALL
+SELECT 'p2021', COUNT(*) FROM sales_data PARTITION (p2021)
+UNION ALL
+SELECT 'p2022', COUNT(*) FROM sales_data PARTITION (p2022)
+UNION ALL
+SELECT 'p2023', COUNT(*) FROM sales_data PARTITION (p2023)
+UNION ALL
+SELECT 'p2024', COUNT(*) FROM sales_data PARTITION (p2024)
+ORDER BY partition_name;
+partition_name	actual_rows
+p2020	3
+p2021	3
+p2022	3
+p2023	3
+p2024	0
+# Verify optimizer uses index statistics for query planning
+EXPLAIN SELECT * FROM sales_data WHERE status = 'pending';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	sales_data	p2020,p2021,p2022,p2023,p2024	ref	idx_status	idx_status	83	const	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`sales_data`.`id` AS `id`,`test`.`sales_data`.`sale_date` AS `sale_date`,`test`.`sales_data`.`amount` AS `amount`,`test`.`sales_data`.`region` AS `region`,`test`.`sales_data`.`status` AS `status` from `test`.`sales_data` where (`test`.`sales_data`.`status` = 'pending')
+DROP TABLE sales_data;
+#
+# Test 2: Subpartitioned tables with HASH subpartitions
+#
+# Test with subpartitioned table
+CREATE TABLE sales_subpart (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+region VARCHAR(50),
+PRIMARY KEY (id, sale_date, region)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date))
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022)
+);
+# Insert data into subpartitioned table
+INSERT INTO sales_subpart (sale_date, amount, region) VALUES
+('2020-01-15', 1000.00, 'North'),
+('2020-06-20', 1500.00, 'South'),
+('2020-12-10', 2000.00, 'East'),
+('2021-03-05', 2500.00, 'West'),
+('2021-08-15', 3000.00, 'North'),
+('2021-11-25', 3500.00, 'South');
+# Ensure statistics are populated
+ANALYZE TABLE sales_subpart;
+Table	Op	Msg_type	Msg_text
+test.sales_subpart	analyze	status	OK
+# Check statistics before REORGANIZE on subpartitioned table
+SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_subpart' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME, SUBPARTITION_NAME;
+PARTITION_NAME	SUBPARTITION_NAME	TABLE_ROWS
+p2020	p2020sp0	1
+p2020	p2020sp1	2
+p2021	p2021sp0	2
+p2021	p2021sp1	1
+# REORGANIZE subpartitioned table (add new partition)
+ALTER TABLE sales_subpart REORGANIZE PARTITION p2021 INTO (
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023)
+);
+# Check statistics AFTER REORGANIZE on subpartitioned table
+SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_subpart' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME, SUBPARTITION_NAME;
+PARTITION_NAME	SUBPARTITION_NAME	TABLE_ROWS
+p2020	p2020sp0	1
+p2020	p2020sp1	2
+p2021	p2021sp0	2
+p2021	p2021sp1	1
+p2022	p2022sp0	0
+p2022	p2022sp1	0
+#
+# Test 3: REORGANIZE with MERGE (multiple partitions into one)
+#
+CREATE TABLE sales_merge (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023)
+);
+INSERT INTO sales_merge (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2021-03-05', 2500.00),
+('2021-08-15', 3000.00),
+('2022-02-14', 4000.00),
+('2022-07-04', 4500.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_merge;
+Table	Op	Msg_type	Msg_text
+test.sales_merge	analyze	status	OK
+# Check stats before REORGANIZE (merge)
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_merge' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+p2022	2
+# Merge p2020 and p2021 into p2020_2021
+ALTER TABLE sales_merge REORGANIZE PARTITION p2020, p2021 INTO (
+PARTITION p2020_2021 VALUES LESS THAN (2022)
+);
+# Verify merged partition has correct statistics
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_merge' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020_2021	4
+p2022	2
+# Verify actual row count in merged partition
+SELECT COUNT(*) as actual_rows FROM sales_merge PARTITION (p2020_2021);
+actual_rows
+4
+DROP TABLE sales_merge;
+DROP TABLE sales_subpart;
+#
+# Test 4: COALESCE PARTITION (HASH partitions) - PART_REORGED_DROPPED
+#
+CREATE TABLE sales_coalesce (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY HASH(YEAR(sale_date))
+PARTITIONS 4;
+INSERT INTO sales_coalesce (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2021-03-05', 2500.00),
+('2021-08-15', 3000.00),
+('2022-02-14', 4000.00),
+('2022-07-04', 4500.00),
+('2023-01-20', 5500.00),
+('2023-05-12', 6000.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_coalesce;
+Table	Op	Msg_type	Msg_text
+test.sales_coalesce	analyze	status	OK
+# Check stats before COALESCE
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_coalesce' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p0	2
+p1	2
+p2	2
+p3	2
+# COALESCE PARTITION (reduce from 4 to 2 partitions)
+ALTER TABLE sales_coalesce COALESCE PARTITION 2;
+# Check stats after COALESCE (should show correct row counts)
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_coalesce' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p0	4
+p1	4
+# Verify actual row counts
+SELECT 
+'p0' as partition_name,
+COUNT(*) as actual_rows
+FROM sales_coalesce PARTITION (p0)
+UNION ALL
+SELECT 'p1', COUNT(*) FROM sales_coalesce PARTITION (p1)
+ORDER BY partition_name;
+partition_name	actual_rows
+p0	4
+p1	4
+DROP TABLE sales_coalesce;
+#
+# Test 5: REORGANIZE with subpartitions
+#
+CREATE TABLE sales_reorganize_sub (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+region VARCHAR(50),
+PRIMARY KEY (id, sale_date, region)
+) ENGINE=InnoDB
+PARTITION BY RANGE(YEAR(sale_date))
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2
+(
+PARTITION p0 VALUES LESS THAN (2021),
+PARTITION p1 VALUES LESS THAN (2022),
+PARTITION p2 VALUES LESS THAN (2023),
+PARTITION p3 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO sales_reorganize_sub (sale_date, amount, region) VALUES
+('2020-01-15', 1000.00, 'North'),
+('2020-06-20', 1500.00, 'South'),
+('2021-03-05', 2500.00, 'West'),
+('2021-08-15', 3000.00, 'East'),
+('2022-02-14', 4000.00, 'North'),
+('2022-07-04', 4500.00, 'South');
+# Ensure statistics are populated
+ANALYZE TABLE sales_reorganize_sub;
+Table	Op	Msg_type	Msg_text
+test.sales_reorganize_sub	analyze	status	OK
+# Check stats before REORGANIZE
+SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_reorganize_sub' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME, SUBPARTITION_NAME;
+PARTITION_NAME	SUBPARTITION_NAME	TABLE_ROWS
+p0	p0sp0	1
+p0	p0sp1	1
+p1	p1sp0	1
+p1	p1sp1	1
+p2	p2sp0	1
+p2	p2sp1	1
+p3	p3sp0	0
+p3	p3sp1	0
+# REORGANIZE subpartitioned table (merge p1 and p2)
+ALTER TABLE sales_reorganize_sub REORGANIZE PARTITION p1, p2 INTO (
+PARTITION p1_2 VALUES LESS THAN (2023)
+);
+# Check stats after REORGANIZE on subpartitioned table
+SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_reorganize_sub' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME, SUBPARTITION_NAME;
+PARTITION_NAME	SUBPARTITION_NAME	TABLE_ROWS
+p0	p0sp0	1
+p0	p0sp1	1
+p1_2	p1_2sp0	2
+p1_2	p1_2sp1	2
+p3	p3sp0	0
+p3	p3sp1	0
+DROP TABLE sales_reorganize_sub;
+#
+# Test 6: ADD PARTITION (simple add without reorganize)
+#
+CREATE TABLE sales_add (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022)
+);
+INSERT INTO sales_add (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2021-03-05', 2500.00),
+('2021-08-15', 3000.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_add;
+Table	Op	Msg_type	Msg_text
+test.sales_add	analyze	status	OK
+# Check stats before ADD PARTITION
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_add' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+# ADD PARTITION (not reorganize)
+ALTER TABLE sales_add ADD PARTITION (
+PARTITION p2022 VALUES LESS THAN (2023)
+);
+INSERT INTO sales_add (sale_date, amount) VALUES
+('2022-02-14', 4000.00),
+('2022-07-04', 4500.00);
+# Ensure statistics are populated after insert
+ANALYZE TABLE sales_add;
+Table	Op	Msg_type	Msg_text
+test.sales_add	analyze	status	OK
+# Check stats after ADD PARTITION
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_add' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+p2022	2
+DROP TABLE sales_add;
+#
+# Test 7: REBUILD PARTITION
+#
+CREATE TABLE sales_rebuild (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023)
+);
+INSERT INTO sales_rebuild (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2021-03-05', 2500.00),
+('2021-08-15', 3000.00),
+('2022-02-14', 4000.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_rebuild;
+Table	Op	Msg_type	Msg_text
+test.sales_rebuild	analyze	status	OK
+# Check stats before REBUILD
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_rebuild' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+p2022	1
+# REBUILD specific partition
+ALTER TABLE sales_rebuild REBUILD PARTITION p2021;
+# Check stats after REBUILD
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_rebuild' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+p2022	1
+DROP TABLE sales_rebuild;
+#
+# Test 8: AUTO_INCREMENT with COALESCE PARTITION
+#
+CREATE TABLE sales_autoinc (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id)
+) ENGINE=InnoDB
+PARTITION BY HASH(id)
+PARTITIONS 4;
+INSERT INTO sales_autoinc (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2021-03-05', 2500.00),
+('2021-08-15', 3000.00),
+('2022-02-14', 4000.00),
+('2022-07-04', 4500.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_autoinc;
+Table	Op	Msg_type	Msg_text
+test.sales_autoinc	analyze	status	OK
+# Check stats before COALESCE
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_autoinc' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p0	1
+p1	2
+p2	2
+p3	1
+# COALESCE with AUTO_INCREMENT
+ALTER TABLE sales_autoinc COALESCE PARTITION 2;
+# Check stats after COALESCE with AUTO_INCREMENT
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_autoinc' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p0	3
+p1	3
+DROP TABLE sales_autoinc;
+#
+# Test 9: REORGANIZE with empty partitions
+#
+CREATE TABLE sales_empty (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023)
+);
+# Insert data only in p2020, leave others empty
+INSERT INTO sales_empty (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_empty;
+Table	Op	Msg_type	Msg_text
+test.sales_empty	analyze	status	OK
+# Check stats before REORGANIZE
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_empty' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	0
+p2022	0
+# REORGANIZE including empty partitions
+ALTER TABLE sales_empty REORGANIZE PARTITION p2021, p2022 INTO (
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023),
+PARTITION p2023 VALUES LESS THAN (2024)
+);
+# Check stats after REORGANIZE with empty partitions
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_empty' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	0
+p2022	0
+p2023	0
+DROP TABLE sales_empty;
+#
+# Test 10: Multiple operations with PART_NORMAL partitions
+#
+CREATE TABLE sales_mixed (
+id INT AUTO_INCREMENT,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+) ENGINE=InnoDB
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p2020 VALUES LESS THAN (2021),
+PARTITION p2021 VALUES LESS THAN (2022),
+PARTITION p2022 VALUES LESS THAN (2023),
+PARTITION p2023 VALUES LESS THAN (2024)
+);
+INSERT INTO sales_mixed (sale_date, amount) VALUES
+('2020-01-15', 1000.00),
+('2020-06-20', 1500.00),
+('2021-03-05', 2500.00),
+('2021-08-15', 3000.00),
+('2022-02-14', 4000.00),
+('2023-01-20', 5500.00);
+# Ensure statistics are populated
+ANALYZE TABLE sales_mixed;
+Table	Op	Msg_type	Msg_text
+test.sales_mixed	analyze	status	OK
+# Check stats before REORGANIZE
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_mixed' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+p2022	1
+p2023	1
+# REORGANIZE only p2022 and p2023, leaving p2020 and p2021 as PART_NORMAL
+ALTER TABLE sales_mixed REORGANIZE PARTITION p2022, p2023 INTO (
+PARTITION p2022 VALUES LESS THAN (2023),
+PARTITION p2023 VALUES LESS THAN (2024),
+PARTITION p2024 VALUES LESS THAN (2025)
+);
+# Check stats - PART_NORMAL partitions should retain their stats
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'sales_mixed' AND TABLE_SCHEMA = 'test'
+ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p2020	2
+p2021	2
+p2022	1
+p2023	1
+p2024	0
+# Verify actual row counts in all partitions
+SELECT 
+'p2020' as partition_name,
+COUNT(*) as actual_rows
+FROM sales_mixed PARTITION (p2020)
+UNION ALL
+SELECT 'p2021', COUNT(*) FROM sales_mixed PARTITION (p2021)
+UNION ALL
+SELECT 'p2022', COUNT(*) FROM sales_mixed PARTITION (p2022)
+UNION ALL
+SELECT 'p2023', COUNT(*) FROM sales_mixed PARTITION (p2023)
+UNION ALL
+SELECT 'p2024', COUNT(*) FROM sales_mixed PARTITION (p2024)
+ORDER BY partition_name;
+partition_name	actual_rows
+p2020	2
+p2021	2
+p2022	1
+p2023	1
+p2024	0
+DROP TABLE sales_mixed;
+SET GLOBAL innodb_stats_persistent = @saved_innodb_stats_persistent;
+#
+# End of test
+#

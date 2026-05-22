@@ -1,0 +1,27 @@
+# Test for Bug: ALTER TABLE REORGANIZE PARTITION does not update partition statistics
+# Transient stats mode (innodb_stats_persistent=OFF)
+#
+# This test verifies that after REORGANIZE PARTITION, partition statistics
+# are automatically recalculated via the transient stats path
+# (DICT_STATS_RECALC_TRANSIENT) when innodb_stats_persistent is disabled.
+#
+# Verification uses INFORMATION_SCHEMA.PARTITIONS (TABLE_ROWS) since
+# transient stats are only held in memory and not written to
+# mysql.innodb_table_stats.
+
+--source include/have_innodb_max_16k.inc
+
+# Use transient stats
+SET @saved_innodb_stats_persistent = @@GLOBAL.innodb_stats_persistent;
+SET GLOBAL innodb_stats_persistent = 0;
+
+# Source common tests (1-10)
+--let $use_persistent_stats = 0
+--source suite/innodb/include/partition_reorganize_stats.inc
+
+# Restore
+SET GLOBAL innodb_stats_persistent = @saved_innodb_stats_persistent;
+
+--echo #
+--echo # End of test
+--echo #

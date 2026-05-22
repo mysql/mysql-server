@@ -10786,6 +10786,46 @@ bool ha_innopart::inplace_alter_partition(Alter_inplace_info *ha_alter_info) {
 
   if (res > 0) {
     print_error(res, MYF(res != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
+  } else {
+    ut_a(m_new_partitions);
+
+    /* After copying data to new partitions, recalculate statistics
+    for each modified partition so the optimizer has accurate stats. */
+
+    /* Lambda to recalculate stats for a single partition and warn on
+    failure. Deduplicates the logic shared between the regular and
+    subpartitioned code paths. */
+    auto recalc_partition_stats = [&](uint part_idx) {
+      dict_table_t *part_table = m_new_partitions->part(part_idx);
+      /* m_new_partitions is initialized for all old partitions (num_parts *
+      num_subparts) but only changed/added partitions are populated
+      in it through set_part() call. That means, unchanged (PART_NORMAL)
+      and dropped (PART_REORGED_DROPPED) needs to be skipped. */
+      if (part_table != nullptr) {
+        dberr_t ret = dict_stats_update(
+            part_table, dict_stats_is_persistent_enabled(part_table)
+                            ? DICT_STATS_RECALC_PERSISTENT
+                            : DICT_STATS_RECALC_TRANSIENT);
+        if (ret != DB_SUCCESS) {
+          push_warning_printf(
+              ha_thd(), Sql_condition::SL_WARNING, ER_ALTER_INFO,
+              "Error updating stats for partition '%s'"
+              " after reorganize: %s",
+              part_table->name.m_name, ut_strerr(ret));
+        }
+      }
+    };
+
+    /* Compute total partition count, accounting for subpartitions. */
+    partition_info *part_info = ha_alter_info->modified_part_info;
+    uint total_parts = part_info->num_parts;
+    if (part_info->is_sub_partitioned()) {
+      total_parts *= part_info->num_subparts;
+    }
+
+    for (uint i = 0; i < total_parts; i++) {
+      recalc_partition_stats(i);
+    }
   }
 
   return (res);
