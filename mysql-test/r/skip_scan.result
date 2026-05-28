@@ -1892,7 +1892,7 @@ EXPLAIN FORMAT=tree SELECT /*+ SKIP_SCAN(t1 idx1) */ count(*) FROM t1 WHERE f1 <
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: (t1.f1 <= 3)  (rows=1)
-        -> Covering index skip scan on t1 using idx1 over f1 <= 3  (rows=1)
+        -> Covering index skip scan on t1 using idx1 in partitions (p1,p2) over f1 <= 3  (rows=1)
 
 Warnings:
 Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1` `idx1`) */ count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`f1` <= 3)

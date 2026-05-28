@@ -1,0 +1,73 @@
+#
+# Hypergraph iterator EXPLAIN access-path coverage
+#
+CREATE TABLE t_explain_distance (
+location POINT NOT NULL SRID 0,
+SPATIAL INDEX location_idx (location),
+id INT NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (id)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_distance (location) VALUES
+(POINT(50, 35)), (POINT(50, 34)), (POINT(50, 33)), (POINT(50, 32)),
+(POINT(50, 31)), (POINT(50, 30)), (POINT(50, 29)), (POINT(50, 28)),
+(POINT(50, 27)), (POINT(49, 27)), (POINT(48, 27)), (POINT(47, 27)),
+(POINT(46, 27)), (POINT(45, 27));
+ANALYZE TABLE t_explain_distance;
+SET debug = '+d,handlerton_supports_distance_scan';
+EXPLAIN FORMAT = TREE
+SELECT ST_Distance(location, POINT(0, 0)) AS distance_to_origin
+FROM t_explain_distance
+ORDER BY distance_to_origin;
+EXPLAIN
+-> Index distance scan on t_explain_distance using location_idx  (rows=14)
+
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`t_explain_distance`.`location`,point(0,0)) AS `distance_to_origin` from `test`.`t_explain_distance` order by `distance_to_origin`
+SET debug = '';
+DROP TABLE t_explain_distance;
+CREATE TABLE t_explain_hash_left (
+a INT NOT NULL,
+b INT NOT NULL,
+c INT NOT NULL,
+padding CHAR(200) NOT NULL DEFAULT 'x'
+) ENGINE = InnoDB;
+INSERT INTO t_explain_hash_left (a, b, c)
+WITH RECURSIVE sequence (n) AS (
+SELECT 1 UNION ALL SELECT n + 1 FROM sequence WHERE n < 1000
+)
+SELECT n, n, n FROM sequence;
+CREATE TABLE t_explain_hash_right LIKE t_explain_hash_left;
+INSERT INTO t_explain_hash_right (a, b, c)
+SELECT a, b + 1, c + 1 FROM t_explain_hash_left;
+ANALYZE TABLE t_explain_hash_left, t_explain_hash_right;
+SET @explain_access_path_join_buffer_size = @@join_buffer_size;
+SET join_buffer_size = 1024;
+EXPLAIN FORMAT = TREE
+SELECT *
+FROM t_explain_hash_left AS l
+JOIN t_explain_hash_right AS r ON l.a = r.a
+LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (...)
+    -> Inner hash join (l.a = r.a) (no spill to disk)  (...)
+        -> Table scan on l  (...)
+        -> Hash
+            -> Table scan on r  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `l`.`a` AS `a`,`l`.`b` AS `b`,`l`.`c` AS `c`,`l`.`padding` AS `padding`,`r`.`a` AS `a`,`r`.`b` AS `b`,`r`.`c` AS `c`,`r`.`padding` AS `padding` from `test`.`t_explain_hash_left` `l` join `test`.`t_explain_hash_right` `r` where multiple equal(`l`.`a`, `r`.`a`) limit 3
+EXPLAIN FORMAT = TREE
+SELECT *
+FROM t_explain_hash_left AS l
+JOIN t_explain_hash_right AS r
+ON l.a = r.a AND l.b < r.b AND l.c < r.c;
+EXPLAIN
+-> Inner hash join (l.a = r.a), extra conditions: (l.b < r.b) and (l.c < r.c)  (...)
+    -> Table scan on l  (...)
+    -> Hash
+        -> Table scan on r  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `l`.`a` AS `a`,`l`.`b` AS `b`,`l`.`c` AS `c`,`l`.`padding` AS `padding`,`r`.`a` AS `a`,`r`.`b` AS `b`,`r`.`c` AS `c`,`r`.`padding` AS `padding` from `test`.`t_explain_hash_left` `l` join `test`.`t_explain_hash_right` `r` where ((`l`.`b` < `r`.`b`) and (`l`.`c` < `r`.`c`) and (`l`.`a` = `r`.`a`))
+SET join_buffer_size = @explain_access_path_join_buffer_size;
+DROP TABLE t_explain_hash_left, t_explain_hash_right;
