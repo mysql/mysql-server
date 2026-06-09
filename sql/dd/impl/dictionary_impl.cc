@@ -72,7 +72,7 @@
 #include "sql/sql_base.h"   // close_cached_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/system_variables.h"
-#include "sql/thd_raii.h"                       // Disable_autocommit_guard
+#include "sql/thd_raii.h"  // Disable_autocommit_guard, Disable_binlog_guard
 #include "sql/transaction.h"                    // trans_commit()
 #include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
@@ -753,6 +753,13 @@ bool alter_tablespace_encryption(THD *thd, const char *tablespace_name,
                           tablespace_name + dd::String_type(" ENCRYPTION = ") +
                           dd::String_type(encryption ? "'Y'" : "'N'");
 
+  /*
+    This is used by InnoDB crash recovery to finish a local tablespace
+    encryption state transition. The original user DDL was already handled, so
+    replay runs with session binlogging disabled; the ALTER TABLESPACE executor
+    also skips its explicit DDL binlog write for startup background replays.
+  */
+  const Disable_binlog_guard binlog_guard(thd);
   bool res = execute_query(thd, query);
   error_handler.set_log_error(save_log_error);
   return res;

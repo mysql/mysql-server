@@ -1,0 +1,49 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#########################################################################
+# Start from a known, unencrypted mysql tablespace.
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+SELECT @@GLOBAL.gtid_mode;
+@@GLOBAL.gtid_mode
+ON
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+# Snapshot the GTID set right before the crashing DDL. The crashing
+# ALTER does not commit, so recovery is the only thing that could add a
+# GTID afterwards.
+#########################################################################
+# Crash in the middle of ALTER TABLESPACE mysql ENCRYPTION='Y'
+#########################################################################
+SET SESSION debug='+d,alter_encrypt_tablespace_page_10';
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+#########################################################################
+# Restart: InnoDB recovery resumes the encryption in a background thread
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+# Wait for the background encryption resume to roll forward.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+# The recovery replay must NOT have emitted a binlog event or allocated
+# a GTID for the resumed ALTER TABLESPACE.
+# OK: crash-recovery encryption replay did not change gtid_executed.
+###########
+# Cleanup #
+###########
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

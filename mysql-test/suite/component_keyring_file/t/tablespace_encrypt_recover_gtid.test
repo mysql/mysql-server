@@ -1,0 +1,100 @@
+--source include/have_component_keyring_file.inc
+################################################################################
+# Regression test: crash recovery of an unfinished ALTER TABLESPACE encryption
+# must not emit a binlog event or allocate a GTID.
+#
+# InnoDB crash recovery can resume an unfinished ALTER TABLESPACE encryption
+# operation by re-executing ALTER TABLESPACE through an internal startup
+# background THD (fsp_init_resume_alter_encrypt_tablespace() ->
+# dd::alter_tablespace_encryption() -> execute_query() ->
+# Sql_cmd_alter_tablespace::execute()). Without the fix that replay runs through
+# the normal SQL DDL path with session binlogging enabled, so it emits a second
+# binlog event and allocates a fresh GTID for the original user DDL, which was
+# already binlogged when the user issued it. When the replay is slow (e.g. with
+# a network-backed keyring) it also overlaps with GTID/binlog startup and the
+# mysql tablespace metadata access, tripping debug assertions in
+# executed_gtids.contains_gtid(), Mutex_cond_array and
+# THD::Attachable_trx::~Attachable_trx().
+#
+# The fix treats the recovery replay as local startup repair: it disables
+# session binlogging for the internal dd::alter_tablespace_encryption() replay,
+# skips the explicit ALTER TABLESPACE DDL binlog write for startup background
+# encryption replays, and waits for mysql tablespace encryption recovery before
+# startup opens DD and replication metadata tables. As a deterministic,
+# keyring-backend independent guard we assert here that crash recovery of an
+# unfinished ALTER TABLESPACE mysql ENCRYPTION does NOT change
+# @@GLOBAL.gtid_executed.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+
+--source ../inc/setup_component.inc
+
+--disable_query_log
+call mtr.add_suppression("Error generating data for Data ID:");
+call mtr.add_suppression("Encryption key missing:");
+call mtr.add_suppression("Decrypting a page in doublewrite file failed:");
+--enable_query_log
+
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000
+
+--echo #########################################################################
+--echo # Start from a known, unencrypted mysql tablespace.
+--echo #########################################################################
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+SET debug='+d,skip_dd_table_access_check';
+
+SELECT @@GLOBAL.gtid_mode;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+
+--echo # Snapshot the GTID set right before the crashing DDL. The crashing
+--echo # ALTER does not commit, so recovery is the only thing that could add a
+--echo # GTID afterwards.
+--let $gtid_before = `SELECT @@GLOBAL.gtid_executed`
+
+--echo #########################################################################
+--echo # Crash in the middle of ALTER TABLESPACE mysql ENCRYPTION='Y'
+--echo #########################################################################
+SET SESSION debug='+d,alter_encrypt_tablespace_page_10';
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+
+--echo #########################################################################
+--echo # Restart: InnoDB recovery resumes the encryption in a background thread
+--echo #########################################################################
+--source include/start_mysqld_no_echo.inc
+SET debug='+d,skip_dd_table_access_check';
+
+--echo # Wait for the background encryption resume to roll forward.
+let $wait_condition = SELECT ENCRYPTION='Y'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='mysql';
+--source include/wait_condition.inc
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+
+--echo # The recovery replay must NOT have emitted a binlog event or allocated
+--echo # a GTID for the resumed ALTER TABLESPACE.
+--let $gtid_after = `SELECT @@GLOBAL.gtid_executed`
+if ($gtid_before != $gtid_after)
+{
+  --echo # gtid_executed before recovery: $gtid_before
+  --echo # gtid_executed after  recovery: $gtid_after
+  --die regression: crash-recovery encryption replay changed gtid_executed
+}
+--echo # OK: crash-recovery encryption replay did not change gtid_executed.
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+
+--source ../inc/teardown_component.inc

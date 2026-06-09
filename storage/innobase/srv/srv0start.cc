@@ -52,6 +52,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <zlib.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 
 #include "btr0btr.h"
@@ -70,6 +72,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+#include "log0ddl.h"
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"
@@ -2279,6 +2282,12 @@ void srv_start_threads_after_ddl_recovery() {
 
   /* Resume unfinished (un)encryption process in background thread. */
   if (!ts_encrypt_ddl_records.empty()) {
+    const bool is_mysql_ibd_encryption = std::any_of(
+        ts_encrypt_ddl_records.begin(), ts_encrypt_ddl_records.end(),
+        [](const DDL_Record *ddl_record) {
+          return ddl_record->get_space_id() == dict_sys_t::s_dict_space_id;
+        });
+
     srv_threads.m_ts_alter_encrypt =
         os_thread_create(srv_ts_alter_encrypt_thread_key, 0,
                          fsp_init_resume_alter_encrypt_tablespace);
@@ -2289,6 +2298,31 @@ void srv_start_threads_after_ddl_recovery() {
     for which (un)encryption is to be rolled forward. */
     mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
     mysql_mutex_unlock(&resume_encryption_cond_m);
+
+    /*
+      The mysql tablespace (mysql.ibd) holds the DD and replication metadata
+      tables that the rest of startup opens through attachable transactions.
+
+      The resume thread finishes the interrupted (un)encryption by re-running
+      the DD metadata transition via dd::alter_tablespace_encryption(), which
+      builds an "ALTER TABLESPACE mysql ENCRYPTION = ..." string and runs it
+      through execute_query() -> Sql_cmd_alter_tablespace::execute(). That is a
+      real, committing transaction on mysql.ibd. If we let startup continue
+      while that commit is still in flight, the attachable transactions opening
+      DD/replication tables can observe the rollback/commit bookkeeping left by
+      the resume THD and hit the GTID/binlog asserts this fix targets.
+
+      So when mysql.ibd is among the spaces being rolled forward we block here
+      until the resume thread is done. This intentionally also waits for any
+      general tablespaces handled in the same batch, but that only happens in
+      the rare case that mysql.ibd itself was mid-(un)encryption at the crash;
+      the common case (only general tablespaces) keeps the existing background
+      behavior and their normal DML, including dict stats work, remains covered
+      by the usual tablespace encryption machinery.
+    */
+    if (is_mysql_ibd_encryption) {
+      srv_threads.m_ts_alter_encrypt.wait();
+    }
   }
 
   /* Start and consume all GTIDs for recovered transactions. */

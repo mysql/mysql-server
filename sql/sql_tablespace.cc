@@ -1052,7 +1052,25 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
     return true;
   }
 
-  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); })) {
+  /*
+    This normal ALTER TABLESPACE execution path is also reached during InnoDB
+    crash recovery: fsp_init_resume_alter_encrypt_tablespace() resumes an
+    interrupted (un)encryption by calling dd::alter_tablespace_encryption(),
+    which builds an "ALTER TABLESPACE ... ENCRYPTION = ..." string and runs it
+    through execute_query() -> here, on the startup background THD created by
+    create_internal_thd() (system_thread == SYSTEM_THREAD_BACKGROUND).
+
+    That replay only repairs local DD/SE state for the original user DDL, which
+    was already binlogged when the user issued it; emitting a second binlog
+    event (and allocating a fresh GTID) here would be wrong. Detect the replay
+    and skip the explicit DDL binlog write below.
+  */
+  const bool recovery_replay = thd->system_thread == SYSTEM_THREAD_BACKGROUND &&
+                               m_options->encryption.str != nullptr;
+
+  if (complete_stmt(
+          thd, hton, [&]() { rollback_on_return.disable(); }, true,
+          recovery_replay)) {
     return true;
   }
 
