@@ -1,0 +1,50 @@
+CREATE TABLE t1 (f1 INT, f2 BLOB) ROW_FORMAT=COMPRESSED;
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+SET SESSION innodb_interpreter = 'open_table test/t1';
+# Identify the space_id of the given table.
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACEs
+WHERE name = 'test/t1' INTO @space_id;
+# Find the root page number of the given table.
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+SET SESSION innodb_interpreter = 'find_tablespace_file_name test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+SET SESSION innodb_interpreter = 'destroy';
+# Flush the clean root page to disk and save its image.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+# Disable checkpointing and background flushing so the make_page_dirty
+# redo record is present, but not checkpointed, at recovery time.
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+SET SESSION innodb_interpreter = 'open_table test/t1';
+# Dirty the compressed index root page (logs the header rewrite).
+SET @cmd = CONCAT('make_page_dirty ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+SET SESSION innodb_interpreter = 'destroy';
+# Kill the server
+# Restore the older, clean image of the root page on disk so recovery
+# replays the make_page_dirty redo record on top of it.
+# Restart: crash recovery replays the make_page_dirty redo record.
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+DROP TABLE t1;

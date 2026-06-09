@@ -1,0 +1,121 @@
+# Reproducer for the make_page_dirty debug command logging a generic
+# MLOG_2BYTES redo record on a compressed (ROW_FORMAT=COMPRESSED) index page.
+#
+# make_page_dirty rewrites FIL_PAGE_TYPE to dirty a page. For a compressed
+# index page the header update must be logged with MLOG_ZIP_WRITE_HEADER so
+# the compressed page image stays consistent on replay. When it is instead
+# logged as MLOG_2BYTES, crash recovery applies that generic byte-write
+# record to a page that has both page and page_zip set, which violates the
+# invariant
+#   ut_a(!page || !page_zip || !fil_page_index_page_check(page));
+# in mlog_parse_nbytes() (mtr0log.cc) and crashes recovery.
+#
+# To make recovery deterministically replay the make_page_dirty record, the
+# clean (pre-make_page_dirty) image of the root page is saved and restored on
+# disk after the server is killed. Recovery then reads an older copy of the
+# page (FIL_PAGE_LSN below the make_page_dirty record) and replays the record
+# on top of it.
+
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+
+CREATE TABLE t1 (f1 INT, f2 BLOB) ROW_FORMAT=COMPRESSED;
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+
+SET SESSION innodb_interpreter = 'open_table test/t1';
+
+--echo # Identify the space_id of the given table.
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACEs
+WHERE name = 'test/t1' INTO @space_id;
+
+--echo # Find the root page number of the given table.
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+
+SET SESSION innodb_interpreter = 'find_tablespace_file_name test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+
+SET SESSION innodb_interpreter = 'destroy';
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let PAGE_NO=`select @page_no`;
+let FILE_NAME=`select @space_file_name`;
+let PAGE_SIZE=`select @space_page_size`;
+
+--echo # Flush the clean root page to disk and save its image.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
+my $page_size = $ENV{'PAGE_SIZE'};
+my $offset = $ENV{'PAGE_NO'} * $page_size;
+open(SRC, "<", $fname) or die "open $fname: $!";
+binmode SRC;
+seek(SRC, $offset, 0);
+my $buf;
+read(SRC, $buf, $page_size) == $page_size or die "short read";
+close SRC;
+open(SAVE, ">", "$ENV{'MYSQLTEST_VARDIR'}/tmp/clean_root.page") or die;
+binmode SAVE;
+print SAVE $buf;
+close SAVE;
+EOF
+
+--echo # Disable checkpointing and background flushing so the make_page_dirty
+--echo # redo record is present, but not checkpointed, at recovery time.
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+
+SET SESSION innodb_interpreter = 'open_table test/t1';
+
+--echo # Dirty the compressed index root page (logs the header rewrite).
+SET @cmd = CONCAT('make_page_dirty ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+
+SET SESSION innodb_interpreter = 'destroy';
+
+--source include/kill_mysqld.inc
+
+--echo # Restore the older, clean image of the root page on disk so recovery
+--echo # replays the make_page_dirty redo record on top of it.
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
+my $page_size = $ENV{'PAGE_SIZE'};
+my $offset = $ENV{'PAGE_NO'} * $page_size;
+open(SAVE, "<", "$ENV{'MYSQLTEST_VARDIR'}/tmp/clean_root.page") or die;
+binmode SAVE;
+my $buf;
+read(SAVE, $buf, $page_size) == $page_size or die "short read";
+close SAVE;
+open(FILE, "+<", $fname) or die "open $fname: $!";
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $offset, 0);
+print FILE $buf;
+close FILE;
+EOF
+
+--remove_file $MYSQLTEST_VARDIR/tmp/clean_root.page
+
+--echo # Restart: crash recovery replays the make_page_dirty redo record.
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+DROP TABLE t1;

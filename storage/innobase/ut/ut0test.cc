@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "fil0fil.h"
+#include "page0zip.h"
 #include "scope_guard.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
@@ -577,7 +578,13 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
           << "Dirtying page: " << page_id
           << ", page_type=" << fil_get_page_type_str(page_type);
 
-      mlog_write_ulint(page + FIL_PAGE_TYPE, page_type, MLOG_2BYTES, &mtr);
+      auto page_zip = buf_block_get_page_zip(block);
+      if (page_zip != nullptr && fil_page_index_page_check(page)) {
+        mach_write_to_2(page + FIL_PAGE_TYPE, page_type);
+        page_zip_write_header(page_zip, page + FIL_PAGE_TYPE, 2, &mtr);
+      } else {
+        mlog_write_ulint(page + FIL_PAGE_TYPE, page_type, MLOG_2BYTES, &mtr);
+      }
     }
   }
 
