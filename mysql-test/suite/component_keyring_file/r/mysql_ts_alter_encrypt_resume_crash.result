@@ -1,0 +1,32 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+CREATE PROCEDURE toggle_mysql_ts_encryption()
+BEGIN
+WHILE TRUE DO
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+ALTER TABLESPACE mysql ENCRYPTION='N';
+END WHILE;
+END//
+# Toggle mysql tablespace encryption in the background.
+CALL toggle_mysql_ts_encryption();
+# Kill the server in the middle of an (un)encryption operation and
+# let the next startup resume it. (Inlined kill+restart so the
+# machine-specific --plugin-dir restart parameter is not echoed into
+# the result; restart keeps the keyring component from setup.)
+# Server recovered. The mysql tablespace must still be readable.
+SELECT COUNT(*) > 0 AS users_readable FROM mysql.user;
+users_readable
+1
+DROP PROCEDURE toggle_mysql_ts_encryption;
+ALTER TABLESPACE mysql ENCRYPTION='N';
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

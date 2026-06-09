@@ -4176,6 +4176,20 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
     }
     mtr_commit(&mtr);
 
+    /* Flush the just-processed pages to disk before advancing the progress
+    persisted on page 0. buf_LRU_flush_or_remove_pages() drains the space's
+    flush list and fsyncs the file via fil_flush(), so once it returns the
+    pages are durably in their target encryption state. Advancing the progress
+    only after that keeps the persisted progress from ever running ahead of the
+    on-disk state. Otherwise a crash could leave pages below the progress still
+    in the old state on disk (a page's on-disk encryption state is decided at
+    write time in fil_io_set_encryption(), not by the redo-logged rewrite
+    above); the resumed operation would skip them and decrypt_end() would erase
+    the key, leaving unreadable pages that abort the next read with
+    DB_IO_DECRYPT_FAIL. */
+    buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
+                                  false);
+
     mtr_start(&mtr);
     /* Write (Un)Encryption progress on page 0 */
     fsp_header_write_encryption_progress(space_id, space_flags,
@@ -4775,18 +4789,26 @@ static bool load_encryption_from_header(fil_space_t *space) {
   ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
   page_t *header_page = buf_block_get_frame(block);
 
+  /* If page 0 does not indicate an encrypted tablespace there is no encryption
+  info to load. This is an expected state when a crash interrupted an
+  ALTER ... ENCRYPTION just after writing its DDL log entry but before the new
+  encryption info was persisted on page 0 (or after a decryption finished).
+  Skip decoding in that case: attempting it would only decode the still-default
+  info and log a misleading "found unexpected version" error (the decode is
+  silenced during recovery, but this runs from the post-recovery resume
+  thread). */
+  if (!FSP_FLAGS_GET_ENCRYPTION(fsp_header_get_flags(header_page))) {
+    mtr_commit(&mtr);
+    return false;
+  }
+
   Encryption_key e_key{encryption_key, encryption_iv};
   bool ret = fsp_header_get_encryption_key(space->flags, e_key, header_page);
   mtr_commit(&mtr);
 
   if (!ret) {
-    /* NOTE : In case when crash happened just after DDL Log entry,
-    encryption info won't be loaded even now. Which is fine. In that case
-    flags on page 0 should not indicate tablespace encrypted. */
-    ut_ad(!FSP_FLAGS_GET_ENCRYPTION(fsp_header_get_flags(header_page)));
-    if (FSP_FLAGS_GET_ENCRYPTION(fsp_header_get_flags(header_page))) {
-      return true;
-    }
+    /* Page 0 indicated encryption but the info could not be decoded. */
+    return true;
   } else {
     dberr_t err [[maybe_unused]] = fil_set_encryption(
         space->id, Encryption::AES, encryption_key, encryption_iv);
@@ -4838,14 +4860,17 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
       continue;
     }
 
-    /* If encryption was going on, make sure encryption information is
-    read/loaded from disk. */
-    if (it->get_encryption_type() == Encryption::Progress::ENCRYPTION &&
-        !space->can_encrypt()) {
+    /*
+      Make sure encryption information needed to read pages is loaded. This is
+      required for both encryption and decryption resume: pages after the
+      persisted progress watermark can still be encrypted on disk, and reading
+      them needs the in-memory key.
+    */
+    if (!space->can_encrypt()) {
       if (load_encryption_from_header(space)) {
-        ib::error() << "Encryption information can't be read for tablesapce "
+        ib::error() << "Encryption information can't be read for tablespace "
                     << space->name
-                    << ". Skipping resume encryption operation for it.";
+                    << ". Skipping resume (un)encryption operation for it.";
         continue;
       }
     }
@@ -4941,6 +4966,8 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
   THD *thd = create_internal_thd();
+
+  thd->set_new_thread_id();
 
   resume_alter_encrypt_tablespace(thd);
 

@@ -1,0 +1,76 @@
+################################################################################
+# Crash-recovery resume of an interrupted ALTER TABLESPACE ... ENCRYPTION must
+# leave every page in the target encryption state on disk before the operation
+# is marked finished (and, for decryption, before the tablespace key is erased).
+#
+# Repeatedly toggling the encryption of the mysql tablespace and killing the
+# server mid-operation exercises the resume path on the next startup. Before
+# the fix the resume trusted the progress counter persisted on page 0, which
+# could run ahead of the on-disk state of the pages it covers: page 0 (holding
+# the progress) and the data pages it accounts for are flushed independently,
+# and during crash recovery a data page can be flushed in the old encryption
+# state before the page-0 progress marker is applied. The resume then skipped
+# such still-old pages and decrypt_end() erased the key, leaving an unreadable
+# page on disk and crashing the next read with:
+#
+#   Assertion failure: ... req_type.is_dblwr() || err == DB_SUCCESS
+#   (the failing read returns DB_IO_DECRYPT_FAIL)
+#
+# This is a timing-dependent crash; run with --repeat=N to reproduce reliably
+# on an unfixed server. With the fix the server always recovers and the mysql
+# tablespace remains readable.
+################################################################################
+
+--source include/have_component_keyring_file.inc
+# Kill+restart based crash test - skip where that is not meaningful.
+--source include/not_valgrind.inc
+
+--source ../inc/setup_component.inc
+
+--disable_query_log
+call mtr.add_suppression("Encryption key missing:");
+call mtr.add_suppression("Decrypting a page in doublewrite file failed:");
+call mtr.add_suppression("Encryption information can't be read for tablespace");
+--enable_query_log
+
+--connect (con1,localhost,root,,)
+--connection default
+
+DELIMITER //;
+CREATE PROCEDURE toggle_mysql_ts_encryption()
+BEGIN
+  WHILE TRUE DO
+    ALTER TABLESPACE mysql ENCRYPTION='Y';
+    ALTER TABLESPACE mysql ENCRYPTION='N';
+  END WHILE;
+END//
+DELIMITER ;//
+
+--echo # Toggle mysql tablespace encryption in the background.
+--connection con1
+--send CALL toggle_mysql_ts_encryption()
+
+--connection default
+--sleep 5
+
+--echo # Kill the server in the middle of an (un)encryption operation and
+--echo # let the next startup resume it. (Inlined kill+restart so the
+--echo # machine-specific --plugin-dir restart parameter is not echoed into
+--echo # the result; restart keeps the keyring component from setup.)
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "wait" > $_expect_file_name
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--exec echo "$restart_parameters" > $_expect_file_name
+--source include/wait_until_connected_again.inc
+
+--echo # Server recovered. The mysql tablespace must still be readable.
+SELECT COUNT(*) > 0 AS users_readable FROM mysql.user;
+
+--disconnect con1
+DROP PROCEDURE toggle_mysql_ts_encryption;
+# Leave the tablespace unencrypted for teardown.
+ALTER TABLESPACE mysql ENCRYPTION='N';
+
+--source ../inc/teardown_component.inc
