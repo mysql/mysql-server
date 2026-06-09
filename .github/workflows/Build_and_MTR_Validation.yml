@@ -1,4 +1,4 @@
-name: Build and test mysql-server on Linux and Windows
+name: Build and test mysql-server PRs on Linux and Windows
 
 on:
   pull_request:
