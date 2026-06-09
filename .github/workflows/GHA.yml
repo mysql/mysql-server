@@ -1,0 +1,464 @@
+name: Build and test mysql-server on windows
+
+on:
+  pull_request:
+    branches: [ "trunk" ]
+
+jobs:
+  linux-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libaio-dev \
+            libcurl4-openssl-dev \
+            libedit-dev \
+            libevent-dev \
+            libldap2-dev \
+            libprotobuf-dev \
+            libreadline-dev \
+            libsasl2-dev \
+            libtirpc-dev \
+            libudev-dev \
+            libxml2-utils \
+            protobuf-compiler
+            
+      - name: Analyze changed files
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha='${{ github.event.pull_request.base.sha }}'
+          head_sha='${{ github.event.pull_request.head.sha }}'
+          mapfile -t changed_files < <(
+            git diff --name-only "$base_sha" "$head_sha" | sed '/^$/d'
+          )
+          echo "Changed files detected in PR:"
+          if (( ${#changed_files[@]} == 0 )); then
+            echo "(none)"
+          else
+            printf '%s\n' "${changed_files[@]}"
+          fi
+          hypergraph_re='^(sql/join_optimizer.*|sql/iterators.*|sql/range_optimizer.*|sql/sql_.*|sql/query_.*|sql/opt_.*|sql/window.*|sql/item.*|sql/handler.*|sql/histogram/.*)'
+          innodb_re='^(storage/innobase/|mysql-test/suite/innodb)'
+          enable_hypergraph=false
+          build_debug_tree=false
+          enable_ndb=false
+          enable_extra_mtr=false
+  
+          if (( ${#changed_files[@]} > 0 )); then
+            if printf '%s\n' "${changed_files[@]}" | grep -Eq "$hypergraph_re"; then
+              enable_hypergraph=true
+            fi
+            if printf '%s\n' "${changed_files[@]}" | grep -Eq "$innodb_re"; then
+              build_debug_tree=true
+            fi
+            if printf '%s\n' "${changed_files[@]}" | grep -Eq '(innobase|innodb)'; then
+              enable_extra_mtr=true
+            fi
+            if printf '%s\n' "${changed_files[@]}" | grep -Eq '^(storage/ndb/|sql/dd/ndbinfo_schema|mysql-test/suite/.*ndb.*)'; then
+              enable_ndb=true
+            fi
+          fi
+          {
+            echo "enable_hypergraph=$enable_hypergraph"
+            echo "build_debug_tree=$build_debug_tree"
+            echo "enable_ndb=$enable_ndb"
+            echo "enable_extra_mtr=$enable_extra_mtr"
+          } >> "$GITHUB_OUTPUT"
+          
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_OPTS=""
+          if [[ "${{ steps.diff.outputs.enable_ndb }}" == "true" ]]; then
+            BUILD_OPTS="$BUILD_OPTS -DWITH_NDBCLUSTER=1"
+          fi
+          if [[ "${{ steps.diff.outputs.enable_hypergraph }}" == "true" ]]; then
+            BUILD_OPTS="$BUILD_OPTS -DWITH_HYPERGRAPH_OPTIMIZER=ON"
+          fi
+          rm -rf "${GITHUB_WORKSPACE}/bld" "${GITHUB_WORKSPACE}/debug"
+          mkdir -p bld
+          cd bld
+          echo "cmake .. $BUILD_OPTS"
+          cmake .. $BUILD_OPTS
+          make -j"$(nproc)"
+          if [[ "${{ steps.diff.outputs.build_debug_tree }}" == "true" ]]; then
+            cd "${GITHUB_WORKSPACE}"
+            mkdir -p debug
+            cd debug
+            DEBUG_OPTS="-DWITH_DEBUG=1 -DOPTIMIZE_DEBUG_BUILDS=1 $BUILD_OPTS"
+            echo "cmake .. $DEBUG_OPTS"
+            cmake .. $DEBUG_OPTS
+            make -j"$(nproc)"
+          fi
+          
+      - name: Create package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd bld
+          make package
+          
+      - name: MTR
+        id: mtr
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          export XML_REPORT="${GITHUB_WORKSPACE}/mtr_${GITHUB_RUN_NUMBER}.xml"
+          export UNIT_REPORT="${GITHUB_WORKSPACE}/mtr-unit_${GITHUB_RUN_NUMBER}.xml"
+          export SUMMARY_REPORT="${GITHUB_WORKSPACE}/build-error_main_${GITHUB_RUN_NUMBER}.txt"
+          export MYSQL_TEST_DIR="${GITHUB_WORKSPACE}/bld/mysql-test"
+          if [ ! -d "${MYSQL_TEST_DIR}" ]; then
+            touch "${XML_REPORT}"
+            touch "${UNIT_REPORT}"
+            echo "skipped" > "${SUMMARY_REPORT}"
+            exit 0
+          fi
+          rm -rf /dev/shm/var_auto_*
+          cd "${MYSQL_TEST_DIR}"
+          perl mysql-test-run.pl \
+            --nounit-tests --force --mem --retry-failure=2 --retry=2 \
+            --report-unstable-tests --clean-vardir --parallel "$(nproc)" \
+            --xml-report="${XML_REPORT}" \
+            --summary-report="${SUMMARY_REPORT}"
+          MTR_STATUS=$?
+          cd "${GITHUB_WORKSPACE}/bld"
+          ctest -j "$(nproc)" --output-junit "${UNIT_REPORT}"
+          UNIT_STATUS=$?
+          exit $((MTR_STATUS + UNIT_STATUS))
+          
+      - name: Hypergraph MTR
+        id: hypergraph
+        if: steps.diff.outputs.enable_hypergraph == 'true'
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          export HYPERGRAPH_REPORT="${GITHUB_WORKSPACE}/hypergraph_${GITHUB_RUN_NUMBER}.txt"
+          export MYSQL_TEST_DIR="${GITHUB_WORKSPACE}/bld/mysql-test"
+          rm -rf /dev/shm/var_auto_* || true
+          cd "${MYSQL_TEST_DIR}"
+          perl mysql-test-run.pl \
+            --nounit-tests \
+            --force \
+            --mem \
+            --retry-failure=2 \
+            --retry=2 \
+            --report-unstable-tests \
+            --clean-vardir \
+            --parallel "$(nproc)" \
+            --summary-report="${HYPERGRAPH_REPORT}" \
+            --hypergraph \
+            --skip-ndb \
+            --skip-suite=rapid
+          
+      - name: Extra MTR suites
+        id: extra
+        if: steps.diff.outputs.enable_extra_mtr == 'true'
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          extra_report="${GITHUB_WORKSPACE}/extra_suites_${GITHUB_RUN_NUMBER}.txt"
+          mysql_test_dir="${GITHUB_WORKSPACE}/bld/mysql-test"
+          extra_suites=(innodb_fts innodb_undo innodb_gis innodb_zip)
+          rm -rf /dev/shm/var_auto_* || true
+          cd "${mysql_test_dir}"
+          perl mysql-test-run.pl \
+            --force \
+            --mem \
+            --retry-failure=2 \
+            --retry=2 \
+            --report-unstable-tests \
+            --clean-vardir \
+            --parallel "$(nproc)" \
+            --summary-report="${extra_report}" \
+            --suite="$(IFS=,; echo "${extra_suites[*]}")"
+      
+      - name: Debug
+        id: debug
+        if: steps.diff.outputs.build_debug_tree == 'true'
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          DEBUG_TEST_DIR="${GITHUB_WORKSPACE}/debug/mysql-test"
+          DEBUG_XML_REPORT="${GITHUB_WORKSPACE}/mtr-debug_${GITHUB_RUN_NUMBER}.xml"
+          DEBUG_SUMMARY_REPORT="${GITHUB_WORKSPACE}/build-error_debug_${GITHUB_RUN_NUMBER}.txt"
+          DEBUG_ERR_LOG="${GITHUB_WORKSPACE}/mtr_${GITHUB_RUN_NUMBER}.err"
+          rm -rf /dev/shm/var_auto_*
+          cd "${DEBUG_TEST_DIR}"
+          perl mysql-test-run.pl \
+            --force \
+            --mem \
+            --retry-failure=2 \
+            --retry=2 \
+            --report-unstable-tests \
+            --clean-vardir \
+            --xml-report="${DEBUG_XML_REPORT}" \
+            --summary-report="${DEBUG_SUMMARY_REPORT}" \
+            --parallel "$(nproc)" \
+            2>&1 | tee "${DEBUG_ERR_LOG}"
+            
+      - name: MTR Replication Testing
+        id: replication
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          export REPL_REPORT="${GITHUB_WORKSPACE}/mtr-replication_${GITHUB_RUN_NUMBER}.xml"
+          export REPL_SUMMARY="${GITHUB_WORKSPACE}/build-error_replication_${GITHUB_RUN_NUMBER}.txt"
+          rm -rf /dev/shm/var_auto_* || true
+          cd "${GITHUB_WORKSPACE}/bld/mysql-test"
+          perl mysql-test-run.pl \
+            --force \
+            --mem \
+            --retry-failure=2 \
+            --retry=2 \
+            --report-unstable-tests \
+            --clean-vardir \
+            --xml-report="${REPL_REPORT}" \
+            --summary-report="${REPL_SUMMARY}" \
+            --parallel "$(nproc)" \
+            --comment=group_replication \
+            --suite=group_replication
+            
+      - name: xmllint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          find . -name 'mtr_*.xml' -size 0 -delete
+          for f in mtr_*.xml; do
+            [ -e "$f" ] || continue
+            xmllint --noout "$f"
+          done
+          
+      - name: Organize artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf artifacts
+          mkdir -p \
+            artifacts/test-reports \
+            artifacts/summaries \
+            artifacts/logs \
+            artifacts/packages
+    
+          shopt -s nullglob
+
+          # Test reports
+          cp -v mtr_*.xml artifacts/test-reports/ 2>/dev/null || true
+
+          # Summaries
+          cp -v build-error_main_*.txt artifacts/summaries/ 2>/dev/null || true
+          cp -v build-error_debug_*.txt artifacts/summaries/ 2>/dev/null || true
+          cp -v build-error_replication_*.txt artifacts/summaries/ 2>/dev/null || true
+          cp -v extra_suites_*.txt artifacts/summaries/ 2>/dev/null || true
+          cp -v hypergraph_*.txt artifacts/summaries/ 2>/dev/null || true
+
+          # Logs
+          cp -v mtr_*.err artifacts/logs/ 2>/dev/null || true
+
+          # Packages
+          find bld -type f \( -name '*.tar.gz' -o -name '*.tgz' -o -name '*.zip' \) \
+            -exec cp -v {} artifacts/packages/ \; 2>/dev/null || true
+          
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mysql-ci-artifacts
+          if-no-files-found: ignore
+          path: artifacts/
+          
+  windows-build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Git setup
+        shell: pwsh
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --system core.longpaths true
+          
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Analyze changed files
+        id: diff
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baseSha = '${{ github.event.pull_request.base.sha }}'
+          $headSha = '${{ github.event.pull_request.head.sha }}'
+          $changedFiles = @(
+            git diff --name-only $baseSha $headSha |
+            Where-Object { $_ -and $_.Trim() }
+          )
+          Write-Host 'Changed files detected in PR:'
+          if ($changedFiles.Count -eq 0) {
+            Write-Host '(none)'
+          }
+          else {
+            $changedFiles | ForEach-Object { Write-Host $_ }
+          }
+          $enable_innodb_mtr = $false
+          if ($changedFiles.Count -gt 0) {
+            if ($changedFiles | Where-Object { $_ -match '(^|/)(innodb|innobase)(/|$)' }) {
+              $enable_innodb_mtr = $true
+            }
+          }
+          @(
+            "enable_innodb_mtr=$enable_innodb_mtr"
+          ) | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          
+      - name: Install OpenSSL
+        id: openssl
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install openssl.light -y --no-progress
+          $opensslDir = Get-ChildItem "C:\Program Files","C:\Program Files (x86)" -Directory -Filter "OpenSSL*" |
+            Select-Object -First 1
+          if ($null -eq $opensslDir) {
+            throw "OpenSSL installation directory not found"
+          }
+          $opensslRoot = $opensslDir.FullName -replace '\\', '/'
+          Write-Host "Using OpenSSL root: $opensslRoot"
+          & "$($opensslDir.FullName)\bin\openssl.exe" version
+          "openssl_root=$opensslRoot" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          
+      - name: Install Bison
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install winflexbison3 -y --no-progress
+          where.exe win_bison
+          win_bison --version
+          
+      - name: Build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path bld) { Remove-Item -Recurse -Force bld }
+          New-Item -ItemType Directory -Path bld | Out-Null
+          Set-Location bld
+          $cmake = 'C:\Program Files\CMake\bin\cmake.exe'
+          $args = @(
+            '-G', 'Visual Studio 17 2022'
+            '-DWITH_BOOST=C:/boost'
+            '-DWITH_SSL=${{ steps.openssl.outputs.openssl_root }}'
+            '-DBISON_EXECUTABLE=C:/ProgramData/chocolatey/bin/win_bison.exe'
+            '..'
+          )
+          & $cmake @args
+          & $cmake --build . -- /m
+          
+      - name: Create package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-Location bld
+          & 'C:\Program Files\CMake\bin\cmake.exe' --build . --target package -- /m
+          
+      - name: Run MTR
+        id: mtr
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $mysqlTestDir = Join-Path $env:GITHUB_WORKSPACE 'bld\mysql-test'
+          $vardir = Join-Path $env:RUNNER_TEMP 'var-dir'
+          $summaryReport = Join-Path $env:GITHUB_WORKSPACE ("build-error_main_{0}.txt" -f $env:GITHUB_RUN_NUMBER)
+          $xmlReport = Join-Path $env:GITHUB_WORKSPACE ("mtr_{0}.xml" -f $env:GITHUB_RUN_NUMBER)
+          $errLog = Join-Path $env:GITHUB_WORKSPACE ("mtr_{0}.err" -f $env:GITHUB_RUN_NUMBER)
+          if (Test-Path $vardir) {
+            Remove-Item -Recurse -Force $vardir
+          }
+          New-Item -ItemType Directory -Path $vardir | Out-Null
+          Set-Location $mysqlTestDir
+          if ("${{ steps.diff.outputs.enable_innodb_mtr }}" -eq "true") {
+            perl mysql-test-run.pl `
+              --vardir="$vardir" `
+              --force `
+              --retry-failure=2 `
+              --retry=2 `
+              --report-unstable-tests `
+              --clean-vardir `
+              --xml-report="$xmlReport" `
+              --summary-report="$summaryReport" `
+              --parallel=$env:NUMBER_OF_PROCESSORS `
+              --suite=innodb `
+              2>&1 | Tee-Object -FilePath $errLog
+          }
+          else {
+            perl mysql-test-run.pl `
+              --vardir="$vardir" `
+              --force `
+              --retry-failure=2 `
+              --retry=2 `
+              --report-unstable-tests `
+              --clean-vardir `
+              --xml-report="$xmlReport" `
+              --summary-report="$summaryReport" `
+              --parallel=$env:NUMBER_OF_PROCESSORS `
+              1st `
+              2>&1 | Tee-Object -FilePath $errLog
+          }
+          
+      - name: Organize artifacts
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item -Recurse -Force artifacts -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path `
+            artifacts/test-reports, `
+            artifacts/summaries, `
+            artifacts/logs, `
+            artifacts/packages | Out-Null
+          $root = $env:GITHUB_WORKSPACE
+          
+          # Test reports
+          Get-ChildItem -Path $root -Filter 'mtr_*.xml' -File -ErrorAction SilentlyContinue |
+            Copy-Item -Destination artifacts/test-reports -Force
+            
+          # Summaries
+          Get-ChildItem -Path $root -Filter 'build-error*.txt' -File -ErrorAction SilentlyContinue |
+            Copy-Item -Destination artifacts/summaries -Force
+            
+          # Logs
+          Get-ChildItem -Path $root -Filter 'mtr_*.err' -File -ErrorAction SilentlyContinue |
+            Copy-Item -Destination artifacts/logs -Force
+            
+          # Packages
+          Get-ChildItem -Path (Join-Path $root 'bld') -Recurse -File -Include *.tar.gz, *.tgz, *.zip -ErrorAction SilentlyContinue |
+            Copy-Item -Destination artifacts/packages -Force
+            
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mysql-ci-artifacts
+          if-no-files-found: ignore
+          path: artifacts/
+          
