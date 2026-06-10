@@ -3658,6 +3658,9 @@ end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
 end:
   read_only = opt_readonly;
+  Security_context *sctx = thd->security_context();
+  LogErr(INFORMATION_LEVEL, ER_READ_ONLY_WAS_UPDATED, read_only ? "ON" : "OFF",
+         sctx->user().str, sctx->host_or_ip().str);
   return result;
 }
 
@@ -3715,6 +3718,10 @@ end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
 end:
   super_read_only = opt_super_readonly;
+  Security_context *sctx = thd->security_context();
+  LogErr(INFORMATION_LEVEL, ER_SUPER_READ_ONLY_WAS_UPDATED,
+         super_read_only ? "ON" : "OFF", sctx->user().str,
+         sctx->host_or_ip().str);
   return result;
 }
 

@@ -13356,6 +13356,12 @@ ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
 ER_AUDIT_LOG_DATABASE_NAME_EMPTY
   eng "Database name cannot be empty."
 
+ER_READ_ONLY_WAS_UPDATED
+  eng "read_only was updated to '%s' by '%s'@'%s'"
+
+ER_SUPER_READ_ONLY_WAS_UPDATED
+  eng "super_read_only was updated to '%s' by '%s'@'%s'"
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.
