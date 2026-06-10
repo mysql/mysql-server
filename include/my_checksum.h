@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MY_CHECKSUM_INCLUDED
-#define MY_CHECKSUM_INCLUDED
+#pragma once
 
 /**
   @file include/my_checksum.h
   Abstraction functions over zlib/intrinsics.
 */
 
+#include <string.h>  // memcpy
 #include <cassert>
 #include <cstdint>      // std::uint32_t
 #include <limits>       // std::numeric_limits
@@ -125,4 +125,3 @@ inline ha_checksum my_checksum(ha_checksum crc, const unsigned char *pos,
   assert(crc32_z(crc, pos, length) <= std::numeric_limits<ha_checksum>::max());
   return crc32_z(crc, pos, length);
 }
-#endif /* not defined(MY_CEHCKSUM_INCLUDED) */

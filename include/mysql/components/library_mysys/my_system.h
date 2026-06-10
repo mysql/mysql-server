@@ -1,4 +1,4 @@
-/* Copyright (c) 2025 Oracle and/or its affiliates.
+/* Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,19 +60,16 @@ bool init_my_physical_memory(const std::string &memory);
 uint64_t my_physical_memory() noexcept;
 
 /**
-  Determine the total number of logical CPUs available.
+  Determine the total number of logical CPUs available to be used by the mysql
+  server process.
 
-  If process is running within a container, the number of logical CPUs is the
-  maximum limit set for the container. If the process is not running in a
-  container then it uses the appropriate system APIs to determine the number of
-  logical CPUs.
+  This API uses the process affinity to calculate the number of logical CPUs. If
+  this method fails, then the API calls the corresponding system API to retrieve
+  the number of logical CPUs. If this method fails too, then the API calls the
+  C++ standard API hardware_concurrency.
 
   If the API is unable to determine the number of logical CPUs, then it returns
   0.
-
-  @note: The container set limits are calculated from the CFS quota and period
-  as quota/period and is round down. A limit of 0.5 will return the value 0 and
-  is treated as though no limits are set.
 
   @return number of logical CPUs or 0
 */

@@ -1,0 +1,216 @@
+################################################################################
+#  This test validates that when switching between single primary and multi
+#  primary mode, most up-to-date method isn't used.
+#
+# Test:
+#  0. The test requires three servers: M1,M2 and M3.
+#  1. Install component on member M1
+#  2. Install component on member M2 and increase member
+#     weight to have highest priority on primary election
+#  3. Force member to suspend applying transactions until
+#     sending an unblock signal
+#  4. Install component and join to group member M3
+#  5. Insert transactions on the group
+#  6. Execute a change to single primary mode
+#  7. Unblock M2 to apply pending transactions
+#  8. Reap connection that change to single primary mode
+#  9. Confirm global status variables didn't change
+# 10. Assert M3 is primary member, it has highest weight
+# 11. Switch for multi primary
+# 12. Confirm global status variables didn't change
+# 13. Cleanup
+################################################################################
+
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/have_gr_replication_elect_prefers_most_updated.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Install component on member M1
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--echo
+--echo ############################################################
+--echo # 2. Install component on member M2 and increase member
+--echo #    weight to have highest priority on primary election
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo #  3. Force member to suspend applying transactions until
+--echo #     sending an unblock signal
+
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+
+--echo
+--echo ############################################################
+--echo # 4. Install component and join to group member M3
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 5. Insert transactions on the group
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+CREATE TABLE t1(a int primary key);
+
+# Create the procedure to perform the dml operations.
+delimiter $$;
+CREATE PROCEDURE dml_operations()
+     BEGIN
+     declare x INT;
+     set x=1;
+     while x<=48 do
+     insert into t1 values (x);
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+--echo ----call procedure----
+call dml_operations();
+--echo
+
+
+--echo
+--echo ############################################################
+--echo # 6. Execute a change to single primary mode
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--send SELECT group_replication_switch_to_single_primary_mode()
+
+
+--echo
+--echo ############################################################
+--echo # 7. Unblock M2 to apply pending transactions
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+
+
+--echo
+--echo ############################################################
+--echo # 8. Reap connection that change to single primary mode
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--reap
+
+
+--echo
+--echo ############################################################
+--echo # 9. Confirm global status variables didn't change
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 10. Assert M3 is primary member, it has highest weight
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Switch for multi primary
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo ############################################################
+--echo # 12. Confirm global status variables didn't change
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 13. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+DROP TABLE t1;
+DROP PROCEDURE dml_operations;
+
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/group_replication_end.inc

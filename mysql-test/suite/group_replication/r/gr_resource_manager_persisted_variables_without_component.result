@@ -1,0 +1,77 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Currently unknown variable 'group_replication_resource_manager.applier_channel_lag' was read from the persisted config file.");
+call mtr.add_suppression("Currently unknown variable 'group_replication_resource_manager.recovery_channel_lag' was read from the persisted config file.");
+call mtr.add_suppression("Currently unknown variable 'group_replication_resource_manager.quarantine_time' was read from the persisted config file.");
+call mtr.add_suppression("Currently unknown variable 'group_replication_resource_manager.memory_used_limit' was read from the persisted config file.");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Persist configuration on server1. Uninstall component.
+[connection server1]
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+RESET PERSIST;
+SET PERSIST group_replication_resource_manager.applier_channel_lag= 3600;
+SET PERSIST group_replication_resource_manager.recovery_channel_lag= 3600;
+SET PERSIST group_replication_resource_manager.quarantine_time= 3600;
+SET PERSIST group_replication_resource_manager.memory_used_limit= 100;
+include/assert.inc ['Expect 4 persisted variables.']
+
+############################################################
+# 2. Restart server1 without component.
+#    No variables are shown as persisted.
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+# restart
+include/rpl/reconnect.inc
+
+include/assert.inc ['There must be NO variable shown as persisted in variables_info table.']
+
+############################################################
+# 3. Install component and verify that variable_source is shown
+#    as PERSISTED.
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/assert.inc ['Expect 4 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 4 persisted variables with matching persisted and global values.']
+
+############################################################
+# 4. Restart server1, 4 variables will be persisted.
+# restart
+include/rpl/reconnect.inc
+include/assert.inc ['Expect 4 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 4 persisted variables with matching persisted and global values.']
+
+############################################################
+# 5. Uninstall component and reset persist variables.
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+RESET PERSIST;
+include/assert.inc ['Expect 0 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 0 persisted variables with matching persisted and global values.']
+
+############################################################
+# 6. Install component by setting persist variables.
+INSTALL COMPONENT 'file://component_group_replication_resource_manager'
+SET
+PERSIST group_replication_resource_manager.applier_channel_lag= 3600,
+PERSIST group_replication_resource_manager.recovery_channel_lag= 3600,
+PERSIST group_replication_resource_manager.quarantine_time= 3600,
+PERSIST group_replication_resource_manager.memory_used_limit= 100;
+
+############################################################
+# 7. Restart server1, 4 variables will be persisted.
+# restart
+include/rpl/reconnect.inc
+include/assert.inc ['Expect 4 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 4 persisted variables with matching persisted and global values.']
+
+############################################################
+# 8. Clean up.
+[connection server1]
+RESET PERSIST;
+include/assert.inc ['There must be 0 persisted variables.']
+include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

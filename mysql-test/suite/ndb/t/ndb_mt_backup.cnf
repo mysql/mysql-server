@@ -4,3 +4,5 @@ ThreadConfig=main,rep,recv,ldm={count=4}
 [mysqld]
 # Turn off auto sync so it doesn't interfere with the test
 ndb_metadata_check = false
+[ndb_restore]
+error-insert=6 # NDB_RESTORE_ERROR_INSERT_ABORT_ON_CLOSE_ERROR

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,12 +202,23 @@ end:
   return false;
 }
 
-bool Xcom_member_state::decode_header(const uchar *buffer, uint64_t) {
+bool Xcom_member_state::decode_header(const uchar *buffer,
+                                      uint64_t buffer_len) {
+  bool constexpr ERROR = true;
+  bool constexpr OK = false;
+
   uint64_t fixed_view_id = 0;
   uint32_t monotonic_view_id = 0;
   uint32_t group_id = 0;
   uint64_t msg_no = 0;
   uint32_t node_no = 0;
+
+  if (buffer_len < get_encode_header_size()) {
+    MYSQL_GCS_LOG_ERROR(
+        "Buffer to decode header information from member state exchange too "
+        "small.");
+    return ERROR;
+  }
 
   const uchar *slider = buffer;
 
@@ -232,7 +243,7 @@ bool Xcom_member_state::decode_header(const uchar *buffer, uint64_t) {
   memcpy(&node_no, slider, WIRE_XCOM_NODE_ID_SIZE);
   m_configuration_id.node = le32toh(node_no);
 
-  return true;
+  return OK;
 }
 
 bool Xcom_member_state::decode_snapshot(const uchar *buffer,
@@ -245,13 +256,31 @@ bool Xcom_member_state::decode_snapshot(const uchar *buffer,
     // This message doesn't contain a snapshot
     result = OK;
   } else if (m_version >= Gcs_protocol_version::V2) {
+    if (buffer_size < WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE) {
+      MYSQL_GCS_LOG_ERROR(
+          "Buffer to decode snapshot information (nodes number) from member "
+          "state exchange too small.");
+      return ERROR;
+    }
+
     // End of the buffer.
     const uchar *slider = (buffer + buffer_size);
 
+    // Buffer is read backwards.
     slider -= WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE;
     uint64_t nr_synods = 0;
     std::memcpy(&nr_synods, slider, WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE);
     nr_synods = le64toh(nr_synods);
+
+    const uint64_t nodes_buffer_required =
+        get_encode_header_size() + WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE +
+        (nr_synods * (WIRE_XCOM_NODE_ID_SIZE + WIRE_XCOM_MSG_ID_SIZE));
+    if (buffer_size < nodes_buffer_required) {
+      MYSQL_GCS_LOG_ERROR(
+          "Buffer to decode snapshot information (nodes information) from "
+          "member state exchange too small.");
+      return ERROR;
+    }
 
     for (uint64_t i = 0; i < nr_synods; i++) {
       slider -= WIRE_XCOM_NODE_ID_SIZE;
@@ -278,13 +307,27 @@ bool Xcom_member_state::decode_snapshot(const uchar *buffer,
 }
 
 bool Xcom_member_state::decode(const uchar *data, uint64_t data_size) {
+  bool constexpr ERROR = true;
+  bool constexpr OK = false;
+
   const uchar *slider = data;
-  decode_header(slider, data_size);
+  if (decode_header(slider, data_size)) {
+    return ERROR;
+  }
   uint64_t const exchangeable_header_size = get_encode_header_size();
   slider += exchangeable_header_size;
 
-  decode_snapshot(data, data_size);
+  if (decode_snapshot(data, data_size)) {
+    return ERROR;
+  }
   uint64_t const snapshot_size = get_encode_snapshot_size();
+
+  if (data_size < exchangeable_header_size + snapshot_size) {
+    MYSQL_GCS_LOG_ERROR(
+        "Buffer to decode snapshot information (exchangeable data) from member "
+        "state exchange too small.");
+    return ERROR;
+  }
 
   uint64_t const exchangeable_data_size =
       data_size - exchangeable_header_size - snapshot_size;
@@ -302,7 +345,7 @@ bool Xcom_member_state::decode(const uchar *data, uint64_t data_size) {
       static_cast<long long unsigned>(exchangeable_data_size),
       static_cast<long long unsigned>(snapshot_size));
 
-  return false;
+  return OK;
 }
 
 Gcs_xcom_state_exchange::Gcs_xcom_state_exchange(

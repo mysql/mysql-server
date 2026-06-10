@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -108,6 +108,11 @@ class span : private detail::span_base<T>, detail::span_extent<Extent> {
       element_type (&arr)[Extent != dynamic_extent ? Extent : 0]) noexcept
       : detail::span_base<T>(arr) {
     static_assert(Extent != dynamic_extent);
+  }
+  template <std::size_t N>
+  constexpr span(element_type (&arr)[N]) noexcept
+      : detail::span_base<T>(arr), detail::span_extent<Extent>(N) {
+    static_assert(Extent == dynamic_extent);
   }
   template <class U>
   constexpr span(std::array<U, Extent> &arr) noexcept

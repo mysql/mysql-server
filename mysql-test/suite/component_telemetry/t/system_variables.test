@@ -1,0 +1,25 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+--echo # Telemetry system variables
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME LIKE 'telemetry%'
+  ORDER BY VARIABLE_NAME;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+

@@ -1,0 +1,33 @@
+CREATE TABLE articles (
+id INT UNSIGNED NOT NULL PRIMARY KEY,
+title TEXT
+) ENGINE=InnoDB;
+# Seed one row, then double it ROUNDS times.
+INSERT INTO articles(id, title) VALUES (1, 'akuku');
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+# Restart server to isolate allocator high-watermark from prior tests
+# restart
+ALTER TABLE articles ADD FULLTEXT KEY ft_title(title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+include/assert.inc [Memory used by InnoDB allocator should stay below 5 MiB during FTS index build]
+DROP TABLE articles;

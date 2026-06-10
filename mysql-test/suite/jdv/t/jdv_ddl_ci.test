@@ -1,0 +1,2851 @@
+########################################################################
+#   test for DDL of JSON duality views.                                #
+########################################################################
+
+# Result differences depending on FS case sensitivity.
+if (!$on_case_sensitive_file_system)
+{
+  --source include/have_case_insensitive_file_system.inc
+}
+
+--echo # Requirement-1: Requirements for view name
+
+--echo # 1.1 It must be a valid identifier
+
+CREATE TABLE T1 (C1 INT PRIMARY KEY, C2 INT);
+
+--echo # Using keyword as a identifier name
+--error ER_PARSE_ERROR
+CREATE JSON DUALITY VIEW SELECT AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # Using number as a identifier name
+--error ER_PARSE_ERROR
+CREATE JSON DUALITY VIEW 123 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # Using null as a identifier name
+--error ER_PARSE_ERROR
+CREATE JSON DUALITY VIEW null AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # Using special character as a identifier name
+--error ER_PARSE_ERROR
+CREATE JSON DUALITY VIEW @ AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # 1.2 Its length must be up to 64 characters
+
+--error ER_TOO_LONG_IDENT
+CREATE JSON DUALITY VIEW
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-2: Name conflict handling for view_name
+
+--echo # 2.1 If duality view with name view_name is already present in
+--echo # the current schema, and if the statement is not CREATE OR
+--echo # REPLACE, an error must be reported.
+
+--echo # It also covers 1.3.1 : If lower_case_table_names = 0, view_name
+--echo # equality implies same character case. i.e. view_name stored on
+--echo # disk using the character case specified in the statement.
+--echo # Name comparisons are case-sensitive.
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+if (!$on_case_sensitive_file_system)
+{
+--echo # 1.3.2 If lower_case_table_names != 0, character case used for
+--echo # view_name does not matter.
+--error ER_TABLE_EXISTS_ERROR
+CREATE JSON DUALITY VIEW DV1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+}
+
+--echo # 2.2 If a normal view or table with name view_name are present
+--echo # in the current schema, regardless of whether OR REPLACE clause
+--echo # used or not, an error must be reported.
+
+CREATE VIEW V1 AS SELECT * FROM T1;
+
+--error ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW V1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE JSON DUALITY VIEW V1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE TABLE T2 (C1 INT PRIMARY KEY, C2 INT REFERENCES T1(C1));
+
+--error ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW T2
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE JSON DUALITY VIEW T2
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # 2.3 Vice versa of point-2 is also valid i.e. An attempt to
+--echo # create a normal view with the name already used by a table or a
+--echo # duality view, regardless of whether OR REPLACE clause is used
+--echo # or not, must result into an error.
+
+--error ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED
+CREATE OR REPLACE VIEW dv1 AS SELECT * FROM T1;
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE VIEW dv1 AS SELECT * FROM T1;
+
+#--warning ER_TABLE_EXISTS_ERROR
+CREATE TABLE IF NOT EXISTS dv1 (C1 INT, C2 INT);
+
+--echo # 2.4 "IF NOT EXISTS" Clause is supported but it cannot be
+--echo # used with "OR REPLACE" clause.
+
+#--warning ER_TABLE_EXISTS_ERROR
+CREATE JSON DUALITY VIEW IF NOT EXISTS dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE JSON DUALITY VIEW IF NOT EXISTS dv2
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-3: Requirements for schema name in the view name
+
+--echo # 3.1 If schema name is specified, and doesn't exist, an error
+--echo # must be reported.
+
+--error ER_BAD_DB_ERROR
+CREATE JSON DUALITY VIEW IF NOT EXISTS DB.dv2
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+if (!$on_case_sensitive_file_system)
+{
+--echo # Since, schema name comparisons are case-insensitive
+--echo # here, "DB" and "db" are the same schemas.
+
+CREATE SCHEMA db;
+CREATE TABLE dB.t(i int primary key);
+
+CREATE OR REPLACE JSON DUALITY VIEW Db.dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': DB.T.I
+)
+FROM db.t;
+
+DROP SCHEMA DB;
+}
+
+--echo #################################################################
+
+--echo # Requirement-4: Requirements for JSON_DUALITY_OBJECT
+--echo # 4.1 JSON_DUALITY_OBJECT function must be used by the JSON
+--echo # Duality view only. Use of this function in other cases must
+--echo # report an error.
+
+--error ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE
+CREATE OR REPLACE VIEW V1 AS
+SELECT JSON_DUALITY_OBJECT("C1" : C1, "C2" : C2)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_NO_JSON_OBJECT_IN_ROOT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_OBJECT(
+    "_id" , C1,
+    "C2"  , C2
+)
+FROM T1;
+
+--echo # Since the use of JSON_DUALITY_OBJECT is not supported outside
+--echo # the context of JDV, attempt to create a normal view out of
+--echo # JDV must result into error.
+
+--error ER_JDV_CANNOT_BE_USED_WITH
+CREATE OR REPLACE VIEW V1 AS SELECT * FROM dv1;
+
+--echo # Extension of above case: If Table which was used as base for
+--echo # a given view is dropped, and a JDV with the same name as that
+--echo # base table is created, the view must be marked as invalid.
+
+CREATE TABLE T3(data INT PRIMARY KEY);
+CREATE OR REPLACE VIEW V1 AS SELECT * FROM T3;
+
+DROP TABLE T3;
+CREATE TABLE T3_2 (C1 INT PRIMARY KEY);
+
+CREATE JSON DUALITY VIEW T3 AS
+SELECT JSON_DUALITY_OBJECT("_id" : C1)
+FROM T3_2;
+
+#--warning ER_JDV_CANNOT_BE_USED_WITH
+SHOW CREATE VIEW V1;
+
+#--warning ER_JDV_CANNOT_BE_USED_WITH
+SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME='V1';
+
+--error ER_JDV_CANNOT_BE_USED_WITH
+SELECT * FROM V1;
+
+DROP VIEW V1, T3;
+DROP TABLE T3_2;
+
+--echo #################################################################
+
+--echo # Requirement-5: Requirements for Top-Level SELECT
+
+--echo # 5.1 Requirements for SELECT list:
+--echo # 5.1.1 It must contain only one JSON_DUALITY_OBJECT() expression
+--echo # which must be non-empty.
+
+--error ER_PARSE_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT()
+FROM T1;
+
+--error ER_VIEW_WRONG_LIST
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+), 1
+FROM T1;
+
+--echo # 5.1.2 It should be a simple SELECT statement, operators like
+--echo # UNION, INTERSECT, EXCEPT and complex SELECT like CTEs aren't
+--echo # supported and must result into a syntax error if used.
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+        "_id" : C1,
+        "C2" : C2
+    )
+    FROM T1
+UNION
+    SELECT JSON_DUALITY_OBJECT(
+        "_id" : C1,
+        "C2" : C2
+    )
+    FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+    SELECT JSON_DUALITY_OBJECT(
+        "_id" : C1,
+        "C2" : C2
+    )
+    FROM T1
+INTERSECT
+    SELECT JSON_DUALITY_OBJECT(
+        "_id" : C1,
+        "C2" : C2
+    )
+    FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+    SELECT JSON_DUALITY_OBJECT(
+        "_id" : C1,
+        "C2" : C2
+    )
+    FROM T1
+EXCEPT
+    SELECT JSON_DUALITY_OBJECT(
+        "_id" : C1,
+        "C2" : C2
+    )
+    FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_CTE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+WITH T1_ALIAS AS (
+    SELECT C1 AS C1_A, C2 AS C2_A
+    FROM T1
+)
+SELECT JSON_DUALITY_OBJECT(
+            "C1_A" : C1_A,
+            "C2_A" : C2_A
+)
+FROM T1_ALIAS;
+
+--echo # 5.2 Requirements for FROM clause
+
+--echo # 5.2.1 it must contain only one table, which may belong to any
+--echo # schema. If it doesn't belong to the current schema, schema
+--echo # name must be provided explicitly.
+
+--error ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2"  : T1.C2
+)
+FROM T1, T2;
+
+--echo # 5.2.2 The use of other clauses of SELECT statement,
+--echo # like WHERE, JOIN, GROUP BY, ORDER BY, HAVING, WINDOW, LIMIT aren't
+--echo # supported in this context. A syntax error must be reported if
+--echo # they're used.
+
+--error ER_JDV_INVALID_DEFINITION_WHERE_CONDITION_IN_ROOTOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+WHERE C1 = 1;
+
+--error ER_JDV_INVALID_DEFINITION_ORDERBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+ORDER BY C1;
+
+--error ER_JDV_INVALID_DEFINITION_LIMIT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+LIMIT 1;
+
+--error ER_JDV_INVALID_DEFINITION_GROUPBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+GROUP BY C1;
+
+--error ER_JDV_INVALID_DEFINITION_GROUPBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+GROUP BY C1
+having C1 = 1;
+
+--error ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2"  : T1.C2
+)
+FROM T1 JOIN T2 ON T1.C1 = T2.C1;
+
+--error ER_JDV_INVALID_DEFINITION_WINDOW_FUNCTION_NOT_SUPPORTED
+CREATE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : RANK() OVER (ORDER BY C2 DESC)
+)
+FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-6: Requirements for json_duality_key_value_pairs
+
+--echo # 6.1 Requirements for key_name:
+
+--echo # 6.1.1 There must be a key named "_id" in root object representing
+--echo # primary key of the root table. Absence of such key_name in the
+--echo # root table json_duality_key_value_pairs must result in an error.
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "ID" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "Id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "iD" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.1.2 Usage of key name "_id" in sub-objects must result in an error.
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_USED_BY_NOT_ROOT_TABLE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "_id" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.1.3 Usage of duplicate keys in the same JSON_DUALITY_OBJECT()
+--echo # should report a syntax error.
+
+--error ER_JDV_INVALID_DEFINITION_DUPLICATE_KEYS_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C1" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2 Requirements for value_expression
+--echo # It must either be a column name, JSON_DUALITY_OBJECT
+--echo # (singleton descedent), or JSON_ARRAYAGG(nested descedent).
+--echo # Usage of any other expression must result in a syntax error.
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : 1,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : C1,
+                            "C2" : C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C1 + T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : C1,
+                            "C2" : C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1 Requirements for column_name:
+
+--echo # 6.2.1.1 It must reference a valid column in the table that is being
+--echo # projected (it may be part of root_table_name or current_table_name
+--echo # clause).
+
+--error ER_BAD_FIELD_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2"  : T1.C2,
+    "T2"  : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C3
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_INCONSISTENT_TABLE_FIELD_IN_THE_OBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2"  : T1.C2,
+    "T2"  : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T1.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1.2 SELECT-ing column_name more than once in a single JSON_DUALITY_OBJECT
+--echo # must result into a syntax error.
+
+--error ER_JDV_INVALID_DEFINITION_DUPLICATE_COLUMN_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "C22": T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # Field name comparisons are case-insensitive
+--echo # Projecting them in whichever case is fine.
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.c1,
+    "C2"  : T1.c2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.c1,
+                            "C2" : T2.c2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # Since, comparisons are case insensitive, projecting once
+--echo # in upper case, and then in lowercase counts as multiple
+--echo # projections, and it is not allowed.
+--error ER_JDV_INVALID_DEFINITION_DUPLICATE_COLUMN_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "C22": T2.c2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1.3 Usage of any operators (such as UPPER) on top of a column_name must
+--echo # result into a syntax error.
+
+ALTER TABLE T2 ADD STR_COL VARCHAR(20);
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "STR": UPPER(T2.STR_COL)
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1.4 Projecting columns of type JSON and GEOMETRY (Including all its
+--echo # derivative datatypes like POINT, LINESTRING, POLYGON, MULTIPOINT,
+--echo # MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION) isn't supported and
+--echo # must result into a semantic error if done.
+
+ALTER TABLE T2 ADD JSON_COL JSON;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "JSON_COL": JSON_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD POINT_COL POINT;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "POINT_COL": POINT_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD LINESTRING_COL LINESTRING;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "LINESTRING_COL": LINESTRING_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD POLYGON_COL POLYGON;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "POLYGON_COL": POLYGON_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD JSON_MULTIPOINT MULTIPOINT;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "JSON_MULTIPOINT": JSON_MULTIPOINT
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD MULTILINESTRING_COL MULTILINESTRING;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "MULTILINESTRING_COL": MULTILINESTRING_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD MULTIPOLYGON_COL MULTIPOLYGON;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "MULTIPOLYGON_COL": MULTIPOLYGON_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+ALTER TABLE T2 ADD GEOMETRYCOLLECTION_COL GEOMETRYCOLLECTION;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "GEOMETRYCOLLECTION_COL": GEOMETRYCOLLECTION_COL
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1.5 Projecting virtual columns isn't supported and must result into a
+--echo # semantic error if done.
+
+ALTER TABLE T2 ADD COLUMN C3 INT GENERATED ALWAYS AS (C1+C2) VIRTUAL;
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2,
+                            "VIRTUAL": C3
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1.6 If column_name with the key _id in the root table json_duality_key_value_pairs
+--echo # isn't a primary key of that table, an error must be reported.
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "_id" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.1.7 If the table is projected multiple times, the set of
+--echo # columns projected must be consistent across all instances
+--echo # of the table projection.
+
+CREATE TABLE EMPLOYEE (
+    ID INT PRIMARY KEY,
+    NAME VARCHAR(20),
+    CITY VARCHAR(20),
+    MANAGER INT REFERENCES EMPLOYEE(ID)
+);
+
+--error ER_JDV_INVALID_DEFINITION_SAME_TABLE_INCONSISTENT_PROJECTION
+CREATE OR REPLACE JSON DUALITY VIEW DV AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": e.ID,
+  "NAME": e.NAME,
+  "MANAGER": (
+    SELECT JSON_DUALITY_OBJECT(
+      "ID": m.ID,
+      "NAME": m.NAME,
+      "CITY": m.CITY
+    )
+    FROM EMPLOYEE m
+    WHERE e.MANAGER = m.ID
+  )
+)
+FROM EMPLOYEE e;
+
+--error ER_JDV_INVALID_DEFINITION_SAME_TABLE_INCONSISTENT_PROJECTION
+CREATE OR REPLACE JSON DUALITY VIEW DV AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": e.ID,
+  "CITY": e.CITY,
+  "MANAGER": (
+    SELECT JSON_DUALITY_OBJECT(
+      "ID": m.ID,
+      "NAME": m.NAME,
+      "CITY": m.CITY
+    )
+    FROM EMPLOYEE m
+    WHERE e.MANAGER = m.ID
+  )
+)
+FROM EMPLOYEE e;
+
+--error ER_JDV_INVALID_DEFINITION_SAME_TABLE_INCONSISTENT_PROJECTION
+CREATE OR REPLACE JSON DUALITY VIEW DV AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": e.ID,
+  "NAME": e.NAME,
+  "CITY": e.CITY,
+  "MANAGER": (
+    SELECT JSON_DUALITY_OBJECT(
+      "ID": m.ID,
+      "CITY": m.CITY
+    )
+    FROM EMPLOYEE m
+    WHERE e.MANAGER = m.ID
+  )
+)
+FROM EMPLOYEE e;
+
+--error ER_JDV_INVALID_DEFINITION_SAME_TABLE_INCONSISTENT_PROJECTION
+CREATE OR REPLACE JSON DUALITY VIEW DV AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": e.ID,
+  "NAME": e.NAME,
+  "CITY": e.CITY,
+  "MANAGER": (
+    SELECT JSON_DUALITY_OBJECT(
+      "ID": m.ID,
+      "NAME": m.NAME
+    )
+    FROM EMPLOYEE m
+    WHERE e.MANAGER = m.ID
+  )
+)
+FROM EMPLOYEE e;
+
+CREATE OR REPLACE JSON DUALITY VIEW DV AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": e.ID,
+  "NAME": e.NAME,
+  "CITY": e.CITY,
+  "MANAGER": (
+    SELECT JSON_DUALITY_OBJECT(
+      "ID": m.ID,
+      "NAME": m.NAME,
+      "CITY": m.CITY
+    )
+    FROM EMPLOYEE m
+    WHERE e.MANAGER = m.ID
+  )
+)
+FROM EMPLOYEE e;
+
+DROP VIEW DV;
+DROP TABLE EMPLOYEE;
+
+--echo # 6.2.2 Requirements for singleton_descendent_json_object
+
+--echo # 6.2.2.1 Requirements for SELECT list (Same as 5.1)
+
+--error ER_PARSE_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT()
+                FROM T1 WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_OPERAND_COLUMNS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                ), JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1 WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_OPERAND_COLUMNS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                ), 1
+                FROM T1 WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                    SELECT JSON_DUALITY_OBJECT(
+                        "C1" : T1.C1,
+                        "C2" : T1.C2
+                    )
+                    FROM T1
+                    WHERE T1.C1 = T2.C1
+                UNION
+                    SELECT JSON_DUALITY_OBJECT(
+                        "C1" : T1.C1,
+                        "C2" : T1.C2
+                    )
+                    FROM T1
+                    WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                    SELECT JSON_DUALITY_OBJECT(
+                        "C1" : T1.C1,
+                        "C2" : T1.C2
+                    )
+                    FROM T1
+                    WHERE T1.C1 = T2.C1
+                INTERSECT
+                    SELECT JSON_DUALITY_OBJECT(
+                        "C1" : T1.C1,
+                        "C2" : T1.C2
+                    )
+                    FROM T1
+                    WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                    SELECT JSON_DUALITY_OBJECT(
+                        "C1" : T1.C1,
+                        "C2" : T1.C2
+                    )
+                    FROM T1
+                    WHERE T1.C1 = T2.C1
+                EXCEPT
+                    SELECT JSON_DUALITY_OBJECT(
+                        "C1" : T1.C1,
+                        "C2" : T1.C2
+                    )
+                    FROM T1
+                    WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_CTE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                WITH T1_ALIAS AS (
+                    SELECT C1 AS C1_A, C2 AS C2_A
+                    FROM T1
+                )
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : C1_A,
+                    "C2" : C2_A
+                )
+                FROM T1_ALIAS WHERE T1_ALIAS.C1_A = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_MUSTBE_JSON_OBJECT_FOR_SINGLETON
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_OBJECT(
+                    "C1", T1.C1,
+                    "C2", T1.C2
+                )
+                FROM T1
+                WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--echo # 6.2.2.2 Requirements for FROM clause
+--echo # 6.2.2.2.1 It must contain only one table, which may belong to any schema.
+--echo # If it doesn't belong to the current schema, schema name must
+--echo # be provided explicitly.
+
+--error ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1, T2
+                WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--echo # 6.2.2.2.2 If parent_table_name and child_table_name are the same tables,
+--echo # not using alias for at least one of them must result into a semantic error.
+
+--error ER_JDV_INVALID_DEFINITION_ALIAS_NOT_USED_FOR_SAME_TABLES
+CREATE OR REPLACE JSON DUALITY VIEW `dv` AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id' : `T1`.`C1`,
+    '_id1' : (
+        SELECT JSON_ARRAYAGG(
+            JSON_DUALITY_OBJECT('abc' : `T1`.`C1`)
+        )
+        FROM `T1`
+        WHERE (`T1`.`C1` = `T1`.`C1`)
+    )
+) AS `count_f2`
+FROM `T1`;
+
+CREATE OR REPLACE JSON DUALITY VIEW `dv` AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id' : `T1`.`C1`,
+    '_id1' : (
+        SELECT JSON_ARRAYAGG(
+            JSON_DUALITY_OBJECT('abc' : `child`.`C1`)
+        )
+        FROM `T1` AS `child`
+        WHERE (`child`.`C1` = `T1`.`C1`)
+    )
+) AS `count_f2`
+FROM `T1`;
+
+CREATE OR REPLACE JSON DUALITY VIEW `dv` AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id' : `parent`.`C1`,
+    '_id1' : (
+        SELECT JSON_ARRAYAGG(
+            JSON_DUALITY_OBJECT('abc' : `T1`.`C1`)
+        )
+        FROM `T1`
+        WHERE (`parent`.`C1` = `T1`.`C1`)
+    )
+) AS `count_f2`
+FROM `T1` AS `parent`;
+
+DROP VIEW dv;
+
+--echo # 6.2.2.2.3 The use of clauses like JOIN, GROUP BY, ORDER BY, HAVING, WINDOW
+--echo # isn't supported in this context. A syntax error must be reported
+--echo # if they're used.
+
+--error ER_JDV_INVALID_DEFINITION_ORDERBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.C1 = T2.C1
+                ORDER BY T1.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_GROUPBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.C1 = T2.C1
+                GROUP BY T1.C1
+                HAVING T1.C1 = 1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1 JOIN T2
+                ON T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_WINDOW_FUNCTION_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : RANK() OVER (ORDER BY T1.C2 DESC)
+                )
+                FROM T1
+                WHERE T1.C1 = T2.C1
+           )
+)
+FROM T2;
+
+--echo # 6.2.2.2.4 Unlike top-level select, WHERE clause is supported here but it
+--echo # must only contain one expression, and that must be of the below form:
+--echo # [schema_name .] child_table_name . column_name =
+--echo # [schema_name .] parent_table_name . column_name
+
+--error ER_JDV_INVALID_DEFINITION_NO_WHERE_CONDITION_IN_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": T1.C1,
+  "C2": T1.C2,
+  "T2": (
+          SELECT JSON_ARRAYAGG(
+                    JSON_DUALITY_OBJECT(
+                        "C1": T2.C1,
+                        "C2": T2.C2
+                    )
+                  ) FROM T2 WHERE T2.C1 IN (SELECT C1 FROM T1)
+        )
+) FROM T1;
+
+--echo # Field name comparisons are case insensitive, they can be
+--echo # used in whichever case.
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.c1 = T2.c1
+           )
+)
+FROM T2;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.C1 = T2.c1
+           )
+)
+FROM T2;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.c1 = T2.C1
+           )
+)
+FROM T2;
+
+--echo # Usage of any other type of condition or usage of AND/OR operator
+--echo # in the condition must result in a syntax error.
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.C1 = T2.C2 AND 1=1
+           )
+)
+FROM T2;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id": T2.C1,
+    "C2" : T2.C2,
+    "T1" : (
+                SELECT JSON_DUALITY_OBJECT(
+                    "C1" : T1.C1,
+                    "C2" : T1.C2
+                )
+                FROM T1
+                WHERE T1.C1 = T2.C2 OR 1=1
+            )
+)
+FROM T2;
+
+--echo # 6.2.3 Requirements for nested_descendent_json_objects
+
+--echo # 6.2.3.1 Requirements for SELECT list:
+
+--echo # 6.2.3.1.1 It must contain only one JSON_ARRAYAGG() expression.
+--echo # The JSON_ARRAYAGG() must contain JSON_DUALITY_OBJECT()
+--echo # and JSON_DUALITY_OBJECT() must not be empty.
+
+--error ER_OPERAND_COLUMNS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                ), JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_OPERAND_COLUMNS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                ), 1
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_PARSE_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT()
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_MUSTBE_JSON_OBJECT_FOR_NESTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT C2
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.3.1.2 The JSON_ARRAYAGG() must contain JSON_DUALITY_OBJECT()
+--echo # and JSON_DUALITY_OBJECT() must not be empty.
+
+--error ER_JDV_INVALID_DEFINITION_NO_JSON_OBJ_IN_ARRAYAGG
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(T2.C2)
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # 6.2.3.1.3 JSON constructor null clause ABSENT ON NULL is supported
+--echo # for the JSON_ARRAYAGG() in duality view. By default NULL ON NULL
+--echo # is behavior is applicable i.e. null value is set is array is empty.
+--echo # JSON_ARRAYAGG() should contain ABSENT ON NULL clause to get
+--echo # empty array.
+
+INSERT INTO T1 (C1, C2) VALUES (1, 2);
+
+--echo # JSON duality view with JSON_ARRAYAGG
+--echo # and default JSON constructor null clause value.
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+SELECT * FROM dv1;
+SHOW CREATE VIEW dv1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                        NULL ON NULL
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+SELECT * FROM dv1;
+SHOW CREATE VIEW dv1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                        ABSENT ON NULL
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+SELECT * FROM dv1;
+SHOW CREATE VIEW dv1;
+
+--echo # 6.2.3.1.4 It should be a simple SELECT statement, operators like
+--echo # UNION, INTERSECT, EXCEPT and complex SELECT like CTEs
+--echo # aren't supported and must result into a syntax error if
+--echo # used.
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                    SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T2.C1,
+                                "C2" : T2.C2
+                            )
+                    )
+                    FROM T2
+                    WHERE T1.C1 = T2.C2
+                UNION
+                    SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T2.C1,
+                                "C2" : T2.C2
+                            )
+                    )
+                    FROM T2
+                    WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                    SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T2.C1,
+                                "C2" : T2.C2
+                            )
+                    )
+                    FROM T2
+                    WHERE T1.C1 = T2.C2
+                INTERSECT
+                    SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T2.C1,
+                                "C2" : T2.C2
+                            )
+                    )
+                    FROM T2
+                    WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                    SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T2.C1,
+                                "C2" : T2.C2
+                            )
+                    )
+                    FROM T2
+                    WHERE T1.C1 = T2.C2
+                EXCEPT
+                    SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T2.C1,
+                                "C2" : T2.C2
+                            )
+                    )
+                    FROM T2
+                    WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_CTE_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                WITH T2_ALIAS AS (
+                    SELECT C1 AS C1_A, C2 AS C2_A
+                    FROM T2
+                )
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : C1_A,
+                            "C2" : C2_A
+                        )
+                )
+                FROM T2_ALIAS
+                WHERE T1.C1 = T2_ALIAS.C2_A
+            )
+)
+FROM T1;
+
+--echo # 6.2.3.2 Requirements for FROM clause (Same as 6.2.2.2)
+
+--error ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2, T1
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2 JOIN T1
+                ON T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_ORDERBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+                ORDER BY T2.C1
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_GROUPBY_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+                GROUP BY T2.C1
+                HAVING T2.C1 = 1
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                           "C1" : T2.C1,
+                           "C2" : T2.C2
+                        )
+                )
+               FROM T2
+               WHERE T1.C1 = 1
+           )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+   "C1" : T1.C1,
+   "C2" : T1.C2,
+   "T2" : (
+               SELECT JSON_ARRAYAGG(
+                       JSON_DUALITY_OBJECT(
+                           "C1" : T2.C1,
+                           "C2" : T2.C2
+                       )
+               )
+               FROM T2
+               WHERE T1.C1 = T2.C2 AND 1=1
+           )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+ AS SELECT JSON_DUALITY_OBJECT(
+    "C1" : T1.C1,
+    "C2" : T1.C2,
+    "T2" : (
+                SELECT JSON_ARRAYAGG(
+                        JSON_DUALITY_OBJECT(
+                            "C1" : T2.C1,
+                            "C2" : T2.C2
+                        )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2 OR 1=1
+            )
+)
+FROM T1;
+
+CREATE TABLE T1_TEMP (C1 INT PRIMARY KEY, C2 INT);
+CREATE TABLE T2_TEMP (C1 INT PRIMARY KEY, C2 INT, FOREIGN KEY (C1) REFERENCES T1(C1));
+CREATE TABLE T3_TEMP (C1 INT PRIMARY KEY, C2 INT, FOREIGN KEY (C2) REFERENCES T1(C1));
+
+--error ER_JDV_INVALID_DEFINITION_WHERE_USES_NON_IMMEDIATE_PARENT
+CREATE OR REPLACE JSON RELATIONAL DUALITY VIEW `dv` AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : `T1_TEMP`.`C1`,
+    "C2"  : `T1_TEMP`.`C2`,
+    "T2_TEMP"  : (
+                SELECT JSON_ARRAYAGG(
+                    JSON_DUALITY_OBJECT(
+                        "C1" : `T2_TEMP`.`C1`,
+                        "C2" : `T2_TEMP`.`C2`,
+                        "T3_TEMP" : (
+                                    SELECT JSON_DUALITY_OBJECT(
+                                                "C4" : `T3_TEMP`.`C1`,
+                                                "T4" : (
+                                                            SELECT JSON_DUALITY_OBJECT(
+                                                                "C1" : `T1_TEMP`.`C1`,
+                                                                "C2" : `T1_TEMP`.`C2`
+                                                            )
+                                                            FROM `T1_TEMP`
+                                                            WHERE `T1_TEMP`.`C1` = `T2_TEMP`.`C1`
+                                                )
+                                    )
+                                    FROM `T3_TEMP`
+                                    WHERE `T3_TEMP`.`C1` = `T1_TEMP`.`C1`
+                                )
+                    )
+                )
+                FROM `T2_TEMP`
+                WHERE `T2_TEMP`.`C1` = `T1_TEMP`.`C1`
+            )
+) AS `Name_exp_1`
+FROM `T1_TEMP`;
+
+--echo #################################################################
+
+--echo # Requirement-7: Requirements for table_annotations_expression
+
+--echo # 7.1 Tables being projected (i.e. root_table_name or child_table_name
+--echo # clauses) in the duality view can optionally have table annotations.
+--echo # The following table annotations must be supported:
+--echo #    INSERT
+--echo #    DELETE
+--echo #    UPDATE
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, UPDATE, DELETE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # 7.2 There can be order-agnostic combinations of these annotations.
+--echo # These annotations must be enclosed with round brackets i.e. "(" and ")",
+--echo # and must be separated by comma ",": WITH (INSERT, UPDATE, DELETE)
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (UPDATE, INSERT, DELETE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (UPDATE, DELETE, INSERT)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (DELETE, UPDATE, INSERT)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (DELETE, INSERT, UPDATE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, DELETE, UPDATE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, DELETE, UPDATE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # 7.3 Usage of duplicate annotations must result in a syntax error:
+--echo # WITH (UPDATE, UPDATE, INSERT, DELETE)
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, INSERT, DELETE, UPDATE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, DELETE, DELETE, UPDATE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, DELETE, UPDATE, UPDATE)
+    "_id" : C1,
+    "C2" : C2
+)
+FROM T1;
+
+--echo # 7.5 Usage of table annotations is strictly limited to the JSON duality view.
+--echo # Using table annotations for any other purpose must result into a syntax error.
+
+--error ER_PARSE_ERROR
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM T1 WITH WITH (DELETE, UPDATE);
+
+--error ER_PARSE_ERROR
+CREATE TABLE T3 AS SELECT * FROM T1 WITH WITH (DELETE, UPDATE);
+
+--echo #################################################################
+
+--echo # Requirement-8: Support for column list
+--echo # The CREATE OR REPLACE JSON DUALITY VIEW statement does not
+--echo # support column list, using column list in the statement should
+--echo # result in a syntax error. View column name data is automatically
+--echo # added for the JSON duality view.
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_LIST_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 (data)
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-9: Base Table Requirement for Participating Tables
+--echo # 9.1 All participating tables, including the root_table_name
+--echo # and any tables referenced within nested_descendent_json_objects or
+--echo # singleton_descendent_json_object, must be base tables. Views,
+--echo # temporary tables, and other non-base
+--echo # table types are not permitted and should result into a
+--echo # semantic error if used.
+
+CREATE OR REPLACE VIEW V1 AS SELECT C1, C2 FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_NON_BASE_TABLE_NOT_SUPPORTED
+CREATE JSON DUALITY VIEW dv2
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM V1;
+
+CREATE TEMPORARY TABLE T3 AS
+SELECT * FROM T1;
+
+--error ER_VIEW_SELECT_TMPTABLE
+CREATE JSON DUALITY VIEW dv2
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T3;
+
+--echo #################################################################
+
+--echo # Requirement-10: Primary Key and its Projection Requirement:
+--echo # 10.1 All participating tables, including the root_table_name and any
+--echo # tables referenced within nested_descendent_json_objects or
+--echo # singleton_descendent_json_object, must have a defined primary key.
+
+CREATE TABLE T4 (C1 INT, C2 INT);
+
+--error ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_FOUND
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T4;
+
+--error ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_FOUND
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2,
+    "T4"  : (
+                SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : T4.C1,
+                                "C2" : T4.C2
+                            )
+                )
+                FROM T4
+                WHERE T4.C1 = T1.C1
+            )
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_FOUND
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2,
+    "T4"  : (
+                SELECT JSON_DUALITY_OBJECT(
+                            "C1" : T4.C1,
+                            "C2" : T4.C2
+                )
+                FROM T4
+                WHERE T4.C1 = T1.C1
+            )
+)
+FROM T1;
+
+--echo # 10.2 The projection must include the primary key of every
+--echo # participating table. If any participating table lacks a
+--echo # primary key, or if the primary key is omitted from the projection,
+--echo # a semantic error must be generated.
+
+--error ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_PROJECTION_FOUND
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "C2" : C2
+)
+FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_PROJECTION_FOUND
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2,
+    "T2"  : (
+                SELECT JSON_ARRAYAGG(
+                    JSON_DUALITY_OBJECT(
+                        "C2" : C2
+                    )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo # Projection of foreign key column is optional
+CREATE OR REPLACE JSON DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2,
+    "T2"  : (
+                SELECT JSON_ARRAYAGG(
+                    JSON_DUALITY_OBJECT(
+                        "C1" : C1
+                    )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+DROP TABLE T1_TEMP, T2_TEMP;
+
+CREATE TABLE T1_TEMP (
+    c1 INT,
+    c2 INT,
+    PRIMARY KEY (c1, c2)
+);
+
+CREATE TABLE T2_TEMP (
+    c1 INT,
+    c2 INT,
+    PRIMARY KEY (c1, c2)
+);
+
+--error ER_JDV_INVALID_DEFINITION_COMPOSITE_KEY_USED
+CREATE OR REPLACE JSON RELATIONAL DUALITY VIEW dv AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : T1_TEMP.c1,
+    "t2" : (
+        SELECT JSON_DUALITY_OBJECT(
+            "c2" : T2_TEMP.c1
+        )
+        FROM T2_TEMP
+        WHERE T1_TEMP.c1 = T2_TEMP.c1
+    )
+)
+FROM T1_TEMP;
+
+--echo #################################################################
+
+--echo # Requirement-11: Projection requirements for child tables
+--echo # Child tables being projected as part of JSON DUALITY VIEW can
+--echo # be related to parent tables in one of below 2 types:
+--echo #    1. PK - FK Relationship (or Referential Integrity)
+--echo #    2. PK - Any Column Relationship
+
+CREATE TABLE T5 (
+    C1 INT PRIMARY KEY,
+    C2 INT,
+    FOREIGN KEY (C1) REFERENCES T1(C1)
+);
+
+--echo # 11.1 PK-FK Relationship (or Referential Integrity):
+
+--echo # 11.1.1 Singleton descendent JSON Object Projection (singleton_descendent_json_object):
+--echo # When a child table is projected as singleton_descendent_json_object,
+--echo # the WHERE clause must enforce the following format:
+--echo # child_table.PK = parent_table.FK
+--echo # This ensures that the child_table is the foreign key (FK)
+--echo # parent of the parent_table, creating a sigleton (i.e. 1:1)
+--echo # relationship. A semantic error must be reported if this
+--echo # format is not present, indicating that the WHERE clause
+--echo # does not maintain the required referential integrity.
+
+--error ER_JDV_INVALID_DEFINITION_RELATIONSHIP_RULES_VIOLATED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_DUALITY_OBJECT(
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1 WHERE T1.C2 = T5.C2
+       )
+) FROM T5;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T5": (
+              SELECT JSON_DUALITY_OBJECT(
+                     "C1": T5.C1,
+                     "C2": T5.C2
+              )
+              FROM T5 WHERE T1.C1 = T5.C1
+       )
+) FROM T1;
+
+--echo # 11.1.2 Nested descendent JSON Object Projection (nested_descendent_json_objects):
+--echo # When a child table is projected as nested_descendent_json_objects,
+--echo # the WHERE clause must enforce the following format:
+--echo # child_table.FK = parent_table.PK
+--echo # This ensures that the parent_table is the FK parent of the
+--echo # child_table, establishing a nested (i.e. 1:N) relationship.
+--echo # A semantic error must be reported if this format is not present,
+--echo # indicating that the WHERE clause does not maintain the required
+--echo # referential integrity.
+
+--error ER_JDV_INVALID_DEFINITION_RELATIONSHIP_RULES_VIOLATED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T5": (
+              SELECT JSON_ARRAYAGG(
+                     JSON_DUALITY_OBJECT(
+                            "C1": T5.C1,
+                            "C2": T5.C2
+                     )
+              )
+              FROM T5 WHERE T1.C2 = T5.C2
+       )
+) FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                   "C1": T1.C1,
+                                   "C2": T1.C2
+                            )
+              )
+              FROM T1 WHERE T1.C1 = T5.C1
+       )
+) FROM T5;
+
+--echo # 11.2 PK - Any column Relationship:
+--echo # In this type of relationship, the WHERE clause in the child
+--echo # table is of the below form:
+--echo # child_table.PK = parent_table.any_column
+--echo # OR
+--echo # child_table.any_column = parent_table.PK
+--echo # Primary Key column from parent_table or child_table must be
+--echo # used in the join condition. Please note, columns in the join
+--echo # condition can be of different but compatible data types. Child
+--echo # table can be projected as singleton_descendent_json_object or
+--echo # nested_descedent_json_objects with this relationship. During
+--echo # SELECT, if a projection results in multiple sub-objects for
+--echo # the singleton_descendent_json_object, then an error is
+--echo # reported by the server.
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_DUALITY_OBJECT(
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1 WHERE T1.C1 = T5.C2
+       )
+) FROM T5;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T5": (
+              SELECT JSON_ARRAYAGG(
+                     JSON_DUALITY_OBJECT(
+                            "C1": T5.C1,
+                            "C2": T5.C2
+                     )
+              )
+              FROM T5 WHERE T1.C1 = T5.C2
+       )
+) FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-12: Compatiablity requirements for table_annotations_expression
+--echo # Building on top of FR-6: In a case where a parent_table
+--echo # is Foreign key child of a child_table, usage of the
+--echo # DELETE tag with the child_table must result in a semantic error.
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH DELETE
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T1;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (DELETE, UPDATE)
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T1;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, DELETE)
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C2 = T2.C1
+       )
+) FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T1;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C2 = T2.C1
+       )
+) FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T1.C1,
+       "C2": T1.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(
+                     "C1": T2.C1,
+                     "C2": T2.C2
+              )
+              FROM T2
+              WHERE T1.C2 = T2.C1
+       )
+) FROM T1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T2.C1,
+       "C2":  T2.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T2;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T2.C1,
+       "C2":  T2.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T2;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T2.C1,
+       "C2":  T2.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (DELETE, UPDATE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T2;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T2.C1,
+       "C2":  T2.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH DELETE
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T2;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_DUALITY_OBJECT(
+                    WITH (INSERT, UPDATE, DELETE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1 WHERE T1.C1 = T5.C2
+       )
+) FROM T5;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_DUALITY_OBJECT(
+                    WITH (INSERT, DELETE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1 WHERE T1.C1 = T5.C2
+       )
+) FROM T5;
+
+--error ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_DUALITY_OBJECT(
+                    WITH (UPDATE, DELETE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1 WHERE T1.C1 = T5.C2
+       )
+) FROM T5;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": T5.C1,
+       "C2": T5.C2,
+       "T1": (
+              SELECT JSON_DUALITY_OBJECT(
+                    WITH (INSERT, UPDATE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1 WHERE T1.C1 = T5.C2
+       )
+) FROM T5;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T2.C1,
+       "C2":  T2.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T2;
+
+--echo #################################################################
+
+--echo # Requirement-13: Restrictions for creation options of JSON DUALITY VIEW:
+--echo # 13.1 The ALGORITHM = TEMPTABLE option is not supported and must
+--echo # result into a semantic error if used.
+
+--error ER_JDV_ALGO_TEMPTABLE_NOT_SUPPORTED
+CREATE ALGORITHM = TEMPTABLE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1;
+
+CREATE OR REPLACE ALGORITHM = UNDEFINED JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1;
+
+CREATE OR REPLACE ALGORITHM = MERGE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1;
+
+--echo # 13.2 The [WITH [CASCADED | LOCAL] CHECK OPTION] clause is not
+--echo # supported and must report a semantic error if used.
+
+--error ER_JDV_WITH_CHECK_OPTION_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+WITH CHECK OPTION;
+
+--error ER_JDV_WITH_CHECK_OPTION_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+WITH CASCADED CHECK OPTION;
+
+--error ER_JDV_WITH_CHECK_OPTION_NOT_SUPPORTED
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2
+)
+FROM T1
+WITH LOCAL CHECK OPTION;
+
+--echo #################################################################
+
+--echo # Requirement-14: Existence Check for JSON Duality Views in the ALTER Statement
+--echo # During the execution of ALTER statement, if view_name does not
+--echo # exist or isn't a duality view, a syntax error should be generated.
+
+--error ER_NO_SUCH_TABLE
+ALTER JSON DUALITY VIEW non_existent_view
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1
+) FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-15: Restrictions on the ALTER Statement for Duality Views
+
+--echo # 15.1 The ALTER statement for JSON duality views does not support
+--echo # specifying a column list.
+
+--error ER_JDV_INVALID_DEFINITION_COLUMN_LIST_NOT_SUPPORTED
+ALTER JSON DUALITY VIEW dv1 (data)
+AS SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1
+) FROM T1;
+
+--echo # 15.2 ALTER-ing a JSON DUALITY VIEW with a normal VIEW definition
+--echo # and vice versa is not supported, and must result into an error
+--echo # if attempted.
+
+--error ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED
+ALTER VIEW dv1 AS
+SELECT * FROM T1;
+
+--error ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED
+ALTER JSON DUALITY VIEW V1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1
+) FROM T1;
+
+--error ER_WRONG_OBJECT
+ALTER JSON DUALITY VIEW T1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1
+) FROM T1;
+
+--error ER_WRONG_OBJECT
+ALTER JSON DUALITY VIEW T4 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1
+) FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-16: Compliance of json_duality_select_statement with Defined
+--echo # Syntax and Semantic Rules (Since codepath taken by both CREATE
+--echo # and ALTER for syntax/semantic check is same, they should work
+--echo # out of the box for ALTER)
+
+--error ER_JDV_INVALID_DEFINITION_DUPLICATE_KEYS_NOT_SUPPORTED
+ALTER JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "_id" : C1,
+    "C2"  : C2,
+    "C2"  : C2
+) FROM T1;
+
+--error ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+ALTER JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    "C1" : C1
+) FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-17: Requirements for SHOW CREATE TABLE/VIEW
+--echo # The statement SHOW CREATE VIEW view_name must return the
+--echo # CREATE JSON DUALITY VIEW statement that was used to create the
+--echo # specified view. The output must contain table annotations
+--echo # specified in the duality view definition.
+
+SHOW CREATE VIEW dv1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       "_id": T2.C1,
+       "C2":  T2.C2,
+       "T2": (
+              SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                     "C1": T1.C1,
+                     "C2": T1.C2
+              )
+              FROM T1
+              WHERE T1.C1 = T2.C1
+       )
+) FROM T2;
+
+SHOW CREATE VIEW dv1;
+
+--echo #################################################################
+--echo # Successful CREATE scenario
+
+CREATE TABLE T6 (C1 INT PRIMARY KEY, C2 INT);
+ALTER TABLE T2 ADD C4 INT REFERENCES T6(C1);
+
+CREATE OR REPLACE
+ALGORITHM = MERGE
+DEFINER = current_user()
+SQL SECURITY DEFINER
+JSON RELATIONAL DUALITY VIEW dv1
+AS SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, UPDATE, DELETE)
+    "_id" : C1,
+    "C2"  : C2,
+    "T2"  : (
+                SELECT JSON_ARRAYAGG(
+                            JSON_DUALITY_OBJECT(
+                                "C1" : C1,
+                                "C2" : C2,
+                                "T6" : (
+                                            SELECT JSON_DUALITY_OBJECT(
+                                                WITH (INSERT, UPDATE)
+                                                "C1" : C1,
+                                                "C2" : C2
+                                            )
+                                            FROM T6
+                                            WHERE T6.C1 = T2.C4
+                                       )
+                            )
+                )
+                FROM T2
+                WHERE T1.C1 = T2.C2
+            )
+)
+FROM T1;
+
+--echo #################################################################
+
+--echo # Requirement-18: Requirements for INFORMATION_SCHEMA.VIEWS
+
+# Test I_S views for JSON duality views created with
+# upper case schema name. Output from I_S will differ:
+# LCTN=2 will retain case of schema name, LCTN=1 will not.
+# Using replace_regex to mask win/mac difference.
+
+CREATE SCHEMA Sch;
+
+CREATE TABLE Sch.EMPLOYEE (
+    ID INT PRIMARY KEY,
+    NAME VARCHAR(20),
+    CITY VARCHAR(20),
+    MANAGER INT REFERENCES EMPLOYEE(ID)
+);
+
+CREATE OR REPLACE JSON DUALITY VIEW Sch.DV AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id": e.ID,
+  "NAME": e.NAME,
+  "CITY": e.CITY,
+  "MANAGER": (
+    SELECT JSON_DUALITY_OBJECT(
+      "ID": m.ID,
+      "NAME": m.NAME,
+      "CITY": m.CITY
+    )
+    FROM Sch.EMPLOYEE m
+    WHERE e.MANAGER = m.ID
+  )
+)
+FROM Sch.EMPLOYEE e;
+SHOW CREATE VIEW Sch.DV;
+
+CREATE VIEW Sch.Vv AS SELECT * FROM Sch.EMPLOYEE;
+SHOW CREATE VIEW Sch.Vv;
+
+if (!$on_case_sensitive_file_system)
+{
+  --replace_regex /Sch/sch/
+}
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE TABLE_SCHEMA = 'Sch' ORDER BY VIEW_NAME;
+if (!$on_case_sensitive_file_system)
+{
+  --replace_regex /Sch/sch/
+}
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS ORDER BY TABLE_NAME;
+if (!$on_case_sensitive_file_system)
+{
+  --replace_regex /Sch/sch/
+}
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES ORDER BY TABLE_NAME;
+if (!$on_case_sensitive_file_system)
+{
+  --replace_regex /Sch/sch/
+}
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS ORDER BY TABLE_NAME;
+if (!$on_case_sensitive_file_system)
+{
+  --replace_regex /Sch/sch/
+}
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS ORDER BY TABLE_NAME;
+
+DROP VIEW Sch.Vv;
+DROP VIEW Sch.DV;
+DROP TABLE Sch.EMPLOYEE;
+DROP SCHEMA Sch;
+
+--echo #################################################################
+
+--echo # Requirement-19: Requirements for DROP VIEW
+
+--echo # 19.1 If a duality view with the view_name is present, regardless
+--echo # of whether IF EXISTS clause is there or not, the statement
+--echo # DROP VIEW must drop the view.
+
+DROP VIEW V1;
+DROP VIEW IF EXISTS dv1, dv2;
+
+--echo # 19.2 If duality view with the view_name is not present and
+--echo # IF EXISTS flag:
+--echo # 19.2.1 is supplied, the statement must succeed with warning.
+
+# warning ER_BAD_TABLE_ERROR
+DROP VIEW IF EXISTS non_existent_view;
+
+--echo # 18.2.2 is not supplied, the statement must report an error.
+
+--error ER_BAD_TABLE_ERROR
+DROP VIEW non_existent_view;
+
+--echo #################################################################
+
+DROP TABLE T1, T2, T3, T4, T5, T6, T1_TEMP, T2_TEMP, T3_TEMP;
+
+--echo #################################################################

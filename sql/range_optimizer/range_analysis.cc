@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,6 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
-#include "sql/field_common_properties.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
@@ -1222,28 +1221,12 @@ static bool save_value_and_handle_conversion(
   thd->variables.sql_mode = orig_sql_mode;
 
   switch (err) {
+    case TYPE_NOTE_TRUNCATED:
+    case TYPE_WARN_TRUNCATED:
+      *inexact = true;
+      [[fallthrough]];
     case TYPE_OK:
       return false;
-    case TYPE_NOTE_TRUNCATED:
-      // Insignificant truncation (trailing zero/space). Use it as an inexact
-      // range predicate.
-      *inexact = true;
-      return false;
-    case TYPE_WARN_TRUNCATED:
-      // Truncation of possibly significant parts. We may still be able to use
-      // it as a range predicate, but we need a filter to make sure we don't
-      // return too many rows.
-      *inexact = true;
-      // Use the truncated value in the range predicate, unless it's a string
-      // with a non-binary collation with a non-trivial strnxfrm function. For
-      // example, if c is a VARCHAR(1) column with the utf8mb4_0900_ai_ci
-      // collation, c <= 'ss' should match the value 'ß', but if we truncate it
-      // to c <= 's' to fit in the column type, it will not match 'ß'. For such
-      // predicates, we assume the predicate is always true, and let a filter
-      // decide the outcome.
-      return is_string_type(field->type()) &&
-             !my_binary_compare(field->charset()) &&
-             use_strnxfrm(field->charset());
     case TYPE_WARN_INVALID_STRING:
       /*
         An invalid string does not produce any rows when used with
@@ -1255,7 +1238,8 @@ static bool save_value_and_handle_conversion(
       }
       /*
         For other operations on invalid strings, we assume that the range
-        predicate is always true and let a filter decide the outcome.
+        predicate is always true and let evaluate_join_record() decide
+        the outcome.
       */
       *inexact = true;
       return true;
@@ -1268,7 +1252,7 @@ static bool save_value_and_handle_conversion(
 
         instead of always false. Because of this, we assume that the
         range predicate is always true instead of always false and let
-        a filter decide the outcome.
+        evaluate_join_record() decide the outcome.
       */
       *inexact = true;
       return true;

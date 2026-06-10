@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -150,7 +150,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE =
     Alter_inplace_info::ADD_CHECK_CONSTRAINT |
     Alter_inplace_info::DROP_CHECK_CONSTRAINT |
     Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT |
-    Alter_inplace_info::ALTER_COLUMN_VISIBILITY;
+    Alter_inplace_info::ALTER_COLUMN_VISIBILITY |
+    Alter_inplace_info::ALTER_COLUMN_MASKING;
 
 /** Operation allowed with ALGORITHM=INSTANT */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INSTANT_ALLOWED =
@@ -530,12 +531,13 @@ static void dd_inplace_alter_copy_instant_metadata(
       }
     }
 
-    /* Get corresponding dd::column in new table */
-    dd::Column *new_dd_column = const_cast<dd::Column *>(
-        dd_find_column(new_dd_tab, old_dd_column->name().c_str()));
+    /* The column might have been renamed */
+    dd::Column *new_dd_column =
+        get_renamed_col(ha_alter_info, old_dd_column, new_dd_tab);
     if (new_dd_column == nullptr) {
-      /* This column might have been renamed */
-      new_dd_column = get_renamed_col(ha_alter_info, old_dd_column, new_dd_tab);
+      /* Get corresponding dd::column in new table if not renamed */
+      new_dd_column = const_cast<dd::Column *>(
+          dd_find_column(new_dd_tab, old_dd_column->name().c_str()));
     }
 
     if (new_dd_column == nullptr) {
@@ -11145,12 +11147,6 @@ bool ha_innobase::bulk_load_check(THD *) const {
     return false;
   }
 
-  if (!table->foreign_set.empty()) {
-    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "TABLE WITH FOREIGN KEYS",
-             "LOAD DATA ALGORITHM = BULK");
-    return false;
-  }
-
   return true;
 }
 
@@ -11174,11 +11170,16 @@ int ha_innobase::bulk_load_copy_existing_data(
 }
 
 std::string ha_innobase::bulk_load_generate_temporary_table_name() const {
-  mem_heap_t *heap = mem_heap_create(FN_REFLEN, UT_LOCATION_HERE);
-  std::string retval = dict_mem_create_temporary_tablename(
-      heap, m_prebuilt->table->name.m_name, m_prebuilt->table->id);
-  mem_heap_free(heap);
-  return retval;
+  std::string table_name = dict_mem_create_temporary_tablename(
+      m_prebuilt->heap, m_prebuilt->table->name.m_name, m_prebuilt->table->id);
+  /* dict_mem_create_temporary_tablename returns a fully-qualified
+  name in the form "db/#sql-ib<id>-<inc>". Strip the schema prefix
+  and only return the base table name as we supply the schema name
+  separately (duplicating the schema name can lead to exceeding table name
+  length constraints and cause ER_UPDATING_DD_TABLE). */
+  auto slash_pos = table_name.find('/');
+  return slash_pos == std::string::npos ? table_name
+                                        : table_name.substr(slash_pos + 1);
 }
 
 bool ha_innobase::bulk_load_set_source_table_data(

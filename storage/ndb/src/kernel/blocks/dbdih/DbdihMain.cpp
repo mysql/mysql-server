@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,23 @@ static const Uint32 WaitTableStateChangeMillis = 10;
       specNodePtr.i = specNodePtr.p->nextNode;               \
     } while (specNodePtr.i != RNIL);                         \
   }
+
+#define DIH_TAB_WRITE_LOCK(tabPtrP) \
+  do {                              \
+    assertOwnThread();              \
+    tabPtrP->m_lock.write_lock();   \
+  } while (0)
+
+#define DIH_TAB_WRITE_UNLOCK(tabPtrP) \
+  do {                                \
+    assertOwnThread();                \
+    tabPtrP->m_lock.write_unlock();   \
+  } while (0)
+
+#define DIH_TAB_CHECK_WRITE_LOCK(tabPtrP)            \
+  do {                                               \
+    ndbassert(tabPtrP->m_lock.is_write_lock_held()); \
+  } while (0)
 
 static Uint32 prevLcpNo(Uint32 lcpNo) {
   if (lcpNo == 0) return MAX_LCP_USED - 1;
@@ -10651,6 +10668,8 @@ void Dbdih::removeNodeFromTable(Signal *signal, Uint32 nodeId,
   const bool lcpOngoingFlag = (tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE);
   const bool unlogged = (tabPtr.p->tabStorage != TabRecord::ST_NORMAL);
 
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+
   FragmentstorePtr fragPtr;
   for (Uint32 fragNo = 0; fragNo < tabPtr.p->totalfragments; fragNo++) {
     jam();
@@ -10709,9 +10728,11 @@ void Dbdih::removeNodeFromTable(Signal *signal, Uint32 nodeId,
      * Run updateNodeInfo to remove any dead nodes from list of activeNodes
      *  see bug#15587
      */
-    updateNodeInfo(fragPtr);
+    updateNodeInfo(tabPtr, fragPtr);
     noOfRemainingLcpReplicas += fragPtr.p->noLcpReplicas;
   }
+
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
   if (noOfRemovedReplicas == 0) {
     jam();
@@ -15121,18 +15142,6 @@ Uint32 Dbdih::extractNodeInfo(EmulatedJamBuffer *jambuf,
   return nodeCount;
 }  // Dbdih::extractNodeInfo()
 
-#define DIH_TAB_WRITE_LOCK(tabPtrP) \
-  do {                              \
-    assertOwnThread();              \
-    tabPtrP->m_lock.write_lock();   \
-  } while (0)
-
-#define DIH_TAB_WRITE_UNLOCK(tabPtrP) \
-  do {                                \
-    assertOwnThread();                \
-    tabPtrP->m_lock.write_unlock();   \
-  } while (0)
-
 void Dbdih::start_scan_on_table(TabRecordPtr tabPtr, Signal *signal,
                                 Uint32 schemaTransId,
                                 EmulatedJamBuffer *jambuf) {
@@ -15371,6 +15380,8 @@ void Dbdih::make_new_table_writeable(TabRecordPtr tabPtr,
     jam();
     DIH_TAB_WRITE_LOCK(tabPtr.p);
   }
+  DIH_TAB_CHECK_WRITE_LOCK(tabPtr.p);
+
   /**
    * At this point the new table fragments must be updated at proper times.
    * For tables without full replication this simply means setting the
@@ -15542,7 +15553,7 @@ void Dbdih::make_table_use_new_replica(TabRecordPtr tabPtr,
       /* ----------------------------------------------------------------------*/
       removeOldStoredReplica(fragPtr, replicaPtr);
       linkStoredReplica(fragPtr, replicaPtr);
-      updateNodeInfo(fragPtr);
+      updateNodeInfo(tabPtr, fragPtr);
       break;
     case UpdateFragStateReq::START_LOGGING:
       jam();
@@ -18217,6 +18228,8 @@ void Dbdih::getTabInfo_sendComplete(Signal *signal, Uint32 senderData,
 void Dbdih::resetReplicaSr(TabRecordPtr tabPtr) {
   const Uint32 newestRestorableGCI = SYSFILE->newestRestorableGCI;
 
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+
   for (Uint32 i = 0; i < tabPtr.p->totalfragments; i++) {
     jam();
     FragmentstorePtr fragPtr;
@@ -18349,8 +18362,10 @@ void Dbdih::resetReplicaSr(TabRecordPtr tabPtr) {
           "Nodegroup %u has not enough data on disk for restart.", i);
       progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
     }
-    updateNodeInfo(fragPtr);
+    updateNodeInfo(tabPtr, fragPtr);
   }
+
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 }
 
 void Dbdih::resetReplica(ReplicaRecordPtr readReplicaPtr) {
@@ -18551,18 +18566,18 @@ void Dbdih::copyTabReq_complete(Signal *signal, TabRecordPtr tabPtr) {
     //----------------------------------------------------------------------------
     releaseTabPages(tabPtr.i);
 
-    /**
-     * No need to protect these changes as they occur while recovery is ongoing
-     * and DBTC hasn't started using these tables yet.
-     */
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
+
     tabPtr.p->tabStatus = TabRecord::TS_ACTIVE;
     for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
       jam();
       FragmentstorePtr fragPtr;
       getFragstore(tabPtr.p, fragId, fragPtr);
-      updateNodeInfo(fragPtr);
+      updateNodeInfo(tabPtr, fragPtr);
     }  // for
-  }    // if
+
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+  }  // if
   c_lcp_id_while_copy_meta_data = RNIL;
   CopyTabConf *conf = (CopyTabConf *)signal->getDataPtrSend();
   conf->nodeId = getOwnNodeId();
@@ -18967,7 +18982,9 @@ void Dbdih::startFragment(Signal *signal, Uint32 tableId, Uint32 fragId) {
   /*     BACKUP NODES. WE MUST UPDATE THIS NODES DATA STRUCTURE SINCE WE     */
   /*     WILL NOT COPY THE TABLE DATA TO OURSELF.                            */
   /* ----------------------------------------------------------------------- */
-  updateNodeInfo(fragPtr);
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
+  updateNodeInfo(tabPtr, fragPtr);
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
   /* ----------------------------------------------------------------------- */
   /*     NOW WE HAVE COLLECTED ALL THE REPLICAS WE COULD GET. WE WILL NOW    */
   /*     RESTART THE FRAGMENT REPLICAS WE HAVE FOUND IRRESPECTIVE OF IF THERE*/
@@ -25039,10 +25056,11 @@ void Dbdih::startGcpMonitor(Signal *signal) {
  * DIGETNODES, so if this is called when we are not in recovery
  * we need to hold the table RCU lock.
  */
-void Dbdih::updateNodeInfo(FragmentstorePtr fragPtr) {
+void Dbdih::updateNodeInfo(TabRecordPtr tabPtr, FragmentstorePtr fragPtr) {
   ReplicaRecordPtr replicatePtr;
   Uint32 index = 0;
   replicatePtr.i = fragPtr.p->storedReplicas;
+  DIH_TAB_CHECK_WRITE_LOCK(tabPtr.p);
   do {
     jam();
     c_replicaRecordPool.getPtr(replicatePtr);
@@ -25461,8 +25479,8 @@ void Dbdih::execDUMP_STATE_ORD(Signal *signal) {
     }
   }
 
-  if (arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
-      signal->getLength() == 2 && signal->theData[1] < MAX_NDB_NODES) {
+  if (arg == DumpStateOrd::LogNodeFailProgress && signal->getLength() == 2 &&
+      signal->theData[1] < MAX_NDB_NODES) {
     jam();
     char buf2[8 + 1];
     NodeRecordPtr nodePtr;
@@ -25477,6 +25495,7 @@ void Dbdih::execDUMP_STATE_ORD(Signal *signal) {
     infoEvent(" m_NF_COMPLETE_REP: %s m_nodefailSteps: %s",
               nodePtr.p->m_NF_COMPLETE_REP.getText(),
               nodePtr.p->m_nodefailSteps.getText(buf2));
+    return;
   }
 
   if (arg == 7020 && signal->getLength() > 3) {

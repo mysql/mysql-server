@@ -1,4 +1,4 @@
-/* Copyright (c) 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 class THD;
 struct TABLE;
+struct Table_share_foreign_key_info;
 
 enum class enum_fk_dml_type {
   FK_INSERT,
@@ -43,12 +44,18 @@ enum class enum_fk_dml_type {
  * @param db_name      DB name.
  * @param table_name   Table name.
  * @param fk_name      Foreign key name.
+ * @param[out] is_unused_table  Is set true if table exists in open table
+ *                              list but not in use. For instance tables locked
+ *                              under lock table, exists in open table list but
+ *                              not used. query_id for such tables is reset to
+ *                              0 after statement execution.
  *
  * @return true        If table for foreign key is already opened.
  * @return false       If table is not opened.
  */
 bool is_foreign_key_table_opened(THD *thd, const char *db_name,
-                                 const char *table_name, const char *fk_name);
+                                 const char *table_name, const char *fk_name,
+                                 bool *is_unused_table);
 
 /**
  * @brief Check all foreign key constraints on parent tables for DML operation
@@ -57,12 +64,14 @@ bool is_foreign_key_table_opened(THD *thd, const char *db_name,
  * @param thd           Thread handle.
  * @param table_c       TABLE instance of a child table.
  * @param dml_type      DML operation type.
+ * @param ignore_fk     Skip FK check for this foreign key info
  *
  * @return true         On error.
  * @return false        On Success.
  */
-bool check_all_parent_fk_ref(THD *thd, const TABLE *table_c,
-                             enum_fk_dml_type dml_type);
+bool check_all_parent_fk_ref(
+    THD *thd, const TABLE *table_c, enum_fk_dml_type dml_type,
+    const Table_share_foreign_key_info *ignore_fk = nullptr);
 
 /**
  * @brief Check all foreign key constraints on child tables for DML operation

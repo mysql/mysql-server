@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,13 +217,13 @@ TEST(MysysMyTime, StrToDatetimeNullDash) {
 
 // Invalid - strings
 TEST(MysysMyTime, StrToDatetimeNullDashInvalid) {
-  DatetimeResult tr = make_datetime_from_string("-00-00", TIME_FUZZY_DATE);
+  DatetimeResult tr = make_datetime_from_string("-00-00", 0);
   EXPECT_EQ(true, tr.stdt);
 
-  tr = make_datetime_from_string("0000-00-", TIME_FUZZY_DATE);
+  tr = make_datetime_from_string("0000-00-", 0);
   EXPECT_EQ(true, tr.stdt);
 
-  tr = make_datetime_from_string("0000--00", TIME_FUZZY_DATE);
+  tr = make_datetime_from_string("0000--00", 0);
   EXPECT_EQ(true, tr.stdt);
 
   tr = make_datetime_from_string("0000-00-00 .00.00", 0);
@@ -248,38 +248,34 @@ TEST(MysysMyTime, StrToDatetimeNullIso8601) {
   EXPECT_VALID_DATETIME(tr);
 
   tr = make_datetime_from_string("00000000T000000.999999", 0);
-  EXPECT_EQ(true, tr.stdt);
+  EXPECT_VALID_DATETIME(tr);
 
   tr = make_datetime_from_string("00000000T123030.999999", 0);
-  EXPECT_EQ(true, tr.stdt);
+  EXPECT_VALID_DATETIME(tr);
 
   tr = make_datetime_from_string("20000228T123030.999999", 0);
   EXPECT_VALID_DATETIME(tr);
   EXPECT_EQ(999999UL, tr.t.second_part);
 }
 
-// Check TIME_FUZZY_DATE and TIME_FUZZY_DATE|TIME_NO_ZERO_IN_DATE
+// Check TIME_NO_ZERO_IN_DATE
 TEST(MysysMyTime, StrToDatetimeFuzzyDate) {
-  DatetimeResult tr =
-      make_datetime_from_string("19800031T000000", TIME_FUZZY_DATE);
+  DatetimeResult tr = make_datetime_from_string("19800031T000000", 0);
   EXPECT_VALID_DATETIME(tr);
 
-  tr = make_datetime_from_string("19901100T000000", TIME_FUZZY_DATE);
+  tr = make_datetime_from_string("19901100T000000", 0);
   EXPECT_VALID_DATETIME(tr);
 
-  tr = make_datetime_from_string("00001130T000000", TIME_FUZZY_DATE);
+  tr = make_datetime_from_string("00001130T000000", 0);
   EXPECT_VALID_DATETIME(tr);
 
-  tr = make_datetime_from_string("19800031T000000",
-                                 TIME_FUZZY_DATE | TIME_NO_ZERO_IN_DATE);
+  tr = make_datetime_from_string("19800031T000000", TIME_NO_ZERO_IN_DATE);
   EXPECT_EQ(true, tr.stdt);
 
-  tr = make_datetime_from_string("19901100T000000",
-                                 TIME_FUZZY_DATE | TIME_NO_ZERO_IN_DATE);
+  tr = make_datetime_from_string("19901100T000000", TIME_NO_ZERO_IN_DATE);
   EXPECT_EQ(true, tr.stdt);
 
-  tr = make_datetime_from_string("00001130T000000",
-                                 TIME_FUZZY_DATE | TIME_NO_ZERO_IN_DATE);
+  tr = make_datetime_from_string("00001130T000000", TIME_NO_ZERO_IN_DATE);
   EXPECT_VALID_DATETIME(tr);
 
   tr = make_datetime_from_string("19991130T000000", TIME_NO_ZERO_IN_DATE);
@@ -294,7 +290,7 @@ TEST(MysysMyTime, NumberToDatetime) {
   ulonglong const ullt = TIME_to_ulonglong_datetime(tr.t);
   MYSQL_TIME t;
   int was_cut = 0;
-  EXPECT_EQ(19991130120000ULL, number_to_datetime(ullt, &t, 0, &was_cut));
+  EXPECT_EQ(19991130120000ULL, int_to_datetime(ullt, &t, 0, &was_cut));
   EXPECT_EQ(0, was_cut);
   EXPECT_EQ(true, (tr.t == t));
 }

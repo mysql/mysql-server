@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,14 +229,20 @@ class Prepared_statement final {
   */
   MEM_ROOT m_mem_root;
 
-  /** DIGEST and DIGEST_TEXT of the prepared statement. */
-  sql_digest_storage m_digest{};
+  /** DIGEST and DIGEST_TEXT of the EXECUTE statement. */
+  sql_digest_storage m_execute_digest{};
+  /** DIGEST and DIGEST_TEXT of the DEALLOCATE statement. */
+  sql_digest_storage m_deallocate_digest{};
 
-  /** Token array used to store DIGEST and DIGEST_TEXT. */
-  unsigned char *m_token_array{nullptr};
+  /** Token array used to store DIGEST and DIGEST_TEXT (EXECUTE). */
+  unsigned char *m_execute_token_array{nullptr};
+  /** Token array used to store DIGEST and DIGEST_TEXT (DEALLOCATE). */
+  unsigned char *m_deallocate_token_array{nullptr};
 
-  /** Length of m_token_array. */
-  size_t m_token_array_length{0};
+  /** Length of m_execute_token_array. */
+  size_t m_execute_token_array_length{0};
+  /** Length of m_deallocate_token_array. */
+  size_t m_deallocate_token_array_length{0};
 
   bool prepare_query(THD *thd);
 
@@ -244,8 +250,10 @@ class Prepared_statement final {
   explicit Prepared_statement(THD *thd_arg);
   ~Prepared_statement();
 
-  /** Performance schema instrumentation for execute / deallocate. */
-  void psi_instrumentation(THD *thd, uint digest_prefix_token, bool copy);
+  /** Performance schema instrumentation for execute. */
+  void psi_execute_instrumentation(THD *thd);
+  /** Performance schema instrumentation for deallocate. */
+  void psi_deallocate_instrumentation(THD *thd);
 
   void set_display_query_string(const char *display_query_string,
                                 size_t display_query_string_length);
@@ -253,9 +261,6 @@ class Prepared_statement final {
                                 size_t *display_query_string_length_ptr) const;
 
   void set_digest(const sql_digest_storage *digest);
-  const sql_digest_storage *get_digest() const {
-    return m_digest.is_empty() ? nullptr : &m_digest;
-  }
 
   bool set_name(const LEX_CSTRING &name);
   const LEX_CSTRING &name() const { return m_name; }

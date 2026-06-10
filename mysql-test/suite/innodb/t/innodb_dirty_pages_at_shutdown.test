@@ -28,6 +28,4 @@ SET GLOBAL DEBUG="+d,simulate_dirty_page_at_shutdown";
 --echo # Start the server
 --source include/start_mysqld.inc
 
-SET GLOBAL DEBUG="-d,simulate_dirty_page_at_shutdown";
-
 DROP TABLE t1;

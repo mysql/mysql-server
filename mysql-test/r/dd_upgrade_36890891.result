@@ -17,7 +17,7 @@
 # Show tables we could not open during upgrade (all except t0, t4).
 SELECT "errlog>>" AS indent, prio, data
 FROM performance_schema.error_log
-WHERE error_code IN("MY-014078", "MY-014079", "MY-015638")
+WHERE error_code IN("MY-014078", "MY-014079", "MY-015652")
 ORDER BY logged ASC;
 indent	prio	data
 errlog>>	Warning	Error MY-003995 occurred while checking table-definitions: Character set 'binary' cannot be used in conjunction with 'utf8mb4_0900_ai_ci' in call to regexp_like.

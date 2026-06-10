@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,6 +145,92 @@ TEST(Security_context, string_data_member) {
   EXPECT_EQ(0, strcmp(sctx.priv_user().str, "priv_user"));
   EXPECT_EQ(0, strcmp(sctx.proxy_user().str, "proxy_user"));
   EXPECT_EQ(0, strcmp(sctx.priv_host().str, "localhost"));
+}
+
+TEST(Security_context, user_membership_checks) {
+  Security_context sctx;
+  sctx.assign_priv_user(STRING_WITH_LEN("user1"));
+  sctx.assign_priv_host(STRING_WITH_LEN("example.com"));
+
+  constexpr std::string_view auth_id_list_1 =
+      "`user1`@`localhost`, `user1`@`%`, `user2`@`example.com`, ``@``, "
+      "`user1`@`example.com`";
+  constexpr std::string_view auth_id_list_2 =
+      "`user1`@`localhost`, `user1`@`%`, `user2`@`example.com`, ``@``, "
+      "`User1`@`example.com`";
+  constexpr std::string_view auth_id_list_3 =
+      "user1@localhost, user1, user2@example.com, ``@``, user1@example.com";
+  constexpr std::string_view auth_id_list_4 =
+      "user1@localhost, user1, user2@example.com, ``@``, User1@example.com";
+  constexpr std::string_view auth_id_list_5 =
+      "user1@localhost, user2, user2@example.com, ``@``, User1@example.com";
+
+  EXPECT_TRUE(sctx.is_current_user_part_of(auth_id_list_1));
+  EXPECT_FALSE(sctx.is_current_user_part_of(auth_id_list_2));
+  EXPECT_TRUE(sctx.is_current_user_part_of(auth_id_list_3));
+  EXPECT_FALSE(sctx.is_current_user_part_of(auth_id_list_4));
+  EXPECT_FALSE(sctx.is_current_user_part_of(auth_id_list_5));
+
+  sctx.assign_priv_host(STRING_WITH_LEN("%"));
+
+  EXPECT_TRUE(sctx.is_current_user_part_of(auth_id_list_1));
+  EXPECT_TRUE(sctx.is_current_user_part_of(auth_id_list_2));
+  EXPECT_TRUE(sctx.is_current_user_part_of(auth_id_list_3));
+  EXPECT_TRUE(sctx.is_current_user_part_of(auth_id_list_4));
+  EXPECT_FALSE(sctx.is_current_user_part_of(auth_id_list_5));
+}
+
+TEST(Security_context, role_membership_checks) {
+  Security_context sctx;
+  sctx.assign_priv_user(STRING_WITH_LEN("user1"));
+  sctx.assign_priv_host(STRING_WITH_LEN("example.com"));
+
+  LEX_CSTRING role1{STRING_WITH_LEN("role1")};
+  LEX_CSTRING role1_host{STRING_WITH_LEN("%")};
+
+  LEX_CSTRING role2{STRING_WITH_LEN("role2")};
+  LEX_CSTRING role2_host{STRING_WITH_LEN("%")};
+
+  LEX_CSTRING role3{STRING_WITH_LEN("role3")};
+  LEX_CSTRING role3_host{STRING_WITH_LEN("%")};
+
+  LEX_CSTRING role4{STRING_WITH_LEN("role4")};
+  LEX_CSTRING role4_host{STRING_WITH_LEN("%")};
+
+  LEX_CSTRING role5{STRING_WITH_LEN("role5")};
+  LEX_CSTRING role5_host{STRING_WITH_LEN("%")};
+
+  EXPECT_EQ(0, sctx.activate_role(role1, role1_host, false));
+  EXPECT_EQ(0, sctx.activate_role(role2, role2_host, false));
+  EXPECT_EQ(0, sctx.activate_role(role3, role3_host, false));
+  EXPECT_EQ(0, sctx.activate_role(role4, role4_host, false));
+  EXPECT_EQ(0, sctx.activate_role(role5, role5_host, false));
+
+  constexpr std::string_view role_list_1 =
+      "`role_6`@`%`, `role7`@``, `role1`@`example.com`, `role1`@`%`, "
+      "`role3`@`%`";
+  constexpr std::string_view role_list_2 =
+      "`role_6`@`%`, `role7`@``, `role1`@`example.com`, `role3`";
+  constexpr std::string_view role_list_3 =
+      "`role_6`@`%`, `role7`@``, `role1`@`example.com`, `role8`@`%`";
+  constexpr std::string_view role_list_4 = "role6, role3, role9";
+
+  std::string first_role{};
+
+  EXPECT_TRUE(sctx.is_current_role_part_of(role_list_1, &first_role));
+  EXPECT_EQ(first_role, "`role1`@`%`");
+
+  first_role.clear();
+  EXPECT_TRUE(sctx.is_current_role_part_of(role_list_2, &first_role));
+  EXPECT_EQ(first_role, "`role3`@`%`");
+
+  first_role.clear();
+  EXPECT_FALSE(sctx.is_current_role_part_of(role_list_3, &first_role));
+  EXPECT_EQ(first_role, "");
+
+  first_role.clear();
+  EXPECT_TRUE(sctx.is_current_role_part_of(role_list_4, &first_role));
+  EXPECT_EQ(first_role, "`role3`@`%`");
 }
 
 }  // namespace security_context_unittest

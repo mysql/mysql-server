@@ -1,0 +1,162 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Install the plugin in the replica server
+#    Reduce the number of workers to 2
+#    Create 2 tables
+[connection slave]
+include/save_sysvars.inc [ "GLOBAL.replica_parallel_workers" ]
+SET @@GLOBAL.replica_parallel_workers = 2;
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+[connection master]
+INSERT INTO t1 (a) VALUES(1);
+include/rpl/sync_to_replica.inc
+
+##############################################################
+# 2. Make coordinator wait on a transaction dependency
+#    Check the table shows this
+[connection slave1]
+LOCK TABLE t1 READ;
+[connection master]
+UPDATE t1 SET a = 11 WHERE a = 1;
+UPDATE t1 SET a = 21 WHERE a = 11;
+[connection slave]
+include/assert_eventually.inc [Eventually, coordinator increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT to 2]
+include/assert_eventually.inc [Eventually, worker increments TRANSACTIONS_ONGOING_COUNT]
+include/assert_eventually.inc [Eventually, receiver increments TRANSACTIONS_PENDING_COUNT to 2]
+include/assert_eventually.inc [Eventually, worker increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME to nonzero.]
+[connection slave1]
+UNLOCK TABLES;
+
+##############################################################
+# 3. Cause shortage of workers
+#    Check the table shows this
+LOCK TABLE t1 WRITE;
+[connection master]
+INSERT INTO t1 (a) VALUES(2);
+INSERT INTO t1 (a) VALUES(3);
+INSERT INTO t1 (a) VALUES(4);
+[connection slave]
+include/assert_eventually.inc [Eventually, receiver increases TRANSACTIONS_PENDING_COUNT to 3]
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_ONGOING_COUNT to 2]
+include/assert_eventually.inc [Eventually, coordinator increases WAITS_FOR_AVAILABLE_WORKER_COUNT to 1]
+include/assert_eventually.inc [Eventually, coordinator increases WAITS_FOR_AVAILABLE_WORKER_SUM_TIME to nonzero]
+include/assert_eventually.inc [Coordinator keeps increasing WAITS_FOR_AVAILABLE_WORKER_SUM_TIME while waiting]
+[connection slave1]
+UNLOCK TABLES;
+
+##############################################################
+# 4. Test waiting for a full worker queue
+#    Check the table shows this
+[connection master]
+CREATE TABLE t2(c1 INT UNSIGNED PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+[connection slave1]
+LOCK TABLE t2 WRITE;
+[connection master]
+SET @@session.binlog_transaction_compression = 0;
+BEGIN;
+COMMIT;
+[connection slave]
+include/assert_eventually.inc [Eventually, coordinator increments WAITS_WORKER_QUEUES_FULL_COUNT]
+include/assert_eventually.inc [Eventually, worker increments TRANSACTIONS_ONGOING_COUNT]
+include/assert_eventually.inc [Eventually, coordinator increments WAITS_WORKER_QUEUES_FULL_SUM_TIME]
+include/assert_eventually.inc [Coordinator keeps increasing WAITS_WORKER_QUEUES_FULL_SUM_TIME while waiting]
+SET @@session.binlog_transaction_compression = <OLD_VALUE>;
+[connection slave1]
+UNLOCK TABLES;
+
+##############################################################
+# 5. Test waiting for worker queue memory limit
+#    Check the table shows this
+[connection master]
+CREATE TABLE t3(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+CREATE TABLE t4(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_applier.inc
+include/restore_sysvars.inc
+include/save_sysvars.inc [ "GLOBAL.replica_pending_jobs_size_max" ]
+SET @@GLOBAL.replica_pending_jobs_size_max = 1024;
+include/rpl/start_applier.inc
+[connection slave1]
+LOCK TABLE t3 WRITE;
+[connection master]
+BEGIN;
+INSERT INTO t3 VALUES (1, REPEAT('a', 550));
+INSERT INTO t4 VALUES (1, REPEAT('a', 550));
+COMMIT;
+[connection slave]
+include/assert_eventually.inc [Eventually, coordinator increments WAITS_FOR_WORKER_QUEUE_MEMORY_COUNT]
+include/assert_eventually.inc [Eventually, worker increments TRANSACTIONS_ONGOING_COUNT]
+include/assert_eventually.inc [Eventually, coordinator increments WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME]
+include/assert_eventually.inc [Coordinator keeps increasing WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME while waiting]
+[connection slave1]
+UNLOCK TABLES;
+
+##############################################################
+# 6. Make a worker wait on commit order
+#    Check the table shows this
+include/rpl/reset.inc
+LOCK TABLE t1 WRITE;
+include/assert.inc [Initially, no worker has waited for its order to commit]
+include/assert.inc [Initially, no time was spent waiting for commit order]
+[connection master]
+INSERT INTO t2 (c1) VALUES(20000);
+include/rpl/sync_to_replica.inc
+[connection master]
+INSERT INTO t1 (a) VALUES(30000);
+INSERT INTO t2 (c1) VALUES(40000);
+[connection slave]
+include/assert_eventually.inc [Eventually, worker increments WAITS_DUE_TO_COMMIT_ORDER_COUNT]
+include/assert_eventually.inc [Eventually, worker increments TRANSACTIONS_ONGOING_COUNT to 2]
+include/assert_eventually.inc [Eventually, worker increments WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME to nonzero]
+include/assert_eventually.inc [Worker keeps increasing WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME while waiting]
+
+##############################################################
+# 6.1. Make two workers wait on commit order
+#      Verify that waiting time increases at double clock time
+[connection master]
+INSERT INTO t2 VALUES (50000);
+[connection slave]
+include/assert_eventually.inc [Eventually, a second worker increments WAITS_DUE_TO_COMMIT_ORDER_COUNT]
+include/assert_eventually.inc [Eventually, both workers are in the stage "Waiting for preceding transaction to commit"]
+# Now that both threads are in this state, we know that both are incrementing WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME.
+# So it ought to be increasing twice as fast as the wall clock.
+include/assert.inc [Worker wait time increased more than twice that of a shorter interval]
+include/assert.inc [Worker wait time increased less than twice that of a longer interval]
+[connection slave1]
+UNLOCK TABLES;
+include/assert_eventually.inc [Eventually, after the worker is unblocked, it  increments TRANSACTIONS_COMMITTED_COUNT]
+
+##############################################################
+# 7. Test that metrics values are preserved when restarting the applier
+[connection slave]
+include/rpl/stop_applier.inc
+include/assert.inc [TRANSACTIONS_COMMITTED_COUNT is preserved when stopping the applier]
+include/assert.inc [WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME is preserved when stopping the applier]
+include/assert.inc [WAITS_DUE_TO_COMMIT_ORDER_COUNT is preserved when stopping the applier]
+include/rpl/start_applier.inc
+include/assert.inc [TRANSACTIONS_COMMITTED_COUNT is preserved when starting the applier again]
+include/assert.inc [WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME is preserved when starting the applier again]
+include/assert.inc [WAITS_DUE_TO_COMMIT_ORDER_COUNT is preserved when starting the applier again]
+
+##############################################################
+# 8. Cleanup
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+[connection slave]
+include/restore_sysvars.inc
+include/rpl/deinit.inc

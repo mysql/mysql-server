@@ -2079,4 +2079,638 @@ GROUP BY i;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug#38704535: Assertion `std::cmp_less(pred_idx,
+--echo #               m_graph->num_filter_predicates)' failed.
+--echo #
+
+CREATE TABLE t(a INT, KEY(a));
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+
+let $query =
+    SELECT *
+    FROM
+       t AS t1 LEFT JOIN
+       t AS t2 INNER JOIN
+       (SELECT DISTINCT a FROM t WHERE a <> a) AS t3
+       ON t3.a = t2.a
+       ON TRUE
+    WHERE t3.a = 1 OR t1.a = 2;
+
+# The inner join between t2 and t3 should be pruned and replaced by "Zero rows".
+# This query used to trigger an assert failure.
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--sorted_result
+--eval $query
+
+# Also check that the entire query is optimized away when the empty
+# derived table is inner-joined to the outer tables.
+--let $query = `SELECT REPLACE('$query', 'LEFT JOIN', 'INNER JOIN')`
+--eval EXPLAIN FORMAT=TREE $query
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#38763106 - sort with limit in hypergraph gets wrong result
+--echo #
+
+CREATE TABLE t1 (char_0_col CHAR(0) COLLATE utf8mb4_general_ci NOT NULL);
+INSERT INTO t1 VALUES (''), ('');
+ANALYZE TABLE t1;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT char_0_col FROM t1;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT char_0_col FROM t1
+ORDER BY char_0_col LIMIT 2;
+
+--echo # Test 1: Basic LIMIT 1 (original bug case)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1;
+
+--echo # Test 2: LIMIT equals number of rows
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 2;
+
+--echo # Test 3: LIMIT greater than number of rows
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 5;
+
+--echo # Test 4: LIMIT with OFFSET 0 (should behave like LIMIT 1)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 0;
+
+--echo # Test 5: LIMIT with OFFSET 1 (skip first row)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 1;
+
+--echo # Test 6: LIMIT with OFFSET equal to total rows (no rows)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 2;
+
+--echo # Test 7: LIMIT with OFFSET greater than total rows (no rows)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 5;
+
+--echo # Test 8: Multiple rows with various LIMIT values
+INSERT INTO t1 VALUES (''), (''), ('');
+
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1;
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 3;
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 10;
+
+--echo # Test 9: LIMIT with OFFSET on larger dataset
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 2 OFFSET 1;
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 2 OFFSET 3;
+
+--echo # Test 10: Verify with COUNT to ensure correct row counts
+SELECT COUNT(*) FROM (
+  SELECT * FROM t1 ORDER BY char_0_col LIMIT 1
+) AS derived;
+
+SELECT COUNT(*) FROM (
+  SELECT * FROM t1 ORDER BY char_0_col LIMIT 3
+) AS derived;
+
+SELECT COUNT(*) FROM (
+  SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 2
+) AS derived;
+
+--echo # Test 11: DESC order with LIMIT
+SELECT * FROM t1 ORDER BY char_0_col DESC LIMIT 1;
+SELECT * FROM t1 ORDER BY char_0_col DESC LIMIT 2 OFFSET 1;
+
+--echo # Test 12: Explicit hypergraph hint (ensure it works)
+SELECT /*+ SET_VAR(optimizer_switch="hypergraph_optimizer=on") */
+* FROM t1 ORDER BY char_0_col LIMIT 1;
+
+--echo # Test 13: Verify old optimizer still works (regression check)
+SELECT /*+ SET_VAR(optimizer_switch="hypergraph_optimizer=off") */
+* FROM t1 ORDER BY char_0_col LIMIT 1;
+
+--echo # Test 14: LIMIT 0 (edge case - should return no rows)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 0;
+
+--echo # Test 15: Large OFFSET that skips all rows
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 100;
+
+--echo # Test 16: DISTINCT with zero-length key should yield 1 row
+SELECT DISTINCT char_0_col FROM t1 ORDER BY char_0_col;
+
+--echo # Test 17: DISTINCT with LIMIT should still yield at most 1
+SELECT DISTINCT char_0_col FROM t1 ORDER BY char_0_col LIMIT 5;
+
+--echo # Test 18: DISTINCT with hypergraph hint
+SELECT /*+ SET_VAR(optimizer_switch="hypergraph_optimizer=on") */
+DISTINCT char_0_col FROM t1 ORDER BY char_0_col;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38292966: Hypergraph: Optimizer trace should not state
+--echo #               "This is a bug" for known inconsistent row counts
+--echo #
+
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 SELECT n,n FROM num UNION SELECT n+10,n+10 FROM num;
+CREATE TABLE t2 (a INT, b INT);
+ANALYZE TABLE t1, t2;
+
+SET optimizer_trace='enabled=on';
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+  LEFT JOIN t2 x2 ON x1.b=x2.a
+  LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
+
+# The optimizer trace should contain a WARNING about inconsistent row counts
+# but must NOT contain the alarming "This is a bug" language.
+--let $trace = `SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE`
+
+SET optimizer_trace='enabled=off';
+
+--let $has_warning = `SELECT LOCATE('has inconsistent row counts with', '$trace') > 0`
+--let $has_bug_msg = `SELECT LOCATE('This is a bug', '$trace') > 0`
+
+if ($has_warning)
+{
+  --echo Optimizer trace correctly contains WARNING about inconsistent row counts.
+}
+if (!$has_warning)
+{
+  --echo Optimizer trace does NOT contain expected WARNING about inconsistent row counts.
+}
+if ($has_bug_msg)
+{
+  --echo FAIL: Optimizer trace still contains "This is a bug" message.
+}
+if (!$has_bug_msg)
+{
+  --echo Optimizer trace correctly omits "This is a bug" message.
+}
+
+DROP TABLE num, t1, t2;
+
+--echo #
+--echo # Bug#38822359: Assertion `std::cmp_less(pred_idx,
+--echo #               m_graph->num_where_predicates)' failed.
+--echo #
+CREATE TABLE t(f1 INT PRIMARY KEY, f2 INT, KEY(f2));
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3);
+ANALYZE TABLE t;
+
+let $query =
+    SELECT t1.f1 FROM t AS t1 LEFT JOIN (
+      (SELECT DISTINCT * FROM t AS t2 WHERE f2 <> f2) AS dt1,
+      (SELECT t4.* FROM t AS t3 STRAIGHT_JOIN t AS t4 ON t4.f1 = t3.f1) AS dt2
+    ) ON TRUE;
+
+--echo # Verify that the assertion does not fail, and that t2, t3 and t4 are
+--echo # pruned from the query plan and replaced by "Zero rows".
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--sorted_result
+--eval $query
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#38585820: Result mismatch with GROUP BY on DATE column
+--echo #
+
+# This is a copy of the same test case from type_datetime.test.
+# This test case can be deleted when hypergraph is enabled in optimized builds.
+
+CREATE TABLE t1 (
+    d DATE DEFAULT NULL,
+    t TIME DEFAULT NULL,
+    dt DATETIME DEFAULT NULL,
+    pk INT NOT NULL PRIMARY KEY,
+    ci INT DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES
+  ('1982-07-14','11:12:13','1982-07-14 11:12:13',1,-2086898178),
+  (NULL,NULL,NULL,2,-549278089),
+  ('2035-09-13','12:13:14','2035-09-13 12:13:14',3,1616004595),
+  ('2011-03-24','13:14:15','2011-03-24 13:14:15',4,-1457068597),
+  ('1976-05-25','14:15:16','1976-05-25 14:15:16',5,-726291594),
+  ('1986-12-09','15:16:17','1986-12-09 15:16:17',6,1775995858),
+  ('2017-05-17','16:17:18','2017-05-17 16:17:18',7,-1267712153),
+  ('2034-09-09','17:18:19','2034-09-09 17:18:19',8,514287676),
+  ('2033-06-22','18:19:20','2033-06-22 18:19:20',9,1526531818),
+  (NULL,NULL,NULL,10,-1026887600);
+let $date_query=
+SELECT alias2.d AS field1,
+       MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 RIGHT JOIN t1 AS alias3
+       ON alias3.ci = alias2.pk
+     ON alias3.ci = alias2.ci
+GROUP BY field1;
+
+let $time_query=
+SELECT alias2.t AS field1,
+       MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 RIGHT JOIN t1 AS alias3
+       ON alias3.ci = alias2.pk
+     ON alias3.ci = alias2.ci
+GROUP BY field1;
+
+let $datetime_query=
+SELECT alias2.dt AS field1,
+       MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 RIGHT JOIN t1 AS alias3
+       ON alias3.ci = alias2.pk
+     ON alias3.ci = alias2.ci
+GROUP BY field1;
+
+SET optimizer_switch='hypergraph_optimizer=off';
+
+eval $date_query;
+eval $time_query;
+eval $datetime_query;
+
+SET optimizer_switch='hypergraph_optimizer=on';
+
+eval $date_query;
+eval $time_query;
+eval $datetime_query;
+
+SET optimizer_switch='hypergraph_optimizer=default';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38866140: Inconsistent row counts assertion with RAND
+--echo #              predicates in hypergraph optimizer
+--echo #
+
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+
+CREATE TABLE t1 (
+  col_date3 DATE DEFAULT NULL,
+  col_int INT DEFAULT NULL,
+  col_datetime6 DATETIME DEFAULT NULL,
+  col_tinytext_character_set_utf8mb4_key TINYTEXT
+);
+INSERT INTO t1 VALUES
+  ('2024-01-01', 1, '2024-01-01 00:00:00', 'abc'),
+  ('2024-02-01', 2, '2024-02-01 00:00:00', 'def'),
+  ('2024-03-01', 3, '2024-03-01 00:00:00', 'ghi');
+ANALYZE TABLE t1;
+
+# Test 1: Simplified reproducer.
+# RAND() in a WHERE predicate between two tables (3-table inner join).
+--disable_result_log
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i <> t2.i AND t2.i = t3.i + RAND() AND t1.i <> t3.i;
+--enable_result_log
+
+# Test 2: Original bug report query.
+# RAND() in an ON clause of an outer join spanning multiple join nests.
+--disable_result_log
+SELECT table2.col_date3 AS field2
+FROM t1 AS table1
+RIGHT JOIN t1 AS table2
+  LEFT JOIN t1 AS table3 ON table2.col_date3 <> table3.col_int
+ON REPLACE(table1.col_date3, '', RAND(table3.col_int))
+   LIKE table3.col_tinytext_character_set_utf8mb4_key
+WHERE table1.col_tinytext_character_set_utf8mb4_key >
+      table2.col_tinytext_character_set_utf8mb4_key;
+--enable_result_log
+
+# Test 3: RAND() in ON clause of explicit INNER JOIN.
+--disable_result_log
+SELECT 1 FROM t AS t1
+INNER JOIN t AS t2 ON t1.i <> t2.i
+INNER JOIN t AS t3 ON t2.i = t3.i + RAND()
+WHERE t1.i <> t3.i;
+--enable_result_log
+
+# Test 4: RAND() as the ONLY predicate between a specific table pair.
+--disable_result_log
+SELECT 1 FROM t AS t1, t AS t2, t AS t3, t AS t4
+WHERE t1.i <> t2.i
+  AND t2.i <> t4.i
+  AND t3.i <> t4.i
+  AND t2.i = t3.i + RAND();
+--enable_result_log
+
+# Test 5: Multiple RAND predicates in the same query.
+--disable_result_log
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i + RAND() = t2.i
+  AND t2.i + RAND() = t3.i
+  AND t1.i <> t3.i
+  AND t1.i <> t2.i;
+--enable_result_log
+
+# Test 6: RAND() with 4 tables.
+--disable_result_log
+SELECT 1 FROM t AS t1, t AS t2, t AS t3, t AS t4
+WHERE t1.i <> t2.i
+  AND t2.i = t3.i + RAND()
+  AND t3.i <> t4.i
+  AND t1.i <> t4.i;
+--enable_result_log
+
+# Test 7: RAND() in LEFT JOIN ON clause with 3 tables.
+--disable_result_log
+SELECT * FROM t AS t1
+INNER JOIN t AS t3 ON t1.i <> t3.i
+LEFT JOIN t AS t2 ON t1.i = t2.i + RAND()
+WHERE t2.i IS NULL OR t2.i <> t3.i;
+--enable_result_log
+
+# Test 8: RAND() combined with a deterministic predicate in WHERE.
+--disable_result_log
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i = t2.i AND t2.i = t3.i + RAND() AND t1.i <> t3.i;
+--enable_result_log
+
+# Test 9: Non-RAND nondeterministic function (UUID_SHORT).
+--disable_result_log
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i <> t2.i AND t2.i = t3.i + UUID_SHORT() AND t1.i <> t3.i;
+--enable_result_log
+
+DROP TABLE t, t1;
+
+--echo #
+--echo # Bug#38097990: Const folding caused inequivalent join_cond_optim
+--echo #               in hypergraph
+--echo #
+
+CREATE TABLE t1 (
+    id_col       INT PRIMARY KEY,
+    smallint_col SMALLINT,
+    int_col      INT
+);
+
+CREATE TABLE t2 (
+    id_col       INT PRIMARY KEY,
+    smallint_col SMALLINT,
+    int_col      INT
+);
+
+# The ON condition contains (ref_0.id_col IS NOT NULL) which folds to TRUE
+# because id_col is PRIMARY KEY (NOT NULL). This caused remove_eq_conds()
+# to mutate the Item_cond_or argument list in-place, making
+# tl->join_cond_optim() logically inequivalent to the original condition.
+# The fix rebuilds join_cond_optim from the post-folding conditions.
+SELECT COUNT(ref_1.int_col)
+FROM   t1 AS ref_0
+       LEFT JOIN t2 AS ref_1
+              ON ( ( ref_0.smallint_col IS NULL )
+                    OR ( ref_0.id_col IS NOT NULL ) );
+
+# Verify with data: insert rows and confirm the LEFT JOIN ON TRUE
+# produces correct results.
+INSERT INTO t1 VALUES (1, 10, 100), (2, NULL, 200);
+INSERT INTO t2 VALUES (1, 10, 100);
+ANALYZE TABLE t1, t2;
+
+SELECT COUNT(ref_1.int_col)
+FROM   t1 AS ref_0
+       LEFT JOIN t2 AS ref_1
+              ON ( ( ref_0.smallint_col IS NULL )
+                    OR ( ref_0.id_col IS NOT NULL ) );
+
+# Also test AND with constant-foldable condition.
+SELECT COUNT(ref_1.int_col)
+FROM   t1 AS ref_0
+       LEFT JOIN t2 AS ref_1
+              ON ( ( ref_0.smallint_col IS NULL )
+                    AND ( ref_0.id_col IS NOT NULL ) );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#38867038	Assertion `nullptr != dynamic_cast<Target>(arg)' failed.
+--echo #
+
+CREATE TABLE A(col_int INT);
+INSERT INTO A VALUES (1), (2), (3), (4), (5);
+
+--sorted_result
+SELECT  /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
+FROM A;
+
+DROP TABLE A;
+
+--echo #
+--echo # Bug#38473156: hypergraph optimizer errors out on an
+--echo #               otherwise valid query the mysql optimizer
+--echo #               executes just fine.
+--echo #
+
+CREATE TABLE t1 (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  col1 INT UNSIGNED NOT NULL,
+  col2 INT UNSIGNED NOT NULL,
+  data JSON DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY idx_col1 (col1),
+  KEY idx_col2 (col2)
+);
+
+INSERT INTO t1 (col1, col2, data)
+  VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
+
+let $query = SELECT * FROM t1 ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+set optimizer_trace="enabled=on";
+--disable_result_log
+eval $query;
+--enable_result_log
+
+WITH trace_vals AS (
+  SELECT REGEXP_SUBSTR(trace, 'INDEX_SCAN, cost=[0-9.]+', 1, 1) AS idx_line,
+         REGEXP_SUBSTR(trace, 'TABLE_SCAN, cost=[0-9.]+', 1, 1) AS tbl_line
+    FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+) SELECT (tbl_line IS NULL OR
+         (CAST(SUBSTRING_INDEX(idx_line, 'cost=', -1) AS DECIMAL(20,10)) =
+          CAST(SUBSTRING_INDEX(tbl_line, 'cost=', -1) AS DECIMAL(20,10))))
+         AS costs_equal
+  FROM trace_vals;
+
+set optimizer_trace="enabled=off";
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38389762: Hypergraph: Should not propose both table
+--echo #              scan and primary index scan
+--echo #
+
+CREATE TABLE t1 ( f1 INT PRIMARY KEY, f2 CHAR(5));
+INSERT INTO t1 VALUES (1,'aaaaa'), (2,'bbbbb'), (3,'ccccc'), (4,'ddddd');
+ANALYZE TABLE t1;
+
+--echo # Clustered primary key should avoid proposing table scan.
+SET optimizer_trace='enabled=on';
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+SELECT LOCATE('{TABLE_SCAN, cost=', trace) = 0 AS no_table_scan
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 ( f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1,f2));
+INSERT INTO t1 VALUES (1,2,1), (1,3,1), (3,1,2), (3,2,1);
+ANALYZE TABLE t1;
+
+--echo # Index lookup on clustered primary key should avoid proposing table scan.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = 3;
+SELECT LOCATE('{TABLE_SCAN, cost=', trace) = 0 AS no_table_scan
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET optimizer_trace='enabled=off';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#35368475: FilterIterator should short-circuit on constant-false
+--echo #               conditions
+--echo #
+--echo # When the filter condition is const_for_execution() and evaluates to
+--echo # false, FilterIterator should return EOF immediately without scanning
+--echo # the source iterator.
+--echo #
+
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t;
+
+--echo # Test 1: Constant-false uncorrelated subquery.
+--echo # "never executed" on table scan proves DoInit() short-circuited.
+--replace_regex /actual time=\S+/actual time=N/g /cost=\S+/cost=N/g
+EXPLAIN ANALYZE SELECT 1 FROM t t1 WHERE 100 = (SELECT COUNT(*) FROM t t2);
+SELECT 1 FROM t t1 WHERE 100 = (SELECT COUNT(*) FROM t t2);
+
+--echo # Test 2: Constant-true subquery -- all 10 rows returned normally.
+SELECT 1 FROM t t1 WHERE 10 = (SELECT COUNT(*) FROM t t2);
+
+--echo # Test 3: NULL subquery condition -- 0 rows (NULL is not true).
+SELECT 1 FROM t t1 WHERE NULL = (SELECT COUNT(*) FROM t t2);
+
+--echo # Test 4: Mixed conjunction -- constant-false subquery short-circuits.
+--echo # "never executed" proves source was never initialized.
+--replace_regex /actual time=\S+/actual time=N/g /cost=\S+/cost=N/g
+EXPLAIN ANALYZE SELECT 1 FROM t t1
+  WHERE 0 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+SELECT 1 FROM t t1
+  WHERE 0 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+
+--echo # Test 5: Mixed conjunction, constant-true -- no short-circuit.
+SELECT 1 FROM t t1
+  WHERE 10 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+
+--echo # Test 6: Constant-false as the second AND-term.
+--replace_regex /actual time=\S+/actual time=N/g /cost=\S+/cost=N/g
+EXPLAIN ANALYZE SELECT 1 FROM t t1
+  WHERE t1.x IS NULL AND 0 = (SELECT COUNT(*) FROM t t2);
+
+--echo # Test 7: NULL conjunct in mixed AND -- short-circuits.
+SELECT 1 FROM t t1
+  WHERE NULL = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+
+--echo # Test 8: Three-way AND with one constant-false term.
+SELECT 1 FROM t t1
+  WHERE t1.x IS NULL AND 0 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NOT NULL;
+
+--echo # Test 9: Three-way AND, all constant-true -- returns rows normally.
+SELECT 1 FROM t t1
+  WHERE 10 = (SELECT COUNT(*) FROM t t2) AND 1 = 1 AND t1.x IS NULL;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#37173479: Hypergraph doesn't elide sort on effectively constant
+--echo #               expressions
+--echo #
+--echo # When WHERE pins all PK columns to constant values, all columns FD on
+--echo # the PK are also constant. ORDER BY on such columns should not require
+--echo # a sort.
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY, a INT);
+INSERT INTO t VALUES (1, 10), (2, 20), (3, 30);
+ANALYZE TABLE t;
+
+--echo # Test 1: Single PK constant => ORDER BY dependent column elides sort
+let $query = SELECT * FROM t WHERE id = 1 ORDER BY a;
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+--echo # Control: Without WHERE, sort IS needed
+EXPLAIN FORMAT=TREE SELECT * FROM t ORDER BY a;
+
+DROP TABLE t;
+
+--echo # Test 2: Multi-column PK, all constant => sort elided
+CREATE TABLE t2(id1 INT, id2 INT, a INT, PRIMARY KEY(id1, id2));
+INSERT INTO t2 VALUES (1, 1, 100), (1, 2, 200), (2, 1, 300);
+ANALYZE TABLE t2;
+
+let $query = SELECT * FROM t2 WHERE id1 = 1 AND id2 = 2 ORDER BY a;
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t2;
+
+--echo # Test 3: Multiple ORDER BY columns, all FD-dependent on constant PK
+CREATE TABLE t3(id INT PRIMARY KEY, a INT, b INT);
+INSERT INTO t3 VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+ANALYZE TABLE t3;
+
+let $query = SELECT * FROM t3 WHERE id = 1 ORDER BY a, b;
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t3;
+
+--echo # Test 4: Partial PK constant - sort must NOT be elided (negative test)
+CREATE TABLE t4(id1 INT, id2 INT, a INT, PRIMARY KEY(id1, id2));
+INSERT INTO t4 VALUES (1, 1, 100), (1, 2, 200), (2, 1, 300);
+ANALYZE TABLE t4;
+
+let $query = SELECT * FROM t4 WHERE id1 = 1 ORDER BY a;
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t4;
+
+--echo # Test 5: NOT NULL unique key constant => sort elided
+CREATE TABLE t5(id INT PRIMARY KEY, a INT NOT NULL, b INT, UNIQUE KEY uk_a(a));
+INSERT INTO t5 VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+ANALYZE TABLE t5;
+
+let $query = SELECT * FROM t5 WHERE a = 10 ORDER BY b;
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t5;
+
+--echo #
+--echo # Bug#39062785: Assertion `tl->join_cond_optim() != nullptr'
+--echo #               failed.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f2));
+let $query = SELECT 1 FROM t1
+             WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
+                                 WHERE t2.f1 = t1.f1 AND
+                                       NOT EXISTS (SELECT t2.f1
+                                                   FROM t1 AS t3 )));
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+DROP TABLE t1;
+
 --source include/disable_hypergraph.inc

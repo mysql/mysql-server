@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -308,7 +308,7 @@ using AccessPathArray = Prealloced_array<AccessPath *, 4>;
  */
 class CostingReceiver {
   friend class RefAccessBuilder;
-  /// Descriptive reason for using ZERO_ROW paths.
+  /// Descriptive reason for using ZERO_ROWS paths.
   static constexpr const char *kWhereAlwaysFalse{
       "WHERE condition is always false"};
 
@@ -700,25 +700,25 @@ class CostingReceiver {
   void ProposeIndexMerge(TABLE *table, int node_idx, const SEL_IMERGE &imerge,
                          int pred_idx, bool inexact,
                          bool allow_clustered_primary_key_scan,
-                         int num_where_predicates,
+                         int num_filter_predicates,
                          double num_output_rows_after_filter,
                          RANGE_OPT_PARAM *param,
                          bool *has_clustered_primary_key_scan,
                          bool *found_imerge);
   void ProposeRowIdOrderedUnion(TABLE *table, int node_idx,
                                 const SEL_IMERGE &imerge, int pred_idx,
-                                bool inexact, int num_where_predicates,
+                                bool inexact, int num_filter_predicates,
                                 double num_output_rows_after_filter,
                                 const RANGE_OPT_PARAM *param,
                                 const Mem_root_array<AccessPath *> &paths,
                                 bool *found_imerge);
   void ProposeAllRowIdOrderedIntersectPlans(
-      TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
+      TABLE *table, int node_idx, SEL_TREE *tree, int num_filter_predicates,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
       bool *found_imerge);
   void ProposeRowIdOrderedIntersect(
-      TABLE *table, int node_idx, int num_where_predicates,
+      TABLE *table, int node_idx, int num_filter_predicates,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
@@ -748,9 +748,24 @@ class CostingReceiver {
                                       AccessPath *path,
                                       const char *description_for_trace);
 
-  /// Propose a ZERO_ROW access path (because the WHERE-condition is
-  /// always false).
-  void ProposeZeroRowsAccessPath(int node_idx);
+  /// Propose a ZERO_ROWS access path for a single table.
+  ///
+  /// @param node_idx Index of the table in the nodes array.
+  /// @param cause Explanation of why no rows from this table qualify.
+  /// @retval false Successfully proposed a ZERO_ROWS access path.
+  /// @retval true If planning should stop; either because of an error, or
+  /// because it was detected that the entire join will be empty.
+  bool ProposeZeroRowsAccessPath(int node_idx, const char *cause);
+
+  /// Return type for MakeMaterializePath.
+  struct MakeMaterializePathResult {
+    /// The created MATERIALIZE access path, or nullptr if none was created
+    /// because the input path will always be empty.
+    AccessPath *path = nullptr;
+    /// The reason why the input path is always empty, or nullptr if it is not
+    /// always empty.
+    const char *always_empty_cause = nullptr;
+  };
 
   /**
      Make a path that materializes 'table'.
@@ -758,7 +773,8 @@ class CostingReceiver {
      @param table The table to materialize.
      @returns The path that materializes 'table'.
   */
-  AccessPath *MakeMaterializePath(const AccessPath &path, TABLE *table) const;
+  MakeMaterializePathResult MakeMaterializePath(const AccessPath &path,
+                                                TABLE *table) const;
 
   bool ProposeTableScan(TABLE *table, int node_idx,
                         double force_num_output_rows_after_filter);
@@ -798,8 +814,8 @@ class CostingReceiver {
     /// True if one or more non-parameterized index lookups (REF access paths
     /// *not* refering other tables) were proposed.
     bool ref_without_parameters{false};
-    /// True if some covering index scan or some non-parameterized covering
-    /// index lookup was proposed.
+    /// True if some covering or clustered index scan or some non-parameterized
+    /// covering index lookup was proposed.
     bool covering{false};
   };
 
@@ -909,6 +925,55 @@ secondary_engine_check_optimizer_request_t SecondaryEngineStateCheckHook(
 
   return secondary_engine->secondary_engine_check_optimizer_request;
 }
+
+/// Gets the secondary storage engine nrows hook function, if any.
+secondary_engine_nrows_t RetrieveSecondaryEngineNrowsHook(THD *thd) {
+  const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
+  if (secondary_engine == nullptr) {
+    secondary_engine = EligibleSecondaryEngineHandlerton(thd, nullptr);
+  }
+  if (secondary_engine == nullptr) {
+    return nullptr;
+  }
+
+  return secondary_engine->secondary_engine_nrows;
+}
+
+/**
+  Enables the secondary engine nrows hook on the join hypergraph when it is
+  available and likely to be beneficial.
+
+  The hook is installed only if:
+  - the query has more than two nodes (to avoid overhead on small joins and
+    single-table queries), and
+  - we are executing on the primary engine (since the secondary engine already
+    has control over cardinality estimates otherwise).
+*/
+void MaybeSetSecondaryEngineNrowsHook(THD *thd, JoinHypergraph *graph) {
+  if (graph->nodes.size() <= 2 ||
+      thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::SECONDARY) {
+    return;
+  }
+
+  graph->set_secondary_engine_nrows_hook(RetrieveSecondaryEngineNrowsHook(thd));
+}
+
+#ifndef NDEBUG
+// Returns whether SecondaryNrows hook is enabled and is applicable given the
+// parameters.
+bool IsSecondaryNrowsHookEnabledAndApplicable(AccessPath *path, THD *thd,
+                                              const JoinHypergraph *graph) {
+  if (!IsSecondaryEngineNrowsHookApplicable(path, graph)) {
+    return false;
+  }
+  // Since params.access_path is nullptr, following returns the state of nrow
+  // hook if true, implies the hook is enabled, and if false, implies the hook
+  // is disabled.
+  return graph->call_secondary_engine_nrows_hook(
+      SecondaryEngineNrowsParameters{thd});
+}
+#endif
 
 /// Returns the MATCH function of a predicate that can be pushed down to a
 /// full-text index. This can be done if the predicate is a MATCH function,
@@ -1280,7 +1345,7 @@ RefAccessBuilder::AnalyzePredicates(
       continue;
     }
 
-    if (i < graph()->num_where_predicates &&
+    if (i < graph()->num_filter_predicates &&
         !has_single_bit(pred.total_eligibility_set)) {
       // This is a WHERE condition that is either nondeterministic,
       // or after an outer join, so it is not sargable. (Having these
@@ -1514,38 +1579,39 @@ ProposeResult RefAccessBuilder::ProposePath() const {
 
     ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params);
 
-    AccessPath *const materialize_path{
-        m_receiver->MakeMaterializePath(path, m_table)};
-
+    const auto [materialize_path, always_empty_cause] =
+        m_receiver->MakeMaterializePath(path, m_table);
+    assert((materialize_path == nullptr) != (always_empty_cause == nullptr));
     if (materialize_path == nullptr) {
-      return ProposeResult::kError;
+      if (m_receiver->ProposeZeroRowsAccessPath(m_node_idx,
+                                                always_empty_cause)) {
+        return ProposeResult::kError;
+      }
+      return ProposeResult::kPathsFound;
     }
 
     secondary_engine_nrows_params.access_path = materialize_path;
     bool found_materialize_nrows_cached =
         ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params);
 
-    if (materialize_path->type == AccessPath::MATERIALIZE) {
-      auto &materialize{materialize_path->materialize()};
+    assert(materialize_path->type == AccessPath::MATERIALIZE);
+    const auto &materialize = materialize_path->materialize();
 
-      double rows{found_materialize_nrows_cached
-                      ? materialize_path->num_output_rows()
-                      : materialize.subquery_rows *
-                            predicate_analysis.value().selectivity};
+    const double rows =
+        found_materialize_nrows_cached
+            ? materialize_path->num_output_rows()
+            : materialize.subquery_rows * predicate_analysis->selectivity;
 
-      materialize.table_path->set_cost(
-          EstimateRefAccessCost(m_table, m_key_idx, rows));
+    materialize.table_path->set_cost(
+        EstimateRefAccessCost(m_table, m_key_idx, rows));
 
-      materialize.table_path->set_cost_before_filter(
-          materialize.table_path->cost());
+    materialize.table_path->set_cost_before_filter(
+        materialize.table_path->cost());
 
-      materialize.table_path->set_num_output_rows(rows);
-      materialize.table_path->num_output_rows_before_filter = rows;
-      materialize_path->set_num_output_rows(rows);
-      materialize_path->num_output_rows_before_filter = rows;
-    } else {
-      assert(materialize_path->type == AccessPath::ZERO_ROWS);
-    }
+    materialize.table_path->set_num_output_rows(rows);
+    materialize.table_path->num_output_rows_before_filter = rows;
+    materialize_path->set_num_output_rows(rows);
+    materialize_path->num_output_rows_before_filter = rows;
 
     path = *materialize_path;
   }
@@ -1592,15 +1658,9 @@ CostingReceiver::FindRangeScansResult CostingReceiver::FindRangeScans(
                                               : FindRangeScansResult::kOk};
   }
 
-  if (!IsBitSet(node_idx, m_graph->nodes_inner_to_outer_join |
-                              m_graph->nodes_inner_to_antijoin)) {
-    // The entire top-level join is going to be empty, so we can abort the
-    // planning and return a zero rows plan.
-    m_query_block->join->zero_result_cause = kWhereAlwaysFalse;
+  if (ProposeZeroRowsAccessPath(node_idx, kWhereAlwaysFalse)) {
     return {kUnknownRowCount, FindRangeScansResult::kError};
   }
-
-  ProposeZeroRowsAccessPath(node_idx);
 
   if (TraceStarted(m_thd)) {
     TraceAccessPaths(TableBitmap(node_idx));
@@ -1620,7 +1680,8 @@ std::optional<CostingReceiver::ProposeRefsResult> CostingReceiver::ProposeRefs(
   TABLE *const table = order_info.table;
   const int key_idx = order_info.key_idx;
   const bool covering =
-      !table->no_keyread && table->covering_keys.is_set(key_idx);
+      IsClusteredPrimaryKey(table, key_idx) ||
+      (!table->no_keyread && table->covering_keys.is_set(key_idx));
 
   ProposeRefsResult result;
 
@@ -1649,24 +1710,21 @@ std::optional<CostingReceiver::ProposeRefsResult> CostingReceiver::ProposeRefs(
 
       case ProposeResult::kPathsFound:
         result.ref_without_parameters = true;
-        result.covering |= covering;
+        result.covering = covering;
         break;
 
       case ProposeResult::kNoPathFound:
         // An index scan is more interesting than a table scan if it follows an
         // interesting order that can be used to avoid a sort later, or if it is
-        // covering so that it can reduce the volume of data to read. A scan of
-        // a clustered primary index reads as much data as a table scan, so it
-        // is not considered unless it follows an interesting order.
-        if (order != 0 ||
-            (covering && !IsClusteredPrimaryKey(table, key_idx))) {
+        // covering so that it can reduce the volume of data to read.
+        if (order != 0 || covering) {
           switch (ProposeIndexScan(table, node_idx, row_estimate, key_idx,
                                    reverse, order)) {
             case ProposeResult::kNoPathFound:
               break;
             case ProposeResult::kPathsFound:
               result.index_scan = true;
-              result.covering |= covering;
+              result.covering = covering;
               break;
             case ProposeResult::kError:
               return {};
@@ -1708,30 +1766,28 @@ std::optional<CostingReceiver::ProposeRefsResult> CostingReceiver::ProposeRefs(
   return result;
 }
 
-void CostingReceiver::ProposeZeroRowsAccessPath(int node_idx) {
+bool CostingReceiver::ProposeZeroRowsAccessPath(int node_idx,
+                                                const char *cause) {
+  assert(cause != nullptr);
+  if (!IsBitSet(node_idx, m_graph->nodes_inner_to_outer_join |
+                              m_graph->nodes_inner_to_antijoin)) {
+    // If the empty table is not on the inner side of an outer join or an
+    // antijoin, the entire join result will be empty. So we can stop planning
+    // and return a ZERO_ROWS access path for the entire join. By setting
+    // JOIN::zero_result_cause, we signal to the higher layers that this was the
+    // reason why the planning stopped, and they can call
+    // CreateZeroRowsForEmptyJoin() to create the join plan.
+    m_query_block->join->zero_result_cause = cause;
+    return true;
+  }
+
   AccessPath *const table_path = NewTableScanAccessPath(
       m_thd, m_graph->nodes[node_idx].table(), /*count_examined_rows=*/false);
 
-  AccessPath *const zero_path =
-      NewZeroRowsAccessPath(m_thd, table_path, kWhereAlwaysFalse);
+  AccessPath *const zero_path = NewZeroRowsAccessPath(m_thd, table_path, cause);
 
-  // We need to get the set of functional dependencies right,
-  // even though we don't need to actually apply any filters.
-  FunctionalDependencySet new_fd_set;
-  ApplyPredicatesForBaseTable(
-      node_idx,
-      NoAppliedPredicates(m_thd->mem_root, m_graph->predicates.size()),
-      /*materialize_subqueries=*/false, kUnknownRowCount, zero_path,
-      &new_fd_set);
-
-  zero_path->filter_predicates =
-      OverflowBitset::EmptySet(m_thd->mem_root, m_graph->predicates.size());
-
-  zero_path->ordering_state =
-      m_orderings->ApplyFDs(zero_path->ordering_state, new_fd_set);
-
-  ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
-                                 /*obsolete_orderings=*/0, zero_path, "");
+  ProposeAccessPathForBaseTable(node_idx, kUnknownRowCount, "", zero_path);
+  return false;
 }
 
 /**
@@ -1834,7 +1890,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // for the others, we don't even need to create the access path and go
   // through the tournament. However, if a force index is specified, then
   // we propose index scans.
-  bool found_covering_index_scan = false;
+  bool propose_table_scans = true;
   for (const ActiveIndexInfo &order_info : *m_active_indexes) {
     if (order_info.table == table) {
       const std::optional<ProposeRefsResult> propose_result{
@@ -1847,7 +1903,11 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       if (propose_result.value().index_scan ||
           propose_result.value().ref_without_parameters) {
         found_index_scan = true;
-        found_covering_index_scan |= propose_result->covering;
+        // We do not propose table scan if we have proposed a covering
+        // index scan or a clustered index scan.
+        if (propose_result->covering) {
+          propose_table_scans = false;
+        }
       }
     }
   }
@@ -1882,7 +1942,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   //
   // If we have hints for forcing the use of an index, we propose a table scan
   // only if no index scan was found.
-  if ((!found_covering_index_scan ||
+  if ((propose_table_scans ||
        DBUG_EVALUATE_IF("subplan_tokens", true, false)) &&
       (!(table->force_index || table->force_index_order ||
          table->force_index_group) ||
@@ -2498,7 +2558,7 @@ bool CostingReceiver::SetUpRangeScans(
                                                  m_graph->predicates.size()};
 
   const NodeMap my_map = TableBitmap(node_idx);
-  for (size_t i = 0; i < m_graph->num_where_predicates; ++i) {
+  for (size_t i = 0; i < m_graph->num_filter_predicates; ++i) {
     if (m_graph->predicates[i].total_eligibility_set != my_map) {
       // Only base predicates are eligible for being pushed into range scans.
       continue;
@@ -2784,7 +2844,7 @@ void CostingReceiver::ProposeAllIndexMergeScans(
   // Now Propose Row-ID ordered index merge intersect plans if possible.
   if (index_merge_intersect_allowed) {
     ProposeAllRowIdOrderedIntersectPlans(
-        table, node_idx, tree, m_graph->num_where_predicates,
+        table, node_idx, tree, m_graph->num_filter_predicates,
         possible_ror_scans, num_output_rows_after_filter, param, found_imerge);
   }
 
@@ -2800,7 +2860,7 @@ void CostingReceiver::ProposeAllIndexMergeScans(
         bool has_clustered_primary_key_scan = false;
         ProposeIndexMerge(table, node_idx, *imerge.imerge, imerge.pred_idx,
                           imerge.inexact, allow_clustered_primary_key_scan,
-                          m_graph->num_where_predicates,
+                          m_graph->num_filter_predicates,
                           num_output_rows_after_filter, param,
                           &has_clustered_primary_key_scan, found_imerge);
         if (!has_clustered_primary_key_scan) {
@@ -2959,7 +3019,7 @@ AbsorbedPredicates UpdateAbsorbedPredicates(
 // of other index merge scans (provides only primary key ordering).
 
 void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
-    TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
+    TABLE *table, int node_idx, SEL_TREE *tree, int num_filter_predicates,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     bool *found_imerge) {
@@ -2989,7 +3049,7 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
   // We have only 2 scans available, one a non-cpk scan and
   // another a cpk scan. Propose the plan and return.
   if (ror_scans.size() == 1 && cpk_scan != nullptr) {
-    ProposeRowIdOrderedIntersect(table, node_idx, num_where_predicates,
+    ProposeRowIdOrderedIntersect(table, node_idx, num_filter_predicates,
                                  possible_ror_scans, ror_scans, cpk_scan,
                                  num_output_rows_after_filter, param,
                                  needed_fields, found_imerge);
@@ -3017,7 +3077,7 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
       // Find an optimal order of the scans available to start planning.
       find_intersect_order(&ror_scans_to_use, needed_fields,
                            param->temp_mem_root);
-      ProposeRowIdOrderedIntersect(table, node_idx, num_where_predicates,
+      ProposeRowIdOrderedIntersect(table, node_idx, num_filter_predicates,
                                    possible_ror_scans, ror_scans_to_use,
                                    cpk_scan, num_output_rows_after_filter,
                                    param, needed_fields, found_imerge);
@@ -3044,14 +3104,14 @@ int GetRowIdOrdering(const TABLE *table, const LogicalOrderings *orderings,
 // Helper to ProposeAllRowIdOrderedIntersectPlans. Proposes an ROR-intersect
 // plan if all the scans are utilized in the available ror scans.
 void CostingReceiver::ProposeRowIdOrderedIntersect(
-    TABLE *table, int node_idx, int num_where_predicates,
+    TABLE *table, int node_idx, int num_filter_predicates,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     OverflowBitset needed_fields, bool *found_imerge) {
   ROR_intersect_plan plan(param, needed_fields.capacity());
   AbsorbedPredicates absorbed_predicates =
-      NoAppliedPredicates(param->return_mem_root, num_where_predicates);
+      NoAppliedPredicates(param->return_mem_root, num_filter_predicates);
   uint index = 0;
   bool cpk_scan_used = false;
   for (index = 0; index < ror_scans.size() && !plan.m_is_covering; ++index) {
@@ -3190,8 +3250,8 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
 // it proposes ROR Union of ROR intersect plan.
 void CostingReceiver::ProposeRowIdOrderedUnion(
     TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
-    bool inexact, int num_where_predicates, double num_output_rows_after_filter,
-    const RANGE_OPT_PARAM *param,
+    bool inexact, int num_filter_predicates,
+    double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     const Mem_root_array<AccessPath *> &range_paths, bool *found_imerge) {
   double cost = 0.0;
   double num_output_rows = 0.0;
@@ -3289,7 +3349,7 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
   // PossibleIndexMerge), and subsumes that predicate if and only if it is a
   // faithful representation of everything in it.
   AbsorbedPredicates absorbed_predicates = SingleAppliedPredicate(
-      param->temp_mem_root, pred_idx, !inexact, num_where_predicates);
+      param->temp_mem_root, pred_idx, !inexact, num_filter_predicates);
   const bool contains_subqueries = Overlaps(ror_union_path.filter_predicates,
                                             m_graph->materializable_predicates);
   // Add some trace info.
@@ -3338,7 +3398,7 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
 void CostingReceiver::ProposeIndexMerge(
     TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
     bool inexact, bool allow_clustered_primary_key_scan,
-    int num_where_predicates, double num_output_rows_after_filter,
+    int num_filter_predicates, double num_output_rows_after_filter,
     RANGE_OPT_PARAM *param, bool *has_clustered_primary_key_scan,
     bool *found_imerge) {
   double cost = 0.0;
@@ -3424,9 +3484,9 @@ void CostingReceiver::ProposeIndexMerge(
   }
   // Propose row-id ordered union plan if possible.
   if (all_scans_ror_able && index_merge_union_allowed) {
-    ProposeRowIdOrderedUnion(table, node_idx, imerge, pred_idx, inexact,
-                             num_where_predicates, num_output_rows_after_filter,
-                             param, ror_paths, found_imerge);
+    ProposeRowIdOrderedUnion(
+        table, node_idx, imerge, pred_idx, inexact, num_filter_predicates,
+        num_output_rows_after_filter, param, ror_paths, found_imerge);
     // If all chosen scans (best range scans) are ROR compatible, there
     // is no need to propose an Index Merge plan as ROR-Union plan will
     // always be better (Avoids sorting by row IDs).
@@ -3508,7 +3568,7 @@ void CostingReceiver::ProposeIndexMerge(
   // PossibleIndexMerge), and subsumes that predicate if and only if it is a
   // faithful representation of everything in it.
   AbsorbedPredicates absorbed_predicates = SingleAppliedPredicate(
-      param->temp_mem_root, pred_idx, !inexact, num_where_predicates);
+      param->temp_mem_root, pred_idx, !inexact, num_filter_predicates);
   const bool contains_subqueries = Overlaps(imerge_path.filter_predicates,
                                             m_graph->materializable_predicates);
   // Add some trace info.
@@ -3696,10 +3756,10 @@ void CostingReceiver::ProposeAccessPathForIndex(
     const char *description_for_trace, AccessPath *path) {
   OverflowBitset applied_sargable_join_predicates =
       ClearFilterPredicates(absorbed_predicates.applied(),
-                            m_graph->num_where_predicates, m_thd->mem_root);
+                            m_graph->num_filter_predicates, m_thd->mem_root);
   OverflowBitset subsumed_sargable_join_predicates =
       ClearFilterPredicates(absorbed_predicates.subsumed(),
-                            m_graph->num_where_predicates, m_thd->mem_root);
+                            m_graph->num_filter_predicates, m_thd->mem_root);
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(
@@ -3726,8 +3786,8 @@ void CostingReceiver::ProposeAccessPathForIndex(
   }
 }
 
-AccessPath *CostingReceiver::MakeMaterializePath(const AccessPath &path,
-                                                 TABLE *table) const {
+CostingReceiver::MakeMaterializePathResult CostingReceiver::MakeMaterializePath(
+    const AccessPath &path, TABLE *table) const {
   Table_ref *const tl{table->pos_in_table_list};
   assert(tl->uses_materialization());
   // Move the path to stable storage, since we'll be referring to it.
@@ -3736,7 +3796,6 @@ AccessPath *CostingReceiver::MakeMaterializePath(const AccessPath &path,
   // TODO(sgunders): We don't need to allocate materialize_path on the
   // MEM_ROOT.
   AccessPath *materialize_path;
-  const char *always_empty_cause = nullptr;
   if (tl->is_table_function()) {
     materialize_path = NewMaterializedTableFunctionAccessPath(
         m_thd, table, tl->table_function, stable_path);
@@ -3756,22 +3815,13 @@ AccessPath *CostingReceiver::MakeMaterializePath(const AccessPath &path,
       materialize_path->parameter_tables |= RAND_TABLE_BIT;
     }
   } else {
-    // If the derived table is known to be always empty, we may be able to
-    // optimize away parts of the outer query block too.
+    // If the derived table is known to be always empty, we don't need to
+    // materialize it.
     if (const AccessPath *derived_table_path =
             tl->derived_query_expression()->root_access_path();
         derived_table_path != nullptr &&
         derived_table_path->type == AccessPath::ZERO_ROWS) {
-      always_empty_cause = derived_table_path->zero_rows().cause;
-    }
-
-    if (always_empty_cause != nullptr &&
-        !IsBitSet(m_graph->table_num_to_node_num[tl->tableno()],
-                  m_graph->nodes_inner_to_outer_join |
-                      m_graph->nodes_inner_to_antijoin)) {
-      // The entire query block can be optimized away. Stop planning.
-      m_query_block->join->zero_result_cause = always_empty_cause;
-      return nullptr;
+      return {.always_empty_cause = derived_table_path->zero_rows().cause};
     }
 
     const bool rematerialize{
@@ -3796,15 +3846,7 @@ AccessPath *CostingReceiver::MakeMaterializePath(const AccessPath &path,
   stable_path->delayed_predicates.Clear();
   assert(materialize_path->cost() >= 0.0);
 
-  if (always_empty_cause != nullptr) {
-    // The entire query block cannot be optimized away, only the inner block
-    // for the derived table. But the materialization step is unnecessary, so
-    // return a ZERO_ROWS path directly for the derived table. This also
-    // allows subtrees of this query block to be removed (if the derived table
-    // is inner-joined to some other tables).
-    return NewZeroRowsAccessPath(m_thd, materialize_path, always_empty_cause);
-  }
-  return materialize_path;
+  return {.path = materialize_path};
 }
 
 bool CostingReceiver::ProposeTableScan(
@@ -3882,29 +3924,31 @@ bool CostingReceiver::ProposeTableScan(
     if (ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params)) {
       num_output_rows = path.num_output_rows();
     }
-    AccessPath *const materialize_path{MakeMaterializePath(path, table)};
 
+    const auto [materialize_path, always_empty_cause] =
+        MakeMaterializePath(path, table);
+    assert((materialize_path == nullptr) != (always_empty_cause == nullptr));
     if (materialize_path == nullptr) {
-      return true;
-    } else {
-      secondary_engine_nrows_params.access_path = materialize_path;
-      bool applied_nrows_hook =
-          ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params);
-      if (materialize_path->type == AccessPath::MATERIALIZE) {
-        EstimateMaterializeCost(m_thd, materialize_path);
-        materialize_path->materialize().table_path->signature =
-            materialize_path->signature;
-        if (applied_nrows_hook) {
-          materialize_path->materialize().table_path->set_num_output_rows(
-              materialize_path->num_output_rows());
-        }
-      }
-      assert(materialize_path->type != AccessPath::MATERIALIZE ||
-             materialize_path->materialize().table_path->type ==
-                 AccessPath::TABLE_SCAN);
-
-      path = *materialize_path;
+      return ProposeZeroRowsAccessPath(node_idx, always_empty_cause);
     }
+
+    secondary_engine_nrows_params.access_path = materialize_path;
+    bool applied_nrows_hook =
+        ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params);
+    if (materialize_path->type == AccessPath::MATERIALIZE) {
+      EstimateMaterializeCost(m_thd, materialize_path);
+      materialize_path->materialize().table_path->signature =
+          materialize_path->signature;
+      if (applied_nrows_hook) {
+        materialize_path->materialize().table_path->set_num_output_rows(
+            materialize_path->num_output_rows());
+      }
+    }
+    assert(materialize_path->type != AccessPath::MATERIALIZE ||
+           materialize_path->materialize().table_path->type ==
+               AccessPath::TABLE_SCAN);
+
+    path = *materialize_path;
   }
   assert(path.cost() >= 0.0);
 
@@ -4384,7 +4428,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
   MutableOverflowBitset delayed_predicates{m_thd->mem_root,
                                            m_graph->predicates.size()};
   new_fd_set->reset();
-  for (size_t i = 0; i < m_graph->num_where_predicates; ++i) {
+  for (size_t i = 0; i < m_graph->num_filter_predicates; ++i) {
     const Predicate &predicate = m_graph->predicates[i];
     const NodeMap total_eligibility_set = predicate.total_eligibility_set;
     if (IsBitSet(i, absorbed_predicates.subsumed())) {
@@ -4715,6 +4759,52 @@ bool CostingReceiver::evaluate_secondary_engine_optimizer_state_request() {
   }
   return false;
 }
+
+/**
+  Build a ZERO_ROWS access path that replaces the given path when the
+  optimizer can prove the subplan produces no rows.
+
+  The function constructs a ZERO_ROWS path based on the supplied path, clears
+  all filter predicates that would be redundant on an empty result, and
+  preserves only delayed predicates that must be evaluated higher in the join
+  tree. Ordering information is preserved from the original path to avoid
+  losing constraints required by ancestors.
+
+  @param thd Thread context; used for memory allocations.
+  @param path The access path that is being pruned away.
+  @param num_filter_predicates Number of filter predicates in the hypergraph;
+         used to clear the subsumed sargable-join predicate range in
+         delayed_predicates.
+  @param cause Human-readable reason for pruning; stored on the ZERO_ROWS path
+         for tracing and diagnostics.
+  @return The constructed ZERO_ROWS access path.
+*/
+AccessPath *NewZeroRowsFromPrunedPath(THD *thd, AccessPath *path,
+                                      size_t num_filter_predicates,
+                                      const char *cause) {
+  AccessPath *zero_path = NewZeroRowsAccessPath(thd, path, cause);
+
+  // Clear all filters, including applied and subsumed sargable join predicates,
+  // since there are no rows to filter out from a ZERO_ROWS path, so a simple
+  // unfiltered ZERO_ROWS access path will do. We keep "delayed_predicates",
+  // since these are the predicates that should be applied higher up in the join
+  // tree, and they might still be needed.
+  zero_path->filter_predicates = OverflowBitset::EmptySet(
+      thd->mem_root, path->filter_predicates.capacity());
+  MutableOverflowBitset delayed_predicates =
+      path->delayed_predicates.Clone(thd->mem_root);
+  // Clear the "subsumed_sargable_join_predicates" part of "delayed_predicates".
+  delayed_predicates.ClearBits(num_filter_predicates,
+                               path->delayed_predicates.capacity());
+  zero_path->delayed_predicates = std::move(delayed_predicates);
+
+  // An empty result satisfies all orderings, but we have no way to represent
+  // that, so for now just preserve the ordering of the original path.
+  zero_path->ordering_state = path->ordering_state;
+
+  return zero_path;
+}
+
 /**
   If the ON clause of a left join only references tables on the right side of
   the join, pushing the condition into the right side is a valid thing to do. If
@@ -4945,13 +5035,9 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // happens, and the join is replaced by a ZERO_ROWS path further down. We
       // don't need to care much about the ordering, since we don't propagate
       // the right-hand ordering properties through joins.
-      AccessPath *zero_path = NewZeroRowsAccessPath(
-          m_thd, right_path, "Join condition rejects all rows");
-      zero_path->applied_sargable_join_predicates() =
-          ClearFilterPredicates(right_path->applied_sargable_join_predicates(),
-                                m_graph->num_where_predicates, m_thd->mem_root);
-      zero_path->delayed_predicates = right_path->delayed_predicates;
-      right_path = zero_path;
+      right_path = NewZeroRowsFromPrunedPath(m_thd, right_path,
+                                             m_graph->num_filter_predicates,
+                                             "Join condition rejects all rows");
     }
 
     // Can this join be performed in both left-right and right-left order? It
@@ -5038,14 +5124,9 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
     const auto it = m_access_paths.find(left | right);
     if (it != m_access_paths.end() && !it->second.paths.empty() &&
         !it->second.always_empty) {
-      AccessPath *first_candidate = it->second.paths.front();
-      AccessPath *zero_path =
-          NewZeroRowsAccessPath(m_thd, first_candidate, "impossible WHERE");
-      zero_path->applied_sargable_join_predicates() = ClearFilterPredicates(
-          first_candidate->applied_sargable_join_predicates(),
-          m_graph->num_where_predicates, m_thd->mem_root);
-      zero_path->delayed_predicates = first_candidate->delayed_predicates;
-      zero_path->ordering_state = first_candidate->ordering_state;
+      AccessPath *zero_path = NewZeroRowsFromPrunedPath(
+          m_thd, it->second.paths.front(), m_graph->num_filter_predicates,
+          "impossible WHERE");
       ProposeAccessPathWithOrderings(
           left | right, it->second.active_functional_dependencies,
           it->second.obsolete_orderings, zero_path, "empty join");
@@ -5514,7 +5595,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
       OverflowBitset::Or(&m_overflow_bitset_mem_root,
                          left_path->applied_sargable_join_predicates(),
                          right_path->applied_sargable_join_predicates());
-  filter_predicates.ClearBits(0, m_graph->num_where_predicates);
+  filter_predicates.ClearBits(0, m_graph->num_filter_predicates);
 
   // Predicates we are still delaying.
   MutableOverflowBitset delayed_predicates = OverflowBitset::Xor(
@@ -5530,7 +5611,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   const NodeMap ready_tables = left | right;
   for (int pred_idx : BitsSetInBoth(left_path->delayed_predicates,
                                     right_path->delayed_predicates)) {
-    assert(std::cmp_less(pred_idx, m_graph->num_where_predicates));
+    assert(std::cmp_less(pred_idx, m_graph->num_filter_predicates));
     if (pred_idx >= join_predicate_first && pred_idx < join_predicate_last) {
       continue;
     }
@@ -6566,7 +6647,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
         "force_subplan_" + GetForceSubplanToken(path, m_query_block->join);
     DBUG_EXECUTE_IF(token.c_str(), path->forced_by_dbug = true;);
   });
-  assert(!IsSecondaryEngineNrowsHookApplicable(path, m_thd, m_graph) ||
+  assert(!IsSecondaryEngineNrowsHookApplicable(path, m_graph) ||
          path->signature > 0 ||
          !IsSecondaryNrowsHookEnabledAndApplicable(path, m_thd, m_graph));
   if (existing_paths->empty()) {
@@ -6577,8 +6658,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
                    << " is first alternative, keeping\n";
     }
     AccessPath *insert_position = new (m_thd->mem_root) AccessPath(*path);
-    assert(!IsSecondaryEngineNrowsHookApplicable(insert_position, m_thd,
-                                                 m_graph) ||
+    assert(!IsSecondaryEngineNrowsHookApplicable(insert_position, m_graph) ||
            insert_position->signature > 0 ||
            !IsSecondaryNrowsHookEnabledAndApplicable(path, m_thd, m_graph));
     existing_paths->push_back(insert_position);
@@ -6594,12 +6674,12 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   // (If we really wanted to, we could probably fix that as well, though.)
   // These should never happen, up to numerical issues, but they currently do;
   // see bug #33550360.
+  bool verify_consistency = TraceStarted(m_thd);
+#ifndef NDEBUG
   const bool has_known_row_count_inconsistency_bugs =
       m_graph->has_reordered_left_joins || has_clamped_multipart_eq_ref ||
       has_semijoin_with_possibly_clamped_child ||
       m_graph->has_estimates_from_secondary_engine;
-  bool verify_consistency = TraceStarted(m_thd);
-#ifndef NDEBUG
   if (!has_known_row_count_inconsistency_bugs) {
     // Assert that we are consistent, even if we are not tracing.
     verify_consistency = true;
@@ -6647,12 +6727,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
                        << PrintAccessPath(m_thd, *path, *m_graph, "")
                        << " has inconsistent row counts with "
                        << PrintAccessPath(m_thd, *other_path, *m_graph, "")
-                       << ".";
-          if (has_known_row_count_inconsistency_bugs) {
-            Trace(m_thd) << "\n   This is a bug, but probably a known one.\n";
-          } else {
-            Trace(m_thd) << " This is a bug.\n";
-          }
+                       << ".\n";
         }
 #ifndef NDEBUG
         if (!has_known_row_count_inconsistency_bugs &&
@@ -6706,7 +6781,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
       }
     }
   }
-  assert(!IsSecondaryEngineNrowsHookApplicable(path, m_thd, m_graph) ||
+  assert(!IsSecondaryEngineNrowsHookApplicable(path, m_graph) ||
          path->signature > 0 ||
          !IsSecondaryNrowsHookEnabledAndApplicable(path, m_thd, m_graph));
   if (insert_position == nullptr) {
@@ -6717,8 +6792,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
                    << " is potential alternative, keeping\n";
     }
     insert_position = new (m_thd->mem_root) AccessPath(*path);
-    assert(!IsSecondaryEngineNrowsHookApplicable(insert_position, m_thd,
-                                                 m_graph) ||
+    assert(!IsSecondaryEngineNrowsHookApplicable(insert_position, m_graph) ||
            insert_position->signature > 0 ||
            !IsSecondaryNrowsHookEnabledAndApplicable(path, m_thd, m_graph));
     existing_paths->emplace_back(insert_position);
@@ -6875,7 +6949,7 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
 
     sort_path.applied_sargable_join_predicates() =
         ClearFilterPredicates(path->applied_sargable_join_predicates(),
-                              m_graph->num_where_predicates, m_thd->mem_root);
+                              m_graph->num_filter_predicates, m_thd->mem_root);
     sort_path.delayed_predicates = path->delayed_predicates;
     SecondaryEngineNrowsParameters secondary_engine_nrows_params{
         m_thd, &sort_path, m_graph};
@@ -6921,12 +6995,12 @@ bool CheckSupportedQuery(THD *thd) {
 // Check if an access path has any remaining delayed predicates.
 [[maybe_unused]] bool HasDelayedPredicates(const AccessPath &path,
                                            const JoinHypergraph &graph) {
-  // Only the num_where_predicates first bits of delayed_predicates represent
+  // Only the num_filter_predicates first bits of delayed_predicates represent
   // delayed predicates. The higher bits represent subsumed sargable predicates.
   // So there is a delayed predicate only if the lowest set bit in
-  // delayed_predicates is less than num_where_predicates.
+  // delayed_predicates is less than num_filter_predicates.
   for (size_t node_idx : BitsSetIn(path.delayed_predicates)) {
-    return node_idx < graph.num_where_predicates;
+    return node_idx < graph.num_filter_predicates;
   }
   return false;
 }
@@ -7315,7 +7389,7 @@ bool IsSargableFullTextIndexPredicate(Item *condition) {
 // sargable.
 uint64_t FindSargableFullTextPredicates(const JoinHypergraph &graph) {
   uint64_t fulltext_predicates = 0;
-  for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+  for (size_t i = 0; i < graph.num_filter_predicates; ++i) {
     const Predicate &predicate = graph.predicates[i];
     if (IsSargableFullTextIndexPredicate(predicate.condition)) {
       fulltext_predicates |= uint64_t{1} << i;
@@ -7386,7 +7460,7 @@ NodeMap GetNodesUnderLimit(const JoinHypergraph &graph,
 bool InjectCastNodes(JoinHypergraph *graph) {
   // Inject cast nodes into the WHERE clause.
   for (Predicate &predicate :
-       make_array(graph->predicates.data(), graph->num_where_predicates)) {
+       make_array(graph->predicates.data(), graph->num_filter_predicates)) {
     if (predicate.condition->walk(&Item::cast_incompatible_args,
                                   enum_walk::POSTFIX, nullptr)) {
       return true;
@@ -7559,7 +7633,7 @@ void ApplyFinalPredicatesAndExpandFilters(THD *thd,
 
       // Apply any predicates that don't belong to any
       // specific table, or which are nondeterministic.
-      for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+      for (size_t i = 0; i < graph.num_filter_predicates; ++i) {
         const Predicate &predicate = graph.predicates[i];
         if (IsFinalPredicate(predicate)) {
           filter_predicates.SetBit(i);
@@ -8866,7 +8940,7 @@ void FindSargablePredicates(THD *thd, JoinHypergraph *graph) {
     Trace(thd) << "\n";
   }
 
-  for (unsigned i = 0; i < graph->num_where_predicates; ++i) {
+  for (unsigned i = 0; i < graph->num_filter_predicates; ++i) {
     if (has_single_bit(graph->predicates[i].total_eligibility_set)) {
       PossiblyAddSargableCondition(thd, graph->predicates[i].condition,
                                    /*force_table=*/nullptr, i,
@@ -8923,7 +8997,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
       // would be redundant against, for RedundantThroughSargable().
       // But don't deduplicate against ourselves (in case we're sargable).
       MutableOverflowBitset redundant(thd->mem_root, graph->predicates.size());
-      for (unsigned sargable_pred_idx = graph->num_where_predicates;
+      for (unsigned sargable_pred_idx = graph->num_filter_predicates;
            sargable_pred_idx < graph->predicates.size(); ++sargable_pred_idx) {
         Item *sargable_condition =
             graph->predicates[sargable_pred_idx].condition;
@@ -9332,6 +9406,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     secondary_engine_optimizer_request_state_hook =
         SecondaryEngineStateCheckHook(thd);
   }
+
+  MaybeSetSecondaryEngineNrowsHook(thd, &graph);
 
   CostingReceiver receiver(
       thd, query_block, graph, &orderings, &sort_ahead_orderings,
@@ -9776,9 +9852,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
 #ifndef NDEBUG
   WalkAccessPaths(
       root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [&secondary_engine_cost_hook, &thd, &graph](AccessPath *path,
-                                                  const JOIN *) {
-        if (!IsSecondaryEngineNrowsHookApplicable(path, thd, &graph)) {
+      [&secondary_engine_cost_hook, &graph](AccessPath *path, const JOIN *) {
+        if (!IsSecondaryEngineNrowsHookApplicable(path, &graph)) {
           assert(path->HasConsistentCostsAndRows(graph));
           // For RAPID, these row counts may not be consistent at this
           // point, see PopulateNrowsStatisticFromQkrnToAp().

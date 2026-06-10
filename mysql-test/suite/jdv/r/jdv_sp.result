@@ -1,0 +1,208 @@
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f11 INT PRIMARY KEY, f12 INT);
+CREATE TABLE t3 (f1 INT);
+CREATE TABLE t4 (f1 JSON);
+#
+# Test case to verify duality view DDL statements with stored programs.
+#
+CREATE PROCEDURE p1()
+BEGIN
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f1,
+"f2"  : f2) FROM t1;
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f11,
+"f12" : f12,
+"child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+) FROM t1 WHERE t1.f1 = t2.f11))
+FROM t2;
+DROP VIEW dv1;
+END;
+$
+CALL p1();
+CALL p1();
+#
+# Test case to verify re-prepare of duality view DDL statements in stored procedure.
+#
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f11 INT, f12 INT);
+CALL p1();
+ERROR HY000: Invalid JSON duality view definition: All participating tables should have a primary key, "test.t1" does not have it.
+CALL p1();
+ERROR HY000: Invalid JSON duality view definition: All participating tables should have a primary key, "test.t1" does not have it.
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f11 INT PRIMARY KEY, f12 INT);
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+#
+# Test case to verify duality view DML statements with stored procedure,
+# stored function and triggers.
+#
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f11,
+"f12" : f12,
+"child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+) FROM t1 WHERE t1.f1 = t2.f11))
+FROM t2;
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+SELECT * FROM dv1;
+UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+SELECT * FROM dv1;
+DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+END;
+$
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+RETURN 1;
+END;
+$
+CREATE TRIGGER t3_trigger BEFORE INSERT ON t3
+FOR EACH ROW
+BEGIN
+INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+INSERT INTO t4 SELECT * FROM dv1;
+DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+END;
+$
+CALL p1();
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+CALL p1();
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+SELECT f1();
+f1()
+1
+SELECT f1();
+f1()
+1
+INSERT INTO t3 VALUES (1);
+INSERT INTO t3 VALUES (1);
+SELECT * FROM t4;
+f1
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+TRUNCATE TABLE t3;
+TRUNCATE TABLE t4;
+#
+# Test case to verify execution of stored program using invalid duality view.
+#
+RENAME TABLE t2 TO t2_copy;
+RENAME TABLE t1 TO t1_copy;
+CALL p1();
+ERROR HY000: View 'test.dv1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT f1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+INSERT INTO t3 VALUES (1);
+ERROR 42S02: Table 'test.t1' doesn't exist
+RENAME TABLE t2_copy TO t2;
+RENAME TABLE t1_copy TO t1;
+#
+# Test case to verify re-prepare of duality view DML statements in stored program.
+#
+DROP TABLE t1, t2;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f11 INT PRIMARY KEY, f12 INT);
+CALL p1();
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+CALL p1();
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+SELECT f1();
+f1()
+1
+SELECT f1();
+f1()
+1
+INSERT INTO t3 VALUES (1);
+INSERT INTO t3 VALUES (1);
+SELECT * FROM t4;
+f1
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+TRUNCATE TABLE t3;
+TRUNCATE TABLE t4;
+DROP VIEW dv1;
+DROP PROCEDURE p1;
+#
+# Test case to verify duality view DDL and DML statements with prepared statements
+# in stored programs.
+#
+CREATE PROCEDURE p1()
+BEGIN
+PREPARE create_dv_stmt FROM 'CREATE OR REPLACE JSON DUALITY VIEW dv1 AS SELECT
+                               JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                "_id" : f11,
+                                                "f12" : f12,
+                                                "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                                                      "f1" : f1,
+                                                                                      "f2" : f2
+                                                                                     ) FROM t1 WHERE t1.f1 = t2.f11))
+                                                FROM t2';
+PREPARE drop_dv_stmt FROM 'DROP VIEW dv1';
+EXECUTE create_dv_stmt;
+EXECUTE drop_dv_stmt;
+EXECUTE create_dv_stmt;
+PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (\' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} \')';
+PREPARE update_stmt FROM 'UPDATE dv1 SET data = \' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } \'';
+PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = 1';
+EXECUTE insert_stmt;
+EXECUTE delete_stmt;
+EXECUTE insert_stmt;
+EXECUTE update_stmt;
+EXECUTE delete_stmt;
+EXECUTE insert_stmt;
+EXECUTE update_stmt;
+EXECUTE delete_stmt;
+EXECUTE drop_dv_stmt;
+DROP PREPARE create_dv_stmt;
+DROP PREPARE drop_dv_stmt;
+DROP PREPARE insert_stmt;
+DROP PREPARE update_stmt;
+DROP PREPARE delete_stmt;
+END;
+$
+CALL p1();
+CALL p1();
+# With invalid duality view.
+DROP TABLE t1, t2;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f11 INT, f12 INT);
+CALL p1();
+ERROR HY000: Invalid JSON duality view definition: All participating tables should have a primary key, "test.t2" does not have it.
+CALL p1();
+ERROR HY000: Invalid JSON duality view definition: All participating tables should have a primary key, "test.t2" does not have it.
+DROP TABLE t2;
+CREATE TABLE t2 (f11 INT PRIMARY KEY, f12 INT);
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1, t2, t3, t4;

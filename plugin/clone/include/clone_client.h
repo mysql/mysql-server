@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ Clone Plugin: Client Interface
 
 #include "plugin/clone/include/clone.h"
 #include "plugin/clone/include/clone_hton.h"
+#include "plugin/clone/include/clone_json.h"
 #include "plugin/clone/include/clone_status.h"
 
 #include "mysql/psi/mysql_thread.h"
@@ -385,6 +386,9 @@ struct Remote_Parameters {
 
   /** Remote plugins with shared object name */
   Key_Values m_plugins_with_so;
+
+  /** Remote configurations required to support cloning to next LTS */
+  rapidjson::Document m_json_configs;
 };
 
 /** For Remote Clone, "Clone Client" is created at recipient. It receives data
@@ -687,6 +691,12 @@ class Client {
   @param[in]	other	true if additional configuration
   @return error code */
   int add_config(const uchar *packet, size_t length, bool other);
+
+  /** Extract and add json remote configuration from network packet.
+  @param[in]	packet	network packet
+  @param[in]	length	packet length
+  @return error code */
+  int add_json_configs(const uchar *packet, size_t length);
 
   /** Use additional configurations if sent by donor. */
   void use_other_configs();

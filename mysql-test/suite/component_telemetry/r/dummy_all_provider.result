@@ -1,0 +1,69 @@
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("telemetry: Failed to acquire service <telemetry_resource_provider.component_test_telemetry_resource_provider>, will wait");
+call mtr.add_suppression("telemetry: Failed to acquire service <telemetry_secret_provider.component_test_telemetry_secret_provider>, will wait");
+# Install a resource and secret provider before telemetry
+# 1) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+# 2) Install dummy secret provider
+INSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+# 3) Install component with dummy resource and secret provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider',
+telemetry.secret_provider='component_test_telemetry_secret_provider',
+telemetry.otel_exporter_otlp_traces_secret_headers = "secret-1234",
+telemetry.otel_exporter_otlp_metrics_secret_headers = "secret-5678",
+telemetry.otel_exporter_otlp_logs_secret_headers = "secret-90ab";
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	READY
+SELECT "Resource / secret provider loaded" as message;
+message
+Resource / secret provider loaded
+UNINSTALL COMPONENT 'file://component_telemetry';
+UNINSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+# Install telemetry before a resource and secret provider
+# 1) Install component with (unloaded) dummy resource and secret provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider',
+telemetry.secret_provider='component_test_telemetry_secret_provider',
+telemetry.otel_exporter_otlp_traces_secret_headers = "secret-1234",
+telemetry.otel_exporter_otlp_metrics_secret_headers = "secret-5678",
+telemetry.otel_exporter_otlp_logs_secret_headers = "secret-90ab";
+SELECT "Resource provider missing" as message;
+message
+Resource provider missing
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	DETECT_RESOURCE
+# 2) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+SELECT "Resource provider loading" as message;
+message
+Resource provider loading
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	DECODE_SECRET
+SELECT "Resource provider loaded" as message;
+message
+Resource provider loaded
+SELECT "Secret provider missing" as message;
+message
+Secret provider missing
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	DECODE_SECRET
+# 2) Install dummy secret provider
+INSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+SELECT "Secret provider loading" as message;
+message
+Secret provider loading
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	READY
+SELECT "Secret provider loaded" as message;
+message
+Secret provider loaded
+UNINSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+UNINSTALL COMPONENT 'file://component_telemetry';

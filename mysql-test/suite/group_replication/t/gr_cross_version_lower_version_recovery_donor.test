@@ -55,11 +55,11 @@ SET SESSION sql_log_bin=1;
 --echo # 3. Start GR on M1, and block it before recovery.
 --echo
 
-## STATUS - ASSUMING 8.4.0 is original version
+## STATUS - ASSUMING 9.7.0 is original version
 # Server - State - Version - Weight - R/W
-#  M1    - REC   - 8.4.0  - 50     - R
-#  M2    - ON    - 8.4.0  - 50     - W
-#  M3    - ON    - 8.5.0  - 50     - R
+#  M1    - REC   - 9.7.0  - 50     - R
+#  M2    - ON    - 9.7.0  - 50     - W
+#  M3    - ON    - 9.8.0  - 50     - R
 
 --let $rpl_connection_name= server1
 --source include/connection.inc
@@ -81,9 +81,9 @@ SET DEBUG_SYNC= "now wait_for signal.recovery_waiting";
 --echo
 
 # Server - State - Version - Weight - R/W
-# M1     - REC   - 8.4.0  - 50     - R
-# M2     - ON    - 8.4.0  - 50     - W
-# M3     - ON    - 8.5.0  - 50     - R
+# M1     - REC   - 9.7.0  - 50     - R
+# M2     - ON    - 9.7.0  - 50     - W
+# M3     - ON    - 9.8.0  - 50     - R
 
 # Only server2 is valid donor stop it, so there is no donor.
 # server3 is ONLINE but not a valid donor due to higher version.
@@ -123,9 +123,9 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_minor_version';
 --echo
 
 # Server - State - Version - Weight - R/W
-# M1     - OFF    - 8.4.0  - 50     - R
-# M2     - OFF    - 8.4.0  - 50     - W
-# M3     - ON     - 8.4.0  - 50     - W
+# M1     - OFF    - 9.7.0  - 50     - R
+# M2     - OFF    - 9.7.0  - 50     - W
+# M3     - ON     - 9.7.0  - 50     - W
 
 --let $rpl_connection_name= server2
 --source include/connection.inc

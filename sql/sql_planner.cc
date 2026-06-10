@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2357,8 +2357,16 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
     /*
       'best_read < DBL_MAX' means that optimizer managed to find
       some plan and updated 'best_positions' array accordingly.
+      If this is not the case, we throw an error in release builds
+      to guard against a potential server exit. In debug builds,
+      we assert.
     */
-    assert(join->best_read < DBL_MAX);
+    if (join->best_read >= DBL_MAX) {
+      assert(false);
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Optimizer failed to find a plan to execute the query.");
+      return true;
+    }
 
     if (size_remain <= search_depth || use_best_so_far) {
       /*

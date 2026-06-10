@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2025, Oracle and/or its affiliates.
+Copyright (c) 1994, 2026, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -1301,6 +1301,8 @@ retry_page_get:
 
     offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
+
+    ut_ad_le(rec_offs_size(offsets), node_ptr_max_size);
 
     /* If the rec is the first or last in the page for
     pessimistic delete intention, it might cause node_ptr insert

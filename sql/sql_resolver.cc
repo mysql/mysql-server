@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4404,7 +4404,11 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
   uint el = fields->size();
 
-  if (!order_item->const_for_execution()) {
+  const bool needs_field_for_explain = thd->lex->is_explain() &&
+                                       !thd->lex->is_explain_analyze &&
+                                       order_item->has_stored_program();
+
+  if (!order_item->const_for_execution() || needs_field_for_explain) {
     order_item->increment_ref_count();
     assert_consistent_hidden_flags(*fields, order_item, /*hidden=*/true);
 
@@ -4430,7 +4434,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     with clean_up_after_removal() on the old order->item.
   */
   assert(order_item == *order->item);
-  if (!order_item->const_for_execution()) {
+  if (!order_item->const_for_execution() || needs_field_for_explain) {
     order->item = &ref_item_array[el];
   }
   return false;
@@ -4669,6 +4673,9 @@ bool Query_block::setup_group(THD *thd) {
       Item *group_item = group_list.first->item[0];
       if (group_item->const_item() && group_item->is_null()) {
         group_list.clear();
+      }
+      if (thd->is_error()) {
+        return true;
       }
     }
   }
@@ -6821,7 +6828,30 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       query expressions go to the new derived table [1]:
     */
     Item_subselect::Collect_subq_info subqueries(this);
+    Mem_root_array<Item_exists_subselect *> *sj_candidates_in_select = nullptr;
     for (Item *item : fields) {
+      if (new_derived->has_sj_candidates() && item->has_subquery()) {
+        for (Item_exists_subselect *subquery : (*new_derived->sj_candidates)) {
+          /*
+           Some semijoin candidates transferred to the derived table may
+           actually belong to expressions staying in this query block's SELECT
+           list (e.g., non-aggregate items). Move those candidates back to the
+           outer query, ensuring the derived table only retains candidates that
+           it still references (WHERE conditions).
+          */
+          if (item->walk(&Item::contains_item, enum_walk::PREFIX,
+                         pointer_cast<uchar *>(&subquery))) {
+            if (sj_candidates_in_select == nullptr) {
+              sj_candidates_in_select = new (thd->mem_root)
+                  Mem_root_array<Item_exists_subselect *>(thd->mem_root);
+              set_sj_candidates(sj_candidates_in_select);
+            }
+            add_subquery_transform_candidate(subquery);
+            new_derived->sj_candidates->erase_value(subquery);
+            break;
+          }
+        }
+      }
       if (item->walk(&Item::collect_subqueries, enum_walk::PREFIX,
                      pointer_cast<uchar *>(&subqueries)))
         return true; /* purecov: inspected */

@@ -1,22 +1,21 @@
 Test completed
 # Save source binlog position
 ## Connect to second mysqld, then start replicating from first mysqld
-CHANGE REPLICATION SOURCE TO
-SOURCE_HOST='127.0.0.1',
-SOURCE_PORT=13001;
-START REPLICA IO_THREAD
-USER = 'root'
-  PASSWORD = '';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MYSQLD1_PORT;
+START REPLICA IO_THREAD USER = 'root' PASSWORD = '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 #
 # Wait for IO thread to fetch all binlog
 #
 The IO thread has fetched all binlog!
+# Start SQL Thread
 START REPLICA SQL_THREAD;
-Detected first replica commit;
 #
-# Wait for SQL thread to apply binlog
+# Wait for SQL thread to apply all binlog
 #
-The SQL thread has fetched all binlog!
+The SQL thread has applied all binlog!
+# Stop Replica after work is done
 STOP REPLICA;
+RESET REPLICA ALL;
+include/rpl/stop_dump_threads.inc

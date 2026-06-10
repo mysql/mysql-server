@@ -1,4 +1,4 @@
-/*  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -380,6 +380,11 @@ static int format_char_column(const Column_text &text_col,
 
   size_t copy_size{0};
 
+  if (text_col.m_data_len > field_size) {
+    error_details.m_column_length = sql_col.m_data_len;
+    return ER_TOO_BIG_FIELDLENGTH;
+  }
+
   if (text_col.is_ext()) {
     assert(text_col.m_data_len == 20);
     memcpy(field_data, text_col.m_data_ptr, text_col.m_data_len);
@@ -705,9 +710,12 @@ int format_date_column(THD *thd, const Column_text &text_col,
     return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
   }
 
+  datetime_to_date(time);
+  Date_val date = Date_val(*time);
+
   /* Convert to storage format. */
   auto field_begin = (unsigned char *)sql_col.get_data();
-  my_date_to_binary(time, field_begin);
+  date.store_date(field_begin);
 
   return 0;
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ SET(CPACK_WIX_INCLUDE "@CPACK_WIX_INCLUDE@")
 SET(CPACK_MSI_SETUP "@CPACK_MSI_SETUP@")
 SET(PRODUCT_NAME "MySQL Server")
 SET(PRODUCT_DESCRIPTION "MySQL Database Server")
-SET(UPGRADE_CODE "28DFAA4A-9E63-4104-A49A-A7B58DF2F704")
+SET(UPGRADE_CODE "736CF162-F2FD-4925-B6C7-A7591E9BABB1")
 
 SET(WITH_NDB "@WITH_NDB@")
 IF(WITH_NDB)

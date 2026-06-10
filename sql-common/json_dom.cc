@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,6 +152,34 @@ static void time_from_json_storage(longlong val, Time_val *time) {
   uint32_t secs = static_cast<uint32_t>(val >> 24) % (1 << 6);   // Bits 24..29
   uint32_t frac = static_cast<uint32_t>(val) % (1 << 24);        // Bits  0..23
   *time = Time_val(negative, hour, minu, secs, frac);
+}
+
+/**
+  Convert date value to JSON storage representation.
+
+  @param    date The value to convert.
+
+  @returns  JSON storage representation.
+*/
+static ulonglong date_to_json_storage(const Date_val date) {
+  const ulonglong tmp =
+      (static_cast<ulonglong>((date.year() * 13) + date.month()) << 46) |
+      (static_cast<ulonglong>(date.day()) << 41);
+  return tmp;
+}
+
+/**
+  Convert from JSON storage representation to date.
+
+  @param      val   The date value on JSON storage format.
+  @param[out] date  The date variable to set.
+*/
+static void date_from_json_storage(ulonglong val, Date_val *date) {
+  uint32_t ym = static_cast<uint32_t>(val >> 46) % (1 << 17);  // Bits 46..62
+  uint32_t day = static_cast<uint32_t>(val >> 41) % (1 << 5);  // Bits 41..45
+  uint32_t year = ym / 13;
+  uint32_t month = ym % 13;
+  *date = Date_val(year, month, day);
 }
 
 Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
@@ -776,7 +804,11 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
           Json_time::from_packed(v.get_data(), &time);
           return new (std::nothrow) Json_time(time);
         }
-        case MYSQL_TYPE_DATE:
+        case MYSQL_TYPE_DATE: {
+          Date_val date;
+          Json_date::from_packed(v.get_data(), &date);
+          return new (std::nothrow) Json_date(date);
+        }
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP: {
           Datetime_val t;
@@ -1251,12 +1283,22 @@ void Json_time::from_packed(const char *from, Time_val *to) {
   time_from_json_storage(sint8korr(from), to);
 }
 
+Json_dom_ptr Json_date::clone() const {
+  return create_dom_ptr<Json_date>(m_date);
+}
+
+void Json_date::to_packed(char *dest) const {
+  int8store(dest, date_to_json_storage(m_date));
+}
+
+void Json_date::from_packed(const char *from, Date_val *to) {
+  date_from_json_storage(uint8korr(from), to);
+}
+
 enum_json_type Json_datetime::json_type() const {
   switch (m_field_type) {
     case MYSQL_TYPE_DATETIME:
       return enum_json_type::J_DATETIME;
-    case MYSQL_TYPE_DATE:
-      return enum_json_type::J_DATE;
     case MYSQL_TYPE_TIMESTAMP:
       return enum_json_type::J_TIMESTAMP;
     default:;
@@ -1291,10 +1333,6 @@ void Json_datetime::from_packed_to_key(const char *from, enum_field_types ft,
     case MYSQL_TYPE_DATETIME:
       my_datetime_packed_to_binary(sint8korr(from), to, dec);
       break;
-    case MYSQL_TYPE_DATE:
-      TIME_from_longlong_date_packed(&ltime, sint8korr(from));
-      my_date_to_binary(&ltime, to);
-      break;
     case MYSQL_TYPE_TIMESTAMP: {
       my_timeval tm;
       int warnings = 0;
@@ -1316,6 +1354,12 @@ void Json_time::from_packed_to_key(const char *from, uchar *to, uint8 dec) {
   Time_val time;
   time_from_json_storage(sint8korr(from), &time);
   time.store_time(to, dec);
+}
+
+void Json_date::from_packed_to_key(const char *from, uchar *to) {
+  Date_val date;
+  date_from_json_storage(uint8korr(from), &date);
+  date.store_date(to);
 }
 
 #endif  // MYSQL_SERVER
@@ -1563,7 +1607,23 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       }
       break;
     }
-    case enum_json_type::J_DATE:
+    case enum_json_type::J_DATE: {
+      // Make sure the buffer has space for the date and the quotes.
+      if (reserve(buffer, MAX_DATE_STRING_REP_LENGTH + 2))
+        return true; /* purecov: inspected */
+      Date_val date;
+      wr.get_date(&date);
+      MYSQL_TIME ltime = MYSQL_TIME(date);
+      if (single_quote(buffer, json_quoted))
+        return true; /* purecov: inspected */
+      char *ptr = buffer->ptr() + buffer->length();
+      const int size = my_TIME_to_str(ltime, ptr, 6);
+      buffer->length(buffer->length() + size);
+      if (single_quote(buffer, json_quoted)) {
+        return true; /* purecov: inspected */
+      }
+      break;
+    }
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_TIMESTAMP: {
       // Make sure the buffer has space for the datetime and the quotes.
@@ -1899,7 +1959,7 @@ ulonglong Json_wrapper::get_uint() const {
 }
 
 void Json_wrapper::get_datetime(MYSQL_TIME *t) const {
-  assert(type() != enum_json_type::J_TIME);
+  assert(type() != enum_json_type::J_TIME && type() != enum_json_type::J_DATE);
   if (m_is_dom) {
     *t = *down_cast<Json_datetime *>(m_dom.m_value)->value();
   } else {
@@ -1916,8 +1976,17 @@ void Json_wrapper::get_time(Time_val *time) const {
   }
 }
 
+void Json_wrapper::get_date(Date_val *date) const {
+  assert(type() == enum_json_type::J_DATE);
+  if (m_is_dom) {
+    *date = down_cast<Json_date *>(m_dom.m_value)->value();
+  } else {
+    Json_date::from_packed(m_value.get_data(), date);
+  }
+}
+
 const char *Json_wrapper::get_datetime_packed(char *buffer) const {
-  assert(type() != enum_json_type::J_TIME);
+  assert(type() != enum_json_type::J_TIME && type() != enum_json_type::J_DATE);
   if (m_is_dom) {
     down_cast<Json_datetime *>(m_dom.m_value)->to_packed(buffer);
     return buffer;
@@ -1935,6 +2004,17 @@ const char *Json_wrapper::get_time_packed(char *buffer) const {
   }
 
   assert(m_value.get_data_length() == Json_time::PACKED_SIZE);
+  return m_value.get_data();
+}
+
+const char *Json_wrapper::get_date_packed(char *buffer) const {
+  assert(type() == enum_json_type::J_DATE);
+  if (m_is_dom) {
+    down_cast<Json_date *>(m_dom.m_value)->to_packed(buffer);
+    return buffer;
+  }
+
+  assert(m_value.get_data_length() == Json_date::PACKED_SIZE);
   return m_value.get_data();
 }
 
@@ -2694,17 +2774,15 @@ int Json_wrapper::compare(const Json_wrapper &other,
       other.get_time(&val_b);
       return compare_numbers(val_a.for_comparison(), val_b.for_comparison());
     }
-    case enum_json_type::J_DATE:
+    case enum_json_type::J_DATE: {
       // Dates can only be equal to values of the same type.
-      {
-        assert(this_type == other_type);
-        MYSQL_TIME val_a;
-        get_datetime(&val_a);
-        MYSQL_TIME val_b;
-        other.get_datetime(&val_b);
-        return compare_numbers(TIME_to_longlong_packed(val_a),
-                               TIME_to_longlong_packed(val_b));
-      }
+      assert(this_type == other_type);
+      Date_val val_a;
+      get_date(&val_a);
+      Date_val val_b;
+      other.get_date(&val_b);
+      return compare_numbers(val_a.for_comparison(), val_b.for_comparison());
+    }
     case enum_json_type::J_OPAQUE: {
       if (other_type == enum_json_type::J_STRING) {
         // String might be stored as J_OPAQUE, check this case
@@ -2919,46 +2997,22 @@ my_decimal *Json_wrapper::coerce_decimal(
   return decimal_value;
 }
 
-bool Json_wrapper::coerce_date(
-    const JsonCoercionHandler &error_handler,
-    const JsonCoercionDeprecatedHandler &deprecation_checker, Date_val *date,
-    my_time_flags_t flags) const {
-  switch (type()) {
-    case enum_json_type::J_DATETIME:
-    case enum_json_type::J_DATE:
-    case enum_json_type::J_TIMESTAMP:
-      set_zero_time(date, MYSQL_TIMESTAMP_DATETIME);
-      get_datetime(date);
-      return false;
-    case enum_json_type::J_STRING: {
-      MYSQL_TIME_STATUS status;
-      // @see Field_datetime::date_flags
-      if (!str_to_datetime(get_data(), get_data_length(), date, flags,
-                           &status) &&
-          !status.warnings) {
-        deprecation_checker(status);
-        break;
-      }
-    }
-      [[fallthrough]];
-    default:
-      error_handler("DATE", ER_INVALID_JSON_VALUE_FOR_CAST);
-      return true;
-  }
-  return false;
-}
-
 bool Json_wrapper::coerce_datetime(
     const JsonCoercionHandler &error_handler,
     const JsonCoercionDeprecatedHandler &deprecation_checker, Datetime_val *dt,
     my_time_flags_t flags) const {
   switch (type()) {
     case enum_json_type::J_DATETIME:
-    case enum_json_type::J_DATE:
     case enum_json_type::J_TIMESTAMP:
       set_zero_time(dt, MYSQL_TIMESTAMP_DATETIME);
       get_datetime(dt);
       return false;
+    case enum_json_type::J_DATE: {
+      Date_val date;
+      get_date(&date);
+      *dt = Datetime_val(date);
+      return false;
+    }
     case enum_json_type::J_STRING: {
       MYSQL_TIME_STATUS status;
       // @see Field_datetime::date_flags
@@ -3007,6 +3061,45 @@ bool Json_wrapper::coerce_time(
       return true;
   }
   return false;
+}
+
+bool Json_wrapper::coerce_date(
+    const JsonCoercionHandler &error_handler,
+    const JsonCoercionDeprecatedHandler &deprecation_checker, Date_val *date,
+    my_time_flags_t flags) const {
+  switch (type()) {
+    case enum_json_type::J_DATE:
+      get_date(date);
+      break;
+    case enum_json_type::J_DATETIME:
+    case enum_json_type::J_TIMESTAMP: {
+      MYSQL_TIME ltime;
+      get_datetime(&ltime);
+      datetime_to_date(&ltime);
+      *date = Date_val(ltime);
+      break;
+    }
+    case enum_json_type::J_STRING: {
+      MYSQL_TIME_STATUS status;
+      MYSQL_TIME mtime;
+      set_zero_time(&mtime, MYSQL_TIMESTAMP_DATE);
+      if (!str_to_datetime(get_data(), get_data_length(), &mtime, 0, &status) &&
+          status.warnings == 0) {
+        if (mtime.time_type == MYSQL_TIMESTAMP_DATETIME ||
+            mtime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+          datetime_to_date(&mtime);
+        }
+        *date = Date_val(mtime);
+        deprecation_checker(status);
+        break;
+      }
+    }
+      [[fallthrough]];
+    default:
+      error_handler("DATE", ER_INVALID_JSON_VALUE_FOR_CAST);
+      return true;
+  }
+  return date->check_date(flags) != 0;
 }
 
 namespace {
@@ -3335,14 +3428,18 @@ size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const {
                    packed_length, false);
       break;
     }
-    case enum_json_type::J_DATE:
+    case enum_json_type::J_DATE: {
+      key.append(JSON_KEY_DATE);
+      const size_t packed_length = Json_date::PACKED_SIZE;
+      char tmp[packed_length];
+      const char *packed = get_date_packed(tmp);
+      key.copy_int(packed_length, pointer_cast<const uchar *>(packed),
+                   packed_length, false);
+      break;
+    }
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_TIMESTAMP: {
-      if (jtype == enum_json_type::J_DATE)
-        key.append(JSON_KEY_DATE);
-      else
-        key.append(JSON_KEY_DATETIME);
-
+      key.append(JSON_KEY_DATETIME);
       /*
         Temporal values are stored in the packed format in the binary
         JSON format. The packed values are 64-bit signed little-endian
@@ -3435,7 +3532,13 @@ void Json_wrapper::make_hash_key_common(Json_wrapper_hasher &hash_key) const {
       hash_key.add_string(packed, packed_length);
       break;
     }
-    case enum_json_type::J_DATE:
+    case enum_json_type::J_DATE: {
+      const size_t packed_length = Json_date::PACKED_SIZE;
+      char tmp[packed_length];
+      const char *packed = get_date_packed(tmp);
+      hash_key.add_string(packed, packed_length);
+      break;
+    }
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_TIMESTAMP: {
       const size_t packed_length = Json_datetime::PACKED_SIZE;

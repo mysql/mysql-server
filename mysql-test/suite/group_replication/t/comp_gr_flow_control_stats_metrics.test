@@ -1,0 +1,195 @@
+###############################################################################
+# This test verifies component "Group Replication flow control stats" messages
+# metrics.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Configure flow control to throttle transactions
+# 2. Verify that metrics are 0.
+# 3. Start Group Replication
+# 4. Join server2 to the group.
+# 5. Execute transactions on server1 and validate data metrics
+#    on both servers.
+# 6. Stop Group Replication and validate that metrics are
+#    available.
+# 7. Restart Stop Group Replication and validate that metrics were
+#    reset.
+# 8. Cleanup
+###############################################################################
+
+--source include/have_gr_replication_flow_control_stats.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+
+--echo
+--echo ############################################################
+--echo # 1. Configure flow control to throttle transactions
+
+SET @group_replication_flow_control_certifier_threshold_save= @@GLOBAL.group_replication_flow_control_certifier_threshold;
+SET @group_replication_flow_control_applier_threshold_save= @@GLOBAL.group_replication_flow_control_applier_threshold;
+SET @group_replication_flow_control_max_quota_save= @@GLOBAL.group_replication_flow_control_max_quota;
+
+SET GLOBAL group_replication_flow_control_certifier_threshold= 1;
+SET GLOBAL group_replication_flow_control_applier_threshold= 1;
+SET GLOBAL group_replication_flow_control_max_quota= 3;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Verify that metrics are 0.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_flow\_control%';
+
+SHOW GLOBAL STATUS LIKE 'Gr\_flow\_control%';
+
+
+--echo
+--echo ############################################################
+--echo # 3. Start Group Replication
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Join server2 to the group.
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/start_group_replication.inc
+
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+--echo
+--echo ############################################################
+--echo # 5. Execute transactions on server1 and validate data metrics
+--echo #    on both servers.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (9);
+
+--let $assert_text= 'At least one transaction was throttled'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'The time sum of transactions that were throttled shall be more than zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Time of last transaction throttled is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_last_throttle_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $assert_text= 'The number of transactions currently being throttled shall be zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_active_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The number of transactions throttled shall be zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The time sum of transactions that were throttled shall be zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'Time of last transaction throttled is empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_last_throttle_timestamp", VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Stop Group Replication and validate that metrics are
+--echo #    available.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= 'At least one transaction was throttled'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'The time sum of transactions that were throttled shall be more than zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Time of last transaction throttled is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_last_throttle_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= 'The number of transactions currently being throttled shall be zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_active_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The number of transactions throttled shall be zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The time sum of transactions that were throttled shall be zero'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'Time of last transaction throttled is empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_flow_control_throttle_last_throttle_timestamp", VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+--echo
+--echo #################################################################
+--echo # 7. Restart Stop Group Replication and validate that metrics were
+--echo #    reset.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_flow\_control%';
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/start_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_flow\_control%';
+
+
+--echo
+--echo #################################################################
+--echo # 8. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+DROP TABLE t1;
+
+SET GLOBAL group_replication_flow_control_certifier_threshold= @group_replication_flow_control_certifier_threshold_save;
+SET GLOBAL group_replication_flow_control_applier_threshold= @group_replication_flow_control_applier_threshold_save;
+SET GLOBAL group_replication_flow_control_max_quota=@group_replication_flow_control_max_quota_save;
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+--source include/group_replication_end.inc

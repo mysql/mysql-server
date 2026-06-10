@@ -646,8 +646,7 @@ lock_data FROM performance_schema.data_locks WHERE object_schema =
 'test' order by 1, 2, 3, 4, 5, 6, 7;
 object_schema	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
 test	t1	NULL	TABLE	IX	GRANTED	NULL
-test	t1	eid	RECORD	X	GRANTED	10, 1
-test	t1	eid	RECORD	X,GAP	GRANTED	20, 2
+test	t1	eid	RECORD	X,REC_NOT_GAP	GRANTED	10, 1
 test	t1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	1
 test	t2	NULL	TABLE	IX	GRANTED	NULL
 test	t2	cid	RECORD	X	GRANTED	1, 10
@@ -882,8 +881,7 @@ lock_data FROM performance_schema.data_locks WHERE object_schema =
 'test' order by 1, 2, 3, 4, 5, 6, 7;
 object_schema	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
 test	t1	NULL	TABLE	IX	GRANTED	NULL
-test	t1	eid	RECORD	X	GRANTED	10, 1
-test	t1	eid	RECORD	X,GAP	GRANTED	20, 2
+test	t1	eid	RECORD	X,REC_NOT_GAP	GRANTED	10, 1
 test	t1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	1
 test	t2	NULL	TABLE	IX	GRANTED	NULL
 test	t2	cid	RECORD	X	GRANTED	1, 10

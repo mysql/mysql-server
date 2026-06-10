@@ -3,6 +3,46 @@
 #
 SET optimizer_trace='enabled=on';
 #
+# WL#17265: hypergraph optimizer is settable when available
+#
+SET SESSION optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@session.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=on', @@session.optimizer_switch) > 0
+1
+SET SESSION optimizer_switch='hypergraph_optimizer=off';
+SELECT LOCATE('hypergraph_optimizer=off', @@session.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=off', @@session.optimizer_switch) > 0
+1
+SET SESSION optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@session.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=on', @@session.optimizer_switch) > 0
+1
+SET GLOBAL optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0
+1
+SET GLOBAL optimizer_switch='hypergraph_optimizer=off';
+SELECT LOCATE('hypergraph_optimizer=off', @@global.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=off', @@global.optimizer_switch) > 0
+1
+SET GLOBAL optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0
+1
+SET PERSIST optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0
+1
+SET PERSIST optimizer_switch='hypergraph_optimizer=off';
+SELECT LOCATE('hypergraph_optimizer=off', @@global.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=off', @@global.optimizer_switch) > 0
+1
+SET PERSIST optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0
+1
+RESET PERSIST optimizer_switch;
+#
 # Bug #33296454: Use the hypergraph optimizer for SET statements
 #
 CREATE TABLE t(x INT);

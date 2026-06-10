@@ -1,0 +1,713 @@
+  
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+#
+# The purpose of this test is to verify that
+# the count of live sessions,
+# and the tagging of which session is active or not,
+# is maintained correctly.
+#
+# Notation used:
+# - CON1 (C) = connection CON1 connects
+# - CON1 (W) = connection CON1 performs work,
+#   which can detect telemetry installed/uninstalled
+# - CON1 (D) = connection CON1 disconnects
+# - LOAD = the telemetry component is loaded
+# - UNLOAD = the telemetry component is unloaded
+# - UNLOAD(B) = the telemetry component is unloaded,
+#   but the unload operation is blocked
+#
+# Test scenario:
+# - CON1 : (C), LOAD, UNLOAD, (D)
+# - CON2 : (C), LOAD, (W), UNLOAD(B), (D)
+# - CON3 : (C), LOAD, (W), UNLOAD(B), (W), (D)
+# - CON4 : (C), LOAD, UNLOAD, (W), (D)
+# - CON5 : (C), LOAD, (D), UNLOAD
+# - CON6 : (C), LOAD, (W), (D), UNLOAD
+# - CON7 : LOAD, (C), (D), UNLOAD
+# - CON8 : LOAD, (C), (W), (D), UNLOAD
+# - CON9 : LOAD, (C), UNLOAD(B), (D)
+# - CON10 : LOAD, (C), UNLOAD(B), (W), (D)
+# - CON11 : UNLOAD(B), (C), (D)
+#
+
+-- echo # Connection con1
+
+connect (con1, localhost, root, , );
+
+let $con1_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con2
+
+connect (con2, localhost, root, , );
+
+let $con2_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con3
+
+connect (con3, localhost, root, , );
+
+let $con3_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con4
+
+connect (con4, localhost, root, , );
+
+let $con4_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con5
+
+connect (con5, localhost, root, , );
+
+let $con5_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con6
+
+connect (con6, localhost, root, , );
+
+let $con6_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection otel
+
+connect (otel, localhost, root, , );
+
+let $otel_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection ctrl
+
+connect (ctrl, localhost, root, , );
+
+let $ctrl_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo
+-- echo # State before install
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con2" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con5" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con5_THREAD_ID;
+eval SELECT "con6" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con6_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--connection otel
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.trace_enabled = 'ON',
+      telemetry.otel_exporter_otlp_traces_endpoint = 'http://localhost:4318/v1/traces';
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after install
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con2" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con5" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con5_THREAD_ID;
+eval SELECT "con6" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con6_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--connection con2
+SELECT "Con2 now detects telemetry" as MARKER;
+
+-- echo # Connection con7
+
+connect (con7, localhost, root, , );
+
+let $con7_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con8
+
+connect (con8, localhost, root, , );
+
+let $con8_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con9
+
+connect (con9, localhost, root, , );
+
+let $con9_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+-- echo # Connection con10
+
+connect (con10, localhost, root, , );
+
+let $con10_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--connection otel
+
+-- echo
+-- echo # State after con2(W), con7(C), con8(C), con9(C), con10(C)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con2" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con5" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con5_THREAD_ID;
+eval SELECT "con6" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con6_THREAD_ID;
+eval SELECT "con7" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con7_THREAD_ID;
+eval SELECT "con8" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con8_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--connection con3
+SELECT "Con3 now detects telemetry" as MARKER;
+
+--disconnect con5
+
+--connection con6
+SELECT "Con6 now detects telemetry" as MARKER;
+
+--disconnect con7
+
+--connection con8
+SELECT "Con8 now detects telemetry" as MARKER;
+
+--connection otel
+
+# Wait for con5(D) and con7(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID IN ($con5_THREAD_ID, $con7_THREAD_ID);
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after con3(W), con5(D), con6(W), con7(D), con8(W)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con2" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con6" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con6_THREAD_ID;
+eval SELECT "con8" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con8_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disconnect con6
+
+--disconnect con8
+
+--connection otel
+
+# Wait for con6(D) and con8(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID IN ($con6_THREAD_ID, $con8_THREAD_ID);
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after con6(D), con8(D)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con2" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--connection ctrl
+# Do this before, not during, UNINSTALL, to get reproducible results
+SELECT "ctrl now detects telemetry" as MARKER;
+
+--connection otel
+
+-- echo # Uninstall component, will block
+--send UNINSTALL COMPONENT 'file://component_telemetry'
+
+--connection ctrl
+
+-- echo
+-- echo # Enforce UNINSTALL is blocked
+
+# Wait for UNINSTALL to wait on live sessions
+let $wait_condition=  select count(*) = 1
+  from performance_schema.events_stages_current
+  where
+  EVENT_NAME='stage/telemetry/session' and
+  THREAD_ID=$otel_THREAD_ID;
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after UNLOAD(B)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con2" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+--disconnect con2
+
+--connection ctrl
+
+# Wait for con2(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID = $con2_THREAD_ID;
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after CON2(D)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+--connection con3
+SELECT "Con3 now detects telemetry" as MARKER;
+
+--connection ctrl
+
+-- echo
+-- echo # State after CON3(W), detects component is unloading
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+-- echo # Connection con11
+
+connect (con11, localhost, root, , );
+
+let $con11_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--connection ctrl
+
+-- echo
+-- echo # State after CON11(C) while UNLOAD is still blocked
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con9" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "con11" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con11_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+--disconnect con9
+
+--connection ctrl
+
+# Wait for con9(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID = $con9_THREAD_ID;
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after CON9(D)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "con11" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con11_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+--connection con10
+
+select "CON10 performing work";
+
+--connection ctrl
+
+-- echo
+-- echo # State after CON10(W)
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con10" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+eval SELECT "con11" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con11_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+--disconnect con10
+
+--connection ctrl
+
+# Wait for con10(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID = $con10_THREAD_ID;
+--source include/wait_condition.inc
+
+--connection otel
+--reap
+
+--connection ctrl
+
+-- echo
+-- echo # Enforce UNINSTALL is complete
+
+# Wait for UNINSTALL to complete, idle on next command
+let $wait_condition=  select count(*) = 1
+  from performance_schema.events_waits_current
+  where
+  EVENT_NAME='idle' and
+  THREAD_ID=$otel_THREAD_ID;
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after CON10(D), UNLOAD completed
+-- echo
+
+--disable_query_log
+eval SELECT "con1" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con1_THREAD_ID;
+eval SELECT "con3" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con3_THREAD_ID;
+eval SELECT "con4" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con4_THREAD_ID;
+eval SELECT "con11" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $con11_THREAD_ID;
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+--disable_query_log
+eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
+  FROM performance_schema.events_stages_current
+  WHERE THREAD_ID = $otel_THREAD_ID;
+--enable_query_log
+
+--disconnect con1
+--disconnect con3
+--disconnect con4
+--disconnect con11
+
+--connection ctrl
+
+# Wait for con1(D), CON3(D), CON4(D) and con11(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID IN ($con1_THREAD_ID, $con3_THREAD_ID, $con4_THREAD_ID, $con11_THREAD_ID);
+--source include/wait_condition.inc
+
+-- echo
+-- echo # State after CON1(D), CON3(D), CON4(D), CON11(D)
+-- echo
+
+--disable_query_log
+eval SELECT "otel" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $otel_THREAD_ID;
+eval SELECT "ctrl" as NAME, TELEMETRY_ACTIVE FROM performance_schema.threads
+  WHERE THREAD_ID = $ctrl_THREAD_ID;
+--enable_query_log
+
+SELECT COUNT(*) FROM performance_schema.threads
+  WHERE TELEMETRY_ACTIVE = 'YES';
+
+--disconnect otel
+--disconnect ctrl
+
+--connection default
+
+# Wait for otel(D) and ctrl(D)
+let $wait_condition=  SELECT count(*) = 0
+  FROM performance_schema.threads
+  WHERE THREAD_ID IN ($otel_THREAD_ID, $ctrl_THREAD_ID);
+--source include/wait_condition.inc
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,8 +105,8 @@ DECLARE_NDBINFO_TABLE(POOLS, 14) = {
      {"resource_id", Ndbinfo::Number, ""},
      {"type_id", Ndbinfo::Number, "Record type id within resource"}}};
 
-DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 19) = {
-    {"transporter_details", 19, 0,
+DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 21) = {
+    {"transporter_details", 21, 0,
      [](const Ndbinfo::Counts &counts) {
        return (counts.data_nodes) * (counts.all_nodes - 1);
      },
@@ -141,7 +141,11 @@ DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 19) = {
      {"sendbuffer_max_alloc_bytes", Ndbinfo::Number64,
       "SendBuffer historical max bytes allocated"},
 
-     {"type", Ndbinfo::Number, "Transporter type"}}};
+     {"type", Ndbinfo::Number, "Transporter type"},
+     {"heartbeat_interval", Ndbinfo::Number,
+      "How often node check for heartbeats on transporter in milliseconds"},
+     {"last_recv", Ndbinfo::Number64,
+      "Time since last receive in microseconds"}}};
 
 DECLARE_NDBINFO_TABLE(TRANSPORTERS, 12) = {
     {"transporters", 12, 0,
@@ -1240,6 +1244,27 @@ DECLARE_NDBINFO_TABLE(TRANSACTIONS_FULL, 11) = {
         {"timer", Ndbinfo::Number, "Timer (seconds)"},
     }};
 
+DECLARE_NDBINFO_TABLE(TRANSPORTER_ACTIVITY, 8) = {
+    {"transporter_activity", 8, 0,
+     [](const Ndbinfo::Counts &c) {
+       // data_nodes * (1 data node trp + all api/mgm nodes) * 10
+       return c.data_nodes * MAX_NODES *
+              20 /* Trpman::TRP_ACTIVITY_HIST_BIN_COUNT */;
+     },
+     "Histogram over activity on heartbeated transporters"},
+    {
+        {"node_id", Ndbinfo::Number, "node id"},
+        {"block_instance", Ndbinfo::Number, "Block instance"},
+        {"trp_id", Ndbinfo::Number, "Transporter id"},
+        {"remote_node_id", Ndbinfo::Number, "Node id at other end of link"},
+        {"connect_count", Ndbinfo::Number, "Number of times connected"},
+        {"heartbeat_interval", Ndbinfo::Number,
+         "Heartbeat check interval in milliseconds"},
+        {"upper_bound", Ndbinfo::Number64,
+         "Upper bound of interval in milliseconds"},
+        {"activity", Ndbinfo::Number64, "activity count"},
+    }};
+
 #define DBINFOTBL(x) \
   { Ndbinfo::x##_TABLEID, (const Ndbinfo::Table *)&ndbinfo_##x }
 
@@ -1304,7 +1329,8 @@ static struct ndbinfo_table_list_entry {
     DBINFOTBL(CERTIFICATES),
     DBINFOTBL(THREADBLOCK_DETAILS),
     DBINFOTBL(TRANSPORTER_DETAILS),
-    DBINFOTBL(TRANSACTIONS_FULL)};
+    DBINFOTBL(TRANSACTIONS_FULL),
+    DBINFOTBL(TRANSPORTER_ACTIVITY)};
 
 static int no_ndbinfo_tables =
     sizeof(ndbinfo_tables) / sizeof(ndbinfo_tables[0]);

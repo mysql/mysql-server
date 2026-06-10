@@ -109,7 +109,7 @@ a	b
 Test restore failure handling for log apply failure
 after retries
 Expect error message
-select count(*) into @msgcount from ndb_restore_output where a like "%Error restoring the data log%";
+select count(*) into @msgcount from ndb_restore_output where a like "%Error restoring the data log%" or a like "%Error reading the data log%";
 select @msgcount as 'Count of error message 1';
 Count of error message 1
 1
@@ -155,4 +155,76 @@ n1_trans
 0
 n2_trans
 2
+drop table t1;
+Test concurrent log apply outcomes
+create table t1 (a int primary key, b int) engine=ndb;
+create table t2 (a varchar(100) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci primary key, b int) engine=ndb;
+create table t3 (a int primary key, b int) engine=ndb;
+Insert rows
+Start backup with stall-while-logging
+Cause backup stall while log open
+Starting backup
+Backup started
+Modify rows so that backup log contains
+changes closely spaced
+This should maximise the chance of an out-of-order
+event apply leading to an incorrect final state
+Generate single long sequence of log ops on one key
+Complete backup
+Waiting for backup to complete
+Backup completed
+Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+count(1)
+100
+select count(1) from t1 where b != 2;
+count(1)
+0
+Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+count(1)
+100
+select count(1) from t2 where b != 2;
+count(1)
+0
+Expect all values in t3 to be 2999
+select * from t3 order by a;
+a	b
+1	2999
+Now restore data and check content
+truncate t1;
+truncate t2;
+Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+count(1)
+100
+select count(1) from t1 where b != 2;
+count(1)
+0
+Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+count(1)
+100
+select count(1) from t2 where b != 2;
+count(1)
+0
+Expect all values in t3 to be 2999
+select * from t3 order by a;
+a	b
+1	2999
+drop table t1;
+drop table t2;
+drop table t3;
+With a big log (>128K) check that ndb_restore will not fail close
+partially read log file when restoring epochs.
+create table t1 (pk int primary key, data varbinary(20000)) engine=ndb;
+Stall backup completion
+
+Run backup
+Starting backup
+Backup started
+Allow backup to complete...
+
+Waiting for backup to complete
+Backup completed
 drop table t1;

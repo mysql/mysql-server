@@ -1,0 +1,46 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.trace_enabled;
+@@global.telemetry.trace_enabled
+0
+SELECT @@session.telemetry.trace_enabled;
+ERROR HY000: Variable 'telemetry.trace_enabled' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.trace_enabled';
+Variable_name	Value
+telemetry.trace_enabled	OFF
+SHOW SESSION VARIABLES LIKE 'telemetry.trace_enabled';
+Variable_name	Value
+telemetry.trace_enabled	OFF
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.trace_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.trace_enabled	OFF
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.trace_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.trace_enabled	OFF
+SET GLOBAL telemetry.trace_enabled=OFF;
+SET SESSION telemetry.trace_enabled=OFF;
+ERROR HY000: Variable 'telemetry.trace_enabled' is a GLOBAL variable and should be set with SET GLOBAL
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.trace_enabled=OFF;
+SELECT @@global.telemetry.trace_enabled;
+@@global.telemetry.trace_enabled
+0
+SET PERSIST telemetry.trace_enabled=ON;
+SET PERSIST_ONLY telemetry.trace_enabled=ON;
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.trace_enabled;
+@@global.telemetry.trace_enabled
+1
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -8139,6 +8139,42 @@ void pfs_digest_end_vc(PSI_digest_locker *locker,
   }
 }
 
+void pfs_digest_set_vc(PSI_statement_locker *locker,
+                       const sql_digest_storage *digest) {
+  auto *state = reinterpret_cast<PSI_statement_locker_state *>(locker);
+  assert(state != nullptr);
+  assert(digest != nullptr);
+
+  if ((state->m_collect_flags & STATE_FLAG_DIGEST) == 0) {
+    return;
+  }
+
+  state->m_digest = digest;
+
+  constexpr uint req_flags =
+      STATE_FLAG_THREAD | STATE_FLAG_EVENT | STATE_FLAG_DIGEST;
+
+  if ((state->m_pfs_flags & req_flags) == req_flags) {
+    auto *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
+    assert(thread != nullptr);
+    auto *pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement);
+    assert(pfs != nullptr);
+
+    pfs_dirty_state dirty_state;
+    thread->m_stmt_lock.allocated_to_dirty(&dirty_state);
+
+    /*
+      The following columns in events_statement_current:
+      - DIGEST,
+      - DIGEST_TEXT
+      are computed from the digest storage.
+    */
+    pfs->m_digest_storage.copy(digest);
+
+    thread->m_stmt_lock.dirty_to_allocated(&dirty_state);
+  }
+}
+
 PSI_prepared_stmt *pfs_create_prepared_stmt_vc(void *identity, uint stmt_id,
                                                PSI_statement_locker *locker,
                                                const char *stmt_name,
@@ -9572,7 +9608,7 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_stage_v1) = {
     pfs_register_stage_v1, pfs_start_stage_v1,
     pfs_get_current_stage_progress_v1, pfs_end_stage_v1};
 
-PSI_statement_service_v5 pfs_statement_service_v5 = {
+PSI_statement_service_v6 pfs_statement_service_v6 = {
     /* Old interface, for plugins. */
     pfs_register_statement_vc,
     pfs_get_thread_statement_locker_vc,
@@ -9612,7 +9648,8 @@ PSI_statement_service_v5 pfs_statement_service_v5 = {
     pfs_end_sp_vc,
     pfs_drop_sp_vc,
     pfs_notify_statement_query_attributes_vc,
-    pfs_statement_abort_telemetry_vc};
+    pfs_statement_abort_telemetry_vc,
+    pfs_digest_set_vc};
 
 SERVICE_TYPE(psi_statement_v5)
 SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v5) = {
@@ -9656,6 +9693,50 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v5) = {
     pfs_drop_sp_vc,
     pfs_notify_statement_query_attributes_vc,
     pfs_statement_abort_telemetry_vc};
+
+SERVICE_TYPE(psi_statement_v6)
+SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v6) = {
+    /* New interface, for components. */
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_set_statement_secondary_engine_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_set_prepared_stmt_secondary_engine_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc,
+    pfs_notify_statement_query_attributes_vc,
+    pfs_statement_abort_telemetry_vc,
+    pfs_digest_set_vc};
 
 PSI_transaction_service_v1 pfs_transaction_service_v1 = {
     /* Old interface, for plugins. */
@@ -9850,6 +9931,7 @@ static void *get_statement_interface(int version) {
     case PSI_STATEMENT_VERSION_2:
     case PSI_STATEMENT_VERSION_3:
     case PSI_STATEMENT_VERSION_4:
+    case PSI_STATEMENT_VERSION_5:
       /*
         Obsolete.
 
@@ -9886,8 +9968,8 @@ static void *get_statement_interface(int version) {
         For COMPONENTS, the service is properly versioned.
       */
       return nullptr;
-    case PSI_STATEMENT_VERSION_5:
-      return &pfs_statement_service_v5;
+    case PSI_STATEMENT_VERSION_6:
+      return &pfs_statement_service_v6;
     default:
       return nullptr;
   }

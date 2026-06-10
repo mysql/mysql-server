@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ class ItemTimeFuncTest : public ::testing::Test {
 TEST_F(ItemTimeFuncTest, dateAddInterval) {
   Item_int *arg0 = new Item_int(20130122145221LL);  // 2013-01-22 14:52:21
   Item_decimal *arg1 = new Item_decimal(0.1234567);
-  Item *item = new Item_date_add_interval(POS(), arg0, arg1,
+  Item *item = new Item_func_add_interval(POS(), arg0, arg1,
                                           INTERVAL_SECOND_MICROSECOND, false);
   Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(item->itemize(&pc, &item));
@@ -77,42 +77,6 @@ TEST_F(ItemTimeFuncTest, dateAddInterval) {
 
   // The below result is not correct, see Bug#16198372
   EXPECT_DOUBLE_EQ(20130122145222.234567, item->val_real());
-}
-
-TEST_F(ItemTimeFuncTest, datetimeliteraltest) {
-  Datetime_val time1;
-  TIME_from_longlong_datetime_packed(&time1, 1845541820734373888);
-
-  Datetime_val time2;
-  TIME_from_longlong_datetime_packed(&time2, 914866242077065217);
-
-  auto *literal1 =
-      new Item_datetime_literal(&time1, 0, thd()->variables.time_zone);
-  auto *literal2 =
-      new Item_datetime_literal(&time2, 0, thd()->variables.time_zone);
-
-  EXPECT_NE(literal1->hash(), 0);
-  EXPECT_NE(literal1->hash(), literal2->hash());
-#if !defined(WORDS_BIGENDIAN)
-  EXPECT_EQ(literal1->hash(), 13033637353971124907ULL);
-#endif
-
-  MYSQL_TIME date1;
-  set_zero_time(&date1, MYSQL_TIMESTAMP_DATE);
-  TIME_from_longlong_date_packed(&date1, 914866242077065217);
-
-  MYSQL_TIME date2;
-  set_zero_time(&date2, MYSQL_TIMESTAMP_DATE);
-  TIME_from_longlong_date_packed(&date2, 1845541820734373888);
-
-  Item_date_literal *dliteral1 = new Item_date_literal(&date1);
-  Item_date_literal *dliteral2 = new Item_date_literal(&date2);
-
-  EXPECT_NE(dliteral1->hash(), 0);
-  EXPECT_NE(dliteral1->hash(), dliteral2->hash());
-#if !defined(WORDS_BIGENDIAN)
-  EXPECT_EQ(dliteral1->hash(), 12438047714759670047ULL);
-#endif
 }
 
 // Checks that the metadata and result are consistent for a time function that
@@ -689,11 +653,11 @@ static void BM_add_time_interval(size_t iters) {
   initializer.SetUp();
 
   Time_val start_time(false, 12, 23, 45, 123456);
-  Item_time_literal *arg0 = new Item_time_literal(&start_time, 6);
+  Item_time_literal *arg0 = new Item_time_literal(start_time, 6);
   Item_int *arg1 = new Item_int(1);
-  Item *item = new Item_date_add_interval(arg0, arg1, INTERVAL_HOUR, false);
-  item = new Item_date_add_interval(item, arg1, INTERVAL_MINUTE, false);
-  item = new Item_date_add_interval(item, arg1, INTERVAL_SECOND, false);
+  Item *item = new Item_func_add_interval(arg0, arg1, INTERVAL_HOUR, false);
+  item = new Item_func_add_interval(item, arg1, INTERVAL_MINUTE, false);
+  item = new Item_func_add_interval(item, arg1, INTERVAL_SECOND, false);
 
   (void)item->fix_fields(initializer.thd(), nullptr);
 
@@ -711,5 +675,71 @@ static void BM_add_time_interval(size_t iters) {
   *implicit_cast<MYSQL_TIME *>(&timex) = MYSQL_TIME(time);
 }
 BENCHMARK(BM_add_time_interval)
+
+/**
+  Benchmark the expression:
+
+  SELECT DATE'2025-01-31' + INTERVAL 1 YEAR + INTERVAL 1 MONTH + INTERVAL 1 DAY
+*/
+static void BM_add_date_interval(size_t iters) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Date_val start_date(2025, 1, 31);
+  Item_date_literal *arg0 = new Item_date_literal(start_date);
+  Item_int *arg1 = new Item_int(1);
+  Item *item = nullptr;
+  item = new Item_func_add_interval(arg0, arg1, INTERVAL_YEAR, false);
+  item = new Item_func_add_interval(item, arg1, INTERVAL_MONTH, false);
+  item = new Item_func_add_interval(item, arg1, INTERVAL_DAY, false);
+
+  (void)item->fix_fields(initializer.thd(), nullptr);
+
+  StartBenchmarkTiming();
+
+  Date_val date;
+  int dummy = 0;
+  for (size_t i = 0; i < iters; ++i) {
+    (void)item->val_date(&date, 0);
+    dummy += date.day();
+  }
+
+  ASSERT_NE(0, dummy);  // To keep the optimizer from removing the loop.
+  MysqlTime timex;
+  *implicit_cast<MYSQL_TIME *>(&timex) = MYSQL_TIME(date);
+}
+BENCHMARK(BM_add_date_interval)
+
+/**
+  Benchmark the expression:
+
+  SELECT DAY_NUMBER(DATE'2025-01-31')
+  SELECT DATE(DAY_NUMBER)
+*/
+static void BM_day_number(size_t iters) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Date_val start_date(2025, 1, 31);
+
+  StartBenchmarkTiming();
+
+  Date_val date;
+  int dummy = 0;
+  for (size_t i = 0; i < iters; ++i) {
+    uint32_t number = start_date.day_number();
+    date = Date_val{number};
+    dummy += date.day();
+  }
+
+  ASSERT_NE(0, dummy);  // To keep the optimizer from removing the loop.
+  MysqlTime timex;
+  *implicit_cast<MYSQL_TIME *>(&timex) = MYSQL_TIME(date);
+}
+BENCHMARK(BM_day_number)
 
 }  // namespace item_timefunc_unittest

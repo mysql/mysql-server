@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,16 @@ class Mysql_connection {
             be converted.
   */
   MYSQL_RES_TUPLE execute_query(std::string query) const;
+
+  /**
+    Checks whether the connected source server's version is
+    compatible with the replica's version.
+
+    @retval true   The source and replica versions are compatible.
+            false  The versions are incompatible or the connection
+                   is not initialized.
+  */
+  [[nodiscard]] bool version_compatible() const;
 
  private:
   /* MySQL client connection object */

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+ Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,6 @@
 
 #include <string>
 
-#include "mysql/harness/logging/logging.h"
-
-#include "helper/container/generic.h"
 #include "helper/http/url.h"
 #include "helper/json/jvalue.h"
 #include "helper/json/rapid_json_iterator.h"
@@ -50,6 +47,9 @@
 #include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
+
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/container/generic.h"
 #include "mysql/harness/utility/string.h"
 
 IMPORT_LOG_FUNCTIONS()

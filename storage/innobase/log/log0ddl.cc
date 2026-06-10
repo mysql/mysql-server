@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1847,12 +1847,6 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
   DBUG_EXECUTE_IF("ddl_log_replay_delete_space_crash_before_drop",
                   DBUG_SUICIDE(););
 
-  /* Update filename with correct partition case, of needed. */
-  std::string path_str(file_path);
-  std::string space_name;
-  fil_update_partition_name(space_id, 0, false, space_name, path_str);
-  file_path = path_str.c_str();
-
   row_drop_tablespace(space_id, file_path);
 
   /* If this is an undo space_id, allow the undo number for it
@@ -1871,22 +1865,8 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
 void Log_DDL::replay_rename_space_log(space_id_t space_id,
                                       const char *old_file_path,
                                       const char *new_file_path) {
-  bool ret;
-  page_id_t page_id(space_id, 0);
-
-  std::string space_name;
-
-  /* Update old filename with correct partition case, of needed. */
-  std::string old_path(old_file_path);
-  fil_update_partition_name(space_id, 0, false, space_name, old_path);
-  old_file_path = old_path.c_str();
-
-  /* Update new filename with correct partition case, of needed. */
-  std::string new_path(new_file_path);
-  fil_update_partition_name(space_id, 0, false, space_name, new_path);
-  new_file_path = new_path.c_str();
-
-  ret = fil_op_replay_rename_for_ddl(page_id, old_file_path, new_file_path);
+  const bool ret =
+      fil_op_replay_rename_for_ddl(space_id, old_file_path, new_file_path);
 
   if (!ret && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_656) << "DDL log replay : RENAME from " << old_file_path

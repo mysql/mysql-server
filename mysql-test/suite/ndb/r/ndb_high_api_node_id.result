@@ -1,0 +1,13 @@
+CALL mtr.add_suppression("Ignoring unsubscribe from node 256. The maximum supported node ID is 255");
+CALL mtr.add_suppression("Ignoring subscribe from node 256. The maximum supported node ID is 255");
+SET @save_debug= @@GLOBAL.debug;
+SET @@GLOBAL.debug="+d,ndb_test_high_api_node_id";
+Sending dump signal with data:
+0x00000384 0x00000010 
+Sending dump signal with data:
+0x00000384 0x00000010 
+
+include/wait_for_pattern_in_file.inc [Ignoring subscribe from node 256. The maximum supported node ID is 255]
+SET @@GLOBAL.debug = @save_debug;
+include/assert_grep.inc [Unsubscribe error found]
+include/assert_grep.inc [Subscribe error found]

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,9 @@
 #ifndef NDB_BINLOG_THREAD_H
 #define NDB_BINLOG_THREAD_H
 
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <string>
 #include <unordered_set>
 
@@ -372,6 +375,57 @@ class Ndb_binlog_thread : public Ndb_component {
     }
   } metadata_cache;
 
+  // Tracker which allows other threads to wait for the binlog file currently
+  // "in use" by the ndb binlog thread.
+  struct Binlog_file_tracker {
+    std::mutex m_lock;                // guards filename and counter
+    std::condition_variable m_cond;   // signals updates to waiters
+    std::string m_filename;           // last observed binlog file name
+    unsigned long long m_counter{0};  // sequence to detect updates
+    std::atomic<int> m_waiters{0};    // number of active waiters
+
+    /**
+     * @brief Publish the current "in use" binlog filename. For efficiency this
+     * is only done if there are active waiters.
+     *
+     * This function is called by the ndb binlog thread at the end of each
+     * epoch. When there are active waiter(s), it will lock the binlog and read
+     * current position, from there it will publish the filename and then
+     * signal the waiter(s).
+     */
+    void publish_if_waiters();
+
+    /**
+     * @brief Wait for the currently "in use" binlog filename to be published.
+     *
+     * This function tell ndb binlog thread to publish its current "in use"
+     * binlog file and then wait for update to happen. Since the ndb binlog
+     * thread might be busy (although unlikely) the wait time is bounded to 1
+     * second and function returns false when no publish has been observed
+     * within that time.
+     *
+     * @param[out] out_filename The published binlog filename on success.
+     * @retval true  A publish was observed within the timeout.
+     * @retval false No publish observed within the timeout.
+     */
+    bool wait_for_publish_once(std::string &out_filename);
+  } m_binlog_tracker;
+
+ public:
+  /**
+   * @brief Wait for currently "in use" binlog filename publish.
+   *
+   * See @c Binlog_file_tracker::wait_for_publish_once for details.
+   *
+   * @param[out] out_filename Latest published filename on success.
+   * @retval true  A publish was observed within the timeout.
+   * @retval false No publish observed within the timeout.
+   */
+  bool wait_for_published_binlog_file(std::string &out_filename) {
+    return m_binlog_tracker.wait_for_publish_once(out_filename);
+  }
+
+ private:
 #ifndef NDEBUG
   void dbug_log_table_maps(Ndb *ndb, Uint64 current_epoch);
   void dbug_log_multi_server_id(Ndb *ndb, Uint64 current_epoch);

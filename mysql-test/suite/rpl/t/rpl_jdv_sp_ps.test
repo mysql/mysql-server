@@ -1,0 +1,346 @@
+########################################################################
+# This test verifies the correct binlogging behavior of operations
+# performed on JSON Duality Views (JDV) in the context of MySQL
+# replication. Specifically, it covers scenarios involving Stored
+# Procedures, Stored Functions, Triggers and Prepared Statements that
+# interact with JDVs.
+#
+# The goal is to ensure that all changes made through these database
+# objects are properly logged and replicated, maintaining data
+# consistency and integrity across replicas.
+#
+# References:
+# WL#16620: JSON Duality Views
+########################################################################
+
+--source include/not_windows.inc
+
+--echo ################################################
+--echo # Initialize the Replication setup
+--source include/rpl/init_source_replica.inc
+--echo ################################################
+
+--echo ################################################
+--echo # PART 1: Test with stored procedure, stored function and a
+--echo # trigger that will be replicated.
+--echo ################################################
+
+--echo #
+--echo # Create some tables on the source
+--echo #
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f11 INT PRIMARY KEY, f12 INT);
+CREATE TABLE t3 (f1 INT);
+CREATE TABLE t4 (f1 JSON);
+
+--echo #
+--echo # Create a JSON duality view on the source and wait for it to be
+--echo # replicated.
+--echo #
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+       SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                  "_id" : f11,
+                  "f12" : f12,
+                  "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                        "f1" : f1,
+                                                        "f2" : f2
+                                                       ) FROM t1 WHERE t1.f1 = t2.f11))
+       FROM t2;
+
+--echo # Waiting for events to sync to replica
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+
+DELIMITER $;
+CREATE PROCEDURE p1()
+BEGIN
+ INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+ SELECT * FROM dv1;
+ UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+ SELECT * FROM dv1;
+ DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+END;
+$
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+ INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+ UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+ DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+ RETURN 1;
+END;
+$
+
+CREATE TRIGGER t3_trigger BEFORE INSERT ON t3
+FOR EACH ROW
+BEGIN
+ INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+ UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+ INSERT INTO t4 SELECT * FROM dv1;
+ DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+END;
+$
+DELIMITER ;$
+
+--echo # Waiting for events to sync to replica
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+
+CALL p1();
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+SELECT f1();
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+INSERT INTO t3 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+# Cleanup
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+TRUNCATE TABLE t4;
+DROP VIEW dv1;
+DROP PROCEDURE p1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+--echo ################################################
+--echo # PART 2: Test case to verify duality view DDL statements with
+--echo # prepared statement.
+--echo ################################################
+
+PREPARE create_dv_stmt FROM 'CREATE JSON DUALITY VIEW dv1 AS SELECT
+                             JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                               "_id" : f1,
+                                               "f2" : f2) FROM t1';
+
+PREPARE replace_dv_stmt FROM 'CREATE OR REPLACE JSON DUALITY VIEW dv1 AS SELECT
+                              JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                "_id" : f11,
+                                                "f12" : f12,
+                                                "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                                                      "f1" : f1,
+                                                                                      "f2" : f2
+                                                                                     ) FROM t1 WHERE t1.f1 = t2.f11))
+                                                FROM t2';
+PREPARE drop_dv_stmt FROM 'DROP VIEW dv1';
+
+EXECUTE create_dv_stmt;
+EXECUTE drop_dv_stmt;
+EXECUTE create_dv_stmt;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+EXECUTE replace_dv_stmt;
+EXECUTE drop_dv_stmt;
+EXECUTE replace_dv_stmt;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+--echo ################################################
+--echo # PART 3: Test case to verify duality view DML statements with
+--echo # prepared statement.
+--echo ################################################
+
+--echo #
+--echo # 3.1 Test case to verify duality view DML statements with
+--echo # prepared statement.
+--echo #
+
+PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (\' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} \')';
+EXECUTE insert_stmt;
+SELECT * FROM dv1;
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt;
+SELECT * FROM dv1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+PREPARE update_stmt FROM 'UPDATE dv1 SET data = \' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } \'';
+EXECUTE update_stmt;
+SELECT * FROM dv1;
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt;
+EXECUTE update_stmt;
+SELECT * FROM dv1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = 1';
+EXECUTE delete_stmt;
+SELECT * FROM dv1;
+EXECUTE insert_stmt;
+EXECUTE delete_stmt;
+SELECT * FROM dv1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+DROP PREPARE insert_stmt;
+DROP PREPARE update_stmt;
+DROP PREPARE delete_stmt;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+--echo #
+--echo # 3.2 Test case to verify duality view DML statements with
+--echo # prepared statement using parameters.
+--echo #
+
+SET @json_object1 = '{ "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}}';
+PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (?)';
+EXECUTE insert_stmt USING @json_object1;
+SELECT * FROM dv1;
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt USING @json_object1;
+SELECT * FROM dv1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+SET @json_object2 = '{ "_id" : 1, "f12" : 2, "child" : {"f1" : 1, "f2" : 2}}';
+PREPARE update_stmt FROM 'UPDATE dv1 SET data = ?';
+EXECUTE update_stmt USING @json_object2;
+SELECT * FROM dv1;
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt USING @json_object1;
+EXECUTE update_stmt USING @json_object2;
+SELECT * FROM dv1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+SET @id = 1;
+PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = ?';
+EXECUTE delete_stmt USING @id;
+SELECT * FROM dv1;
+EXECUTE insert_stmt USING @json_object1;
+EXECUTE delete_stmt USING @id;
+SELECT * FROM dv1;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+DROP PREPARE insert_stmt;
+DROP PREPARE update_stmt;
+DROP PREPARE delete_stmt;
+
+--echo ################################################
+--echo # PART 4: Test case to verify duality view DDL and DML statements
+--echo # with prepared statements in stored programs.
+--echo ################################################
+
+DELIMITER $;
+CREATE PROCEDURE p1()
+BEGIN
+  PREPARE create_dv_stmt FROM 'CREATE OR REPLACE JSON DUALITY VIEW dv1 AS SELECT
+                               JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                "_id" : f11,
+                                                "f12" : f12,
+                                                "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                                                      "f1" : f1,
+                                                                                      "f2" : f2
+                                                                                     ) FROM t1 WHERE t1.f1 = t2.f11))
+                                                FROM t2';
+  PREPARE drop_dv_stmt FROM 'DROP VIEW dv1';
+
+  EXECUTE create_dv_stmt;
+  EXECUTE drop_dv_stmt;
+  EXECUTE create_dv_stmt;
+
+  PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (\' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} \')';
+  PREPARE update_stmt FROM 'UPDATE dv1 SET data = \' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } \'';
+  PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = 1';
+
+  EXECUTE insert_stmt;
+  EXECUTE delete_stmt;
+  EXECUTE insert_stmt;
+
+  EXECUTE update_stmt;
+  EXECUTE delete_stmt;
+  EXECUTE insert_stmt;
+  EXECUTE update_stmt;
+  EXECUTE delete_stmt;
+
+  EXECUTE drop_dv_stmt;
+
+  DROP PREPARE create_dv_stmt;
+  DROP PREPARE drop_dv_stmt;
+  DROP PREPARE insert_stmt;
+  DROP PREPARE update_stmt;
+  DROP PREPARE delete_stmt;
+END;
+$
+DELIMITER ;$
+
+CALL p1();
+CALL p1();
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_servers= 1 2
+--source include/diff_servers.inc
+--source include/rpl/connection_source.inc
+
+
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1, t2, t3, t4;
+
+--echo # No I_S views contents on the source
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`);
+
+--echo # Switch to replica
+--source include/rpl/sync_to_replica.inc
+
+--echo # No I_S views contents on the replica
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`);
+
+--echo # Switch back to source
+--source include/rpl/connection_source.inc
+--source include/rpl/deinit.inc

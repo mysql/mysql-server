@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,25 +156,26 @@ bool Bucket<Time_val>::add_values_json_bucket(const Time_val &lower_value,
 }
 
 template <>
+bool Bucket<Date_val>::add_values_json_bucket(const Date_val &lower_value,
+                                              const Date_val &upper_value,
+                                              Json_array *json_array) {
+  const Json_date json_lower_value(lower_value);
+  if (json_array->append_clone(&json_lower_value))
+    return true; /* purecov: inspected */
+
+  const Json_date json_upper_value(upper_value);
+  if (json_array->append_clone(&json_upper_value))
+    return true; /* purecov: inspected */
+  return false;
+}
+
+template <>
 bool Bucket<Datetime_val>::add_values_json_bucket(
     const Datetime_val &lower_value, const Datetime_val &upper_value,
     Json_array *json_array) {
   assert(lower_value.time_type == upper_value.time_type);
-
-  enum_field_types field_type;
-  switch (lower_value.time_type) {
-    case MYSQL_TIMESTAMP_DATE:
-      field_type = MYSQL_TYPE_DATE;
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      field_type = MYSQL_TYPE_DATETIME;
-      break;
-    default:
-      /* purecov: begin deadcode */
-      assert(false);
-      return true;
-      /* purecov: end */
-  }
+  assert(lower_value.time_type == MYSQL_TIMESTAMP_DATETIME);
+  enum_field_types field_type = MYSQL_TYPE_DATETIME;
 
   const Json_datetime json_lower_value(lower_value, field_type);
   if (json_array->append_clone(&json_lower_value))
@@ -385,6 +386,33 @@ double Bucket<Time_val>::get_distance_from_lower(const Time_val &value) const {
 }
 
 template <>
+double Bucket<Date_val>::get_distance_from_lower(const Date_val &value) const {
+  Date_val lower_modified = get_lower_inclusive();
+  Date_val upper_modified = get_upper_inclusive();
+  Date_val value_modified = value;
+
+  if (Histogram_comparator()(value_modified, lower_modified)) {
+    return 0.0;
+  }
+  if (values_are_equal(lower_modified, upper_modified)) {
+    return 1.0;
+  }
+  /*
+    Calculate the difference in number of days between the upper inclusive value
+    and the lower inclusive value of the bucket.
+  */
+  longlong upper_lower_diff = upper_modified.to_int() - lower_modified.to_int();
+  /*
+    Calculate the difference in number of days between the lower inclusive value
+    of the bucket and the provided parameter value.
+  */
+  longlong value_lower_diff = value_modified.to_int() - lower_modified.to_int();
+
+  return static_cast<double>(value_lower_diff) /
+         static_cast<double>(upper_lower_diff);
+}
+
+template <>
 double Bucket<Datetime_val>::get_distance_from_lower(
     const Datetime_val &value) const {
   Datetime_val lower_modified = get_lower_inclusive();
@@ -493,6 +521,7 @@ template class Bucket<String>;
 template class Bucket<ulonglong>;
 template class Bucket<longlong>;
 template class Bucket<Time_val>;
+template class Bucket<Date_val>;
 template class Bucket<Datetime_val>;
 template class Bucket<my_decimal>;
 

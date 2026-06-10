@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -655,6 +655,11 @@ void getTextTransporterWarning(char *m_text, size_t m_text_len,
 void getTextMissedHeartbeat(char *m_text, size_t m_text_len,
                             const Uint32 *theData, Uint32 /*len*/) {
   BaseString::snprintf(m_text, m_text_len, "Node %d missed heartbeat %d",
+                       theData[1], theData[2]);
+}
+void getTextLateHeartbeat(char *m_text, size_t m_text_len,
+                          const Uint32 *theData, Uint32 /*len*/) {
+  BaseString::snprintf(m_text, m_text_len, "Node %d late heartbeat %dms",
                        theData[1], theData[2]);
 }
 void getTextDeadDueToHeartbeat(char *m_text, size_t m_text_len,
@@ -1537,6 +1542,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
     ROW(TransporterError, LogLevel::llError, 2, Logger::LL_ERROR),
     ROW(TransporterWarning, LogLevel::llError, 8, Logger::LL_WARNING),
     ROW(MissedHeartbeat, LogLevel::llError, 8, Logger::LL_WARNING),
+    ROW(LateHeartbeat, LogLevel::llError, 8, Logger::LL_WARNING),
     ROW(DeadDueToHeartbeat, LogLevel::llError, 8, Logger::LL_ALERT),
     ROW(WarningEvent, LogLevel::llError, 2, Logger::LL_WARNING),
     ROW(SubscriptionStatus, LogLevel::llError, 4, Logger::LL_WARNING),

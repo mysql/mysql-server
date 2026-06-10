@@ -425,10 +425,10 @@ t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (...)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (...)
-        -> Table scan on t1  (...)
+        -> Index scan on t1 using PRIMARY  (...)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (...)
-                -> Table scan on t4  (...)
+                -> Index scan on t4 using PRIMARY  (...)
                 -> Hash
                     -> Covering index scan on t3 using a  (...)
     -> Covering index lookup on t2 using a (a = t1.b)  (...)
@@ -438,10 +438,10 @@ t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (...)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (...)
-        -> Table scan on t1  (...)
+        -> Index scan on t1 using PRIMARY  (...)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (...)
-                -> Table scan on t4  (...)
+                -> Index scan on t4 using PRIMARY  (...)
                 -> Hash
                     -> Covering index scan on t3 using a  (...)
     -> Covering index lookup on t2 using a (a = t1.b)  (...)
@@ -451,10 +451,10 @@ t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (...)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (...)
-        -> Table scan on t1  (...)
+        -> Index scan on t1 using PRIMARY  (...)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (...)
-                -> Table scan on t4  (...)
+                -> Index scan on t4 using PRIMARY  (...)
                 -> Hash
                     -> Covering index scan on t3 using a  (...)
     -> Covering index lookup on t2 using a (a = t1.b)  (...)
@@ -772,14 +772,17 @@ EXPLAIN
       {
         "inputs": [
           {
-            "operation": "Table scan on t1",
+            "covering": false,
+            "operation": "Index scan on t1 using PRIMARY",
+            "index_name": "PRIMARY",
             "table_name": "t1",
-            "access_type": "table",
+            "access_type": "index",
             "schema_name": "test",
             "used_columns": [
               "id"
             ],
             "estimated_rows": 9.0,
+            "index_access_type": "index_scan",
             "estimated_total_cost": 2.986175115207373,
             "estimated_first_row_cost": 0.3317972350230415
           }
@@ -820,14 +823,17 @@ EXPLAIN
       {
         "inputs": [
           {
-            "operation": "Table scan on t1",
+            "covering": false,
+            "operation": "Index scan on t1 using PRIMARY",
+            "index_name": "PRIMARY",
             "table_name": "t1",
-            "access_type": "table",
+            "access_type": "index",
             "schema_name": "test",
             "used_columns": [
               "d"
             ],
             "estimated_rows": 9.0,
+            "index_access_type": "index_scan",
             "estimated_total_cost": 2.986175115207373,
             "estimated_first_row_cost": 0.3317972350230415
           }

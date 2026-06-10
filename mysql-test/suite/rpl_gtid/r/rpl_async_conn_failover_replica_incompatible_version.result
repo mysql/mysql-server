@@ -1,0 +1,100 @@
+#
+# 1. Create a chain replication between server 1, 2, 3 and 4.
+#
+include/rpl/init.inc [topology=1->2->3->4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+#
+# 2. Insert data on server1 and verify that it is synced to the end of
+#    chain i.e. server4.
+#
+[connection server_1]
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl/sync.inc
+[connection server_4]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Replication from higher version source.*");
+SET SESSION sql_log_bin = 1;
+include/assert.inc ['There is one row on replica']
+#
+# 3. Stop replica on server 4.
+#
+include/rpl/stop_replica.inc
+#
+# 4. Disable the system variable that allows a replica to connect to
+#    a higher-version source.
+#
+SET @saved_replica_allow_higher_version_source = @@GLOBAL.replica_allow_higher_version_source;
+SET GLOBAL replica_allow_higher_version_source=OFF;
+#
+# 5. Enable asynchronous replication connection failover
+#    and verify it is enabled.
+#
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
+#
+# 6. Add three asynchronous connection failover servers and
+#    verify that they are added successfully.
+#
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 40);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 40)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_2, '', 60);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_2, '', 60)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_1, '', 50);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_1, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/assert.inc ['There are three rows in performance_schema.replication_asynchronous_connection_failover']
+#
+# 7. Use a debug point to simulate a source version incompatibility
+#    on server 4.
+#
+# Adding debug point 'simulate_source_version_mismatch' to @@GLOBAL.debug
+# Adding debug point 'async_conn_failover_disable_weight_check' to @@GLOBAL.debug
+#
+# 8. Restart replica on server 4 so asynchronous replication connection
+#    failover can execute and connect to new source.
+#
+include/rpl/start_replica.inc
+#
+# 9. Verify that asynchronous replication channel connects to
+#    server 2.
+#
+#
+# 10. Insert more data on server1 and verify that it is synced to
+#     server 4.
+#
+[connection server_1]
+INSERT INTO t1 VALUES (2);
+[connection server_4]
+#
+# 11. Clean up.
+#
+include/rpl/stop_replica.inc
+SET GLOBAL replica_allow_higher_version_source= @saved_replica_allow_higher_version_source;
+# Removing debug point 'async_conn_failover_disable_weight_check' from @@GLOBAL.debug
+# Removing debug point 'simulate_source_version_mismatch' from @@GLOBAL.debug
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_2, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_2, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+include/rpl/start_replica.inc
+[connection server_1]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

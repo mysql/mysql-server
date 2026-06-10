@@ -1,0 +1,42 @@
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("telemetry: Failed to acquire service <telemetry_resource_provider.component_test_telemetry_resource_provider>, will wait");
+# Install a resource provider before telemetry
+# 1) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+# 2) Install component with dummy resource provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider';
+SELECT "Resource provider loading" as message;
+message
+Resource provider loading
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	READY
+SELECT "Resource provider loaded" as message;
+message
+Resource provider loaded
+UNINSTALL COMPONENT 'file://component_telemetry';
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+# Install telemetry before a resource provider
+# 1) Install component with (unloaded) dummy resource provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider';
+SELECT "Resource provider missing" as message;
+message
+Resource provider missing
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	DETECT_RESOURCE
+# 2) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+SELECT "Resource provider loading" as message;
+message
+Resource provider loading
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	READY
+SELECT "Resource provider loaded" as message;
+message
+Resource provider loaded
+UNINSTALL COMPONENT 'file://component_telemetry';
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';

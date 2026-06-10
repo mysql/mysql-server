@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "mysql/status_var.h"  // enum_mysql_show_type
 #include "nulls.h"             // NullS
 #include "sql/current_thd.h"   // current_thd
+#include "sql/rpl_injector.h"
 #include "storage/ndb/include/ndbapi/NdbError.hpp"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"  // Ndb_global_schema_lock_guard
@@ -303,6 +304,41 @@ bool Ndb_binlog_thread::Metadata_cache::load_fk_parents(
   }
   m_fk_parent_tables = std::move(table_ids);
   return true;
+}
+
+void Ndb_binlog_thread::Binlog_file_tracker::publish_if_waiters() {
+  if (m_waiters.load(std::memory_order_acquire) <= 0) {
+    // No-one waiting, skip publish
+    return;
+  }
+  char logfilename[FN_REFLEN];
+  injector::get_current_binlog_filename(logfilename);
+
+  {
+    std::scoped_lock lock(m_lock);
+    m_filename = logfilename;
+    m_counter++;
+  }
+  m_cond.notify_all();
+}
+
+bool Ndb_binlog_thread::Binlog_file_tracker::wait_for_publish_once(
+    std::string &out_filename) {
+  m_waiters.fetch_add(1, std::memory_order_acq_rel);  // Enable publish
+
+  std::unique_lock<std::mutex> lock(m_lock);
+  const auto counter_before = m_counter;
+
+  // Predicate: sequence advanced (indicating a publish happened)
+  auto ready = [this, counter_before]() { return m_counter != counter_before; };
+
+  const bool signalled = m_cond.wait_for(lock, std::chrono::seconds(1), ready);
+  if (signalled) {
+    out_filename = m_filename;
+  }
+
+  m_waiters.fetch_sub(1, std::memory_order_acq_rel);
+  return signalled;
 }
 
 #ifndef NDEBUG

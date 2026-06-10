@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,17 @@
 #ifndef NDB_PORTLIB_OPENSSL_COMPAT_H
 #define NDB_PORTLIB_OPENSSL_COMPAT_H
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
 #include "portlib/ndb_openssl_version.h"
 
-#ifndef SSL_R_UNEXPECTED_EOF_WHILE_READING
 // Macro not defined in OpenSSL 1.x headers (Brought in via ssl.h for OSSL3.0)
+#ifndef SSL_R_UNEXPECTED_EOF_WHILE_READING
 #define SSL_R_UNEXPECTED_EOF_WHILE_READING 294
+#endif
+
+// Macro not defined in OpenSSL 1.1.1k, EL8
+#ifndef X509_REQ_VERSION_1
+#define X509_REQ_VERSION_1 0
 #endif
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
@@ -51,7 +57,6 @@ EVP_PKEY *EVP_EC_generate(const char *curve);
 
 /* These stub functions allow NDB TLS code to compile with OpenSSL 1.0.x */
 #if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
-#include <openssl/x509.h>
 #include <openssl/x509v3.h>
 const ASN1_INTEGER *X509_get0_serialNumber(const X509 *);
 

@@ -1274,21 +1274,23 @@ COLUMNS(PARTITION_ID)
  PARTITION P8 VALUES LESS THAN (8) ENGINE = InnoDB,
  PARTITION P9 VALUES LESS THAN (9) ENGINE = InnoDB);
 
- insert into test12 values('Tom1',20,1,'2017-08-25
-12:12:12',1),('Tom2',21,1,'2017-08-25 12:12:12',1),('Tom3',23,1,'2017-08-25
-12:12:12',1);
+insert into test12 values('Tom1',20,1,'2017-08-25 12:12:12',1),
+('Tom2',21,1,'2017-08-25 12:12:12',1),
+('Tom3',23,1,'2017-08-25 12:12:12',1),
+('Tom4',24,1,'2017-08-25 12:11:12',1),
+('Tom5',25,1,'2017-08-25 11:12:12',1),
+('Tom6',26,1,'2017-08-25 12:12:11',1),
+('Tom7',27,1,'2017-08-25 12:13:11',1);
+ANALYZE TABLE test12;
 
---skip_if_hypergraph  # See Bug#36579596
-begin;update test12 set grade=3,date=now()  where age=23 and
+begin;update test12 set grade=3,date=now()  where age>22 and age<24 and
 partition_id=1;
 
 --connection con1
---skip_if_hypergraph  # See Bug#36579596
 begin;update test12 set grade=1,date=now()  where age=21 and
 partition_id=1;
 
 --connection con2
---skip_if_hypergraph  # See Bug#36579596
 begin;update test12 set grade=0,date=now()  where age=20 and
 partition_id=1;
 
@@ -1363,23 +1365,24 @@ CREATE TABLE `t1` (
 INSERT INTO t1 VALUES (1, '2018-04-25 10:18:00', '1');
 INSERT INTO t1 VALUES (2, '2018-04-25 10:18:01', '2');
 INSERT INTO t1 VALUES (3, '2018-04-25 10:18:02', '3');
+INSERT INTO t1 VALUES (4, '2018-04-25 10:18:03', '1');
+INSERT INTO t1 VALUES (5, '2018-04-25 10:18:04', '1');
+INSERT INTO t1 VALUES (6, '2018-04-25 10:18:05', '1');
+ANALYZE TABLE t1;
 
 SELECT * FROM t1;
 
 begin;
---skip_if_hypergraph  # See Bug#36579596
 UPDATE t1 SET data = '11' WHERE id = 1;
 
 --connection conn1
 begin;
---skip_if_hypergraph  # See Bug#36579596
 UPDATE t1 SET data = '22' WHERE id = 2;
 commit;
 
 --disconnect conn1
 
 --connection default
---skip_if_hypergraph  # See Bug#36579596
 SELECT * FROM t1;
 
 DROP TABLE t1;

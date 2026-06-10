@@ -534,8 +534,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0)
-    -> Table scan on t1, with pushed condition: ((t1.time_field = TIME'01:01:01') and (t1.tiny = <cache>(-(1))) and (t1.short = <cache>(-(1))) and (t1.`medium` = <cache>(-(1))) and (t1.long_int = <cache>(-(1))) and (t1.longlong = -1) and (t1.utiny = 1) and (t1.ushort = 1) and (t1.umedium = 1) and (t1.ulong = 1) and (t1.ulonglong = 1) and (t1.date_field = DATE'1901-01-01') and (t1.year_field = 1901) and (t1.date_time = TIMESTAMP'1901-01-01 01:01:01') and (t1.real_float > 1) and (t1.real_float < 2) and (t1.real_double > 1) and (t1.real_double < 2) and (t1.real_decimal > 1.0000) and (t1.real_decimal < 2.0000) and (t1.`string` = 'aaaa') and (t1.vstring = 'aaaa') and (t1.bin = 0xaaaa) and (t1.vbin = 0xaaaa) and (t1.flags = 'one') and (t1.`options` = 'one'))  (rows=0)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.time_field = TIME'01:01:01') and (t1.tiny = <cache>(-(1))) and (t1.short = <cache>(-(1))) and (t1.`medium` = <cache>(-(1))) and (t1.long_int = <cache>(-(1))) and (t1.longlong = -1) and (t1.utiny = 1) and (t1.ushort = 1) and (t1.umedium = 1) and (t1.ulong = 1) and (t1.ulonglong = 1) and (t1.date_field = DATE'1901-01-01') and (t1.year_field = 1901) and (t1.date_time = TIMESTAMP'1901-01-01 01:01:01') and (t1.real_float > 1) and (t1.real_float < 2) and (t1.real_double > 1) and (t1.real_double < 2) and (t1.real_decimal > 1.0000) and (t1.real_decimal < 2.0000) and (t1.`string` = 'aaaa') and (t1.vstring = 'aaaa') and (t1.bin = 0xaaaa) and (t1.vbin = 0xaaaa) and (t1.flags = 'one') and (t1.`options` = 'one'))  (rows=0)
 
 select auto from t1 where
 string = "aaaa" and
@@ -593,8 +592,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.0741)
-    -> Table scan on t1, with pushed condition: (((t1.real_float < 1) or (t1.real_float > 2)) and ((t1.real_double < 1) or (t1.real_double > 2)) and ((t1.real_decimal < 1.0000) or (t1.real_decimal > 2.0000)) and (t1.`options` <> 'one') and (t1.tiny <> <cache>(-(1))) and (t1.short <> <cache>(-(1))) and (t1.`medium` <> <cache>(-(1))) and (t1.long_int <> <cache>(-(1))) and (t1.longlong <> -1) and (t1.utiny <> 1) and (t1.ushort <> 1) and (t1.umedium <> 1) and (t1.ulong <> 1) and (t1.ulonglong <> 1) and (t1.date_field <> DATE'1901-01-01') and (t1.year_field <> 1901) and (t1.time_field <> TIME'01:01:01') and (t1.date_time <> TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` <> 'aaaa') and (t1.vstring <> 'aaaa') and (t1.bin <> 0xaaaa) and (t1.vbin <> 0xaaaa) and (t1.flags <> 'one'))  (rows=0.0741)
+-> Index scan on t1 using PRIMARY, with pushed condition: (((t1.real_float < 1) or (t1.real_float > 2)) and ((t1.real_double < 1) or (t1.real_double > 2)) and ((t1.real_decimal < 1.0000) or (t1.real_decimal > 2.0000)) and (t1.`options` <> 'one') and (t1.tiny <> <cache>(-(1))) and (t1.short <> <cache>(-(1))) and (t1.`medium` <> <cache>(-(1))) and (t1.long_int <> <cache>(-(1))) and (t1.longlong <> -1) and (t1.utiny <> 1) and (t1.ushort <> 1) and (t1.umedium <> 1) and (t1.ulong <> 1) and (t1.ulonglong <> 1) and (t1.date_field <> DATE'1901-01-01') and (t1.year_field <> 1901) and (t1.time_field <> TIME'01:01:01') and (t1.date_time <> TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` <> 'aaaa') and (t1.vstring <> 'aaaa') and (t1.bin <> 0xaaaa) and (t1.vbin <> 0xaaaa) and (t1.flags <> 'one'))  (rows=0.0741)
 
 select auto from t1 where
 string != "aaaa" and
@@ -654,8 +652,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=50.5e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny < <cache>(-(1))) and (t1.short < <cache>(-(1))) and (t1.`medium` < <cache>(-(1))) and (t1.long_int < <cache>(-(1))) and (t1.longlong < -1) and (t1.real_float > 1.100000023841858) and (t1.real_double > 1.1) and (t1.real_decimal > 1.1000) and (t1.utiny > 1) and (t1.ushort > 1) and (t1.umedium > 1) and (t1.ulong > 1) and (t1.ulonglong > 1) and (t1.date_field > DATE'1901-01-01') and (t1.year_field > 1901) and (t1.time_field > TIME'01:01:01') and (t1.date_time > TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` > 'aaaa') and (t1.vstring > 'aaaa') and (t1.bin > 0xaaaa) and (t1.vbin > 0xaaaa) and ((t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=50.5e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny < <cache>(-(1))) and (t1.short < <cache>(-(1))) and (t1.`medium` < <cache>(-(1))) and (t1.long_int < <cache>(-(1))) and (t1.longlong < -1) and (t1.real_float > 1.100000023841858) and (t1.real_double > 1.1) and (t1.real_decimal > 1.1000) and (t1.utiny > 1) and (t1.ushort > 1) and (t1.umedium > 1) and (t1.ulong > 1) and (t1.ulonglong > 1) and (t1.date_field > DATE'1901-01-01') and (t1.year_field > 1901) and (t1.time_field > TIME'01:01:01') and (t1.date_time > TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` > 'aaaa') and (t1.vstring > 'aaaa') and (t1.bin > 0xaaaa) and (t1.vbin > 0xaaaa) and ((t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=50.5e-12)
 
 select auto from t1 where
 string > "aaaa" and
@@ -715,8 +712,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=77.5e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny <= <cache>(-(1))) and (t1.short <= <cache>(-(1))) and (t1.`medium` <= <cache>(-(1))) and (t1.long_int <= <cache>(-(1))) and (t1.longlong <= -1) and (t1.real_float >= 1) and (t1.real_double >= 1) and (t1.real_decimal >= 1.0000) and (t1.utiny >= 1) and (t1.ushort >= 1) and (t1.umedium >= 1) and (t1.ulong >= 1) and (t1.ulonglong >= 1) and (t1.date_field >= DATE'1901-01-01') and (t1.year_field >= 1901) and (t1.time_field >= TIME'01:01:01') and (t1.date_time >= TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` >= 'aaaa') and (t1.vstring >= 'aaaa') and (t1.bin >= 0xaaaa) and (t1.vbin >= 0xaaaa) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=77.5e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny <= <cache>(-(1))) and (t1.short <= <cache>(-(1))) and (t1.`medium` <= <cache>(-(1))) and (t1.long_int <= <cache>(-(1))) and (t1.longlong <= -1) and (t1.real_float >= 1) and (t1.real_double >= 1) and (t1.real_decimal >= 1.0000) and (t1.utiny >= 1) and (t1.ushort >= 1) and (t1.umedium >= 1) and (t1.ulong >= 1) and (t1.ulonglong >= 1) and (t1.date_field >= DATE'1901-01-01') and (t1.year_field >= 1901) and (t1.time_field >= TIME'01:01:01') and (t1.date_time >= TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` >= 'aaaa') and (t1.vstring >= 'aaaa') and (t1.bin >= 0xaaaa) and (t1.vbin >= 0xaaaa) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=77.5e-12)
 
 select auto from t1 where
 string >= "aaaa" and
@@ -777,8 +773,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=50.5e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny > <cache>(-(4))) and (t1.short > <cache>(-(4))) and (t1.`medium` > <cache>(-(4))) and (t1.long_int > <cache>(-(4))) and (t1.longlong > -4) and (t1.real_float < 4.400000095367432) and (t1.real_double < 4.4) and (t1.real_decimal < 4.4000) and (t1.utiny < 4) and (t1.ushort < 4) and (t1.umedium < 4) and (t1.ulong < 4) and (t1.ulonglong < 4) and (t1.date_field < DATE'1904-01-01') and (t1.year_field < 1904) and (t1.time_field < TIME'04:04:04') and (t1.date_time < TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` < 'dddd') and (t1.vstring < 'dddd') and (t1.bin < 0xdddd) and (t1.vbin < 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three')))  (rows=50.5e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny > <cache>(-(4))) and (t1.short > <cache>(-(4))) and (t1.`medium` > <cache>(-(4))) and (t1.long_int > <cache>(-(4))) and (t1.longlong > -4) and (t1.real_float < 4.400000095367432) and (t1.real_double < 4.4) and (t1.real_decimal < 4.4000) and (t1.utiny < 4) and (t1.ushort < 4) and (t1.umedium < 4) and (t1.ulong < 4) and (t1.ulonglong < 4) and (t1.date_field < DATE'1904-01-01') and (t1.year_field < 1904) and (t1.time_field < TIME'04:04:04') and (t1.date_time < TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` < 'dddd') and (t1.vstring < 'dddd') and (t1.bin < 0xdddd) and (t1.vbin < 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three')))  (rows=50.5e-12)
 
 select auto from t1 where
 string < "dddd" and
@@ -838,8 +833,7 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=77.5e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny >= <cache>(-(4))) and (t1.short >= <cache>(-(4))) and (t1.`medium` >= <cache>(-(4))) and (t1.long_int >= <cache>(-(4))) and (t1.longlong >= -4) and (t1.real_float <= 4.5) and (t1.real_double <= 4.5) and (t1.real_decimal <= 4.5000) and (t1.utiny <= <cache>(((4 - 1) + 1))) and (t1.ushort <= 4) and (t1.umedium <= 4) and (t1.ulong <= 4) and (t1.ulonglong <= 4) and (t1.date_field <= DATE'1904-04-04') and (t1.year_field <= 1904) and (t1.time_field <= TIME'04:04:04') and (t1.date_time <= TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` <= 'dddd') and (t1.vstring <= 'dddd') and (t1.bin <= 0xdddd) and (t1.vbin <= 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=77.5e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny >= <cache>(-(4))) and (t1.short >= <cache>(-(4))) and (t1.`medium` >= <cache>(-(4))) and (t1.long_int >= <cache>(-(4))) and (t1.longlong >= -4) and (t1.real_float <= 4.5) and (t1.real_double <= 4.5) and (t1.real_decimal <= 4.5000) and (t1.utiny <= <cache>(((4 - 1) + 1))) and (t1.ushort <= 4) and (t1.umedium <= 4) and (t1.ulong <= 4) and (t1.ulonglong <= 4) and (t1.date_field <= DATE'1904-04-04') and (t1.year_field <= 1904) and (t1.time_field <= TIME'04:04:04') and (t1.date_time <= TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` <= 'dddd') and (t1.vstring <= 'dddd') and (t1.bin <= 0xdddd) and (t1.vbin <= 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=77.5e-12)
 
 select auto from t1 where
 string <= "dddd" and
@@ -960,8 +954,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.0823)
-    -> Table scan on t1, with pushed condition: (((t1.real_float < 1) or (t1.real_float > 2)) and ((t1.real_double < 1) or (t1.real_double > 2)) and ((t1.real_decimal < 1.0000) or (t1.real_decimal > 2.0000)) and (t1.`options` <> 'one') and (t1.tiny <> <cache>(-(1))) and (t1.short <> <cache>(-(1))) and (t1.`medium` <> <cache>(-(1))) and (t1.long_int <> <cache>(-(1))) and (t1.longlong <> -1) and (t1.utiny <> 1) and (t1.ushort <> 1) and (t1.umedium <> 1) and (t1.ulong <> 1) and (t1.ulonglong <> 1) and (t1.date_field <> DATE'1901-01-01') and (t1.year_field <> 1901) and (t1.time_field <> TIME'01:01:01') and (t1.date_time <> TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` <> 'aaaa') and (t1.vstring <> 'aaaa') and (t1.bin <> 0xaaaa) and (t1.vbin <> 0xaaaa) and (t1.flags <> 'one'))  (rows=0.0823)
+-> Index scan on t1 using PRIMARY, with pushed condition: (((t1.real_float < 1) or (t1.real_float > 2)) and ((t1.real_double < 1) or (t1.real_double > 2)) and ((t1.real_decimal < 1.0000) or (t1.real_decimal > 2.0000)) and (t1.`options` <> 'one') and (t1.tiny <> <cache>(-(1))) and (t1.short <> <cache>(-(1))) and (t1.`medium` <> <cache>(-(1))) and (t1.long_int <> <cache>(-(1))) and (t1.longlong <> -1) and (t1.utiny <> 1) and (t1.ushort <> 1) and (t1.umedium <> 1) and (t1.ulong <> 1) and (t1.ulonglong <> 1) and (t1.date_field <> DATE'1901-01-01') and (t1.year_field <> 1901) and (t1.time_field <> TIME'01:01:01') and (t1.date_time <> TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` <> 'aaaa') and (t1.vstring <> 'aaaa') and (t1.bin <> 0xaaaa) and (t1.vbin <> 0xaaaa) and (t1.flags <> 'one'))  (rows=0.0823)
 
 select auto from t1 where
 string != "aaaa" and
@@ -1021,8 +1014,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=114e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny < <cache>(-(1))) and (t1.short < <cache>(-(1))) and (t1.`medium` < <cache>(-(1))) and (t1.long_int < <cache>(-(1))) and (t1.longlong < -1) and (t1.real_float > 1.100000023841858) and (t1.real_double > 1.1) and (t1.real_decimal > 1.1000) and (t1.utiny > 1) and (t1.ushort > 1) and (t1.umedium > 1) and (t1.ulong > 1) and (t1.ulonglong > 1) and (t1.date_field > DATE'1901-01-01') and (t1.year_field > 1901) and (t1.time_field > TIME'01:01:01') and (t1.date_time > TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` > 'aaaa') and (t1.vstring > 'aaaa') and (t1.bin > 0xaaaa) and (t1.vbin > 0xaaaa) and ((t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=114e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny < <cache>(-(1))) and (t1.short < <cache>(-(1))) and (t1.`medium` < <cache>(-(1))) and (t1.long_int < <cache>(-(1))) and (t1.longlong < -1) and (t1.real_float > 1.100000023841858) and (t1.real_double > 1.1) and (t1.real_decimal > 1.1000) and (t1.utiny > 1) and (t1.ushort > 1) and (t1.umedium > 1) and (t1.ulong > 1) and (t1.ulonglong > 1) and (t1.date_field > DATE'1901-01-01') and (t1.year_field > 1901) and (t1.time_field > TIME'01:01:01') and (t1.date_time > TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` > 'aaaa') and (t1.vstring > 'aaaa') and (t1.bin > 0xaaaa) and (t1.vbin > 0xaaaa) and ((t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=114e-12)
 
 select auto from t1 where
 string > "aaaa" and
@@ -1082,8 +1074,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=174e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny <= <cache>(-(1))) and (t1.short <= <cache>(-(1))) and (t1.`medium` <= <cache>(-(1))) and (t1.long_int <= <cache>(-(1))) and (t1.longlong <= -1) and (t1.real_float >= 1) and (t1.real_double >= 1) and (t1.real_decimal >= 1.0000) and (t1.utiny >= 1) and (t1.ushort >= 1) and (t1.umedium >= 1) and (t1.ulong >= 1) and (t1.ulonglong >= 1) and (t1.date_field >= DATE'1901-01-01') and (t1.year_field >= 1901) and (t1.time_field >= TIME'01:01:01') and (t1.date_time >= TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` >= 'aaaa') and (t1.vstring >= 'aaaa') and (t1.bin >= 0xaaaa) and (t1.vbin >= 0xaaaa) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=174e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny <= <cache>(-(1))) and (t1.short <= <cache>(-(1))) and (t1.`medium` <= <cache>(-(1))) and (t1.long_int <= <cache>(-(1))) and (t1.longlong <= -1) and (t1.real_float >= 1) and (t1.real_double >= 1) and (t1.real_decimal >= 1.0000) and (t1.utiny >= 1) and (t1.ushort >= 1) and (t1.umedium >= 1) and (t1.ulong >= 1) and (t1.ulonglong >= 1) and (t1.date_field >= DATE'1901-01-01') and (t1.year_field >= 1901) and (t1.time_field >= TIME'01:01:01') and (t1.date_time >= TIMESTAMP'1901-01-01 01:01:01') and (t1.`string` >= 'aaaa') and (t1.vstring >= 'aaaa') and (t1.bin >= 0xaaaa) and (t1.vbin >= 0xaaaa) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=174e-12)
 
 select auto from t1 where
 string >= "aaaa" and
@@ -1144,8 +1135,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=114e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny > <cache>(-(4))) and (t1.short > <cache>(-(4))) and (t1.`medium` > <cache>(-(4))) and (t1.long_int > <cache>(-(4))) and (t1.longlong > -4) and (t1.real_float < 4.400000095367432) and (t1.real_double < 4.4) and (t1.real_decimal < 4.4000) and (t1.utiny < 4) and (t1.ushort < 4) and (t1.umedium < 4) and (t1.ulong < 4) and (t1.ulonglong < 4) and (t1.date_field < DATE'1904-01-01') and (t1.year_field < 1904) and (t1.time_field < TIME'04:04:04') and (t1.date_time < TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` < 'dddd') and (t1.vstring < 'dddd') and (t1.bin < 0xdddd) and (t1.vbin < 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three')))  (rows=114e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny > <cache>(-(4))) and (t1.short > <cache>(-(4))) and (t1.`medium` > <cache>(-(4))) and (t1.long_int > <cache>(-(4))) and (t1.longlong > -4) and (t1.real_float < 4.400000095367432) and (t1.real_double < 4.4) and (t1.real_decimal < 4.4000) and (t1.utiny < 4) and (t1.ushort < 4) and (t1.umedium < 4) and (t1.ulong < 4) and (t1.ulonglong < 4) and (t1.date_field < DATE'1904-01-01') and (t1.year_field < 1904) and (t1.time_field < TIME'04:04:04') and (t1.date_time < TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` < 'dddd') and (t1.vstring < 'dddd') and (t1.bin < 0xdddd) and (t1.vbin < 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three')))  (rows=114e-12)
 
 select auto from t1 where
 string < "dddd" and
@@ -1205,8 +1195,7 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04'
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=174e-12)
-    -> Table scan on t1, with pushed condition: ((t1.tiny >= <cache>(-(4))) and (t1.short >= <cache>(-(4))) and (t1.`medium` >= <cache>(-(4))) and (t1.long_int >= <cache>(-(4))) and (t1.longlong >= -4) and (t1.real_float <= 4.5) and (t1.real_double <= 4.5) and (t1.real_decimal <= 4.5000) and (t1.utiny <= <cache>(((4 - 1) + 1))) and (t1.ushort <= 4) and (t1.umedium <= 4) and (t1.ulong <= 4) and (t1.ulonglong <= 4) and (t1.date_field <= DATE'1904-04-04') and (t1.year_field <= 1904) and (t1.time_field <= TIME'04:04:04') and (t1.date_time <= TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` <= 'dddd') and (t1.vstring <= 'dddd') and (t1.bin <= 0xdddd) and (t1.vbin <= 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=174e-12)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny >= <cache>(-(4))) and (t1.short >= <cache>(-(4))) and (t1.`medium` >= <cache>(-(4))) and (t1.long_int >= <cache>(-(4))) and (t1.longlong >= -4) and (t1.real_float <= 4.5) and (t1.real_double <= 4.5) and (t1.real_decimal <= 4.5000) and (t1.utiny <= <cache>(((4 - 1) + 1))) and (t1.ushort <= 4) and (t1.umedium <= 4) and (t1.ulong <= 4) and (t1.ulonglong <= 4) and (t1.date_field <= DATE'1904-04-04') and (t1.year_field <= 1904) and (t1.time_field <= TIME'04:04:04') and (t1.date_time <= TIMESTAMP'1904-04-04 04:04:04') and (t1.`string` <= 'dddd') and (t1.vstring <= 'dddd') and (t1.bin <= 0xdddd) and (t1.vbin <= 0xdddd) and ((t1.flags = 'one') or (t1.flags = 'one,two') or (t1.flags = 'one,two,three') or (t1.flags = 'one,two,three,four')) and ((t1.`options` = 'one') or (t1.`options` = 'two') or (t1.`options` = 'three') or (t1.`options` = 'four')))  (rows=174e-12)
 
 select auto from t1 where
 string <= "dddd" and
@@ -1247,8 +1236,7 @@ bin like concat(0xBB, '%') and
 vbin like concat(0xBB, '%')
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=609e-6)
-    -> Table scan on t1, with pushed condition: ((t1.`string` like 'b%') and (t1.vstring like 'b%') and (t1.bin like <cache>(concat(0xbb,'%'))) and (t1.vbin like <cache>(concat(0xbb,'%'))))  (rows=609e-6)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.`string` like 'b%') and (t1.vstring like 'b%') and (t1.bin like <cache>(concat(0xbb,'%'))) and (t1.vbin like <cache>(concat(0xbb,'%'))))  (rows=609e-6)
 
 select auto from t1 where
 string like "b%" and
@@ -1266,8 +1254,7 @@ bin not like concat(0xBB, '%') and
 vbin not like concat(0xBB, '%')
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=2.5)
-    -> Table scan on t1, with pushed condition: ((not((t1.`string` like 'b%'))) and (not((t1.vstring like 'b%'))) and (not((t1.bin like <cache>(concat(0xbb,'%'))))) and (not((t1.vbin like <cache>(concat(0xbb,'%'))))))  (rows=2.5)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((not((t1.`string` like 'b%'))) and (not((t1.vstring like 'b%'))) and (not((t1.bin like <cache>(concat(0xbb,'%'))))) and (not((t1.vbin like <cache>(concat(0xbb,'%'))))))  (rows=2.5)
 
 select auto from t1 where
 string not like "b%" and
@@ -1304,9 +1291,8 @@ select auto from t1 where
 (date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03')
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0)
-    -> Filter: (t1.`options` between 'one' and 'three')  (rows=0)
-        -> Table scan on t1, with pushed condition: ((t1.tiny between <cache>(-(3)) and <cache>(-(1))) and (t1.short between <cache>(-(3)) and <cache>(-(1))) and (t1.`medium` between <cache>(-(3)) and <cache>(-(1))) and (t1.long_int between <cache>(-(3)) and <cache>(-(1))) and (t1.longlong between -3 and -1) and (t1.utiny between 1 and 3) and (t1.ushort between 1 and 3) and (t1.umedium between 1 and 3) and (t1.ulong between 1 and 3) and (t1.ulonglong between 1 and 3) and (t1.date_field between '1901-01-01' and '1903-03-03') and (t1.year_field between 1901 and 1903) and (t1.time_field between TIME'01:01:01' and TIME'03:03:03') and (t1.date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') and (t1.`string` between 'aaaa' and 'cccc') and (t1.vstring between 'aaaa' and 'cccc') and (t1.bin between 0xaaaa and 0xcccc) and (t1.vbin between 0xaaaa and 0xcccc) and (t1.flags between 'one' and 'one,two,three'))  (rows=4)
+-> Filter: (t1.`options` between 'one' and 'three')  (rows=0)
+    -> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny between <cache>(-(3)) and <cache>(-(1))) and (t1.short between <cache>(-(3)) and <cache>(-(1))) and (t1.`medium` between <cache>(-(3)) and <cache>(-(1))) and (t1.long_int between <cache>(-(3)) and <cache>(-(1))) and (t1.longlong between -3 and -1) and (t1.utiny between 1 and 3) and (t1.ushort between 1 and 3) and (t1.umedium between 1 and 3) and (t1.ulong between 1 and 3) and (t1.ulonglong between 1 and 3) and (t1.date_field between '1901-01-01' and '1903-03-03') and (t1.year_field between 1901 and 1903) and (t1.time_field between TIME'01:01:01' and TIME'03:03:03') and (t1.date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') and (t1.`string` between 'aaaa' and 'cccc') and (t1.vstring between 'aaaa' and 'cccc') and (t1.bin between 0xaaaa and 0xcccc) and (t1.vbin between 0xaaaa and 0xcccc) and (t1.flags between 'one' and 'one,two,three'))  (rows=4)
 
 select auto from t1 where
 (string between "aaaa" and "cccc") and
@@ -1359,8 +1345,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' between date_time and date_time)
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0)
-    -> Table scan on t1, with pushed condition: ((<cache>(-(1)) between t1.tiny and t1.tiny) and (<cache>(-(1)) between t1.short and t1.short) and (<cache>(-(1)) between t1.`medium` and t1.`medium`) and (<cache>(-(1)) between t1.long_int and t1.long_int) and (<cache>(-(1)) between t1.longlong and t1.longlong) and (1 between t1.utiny and t1.utiny) and (1 between t1.ushort and t1.ushort) and (1 between t1.umedium and t1.umedium) and (1 between t1.ulong and t1.ulong) and (1 between t1.ulonglong and t1.ulonglong) and ('1901-01-01' between t1.date_field and t1.date_field) and ('1901' between t1.year_field and t1.year_field) and ('01:01:01' between t1.time_field and t1.time_field) and ('1901-01-01 01:01:01' between t1.date_time and t1.date_time) and ('aaaa' between t1.`string` and t1.`string`) and ('aaaa' between t1.vstring and t1.vstring) and (0xaaaa between t1.bin and t1.bin) and (0xaaaa between t1.vbin and t1.vbin) and ('one' between t1.flags and t1.flags) and ('one' between t1.`options` and t1.`options`))  (rows=0)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((<cache>(-(1)) between t1.tiny and t1.tiny) and (<cache>(-(1)) between t1.short and t1.short) and (<cache>(-(1)) between t1.`medium` and t1.`medium`) and (<cache>(-(1)) between t1.long_int and t1.long_int) and (<cache>(-(1)) between t1.longlong and t1.longlong) and (1 between t1.utiny and t1.utiny) and (1 between t1.ushort and t1.ushort) and (1 between t1.umedium and t1.umedium) and (1 between t1.ulong and t1.ulong) and (1 between t1.ulonglong and t1.ulonglong) and ('1901-01-01' between t1.date_field and t1.date_field) and ('1901' between t1.year_field and t1.year_field) and ('01:01:01' between t1.time_field and t1.time_field) and ('1901-01-01 01:01:01' between t1.date_time and t1.date_time) and ('aaaa' between t1.`string` and t1.`string`) and ('aaaa' between t1.vstring and t1.vstring) and (0xaaaa between t1.bin and t1.bin) and (0xaaaa between t1.vbin and t1.vbin) and ('one' between t1.flags and t1.flags) and ('one' between t1.`options` and t1.`options`))  (rows=0)
 
 select auto from t1 where
 ("aaaa" between string and string) and
@@ -1412,9 +1397,8 @@ select auto from t1 where
 (date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03')
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.384)
-    -> Filter: (t1.`options` not between 'one' and 'three')  (rows=0.384)
-        -> Table scan on t1, with pushed condition: ((t1.tiny not between <cache>(-(3)) and <cache>(-(1))) and (t1.short not between <cache>(-(3)) and <cache>(-(1))) and (t1.`medium` not between <cache>(-(3)) and <cache>(-(1))) and (t1.long_int not between <cache>(-(3)) and <cache>(-(1))) and (t1.longlong not between -3 and -1) and (t1.utiny not between 1 and 3) and (t1.ushort not between 1 and 3) and (t1.umedium not between 1 and 3) and (t1.ulong not between 1 and 3) and (t1.ulonglong not between 1 and 3) and (t1.date_field not between '1901-01-01' and '1903-03-03') and (t1.year_field not between 1901 and 1903) and (t1.time_field not between TIME'01:01:01' and TIME'03:03:03') and (t1.date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') and (t1.`string` not between 'aaaa' and 'cccc') and (t1.vstring not between 'aaaa' and 'cccc') and (t1.bin not between 0xaaaa and 0xcccc) and (t1.vbin not between 0xaaaa and 0xcccc) and (t1.flags not between 'one' and 'one,two,three'))  (rows=4)
+-> Filter: (t1.`options` not between 'one' and 'three')  (rows=0.384)
+    -> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny not between <cache>(-(3)) and <cache>(-(1))) and (t1.short not between <cache>(-(3)) and <cache>(-(1))) and (t1.`medium` not between <cache>(-(3)) and <cache>(-(1))) and (t1.long_int not between <cache>(-(3)) and <cache>(-(1))) and (t1.longlong not between -3 and -1) and (t1.utiny not between 1 and 3) and (t1.ushort not between 1 and 3) and (t1.umedium not between 1 and 3) and (t1.ulong not between 1 and 3) and (t1.ulonglong not between 1 and 3) and (t1.date_field not between '1901-01-01' and '1903-03-03') and (t1.year_field not between 1901 and 1903) and (t1.time_field not between TIME'01:01:01' and TIME'03:03:03') and (t1.date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') and (t1.`string` not between 'aaaa' and 'cccc') and (t1.vstring not between 'aaaa' and 'cccc') and (t1.bin not between 0xaaaa and 0xcccc) and (t1.vbin not between 0xaaaa and 0xcccc) and (t1.flags not between 'one' and 'one,two,three'))  (rows=4)
 
 select auto from t1 where
 (string not between "aaaa" and "cccc") and
@@ -1466,8 +1450,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' not between date_time and date_time)
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.384)
-    -> Table scan on t1, with pushed condition: (('one' not between t1.`options` and t1.`options`) and (<cache>(-(1)) not between t1.tiny and t1.tiny) and (<cache>(-(1)) not between t1.short and t1.short) and (<cache>(-(1)) not between t1.`medium` and t1.`medium`) and (<cache>(-(1)) not between t1.long_int and t1.long_int) and (<cache>(-(1)) not between t1.longlong and t1.longlong) and (1 not between t1.utiny and t1.utiny) and (1 not between t1.ushort and t1.ushort) and (1 not between t1.umedium and t1.umedium) and (1 not between t1.ulong and t1.ulong) and (1 not between t1.ulonglong and t1.ulonglong) and ('1901-01-01' not between t1.date_field and t1.date_field) and ('1901' not between t1.year_field and t1.year_field) and ('01:01:01' not between t1.time_field and t1.time_field) and ('1901-01-01 01:01:01' not between t1.date_time and t1.date_time) and ('aaaa' not between t1.`string` and t1.`string`) and ('aaaa' not between t1.vstring and t1.vstring) and (0xaaaa not between t1.bin and t1.bin) and (0xaaaa not between t1.vbin and t1.vbin) and ('one' not between t1.flags and t1.flags))  (rows=0.384)
+-> Index scan on t1 using PRIMARY, with pushed condition: (('one' not between t1.`options` and t1.`options`) and (<cache>(-(1)) not between t1.tiny and t1.tiny) and (<cache>(-(1)) not between t1.short and t1.short) and (<cache>(-(1)) not between t1.`medium` and t1.`medium`) and (<cache>(-(1)) not between t1.long_int and t1.long_int) and (<cache>(-(1)) not between t1.longlong and t1.longlong) and (1 not between t1.utiny and t1.utiny) and (1 not between t1.ushort and t1.ushort) and (1 not between t1.umedium and t1.umedium) and (1 not between t1.ulong and t1.ulong) and (1 not between t1.ulonglong and t1.ulonglong) and ('1901-01-01' not between t1.date_field and t1.date_field) and ('1901' not between t1.year_field and t1.year_field) and ('01:01:01' not between t1.time_field and t1.time_field) and ('1901-01-01 01:01:01' not between t1.date_time and t1.date_time) and ('aaaa' not between t1.`string` and t1.`string`) and ('aaaa' not between t1.vstring and t1.vstring) and (0xaaaa not between t1.bin and t1.bin) and (0xaaaa not between t1.vbin and t1.vbin) and ('one' not between t1.flags and t1.flags))  (rows=0.384)
 
 select auto from t1 where
 ("aaaa" not between string and string) and
@@ -1521,8 +1504,7 @@ time_field in('01:01:01','03:03:03') and
 date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03')
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0)
-    -> Table scan on t1, with pushed condition: ((t1.tiny in (<cache>(-(1)),<cache>(-(3)))) and (t1.short in (<cache>(-(1)),<cache>(-(3)))) and (t1.`medium` in (<cache>(-(1)),<cache>(-(3)))) and (t1.long_int in (<cache>(-(1)),<cache>(-(3)))) and (t1.longlong in (<cache>(-(1)),<cache>(-(3)))) and (t1.utiny in (1,3)) and (t1.ushort in (1,3)) and (t1.umedium in (1,3)) and (t1.ulong in (1,3)) and (t1.ulonglong in (1,3)) and (t1.date_field in ('1901-01-01','1903-03-03')) and (t1.year_field in (1901,1903)) and (t1.time_field in (TIME'01:01:01',TIME'03:03:03')) and (t1.date_time in ('1901-01-01 01:01:01','1903-03-03 03:03:03')) and (t1.`string` in ('aaaa','cccc')) and (t1.vstring in ('aaaa','cccc')) and (t1.bin in (0xaaaa,0xcccc)) and (t1.vbin in (0xaaaa,0xcccc)) and (t1.flags in ('one','one,two,three')) and (t1.`options` in ('one','three')))  (rows=0)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.tiny in (<cache>(-(1)),<cache>(-(3)))) and (t1.short in (<cache>(-(1)),<cache>(-(3)))) and (t1.`medium` in (<cache>(-(1)),<cache>(-(3)))) and (t1.long_int in (<cache>(-(1)),<cache>(-(3)))) and (t1.longlong in (<cache>(-(1)),<cache>(-(3)))) and (t1.utiny in (1,3)) and (t1.ushort in (1,3)) and (t1.umedium in (1,3)) and (t1.ulong in (1,3)) and (t1.ulonglong in (1,3)) and (t1.date_field in ('1901-01-01','1903-03-03')) and (t1.year_field in ('1901','1903')) and (t1.time_field in ('01:01:01','03:03:03')) and (t1.date_time in ('1901-01-01 01:01:01','1903-03-03 03:03:03')) and (t1.`string` in ('aaaa','cccc')) and (t1.vstring in ('aaaa','cccc')) and (t1.bin in (0xaaaa,0xcccc)) and (t1.vbin in (0xaaaa,0xcccc)) and (t1.flags in ('one','one,two,three')) and (t1.`options` in ('one','three')))  (rows=0)
 
 select auto from t1 where
 string in("aaaa","cccc") and
@@ -1628,8 +1610,7 @@ time_field not in('01:01:01','03:03:03') and
 date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03')
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.0432)
-    -> Table scan on t1, with pushed condition: ((t1.`options` not in ('one','three')) and (t1.tiny not in (<cache>(-(1)),<cache>(-(3)))) and (t1.short not in (<cache>(-(1)),<cache>(-(3)))) and (t1.`medium` not in (<cache>(-(1)),<cache>(-(3)))) and (t1.long_int not in (<cache>(-(1)),<cache>(-(3)))) and (t1.longlong not in (<cache>(-(1)),<cache>(-(3)))) and (t1.utiny not in (1,3)) and (t1.ushort not in (1,3)) and (t1.umedium not in (1,3)) and (t1.ulong not in (1,3)) and (t1.ulonglong not in (1,3)) and (t1.date_field not in ('1901-01-01','1903-03-03')) and (t1.year_field not in (1901,1903)) and (t1.time_field not in (TIME'01:01:01',TIME'03:03:03')) and (t1.date_time not in ('1901-01-01 01:01:01','1903-03-03 03:03:03')) and (t1.`string` not in ('aaaa','cccc')) and (t1.vstring not in ('aaaa','cccc')) and (t1.bin not in (0xaaaa,0xcccc)) and (t1.vbin not in (0xaaaa,0xcccc)) and (t1.flags not in ('one','one,two,three')))  (rows=0.0432)
+-> Index scan on t1 using PRIMARY, with pushed condition: ((t1.`options` not in ('one','three')) and (t1.tiny not in (<cache>(-(1)),<cache>(-(3)))) and (t1.short not in (<cache>(-(1)),<cache>(-(3)))) and (t1.`medium` not in (<cache>(-(1)),<cache>(-(3)))) and (t1.long_int not in (<cache>(-(1)),<cache>(-(3)))) and (t1.longlong not in (<cache>(-(1)),<cache>(-(3)))) and (t1.utiny not in (1,3)) and (t1.ushort not in (1,3)) and (t1.umedium not in (1,3)) and (t1.ulong not in (1,3)) and (t1.ulonglong not in (1,3)) and (t1.date_field not in ('1901-01-01','1903-03-03')) and (t1.year_field not in ('1901','1903')) and (t1.time_field not in ('01:01:01','03:03:03')) and (t1.date_time not in ('1901-01-01 01:01:01','1903-03-03 03:03:03')) and (t1.`string` not in ('aaaa','cccc')) and (t1.vstring not in ('aaaa','cccc')) and (t1.bin not in (0xaaaa,0xcccc)) and (t1.vbin not in (0xaaaa,0xcccc)) and (t1.flags not in ('one','one,two,three')))  (rows=0.0432)
 
 select auto from t1 where
 string not in("aaaa","cccc") and
@@ -1682,8 +1663,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' not in(date_time)
 order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.48)
-    -> Table scan on t1, with pushed condition: (('one' <> t1.`options`) and (<cache>(-(1)) <> t1.tiny) and (<cache>(-(1)) <> t1.short) and (<cache>(-(1)) <> t1.`medium`) and (<cache>(-(1)) <> t1.long_int) and (-1 <> t1.longlong) and (1 <> t1.utiny) and (1 <> t1.ushort) and (1 <> t1.umedium) and (1 <> t1.ulong) and (1 <> t1.ulonglong) and (DATE'1901-01-01' <> t1.date_field) and (1901 <> t1.year_field) and (TIME'01:01:01' <> t1.time_field) and (TIMESTAMP'1901-01-01 01:01:01' <> t1.date_time) and ('aaaa' <> t1.`string`) and ('aaaa' <> t1.vstring) and (0xaaaa <> t1.bin) and (0xaaaa <> t1.vbin) and ('one' <> t1.flags))  (rows=0.48)
+-> Index scan on t1 using PRIMARY, with pushed condition: (('one' <> t1.`options`) and (<cache>(-(1)) <> t1.tiny) and (<cache>(-(1)) <> t1.short) and (<cache>(-(1)) <> t1.`medium`) and (<cache>(-(1)) <> t1.long_int) and (-1 <> t1.longlong) and (1 <> t1.utiny) and (1 <> t1.ushort) and (1 <> t1.umedium) and (1 <> t1.ulong) and (1 <> t1.ulonglong) and (DATE'1901-01-01' <> t1.date_field) and (1901 <> t1.year_field) and (TIME'01:01:01' <> t1.time_field) and (TIMESTAMP'1901-01-01 01:01:01' <> t1.date_time) and ('aaaa' <> t1.`string`) and ('aaaa' <> t1.vstring) and (0xaaaa <> t1.bin) and (0xaaaa <> t1.vbin) and ('one' <> t1.flags))  (rows=0.48)
 
 select auto from t1 where
 "aaaa" not in(string) and
@@ -1771,8 +1751,7 @@ count(*)
 explain
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 EXPLAIN
--> Sort: t2.pk1  (rows=0.9)
-    -> Table scan on t2, with pushed condition: ((t2.attr3 is null) or ((t2.attr1 > 2) and (t2.pk1 = 3)))  (rows=0.9)
+-> Index scan on t2 using PRIMARY, with pushed condition: ((t2.attr3 is null) or ((t2.attr1 > 2) and (t2.pk1 = 3)))  (rows=0.9)
 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
@@ -1781,8 +1760,7 @@ pk1	attr1	attr2	attr3
 explain
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 EXPLAIN
--> Sort: t2.pk1  (rows=1.8)
-    -> Table scan on t2, with pushed condition: ((t2.attr1 > 2) and (t2.attr3 is not null))  (rows=1.8)
+-> Index scan on t2 using PRIMARY, with pushed condition: ((t2.attr1 > 2) and (t2.attr3 is not null))  (rows=1.8)
 
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 pk1	attr1	attr2	attr3
@@ -1792,8 +1770,7 @@ pk1	attr1	attr2	attr3
 explain
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 EXPLAIN
--> Sort: t3.pk1  (rows=1.8)
-    -> Table scan on t3, with pushed condition: ((t3.attr2 > 9223372036854775803) and (t3.attr3 <> 3))  (rows=1.8)
+-> Index scan on t3 using PRIMARY, with pushed condition: ((t3.attr2 > 9223372036854775803) and (t3.attr3 <> 3))  (rows=1.8)
 
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
@@ -1805,20 +1782,19 @@ select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 
 EXPLAIN
 -> Sort: t2.pk1  (rows=0.4)
     -> Inner hash join (t2.attr2 = t3.attr2)  (rows=0.4)
-        -> Table scan on t2, with pushed condition: (t2.attr1 < 1)  (rows=2)
+        -> Index scan on t2 using PRIMARY, with pushed condition: (t2.attr1 < 1)  (rows=2)
         -> Hash
-            -> Table scan on t3, with pushed condition: (t3.attr1 < 5)  (rows=2)
+            -> Index scan on t3 using PRIMARY, with pushed condition: (t3.attr1 < 5)  (rows=2)
 
 Warnings:
-Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't2' as child, can't provide rows in index order
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 0	0	0	a	0	0	0	0	a
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 EXPLAIN
--> Sort: t4.pk1  (rows=0.9)
-    -> Table scan on t4, with pushed condition: ((t4.attr1 < 5) and (t4.attr2 > 9223372036854775803) and (t4.attr3 <> 3))  (rows=0.9)
+-> Index scan on t4 using PRIMARY, with pushed condition: ((t4.attr1 < 5) and (t4.attr2 > 9223372036854775803) and (t4.attr3 <> 3))  (rows=0.9)
 
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
@@ -1829,12 +1805,12 @@ select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 
 EXPLAIN
 -> Sort: t4.pk1  (rows=0.6)
     -> Inner hash join (t4.attr2 = t3.attr2)  (rows=0.6)
-        -> Table scan on t3  (rows=6)
+        -> Index scan on t3 using PRIMARY  (rows=6)
         -> Hash
-            -> Table scan on t4, with pushed condition: ((t4.attr1 > 1) and (t4.attr3 < 5))  (rows=1)
+            -> Index scan on t4 using PRIMARY, with pushed condition: ((t4.attr1 > 1) and (t4.attr3 < 5))  (rows=1)
 
 Warnings:
-Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't3' as child of 't4', it is in a hash-bucket-branch which can't be referred.
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c	2	2	9223372036854775804	2	c
@@ -1843,9 +1819,8 @@ pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 explain
 select auto from t1 where string = "aaaa" collate utf8mb4_general_ci order by auto;
 EXPLAIN
--> Sort: t1.`auto`  (rows=0.3)
-    -> Filter: (t1.`string` = <cache>(('aaaa' collate utf8mb4_general_ci)))  (rows=0.3)
-        -> Table scan on t1  (rows=3)
+-> Filter: (t1.`string` = <cache>(('aaaa' collate utf8mb4_general_ci)))  (rows=0.3)
+    -> Index scan on t1 using PRIMARY  (rows=3)
 
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
@@ -1859,12 +1834,12 @@ EXPLAIN
 -> Sort: t4.pk1  (rows=1.2)
     -> Filter: (((t4.attr1 > 1) and (t4.attr3 < 5)) or (t4.attr1 is null))  (rows=1.2)
         -> Left hash join (t4.attr2 = t3.attr2)  (rows=6)
-            -> Table scan on t3  (rows=6)
+            -> Index scan on t3 using PRIMARY  (rows=6)
             -> Hash
-                -> Table scan on t4  (rows=6)
+                -> Index scan on t4 using PRIMARY  (rows=6)
 
 Warnings:
-Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't4' as child, can't provide rows in index order
 create table t5 (a int primary key auto_increment, b tinytext not null)
 engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
@@ -1878,7 +1853,7 @@ set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t5 where b like '%jo%';
 EXPLAIN
 -> Filter: (t5.b like '%jo%')  (rows=0.333)
-    -> Table scan on t5  (rows=3)
+    -> Index scan on t5 using PRIMARY  (rows=3)
 
 select * from t5 where b like '%jo%' order by a;
 a	b
@@ -1896,7 +1871,7 @@ set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain select auto from t1 where date_time like '1902-02-02 %';
 EXPLAIN
 -> Filter: (t1.date_time like '1902-02-02 %')  (rows=0.333)
-    -> Table scan on t1  (rows=3)
+    -> Index scan on t1 using PRIMARY  (rows=3)
 
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
 auto
@@ -1904,7 +1879,7 @@ auto
 explain select auto from t1 where date_time not like '1902-02-02 %';
 EXPLAIN
 -> Filter: (not((t1.date_time like '1902-02-02 %')))  (rows=2.67)
-    -> Table scan on t1  (rows=3)
+    -> Index scan on t1 using PRIMARY  (rows=3)
 
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 auto
@@ -2025,7 +2000,7 @@ Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-03-10
 12:22:26' at row 1 is deprecated. Prefer the standard ' '.
 explain select * from nodealias where (aliasKey LIKE '491803%');
 EXPLAIN
--> Table scan on nodealias, with pushed condition: (nodealias.aliasKey like '491803%')  (rows=3)
+-> Index scan on nodealias using PRIMARY, with pushed condition: (nodealias.aliasKey like '491803%')  (rows=3)
 
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
@@ -2033,7 +2008,7 @@ id	nodeId	displayName	aliasKey	objectVersion	changed
 explain select * from nodealias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220');
 EXPLAIN
 -> Filter: (('4918031215220' like nodealias.aliasKey) or (nodealias.aliasKey like '4918031215220'))  (rows=1.47)
-    -> Table scan on nodealias  (rows=7)
+    -> Index scan on nodealias using PRIMARY  (rows=7)
 
 select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
@@ -2229,7 +2204,7 @@ set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t where x <> "aa";
 EXPLAIN
 -> Filter: (t.x <> 'aa')  (rows=1.8)
-    -> Table scan on t  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=2)
 
 select * from t where x <> "aa";
 pk	x
@@ -2237,7 +2212,7 @@ pk	x
 explain select * from t where "aa" <> x;
 EXPLAIN
 -> Filter: ('aa' <> t.x)  (rows=1.8)
-    -> Table scan on t  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=2)
 
 select * from t where "aa" <> x;
 pk	x
@@ -2245,7 +2220,7 @@ pk	x
 explain select * from t where x between "" and "bb";
 EXPLAIN
 -> Filter: (t.x between '' and 'bb')  (rows=0.222)
-    -> Table scan on t  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=2)
 
 select * from t where x between "" and "bb";
 pk	x
@@ -2253,34 +2228,34 @@ pk	x
 explain select * from t where x not between "" and "bb";
 EXPLAIN
 -> Filter: (t.x not between '' and 'bb')  (rows=1.78)
-    -> Table scan on t  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=2)
 
 select * from t where x not between "" and "bb";
 pk	x
 explain select * from t where x in ("","aa","b");
 EXPLAIN
 -> Filter: (t.x in ('','aa','b'))  (rows=0.6)
-    -> Table scan on t  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=2)
 
 select * from t where x in ("","aa","b");
 pk	x
 explain select * from t where x not in ("","aa","b");
 EXPLAIN
 -> Filter: (t.x not in ('','aa','b'))  (rows=1.4)
-    -> Table scan on t  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=2)
 
 select * from t where x not in ("","aa","b");
 pk	x
 0	a
 explain select * from t where x like "aa?";
 EXPLAIN
--> Table scan on t, with pushed condition: (t.x like 'aa?')  (rows=0.222)
+-> Index scan on t using PRIMARY, with pushed condition: (t.x like 'aa?')  (rows=0.222)
 
 select * from t where x like "aa?";
 pk	x
 explain select * from t where x not like "aa?";
 EXPLAIN
--> Table scan on t, with pushed condition: (not((t.x like 'aa?')))  (rows=1.78)
+-> Index scan on t using PRIMARY, with pushed condition: (not((t.x like 'aa?')))  (rows=1.78)
 
 select * from t where x not like "aa?";
 pk	x
@@ -2310,8 +2285,7 @@ insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t where 3 between 1+1 and x order by pk;
 EXPLAIN
--> Sort: t.pk  (rows=0.667)
-    -> Table scan on t, with pushed condition: (3 between <cache>((1 + 1)) and t.x)  (rows=0.667)
+-> Index scan on t using PRIMARY, with pushed condition: (3 between <cache>((1 + 1)) and t.x)  (rows=0.667)
 
 select * from t where 3 between 1+1 and x order by pk;
 pk	x
@@ -2320,8 +2294,7 @@ pk	x
 5	5
 explain select * from t where 3 between -1 and x order by pk;
 EXPLAIN
--> Sort: t.pk  (rows=0.667)
-    -> Table scan on t, with pushed condition: (3 between <cache>(-(1)) and t.x)  (rows=0.667)
+-> Index scan on t using PRIMARY, with pushed condition: (3 between <cache>(-(1)) and t.x)  (rows=0.667)
 
 select * from t where 3 between -1 and x order by pk;
 pk	x
@@ -2373,12 +2346,12 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=0.04)
-    -> Table scan on tx, with pushed condition: (tx.c = 1)  (rows=0.2)
+    -> Index scan on tx using PRIMARY, with pushed condition: (tx.c = 1)  (rows=0.2)
     -> Hash
-        -> Table scan on t2, with pushed condition: (t2.c = 1)  (rows=0.2)
+        -> Index scan on t2 using PRIMARY, with pushed condition: (t2.c = 1)  (rows=0.2)
 
 Warnings:
-Note	1003	Can't push table 'tx' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'tx' as child of 't2', it is in a hash-bucket-branch which can't be referred.
 explain
 select straight_join *
 from tx
@@ -2387,20 +2360,23 @@ join tx as t3 on t3.a = tx.c and t3.b = tx.d
 join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 EXPLAIN
 -> Inner hash join (tx.d = t4.a), (t4.b = t2.c)  (rows=16e-6)
-    -> Table scan on t4  (rows=2)
+    -> Index scan on t4 using PRIMARY  (rows=2)
     -> Hash
         -> Inner hash join (tx.d = t3.b), (t3.a = tx.c)  (rows=800e-6)
-            -> Table scan on t3  (rows=2)
+            -> Index scan on t3 using PRIMARY  (rows=2)
             -> Hash
                 -> Inner hash join (t2.a = tx.a), (t2.b = tx.b)  (rows=0.04)
-                    -> Table scan on t2  (rows=2)
+                    -> Index scan on t2 using PRIMARY  (rows=2)
                     -> Hash
-                        -> Table scan on tx  (rows=2)
+                        -> Index scan on tx using PRIMARY  (rows=2)
 
 Warnings:
-Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't2' as child of 'tx', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't3' as child of 'tx', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't4' as child of 'tx', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't3' as child of 't2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't4' as child of 't2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't4' as child of 't3', it is in a hash-bucket-branch which can't be referred.
 explain
 select t2.c, count(distinct t2.a)
 from tx
@@ -2411,21 +2387,21 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.a)  (rows=0.04)
     -> Sort: tx.a  (rows=0.04)
         -> Inner hash join (tx.a = t2.c), (tx.b = t2.d)  (rows=0.04)
-            -> Table scan on tx  (rows=2)
+            -> Index scan on tx using PRIMARY  (rows=2)
             -> Hash
-                -> Table scan on t2, with pushed condition: (t2.a = 4)  (rows=2)
+                -> Index lookup on t2 using PRIMARY (a = 4)  (rows=2)
 
 Warnings:
-Note	1003	Can't push table 'tx' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'tx' as child, can't provide rows in index order
 explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=0.04)
-    -> Table scan on tx, with pushed condition: (tx.c = 1)  (rows=0.2)
+    -> Index scan on tx using PRIMARY, with pushed condition: (tx.c = 1)  (rows=0.2)
     -> Hash
-        -> Table scan on t2, with pushed condition: (t2.c = 1)  (rows=0.2)
+        -> Index scan on t2 using PRIMARY, with pushed condition: (t2.c = 1)  (rows=0.2)
 
 Warnings:
-Note	1003	Can't push table 'tx' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'tx' as child of 't2', it is in a hash-bucket-branch which can't be referred.
 explain
 select t2.c, count(distinct t2.a)
 from tx
@@ -2436,12 +2412,12 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.a)  (rows=0.04)
     -> Sort: tx.a  (rows=0.04)
         -> Inner hash join (tx.a = t2.c), (tx.b = t2.d)  (rows=0.04)
-            -> Table scan on tx  (rows=2)
+            -> Index scan on tx using PRIMARY  (rows=2)
             -> Hash
-                -> Table scan on t2, with pushed condition: (t2.a = 4)  (rows=2)
+                -> Index lookup on t2 using PRIMARY (a = 4)  (rows=2)
 
 Warnings:
-Note	1003	Can't push table 'tx' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'tx' as child, can't provide rows in index order
 drop table tx;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 create table t (pk int, i int) engine = ndb
@@ -3694,16 +3670,17 @@ join t2 on t2.pk = t1.a+0 and t2.x = t1.b
 join t3 on t3.d = t2.y;
 EXPLAIN
 -> Inner hash join (t3.d = t2.y)  (rows=0.3)
-    -> Table scan on t3  (rows=3)
+    -> Index scan on t3 using PRIMARY  (rows=3)
     -> Hash
         -> Inner hash join (t2.pk = (t1.a + 0)), (t2.x = t1.b)  (rows=0.3)
-            -> Table scan on t2  (rows=3)
+            -> Index scan on t2 using PRIMARY  (rows=3)
             -> Hash
                 -> Table scan on t1  (rows=3)
 
 Warnings:
-Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't2' as child of 't1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't3' as child of 't1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't3' as child of 't2', it is in a hash-bucket-branch which can't be referred.
 select straight_join * from t1
 join t2 on t2.pk = t1.a+0 and t2.x = t1.b
 join t3 on t3.d = t2.y;
@@ -3729,7 +3706,7 @@ insert into t1 values
 explain format=tree
 select * from t1 where b > 2;
 EXPLAIN
--> Table scan on t1, with pushed condition: (t1.b > 2)  (rows=5.33)
+-> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 2)  (rows=5.33)
 
 explain format=tree
 select * from t1 where a > 2;
@@ -3767,12 +3744,12 @@ explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 EXPLAIN
 -> Inner hash join (t2.a = t1.b)  (rows=8.53)
-    -> Table scan on t1  (rows=16)
+    -> Index scan on t1 using PRIMARY  (rows=16)
     -> Hash
-        -> Table scan on t2, with pushed condition: (t2.c > 3)  (rows=5.33)
+        -> Index scan on t2 using PRIMARY, with pushed condition: (t2.c > 3)  (rows=5.33)
 
 Warnings:
-Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't1' as child of 't2', it is in a hash-bucket-branch which can't be referred.
 drop table t1;
 #
 # Bug#29595346 INCORRECT RESULT FROM SPECIFYING ORDER BY ON
@@ -3927,15 +3904,16 @@ straight_join t1 as t3 on t3.a = t2.a
 where t3.c >= t1.c and t3.c <= t2.c;
 EXPLAIN
 -> Inner hash join (t3.a = t2.a), extra conditions: (t3.c >= t1.c) and (t3.c <= t2.c)  (rows=4.55)
-    -> Table scan on t3  (rows=16)
+    -> Index scan on t3 using PRIMARY  (rows=16)
     -> Hash
         -> Inner hash join (t2.d = t1.d)  (rows=25.6)
-            -> Table scan on t2  (rows=16)
+            -> Index scan on t2 using PRIMARY  (rows=16)
             -> Hash
-                -> Table scan on t1  (rows=16)
+                -> Index scan on t1 using PRIMARY  (rows=16)
 
 Warnings:
-Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't2' as child of 't1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't3' as child of 't1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't3' as child of 't2', it is in a hash-bucket-branch which can't be referred.
 drop table t1;
 set explain_format=default;

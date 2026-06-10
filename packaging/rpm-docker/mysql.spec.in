@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -498,9 +498,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/private/libicuuc.so.77.1
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_any_cast_impl.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_optional_access.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_variant_access.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_base.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_city.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_civil_time.so
@@ -515,7 +512,9 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_cpu_detect.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_debugging_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_decode_rust_punycode.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_rust.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_die_if_null.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_examine_stack.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_exponential_biased.so
@@ -529,11 +528,11 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_private_handle_accessor.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_program_name.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_reflection.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_graphcycles_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_hash.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtable_profiler.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtablez_sampler.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_int128.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_kernel_timeout_internal.so
@@ -544,21 +543,24 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_initialize.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_check_op.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_conditions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_fnmatch.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_format.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_globals.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_log_sink_set.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_message.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_nullguard.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_proto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_structured_proto.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_severity.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_sink.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_low_level_hash.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_malloc_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_periodic_sampler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_poison.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_profile_builder.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_distributions.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_distribution_test_util.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_entropy_pool.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_platform.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_pool_urbg.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes_impl.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_slow.so
@@ -583,6 +585,9 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_tracing_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_utf8_for_code_point.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_vlog_config_internal.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 %endif # add_fido_plugins
@@ -611,6 +616,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
@@ -627,8 +633,13 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
 %dir %{_datadir}/mysql-*/
 %{_datadir}/mysql-*/charsets/
 %{_datadir}/mysql-*/bulgarian/
@@ -683,7 +694,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
@@ -704,13 +714,9 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_option_tracker.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_object_policy.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -725,6 +731,8 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_component_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_component_to_plugin.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_plugin_to_component.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_component_object_policy.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_component_object_policy.sql
 %endif
 
 %dir %attr(750, mysql, mysql) /var/lib/mysql
@@ -733,6 +741,15 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Fri Feb  6 2026 Harin Vadodaria <harin.vadodaria@oracle.com> - 9.7.0
+- Added component_object_policy
+
+* Mon Feb  2 2026 Marc Alff <marc.alff@oracle.com> - 9.7.0
+- Moved component_telemetry to community
+
+* Wed Jan 28 2026 Marc Alff <marc.alff@oracle.com> - 9.7.0
+- Moved telemetry_client to community
+
 * Thu Oct  9 2025 Marek Szymczak <marek.szymczak@oracle.com> - 9.6.0-1
 - Added component_audit_log
 - Added component_test_mysql_file_service

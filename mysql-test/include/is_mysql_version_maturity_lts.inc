@@ -17,7 +17,7 @@
 # --echo MYSQL_VERSION_MATURITY_LTS: $is_mysql_version_maturity_lts_out_var
 
 --let $is_mysql_version_maturity_lts_out_var= 0
-if (`SELECT sys.version_major()=8 AND sys.version_minor()=4`)
+if (`SELECT sys.version_major()>=9 AND sys.version_minor()=7`)
 {
   --let $is_mysql_version_maturity_lts_out_var= 1
 }

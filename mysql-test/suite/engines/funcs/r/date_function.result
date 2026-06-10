@@ -228,11 +228,17 @@ INSERT INTO t3 VALUES('2006-12-25');
 INSERT INTO t3 VALUES('2008-02-29');
 SELECT FROM_DAYS(c1) FROM t3;
 FROM_DAYS(c1)
-0000-00-00
-0000-00-00
-0000-00-00
-0000-00-00
-0000-00-00
+NULL
+NULL
+NULL
+NULL
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
 DROP TABLE t3;
 CREATE TABLE t3(c1 DATETIME NOT NULL);
 INSERT INTO t3 VALUES('1000-01-01');
@@ -242,11 +248,17 @@ INSERT INTO t3 VALUES('2006-12-25');
 INSERT INTO t3 VALUES('2008-02-29');
 SELECT FROM_DAYS(c1) FROM t3;
 FROM_DAYS(c1)
-0000-00-00
-0000-00-00
-0000-00-00
-0000-00-00
-0000-00-00
+NULL
+NULL
+NULL
+NULL
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
 DROP TABLE t3;
 CREATE TABLE t3(c1 TIMESTAMP NOT NULL);
 INSERT INTO t3 VALUES('1000-01-01');
@@ -258,11 +270,17 @@ INSERT INTO t3 VALUES('2006-12-25');
 INSERT INTO t3 VALUES('2008-02-29');
 SELECT FROM_DAYS(c1) FROM t3;
 FROM_DAYS(c1)
-0000-00-00
-0000-00-00
-0000-00-00
-0000-00-00
-0000-00-00
+NULL
+NULL
+NULL
+NULL
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
+Warning	6527	DATE value is out of range in 'from_days(`test`.`t3`.`c1`)'
 DROP TABLE t3;
 CREATE TABLE t3(c1 DATE NOT NULL);
 INSERT INTO t3 VALUES('1000-01-01');
@@ -308,7 +326,7 @@ NULL
 2006-12-31
 2008-02-29
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 DROP TABLE t3;
 CREATE TABLE t3(c1 DATE NOT NULL);
 INSERT INTO t3 VALUES('1000-01-01');

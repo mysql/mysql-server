@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -296,7 +296,9 @@ static void test_bootstrap() {
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_4);
   ok(psi == nullptr, "no statement version 4");
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_5);
-  ok(psi != nullptr, "statement version 5");
+  ok(psi == nullptr, "statement version 5");
+  psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_6);
+  ok(psi != nullptr, "statement version 6");
 
   psi = transaction_boot->get_interface(0);
   ok(psi == nullptr, "no transaction version 0");
@@ -2727,7 +2729,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(428);
+  plan(429);
 
   MY_INIT("pfs-t");
 

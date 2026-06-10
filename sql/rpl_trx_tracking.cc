@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,6 +239,12 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
                   assert(writeset->size() == 8););
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_delete_fk_sql",
                   assert(writeset->size() == 5););
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_primary_key_generated_update_fk_sql_triggers",
+      assert(writeset->size() == 6););
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_primary_key_generated_delete_fk_sql_triggers",
+      assert(writeset->size() == 4););
 #endif
 
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,9 +103,70 @@ static constexpr size_t FindElementsPerBlock() {
   invalidated; we could probably get around this by having an “offset to first
   block”, but it's likely not worth it.)
 
-  [1] Actually, it's O(n), since there's no exponential growth of the blocks
-  array. But the blocks are reallocated very rarely, so it is generally
-  efficient nevertheless.
+  [1] The blocks array uses exponential growth (doubling), so insertions
+  are amortized O(1). The blocks array is reallocated rarely (O(log n) times
+  for n insertions).
+
+  To support exponential growth, we track additional state beyond the blocks
+  array pointer:
+
+  m_block_slots       - Total slots in the blocks array (may exceed
+  num_blocks).
+  m_first_block_idx   - Index where used blocks start (enables front
+  spare).
+  m_back_growth_exp   - Growth exponent for back (next growth adds 2^exp
+  slots).
+  m_front_growth_exp  - Growth exponent for front (next growth adds 2^exp
+  slots).
+
+  The growth exponents track history, not current state. After growing back
+  3 times, we've created 1+2+4=7 spare slots. But some may be consumed, so we
+  can't derive the exponent from current spare - we must track it explicitly.
+
+  Example: Growth triggered by push_back (back-only expansion)
+
+    Initial state (3 used blocks, no spare):
+    m_blocks:          [B0][B1][B2]
+    m_first_block_idx:  0
+    m_block_slots: 3
+    m_back_growth_exp:  0
+
+    After 1st back growth (adds 2^0 = 1 spare slot at back):
+    m_blocks:          [B0][B1][B2][  ]
+                                    ↑ spare
+    m_block_slots: 4
+    m_back_growth_exp:  1
+
+    After 2nd back growth (adds 2^1 = 2 spare slots at back):
+    m_blocks:          [B0][B1][B2][B3][  ][  ]
+                                        ↑ spare
+    m_block_slots: 6
+    m_back_growth_exp:  2
+
+  Example: Growth triggered by push_front (front-only expansion)
+
+    Initial state (3 used blocks, no spare at front):
+    m_blocks:          [B0][B1][B2]
+    m_first_block_idx:  0
+    m_front_growth_exp: 0
+
+    After 1st front growth (adds 2^0 = 1 spare slot at front):
+    m_blocks:          [  ][B0][B1][B2]
+                        ↑ spare
+    m_first_block_idx:  1  (new block goes here, then decrements to 0)
+    m_block_slots: 4
+    m_front_growth_exp: 1
+
+    After 2nd front growth (adds 2^1 = 2 spare slots at front):
+    m_blocks:          [  ][  ][  ][B0][B1][B2]
+                        ↑ spare
+    m_first_block_idx:  3  (new block goes at index 2)
+    m_block_slots: 6
+    m_front_growth_exp: 2
+
+  Each direction grows independently. A deque with many push_back calls will
+  have large m_back_growth_exp but m_front_growth_exp stays 0 until push_front
+  triggers growth.
  */
 template <class Element_type>
 class mem_root_deque {
@@ -128,10 +189,14 @@ class mem_root_deque {
       : m_begin_idx(other.m_begin_idx),
         m_end_idx(other.m_end_idx),
         m_capacity(other.m_capacity),
+        m_block_slots(other.m_block_slots),
+        m_first_block_idx(other.m_first_block_idx),
+        m_back_growth_exp(other.m_back_growth_exp),
+        m_front_growth_exp(other.m_front_growth_exp),
         m_root(other.m_root) {
-    m_blocks = m_root->ArrayAlloc<Block>(num_blocks());
+    m_blocks = m_root->ArrayAlloc<Block>(m_block_slots);
     for (size_t block_idx = 0; block_idx < num_blocks(); ++block_idx) {
-      m_blocks[block_idx].init(m_root);
+      m_blocks[m_first_block_idx + block_idx].init(m_root);
     }
     for (size_t idx = m_begin_idx; idx != m_end_idx; ++idx) {
       new (&get(idx)) Element_type(other.get(idx));
@@ -153,9 +218,15 @@ class mem_root_deque {
         m_begin_idx(other.m_begin_idx),
         m_end_idx(other.m_end_idx),
         m_capacity(other.m_capacity),
+        m_block_slots(other.m_block_slots),
+        m_first_block_idx(other.m_first_block_idx),
+        m_back_growth_exp(other.m_back_growth_exp),
+        m_front_growth_exp(other.m_front_growth_exp),
         m_root(other.m_root) {
     other.m_blocks = nullptr;
     other.m_begin_idx = other.m_end_idx = other.m_capacity = 0;
+    other.m_block_slots = other.m_first_block_idx = 0;
+    other.m_back_growth_exp = other.m_front_growth_exp = 0;
     other.invalidate_iterators();
   }
   mem_root_deque &operator=(mem_root_deque &&other) {
@@ -284,6 +355,12 @@ class mem_root_deque {
     m_begin_idx = m_end_idx = m_capacity / 2;
     invalidate_iterators();
   }
+
+  size_t block_slots() const { return m_block_slots; }
+  size_t first_block_idx() const { return m_first_block_idx; }
+  uint8_t back_growth_exp() const { return m_back_growth_exp; }
+  uint8_t front_growth_exp() const { return m_front_growth_exp; }
+  size_t capacity() const { return m_capacity; }
 
   template <class Iterator_element_type>
   class Iterator {
@@ -577,6 +654,26 @@ class mem_root_deque {
   /// of the number of blocks itself makes testing in push_back cheaper.)
   size_t m_capacity = 0;
 
+  /// Number of Block slots allocated in m_blocks array. This may be larger
+  /// than num_blocks() to allow for exponential growth without reallocating
+  /// on every new block.
+  size_t m_block_slots = 0;
+
+  /// Index in m_blocks where the first initialized block is stored.
+  /// Blocks are stored contiguously from m_first_block_idx to
+  /// m_first_block_idx + num_blocks() - 1. Spare slots before this index
+  /// can be used for push_front without reallocating.
+  size_t m_first_block_idx = 0;
+
+  /// Growth exponent for back expansion. When push_back needs to grow,
+  /// we add 2^m_back_growth_exp spare slots at the back, then increment.
+  /// This gives independent exponential growth: 1, 2, 4, 8, 16...
+  uint8_t m_back_growth_exp = 0;
+
+  /// Growth exponent for front expansion. When push_front needs to grow,
+  /// we add 2^m_front_growth_exp spare slots at the front, then increment.
+  uint8_t m_front_growth_exp = 0;
+
   /// Pointer to the MEM_ROOT that we store our blocks and elements on.
   MEM_ROOT *m_root;
 
@@ -602,6 +699,7 @@ class mem_root_deque {
     }
     m_begin_idx = m_end_idx = block_elements / 2;
     m_capacity = block_elements;
+    m_block_slots = 1;
     return false;
   }
 
@@ -615,7 +713,7 @@ class mem_root_deque {
   /// physical index, starting from zero. Note that block_elements is always
   /// a power of two, so the division and modulus operations are cheap.
   Element_type &get(size_t physical_idx) const {
-    return m_blocks[physical_idx / block_elements]
+    return m_blocks[m_first_block_idx + physical_idx / block_elements]
         .elements[physical_idx % block_elements];
   }
 
@@ -624,25 +722,45 @@ class mem_root_deque {
 #endif
 };
 
-// TODO(sgunders): Consider storing spare blocks at either end to have
-// exponential growth and get true O(1) allocation.
-
 template <class Element_type>
 bool mem_root_deque<Element_type>::add_block_back() {
   if (m_blocks == nullptr) {
     return add_initial_block();
   }
-  Block *new_blocks = m_root->ArrayAlloc<Block>(num_blocks() + 1);
+
+  // Check if we have spare capacity at the end of the blocks array.
+  // Blocks are stored at m_first_block_idx to m_first_block_idx + num_blocks()
+  // - 1.
+  size_t next_block_idx = m_first_block_idx + num_blocks();
+  if (next_block_idx < m_block_slots) {
+    // We have spare capacity - just initialize the next block.
+    if (m_blocks[next_block_idx].init(m_root)) {
+      return true;
+    }
+    m_capacity += block_elements;
+    return false;
+  }
+
+  // No spare capacity at back - grow with exponential growth.
+  // Add 2^m_back_growth_exp spare slots at the back, then increment exponent.
+  size_t growth = size_t{1} << m_back_growth_exp;
+  size_t new_blocks_allocated = m_block_slots + growth;
+  Block *new_blocks = m_root->ArrayAlloc<Block>(new_blocks_allocated);
   if (new_blocks == nullptr) {
     return true;
   }
-  memcpy(new_blocks, m_blocks, sizeof(Block) * num_blocks());
-  if (new_blocks[num_blocks()].init(m_root)) {
+  // Copy existing blocks to the same position (back-only growth).
+  std::copy_n(m_blocks + m_first_block_idx, num_blocks(),
+              new_blocks + m_first_block_idx);
+  // Initialize the new block right after the existing ones.
+  if (new_blocks[next_block_idx].init(m_root)) {
     return true;
   }
 
   m_blocks = new_blocks;
+  m_block_slots = new_blocks_allocated;
   m_capacity += block_elements;
+  ++m_back_growth_exp;
   return false;
 }
 
@@ -658,16 +776,47 @@ bool mem_root_deque<Element_type>::add_block_front() {
     }
     return false;
   }
-  Block *new_blocks = m_root->ArrayAlloc<Block>(num_blocks() + 1);
-  memcpy(new_blocks + 1, m_blocks, sizeof(Block) * num_blocks());
-  if (new_blocks[0].init(m_root)) {
+
+  // Check if we have spare capacity at the front of the blocks array.
+  if (m_first_block_idx > 0) {
+    // We have spare capacity - use the slot before the first block.
+    --m_first_block_idx;
+    if (m_blocks[m_first_block_idx].init(m_root)) {
+      ++m_first_block_idx;  // Restore on failure.
+      return true;
+    }
+    m_begin_idx += block_elements;
+    m_end_idx += block_elements;
+    m_capacity += block_elements;
+    return false;
+  }
+
+  // No spare capacity at front - grow the blocks array with exponential growth.
+  // Add 2^m_front_growth_exp spare slots at the front, then increment exponent.
+  size_t growth = size_t{1} << m_front_growth_exp;
+  size_t new_blocks_allocated = m_block_slots + growth;
+  Block *new_blocks = m_root->ArrayAlloc<Block>(new_blocks_allocated);
+  if (new_blocks == nullptr) {
+    return true;
+  }
+  // Place existing blocks at the end of the new array (front-only growth).
+  // new_first_block_idx points to where the NEW block will go.
+  // Existing blocks will be at new_first_block_idx + 1 onwards.
+  size_t new_first_block_idx = growth - 1;
+  std::copy_n(m_blocks + m_first_block_idx, num_blocks(),
+              new_blocks + new_first_block_idx + 1);
+  // Initialize the new block at new_first_block_idx.
+  if (new_blocks[new_first_block_idx].init(m_root)) {
     return true;
   }
 
   m_blocks = new_blocks;
+  m_block_slots = new_blocks_allocated;
+  m_first_block_idx = new_first_block_idx;
   m_begin_idx += block_elements;
   m_end_idx += block_elements;
   m_capacity += block_elements;
+  ++m_front_growth_exp;
   return false;
 }
 

@@ -1,0 +1,175 @@
+# Verify that invalid or unexpected JSON values are handled correctly.
+
+CREATE TABLE t1(t1c1 INT PRIMARY KEY, t1c2 INT);
+INSERT INTO t1 VALUES (0,0), (1,1), (2,2);
+
+CREATE TABLE t2(t2c1 INT PRIMARY KEY, t2c2 INT);
+INSERT INTO t2 VALUES (0,0), (1,1), (2,2);
+
+CREATE TABLE t3(t3c1 INT PRIMARY KEY, t3c2 INT);
+INSERT INTO t3 VALUES (0,0), (1,1), (2,2);
+
+CREATE JSON DUALITY VIEW dv0 AS
+SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, UPDATE, DELETE)
+    "_id" : t1c1,
+    "kt1c2" : t1c2)
+FROM t1;
+
+SELECT * FROM dv0;
+
+--echo # Insert into Root object
+--echo # Check invalid json syntax
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+INSERT INTO dv0 VALUES ('{ "": ]');
+
+--echo # Check valid non-object json
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv0 VALUES ('null');
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv0 VALUES ('3');
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv0 VALUES ('[ "foo", 3, 3.14 ]');
+
+--echo # Update of Root object
+--echo # Check invalid json syntax
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+UPDATE dv0 SET data = '{ "": ]';
+
+--echo # Check valid non-object json
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv0 SET data = 'null';
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv0 SET data = '3';
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv0 SET data = '[ "foo", 3, 3.14 ]';
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO dv0 VALUES ('{"kt1c2": 6}');
+
+--error ER_JDV_MISSING_VALUE
+UPDATE dv0 SET data = '{"_id": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}' WHERE data->'$._id' = 2;
+
+--error ER_JDV_PK_UPDATES_NOT_ALLOWED
+UPDATE dv0 SET data = '{"_id": 3, "kt1c2": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}' WHERE data->'$._id' = 2;
+
+--error ER_JDV_ETAG_MISMATCH
+UPDATE dv0 SET data = '{"_id": 2, "kt1c2": 65, "_metadata": {"etag": "3004248409575512764"}}' WHERE data->'$._id' = 2;
+
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    WITH (INSERT, UPDATE, DELETE)
+    "_id" : t1c1,
+    "kt1c2" : t1c2,
+    "T2 multi subobject" :
+    (SELECT JSON_ARRAYAGG(
+        JSON_DUALITY_OBJECT(
+            WITH (INSERT, UPDATE, DELETE)
+            "kt2c1" : t2c1,
+            "kt2c2" : t2c2,
+            "T3 single subobject" :
+            (SELECT JSON_DUALITY_OBJECT(
+                WITH (INSERT, UPDATE)
+                "kt3c1" : t3c1,
+                "kt3c2" : t3c2
+            ) FROM t3 WHERE t3.t3c1 = t2.t2c1)
+    )) FROM t2 WHERE t2.t2c1 = t1.t1c1)
+) FROM t1;
+SELECT data FROM dv1;
+
+--echo # Insert of multi subobject
+--echo # Check invalid json syntax
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+INSERT INTO dv1 VALUES (
+    '{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": { "x": 3 ]}');
+
+--echo # Check valid non-object json
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": 3}');
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": {"x": 3}}');
+
+--echo # Update of multi subobject
+--echo # Check valid non-object json
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_QUOTE('null'))
+WHERE data->'$._id' = 2;
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_QUOTE('3'))
+WHERE data->'$._id' = 2;
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_OBJECT('x', 3))
+WHERE data->'$._id' = 2;
+
+--echo # Insert of single sub object decendant of multi subobject
+--echo # Check invalid json syntax
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+INSERT INTO dv1 VALUES (
+    '{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": [{ "x": 3 ]]');
+
+--echo # Check valid non-object json
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": [3]}');
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": [["foo", 3, 3.14]]}');
+
+--echo # Update of multi subobject
+--echo # Check valid non-object json
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_ARRAY(3))
+WHERE data->'$._id' = 2;
+
+--error ER_JDV_UNEXPECTED_JSON_TYPE
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_ARRAY('foo', 3, 3.14))
+WHERE data->'$._id' = 2;
+
+DROP VIEW dv1;
+DROP VIEW dv0;
+
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo # Verify that string values which are valid JSON are inserted correctly
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 VARCHAR(256));
+
+INSERT INTO t1 VALUES (0, '{}'),(1,'{"a valid": "JSON object"}');
+
+CREATE JSON DUALITY VIEW dv1 AS SELECT JSON_DUALITY_OBJECT(
+  WITH (INSERT, UPDATE, DELETE)
+  "_id" : c1,
+  "kt1c2" : c2
+) FROM t1;
+
+SELECT data FROM dv1;
+
+INSERT INTO dv1 VALUES ('{
+    "_id": 2,
+    "kt1c2": "\\"some text in quotes\\""
+}');
+
+INSERT INTO dv1 VALUES ('{
+    "_id": 3,
+    "kt1c2": "{\\"some key\\": 0}"
+}');
+
+INSERT INTO dv1 VALUES ('{
+    "_id": 4,
+    "kt1c2": "{ \\"another string\\": 4, \\" which is a valid\\": [], \\"JSON object\\": null } " }');
+SELECT data FROM dv1;
+SELECT * FROM t1;
+
+DROP VIEW dv1;
+DROP TABLE t1;

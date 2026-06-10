@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ MACRO (RESET_ZLIB_VARIABLES)
   UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB CACHE)
 ENDMACRO()
 
-SET(ZLIB_VERSION_DIR "zlib-1.3.1")
+SET(ZLIB_VERSION_DIR "zlib-1.3.2")
 SET(BUNDLED_ZLIB_PATH ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR})
 
 FUNCTION(MYSQL_USE_BUNDLED_ZLIB)

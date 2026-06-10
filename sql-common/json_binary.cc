@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -686,6 +686,22 @@ static enum_serialization_result serialize_time(const Json_time *jdt,
 }
 
 /**
+  Serialize a DATE value at the end of the destination string.
+  @param[in]  jdt       the DATE value
+  @param[in]  type_pos  where to write the type specifier
+  @param[out] dest      the destination string
+  @return serialization status
+*/
+static enum_serialization_result serialize_date(const Json_date *jdt,
+                                                size_t type_pos, String *dest) {
+  // Store DATE as opaque value.
+  char buf[Json_date::PACKED_SIZE];
+  jdt->to_packed(buf);
+  Json_opaque o(jdt->field_type(), buf, sizeof(buf));
+  return serialize_opaque(&o, type_pos, dest);
+}
+
+/**
   Serialize a DATETIME value at the end of the destination string.
   @param[in]  jdt       the DATETIME value
   @param[in]  type_pos  where to write the type specifier
@@ -861,8 +877,11 @@ static enum_serialization_result serialize_json_value(
       result =
           serialize_time(down_cast<const Json_time *>(dom), type_pos, dest);
       break;
-    case enum_json_type::J_DATETIME:
     case enum_json_type::J_DATE:
+      result =
+          serialize_date(down_cast<const Json_date *>(dom), type_pos, dest);
+      break;
+    case enum_json_type::J_DATETIME:
     case enum_json_type::J_TIMESTAMP:
       result = serialize_datetime(down_cast<const Json_datetime *>(dom),
                                   type_pos, dest);

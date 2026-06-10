@@ -1,0 +1,15 @@
+# Test remote clone command to replace data directory for different combinations
+# of recipient and donor server versions
+
+[mysqld.1]
+server_id=1
+
+[mysqld.2]
+server_id=2
+
+[ENV]
+SERVER_PORT_1 = @mysqld.1.port
+SERVER_SOCK_1 = @mysqld.1.socket
+
+SERVER_PORT_2 = @mysqld.2.port
+SERVER_SOCK_2 = @mysqld.2.socket

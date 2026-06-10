@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,11 +57,14 @@
 #include "sql/gis/srid.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
-#include "sql/sql_error.h"  // Sql_condition
+#include "sql/sql_error.h"         // Sql_condition
+#include "sql/system_variables.h"  // MODE_NO_ZERO_DATE, etc
 #include "sql/table.h"
 #include "sql_string.h"  // String
 #include "template_utils.h"
 #include "vector-common/vector_constants.h"  // max_dimensions
+
+using sql_mode_t = uint64_t;
 
 class Create_field;
 class CostOfItem;
@@ -803,6 +806,9 @@ class Field {
   */
   unsigned int m_warnings_pushed;
 
+  /// Holds the name of the masking policy applied to the field.
+  LEX_CSTRING m_masking_policy = EMPTY_CSTR;
+
  public:
   /* Generated column data */
   Value_generator *gcol_info{nullptr};
@@ -829,6 +835,18 @@ class Field {
     @param hidden the new hidden type to set.
   */
   void set_hidden(dd::Column::enum_hidden_type hidden) { m_hidden = hidden; }
+
+  /// Sets the name of the masking policy to apply to this column.
+  void set_masking_policy(LEX_CSTRING masking_policy) {
+    m_masking_policy = masking_policy;
+  }
+
+  /// Does this column have a masking policy?
+  bool has_masking_policy() const { return m_masking_policy.length != 0; }
+
+  /// Returns the name of the masking policy, or an empty string if no masking
+  /// policy is defined on this column.
+  LEX_CSTRING masking_policy() const { return m_masking_policy; }
 
   /// @returns the hidden type for this field.
   dd::Column::enum_hidden_type hidden() const { return m_hidden; }
@@ -919,11 +937,11 @@ class Field {
   virtual type_conversion_status store(double nr) = 0;
   virtual type_conversion_status store(longlong nr, bool unsigned_val) = 0;
   virtual type_conversion_status store_time(Time_val time, uint8 dec_arg);
+  virtual type_conversion_status store_date(Date_val date);
 
   /**
     Store a temporal value in packed longlong format into a field.
-    The packed value is compatible with TIME_to_longlong_date_packed() or
-    TIME_to_longlong_datetime_packed().
+    The packed value is compatible with TIME_to_longlong_datetime_packed().
     Note, the value must be properly rounded or truncated according
     according to field->decimals().
 
@@ -1562,10 +1580,38 @@ class Field {
 
   void copy_data(ptrdiff_t src_record_offset);
 
+  /**
+    Retrieve field value and return the result as a date.
+
+    @param[out] date returned date value
+    @param flags     Limit the value returned according to TIME_NO_ZERO_IN_DATE,
+                     TIME_NO_ZERO_DATE, TIME_NO_INVALID_DATES.
+
+    @returns false retrieval was successful, date contains the result.
+             true  evaluation resulted in error, or a NULL value is returned.
+  */
   virtual bool val_date(Date_val *date, my_time_flags_t flags) const;
 
+  /**
+    Retrieve field value and return the result as a time.
+
+    @param[out] time returned time value
+
+    @returns false retrieval was successful, time contains the result.
+             true  evaluation resulted in error, or a NULL value is returned.
+  */
   virtual bool val_time(Time_val *time) const;
 
+  /**
+    Retrieve field value and return the result as a datetime/timestamp.
+
+    @param[out] dt returned datetime value
+    @param flags   Limit the value returned according to TIME_NO_ZERO_IN_DATE,
+                   TIME_NO_ZERO_DATE, TIME_NO_INVALID_DATES.
+
+    @returns false retrieval was successful, dt contains the result.
+             true  evaluation resulted in error, or a NULL value is returned.
+  */
   virtual bool val_datetime(Datetime_val *dt, my_time_flags_t flags) const;
 
   virtual const CHARSET_INFO *charset() const { return &my_charset_bin; }
@@ -1692,7 +1738,11 @@ class Field {
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
-  /* Validate the value stored in a field */
+  /**
+    Validate the value stored in a field.
+    Used to validate a default value against the current SQL mode,
+    especially for temporal fields.
+  */
   virtual type_conversion_status validate_stored_val(THD *thd
                                                      [[maybe_unused]]) {
     return TYPE_OK;
@@ -1893,6 +1943,10 @@ class Create_field_wrapper final : public Field {
     assert(false);
     return TYPE_ERR_BAD_VALUE;
   }
+  type_conversion_status store_date(Date_val) final {
+    assert(false);
+    return TYPE_ERR_BAD_VALUE;
+  }
   type_conversion_status store_time(MYSQL_TIME *, uint8) final {
     assert(false);
     return TYPE_ERR_BAD_VALUE;
@@ -1960,6 +2014,7 @@ class Field_num : public Field {
   bool eq_def(const Field *field) const final;
   type_conversion_status store_decimal(const my_decimal *) override;
   type_conversion_status store_time(Time_val time, uint8 dec_arg) override;
+  type_conversion_status store_date(Date_val date) override;
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) override;
   my_decimal *val_decimal(my_decimal *) const override;
   bool val_date(Date_val *date, my_time_flags_t flags) const override;
@@ -2069,6 +2124,7 @@ class Field_real : public Field_num {
                   field_name_arg, dec_arg, zero_arg, unsigned_arg),
         not_fixed(dec_arg >= DECIMAL_NOT_SPECIFIED) {}
   type_conversion_status store_time(Time_val time, uint8 dec_arg) final;
+  type_conversion_status store_date(Date_val date) final;
   type_conversion_status store_decimal(const my_decimal *) final;
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) final;
   my_decimal *val_decimal(my_decimal *) const final;
@@ -2164,6 +2220,7 @@ class Field_new_decimal : public Field_num {
   type_conversion_status store(double nr) final;
   type_conversion_status store(longlong nr, bool unsigned_val) final;
   type_conversion_status store_time(Time_val time, uint8 dec_arg) final;
+  type_conversion_status store_date(Date_val date) final;
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) final;
   type_conversion_status store_decimal(const my_decimal *) final;
   double val_real() const final;
@@ -2596,7 +2653,7 @@ class Field_temporal : public Field {
   /**
     Low level routine to store a MYSQL_TIME value into a field.
     The value must be already properly rounded or truncated
-    and checked for being a valid TIME/DATE/DATETIME value.
+    and checked for being a valid DATETIME value.
 
     @param[in]  ltime   MYSQL_TIME value.
     @param[out] error   Error flag vector, set in case of error.
@@ -2649,7 +2706,7 @@ class Field_temporal : public Field {
     into MYSQL_TIME, according to the field type. Nanoseconds
     are rounded to milliseconds and added to ltime->second_part.
 
-    @param[in]  nr            Number
+    @param[in]  val           Number
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[in]  nanoseconds   Fractional part in nanoseconds
     @param[out] ltime         The value is stored here
@@ -2659,16 +2716,15 @@ class Field_temporal : public Field {
     @retval     false         On success
     @retval     true          On error
   */
-  virtual type_conversion_status convert_number_to_TIME(longlong nr,
+  virtual type_conversion_status convert_number_to_TIME(longlong val,
                                                         bool unsigned_val,
                                                         int nanoseconds,
                                                         MYSQL_TIME *ltime,
                                                         int *warning) = 0;
-
   /**
     Convert an integer number into MYSQL_TIME, according to the field type.
 
-    @param[in]  nr            Number
+    @param[in]  val           Number
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[out] ltime         The value is stored here
     @param[in,out] warnings   Warnings found during execution
@@ -2676,8 +2732,8 @@ class Field_temporal : public Field {
     @retval     false         On success
     @retval     true          On error
   */
-  longlong convert_number_to_datetime(longlong nr, bool unsigned_val,
-                                      MYSQL_TIME *ltime, int *warnings);
+  longlong convert_int_to_datetime(longlong val, bool unsigned_val,
+                                   MYSQL_TIME *ltime, int *warnings);
 
   /**
     Set warnings from a warning vector.
@@ -2697,16 +2753,16 @@ class Field_temporal : public Field {
 
   /**
     Flags that are passed as "flag" argument to
-    check_date(), number_to_datetime(), str_to_datetime().
+    store functions, and to e.g. int_to_datetime(), str_to_datetime().
 
     Flags depend on the session sql_mode settings, such as
     MODE_NO_ZERO_DATE, MODE_NO_ZERO_IN_DATE.
-    Also, Field_date and Field_datetime add TIME_FUZZY_DATE
-    to the session sql_mode settings, to allow relaxed date format,
-    while Field_timestamp do not.
+    Field_timestamp always add MODE_NO_ZERO_IN_DATE and MODE_NO_INVALID_DATES,
+    as such values cannot be stored.
 
-    @param  thd  THD
-    @retval      sql_mode flags mixed with the field type flags.
+    @param   thd  THD
+
+    @returns sql_mode flags mixed with the field type flags.
   */
   virtual my_time_flags_t date_flags(const THD *thd [[maybe_unused]]) const {
     return 0;
@@ -2714,7 +2770,7 @@ class Field_temporal : public Field {
 
   /**
     Flags that are passed as "flag" argument to
-    check_date(), number_to_datetime(), str_to_datetime().
+    check_date(), int_to_datetime(), str_to_datetime().
     Similar to the above when we don't have a THD value.
   */
   my_time_flags_t date_flags() const;
@@ -2793,6 +2849,20 @@ class Field_temporal : public Field {
   }
 
   uint8 get_fractional_digits() const { return dec; }
+
+  /**
+    Flags for evaluation of temporal values, based on current SQL mode.
+
+    @param mode     current thd containing SQL mode and truncation mode.
+
+    @returns derived evaluation flags
+  */
+  static inline my_time_flags_t temporal_flags(sql_mode_t mode) {
+    return ((mode & MODE_INVALID_DATES) == 0 ? TIME_NO_INVALID_DATES : 0) |
+           (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0) |
+           (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
+           (mode & MODE_TIME_TRUNCATE_FRACTIONAL ? TIME_FRAC_TRUNCATE : 0);
+  }
 };
 
 /**
@@ -2820,7 +2890,7 @@ class Field_temporal_with_date : public Field_temporal {
   bool get_internal_check_zero(MYSQL_TIME *ltime,
                                my_time_flags_t fuzzydate) const;
 
-  type_conversion_status convert_number_to_TIME(longlong nr, bool unsigned_val,
+  type_conversion_status convert_number_to_TIME(longlong val, bool unsigned_val,
                                                 int nanoseconds,
                                                 MYSQL_TIME *ltime,
                                                 int *warning) final;
@@ -2855,7 +2925,6 @@ class Field_temporal_with_date : public Field_temporal {
   longlong val_date_temporal() const override;
   longlong val_date_temporal_at_utc() const override;
   bool val_time(Time_val *time) const final;
-  /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) override;
 };
 
@@ -2978,7 +3047,6 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
   void sql_type(String &str) const final;
 
   bool get_timestamp(my_timeval *tm, int *warnings) const final;
-  /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) final;
 
  private:
@@ -3011,10 +3079,14 @@ class Field_year final : public Field_tiny {
   type_conversion_status store(double nr) final;
   type_conversion_status store(longlong nr, bool unsigned_val) final;
   type_conversion_status store_time(Time_val time, uint8 dec_arg) final;
+  type_conversion_status store_date(Date_val date) final;
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) final;
   double val_real() const final;
   longlong val_int() const final;
   String *val_str(String *, String *) const final;
+  bool val_date(Date_val *date, my_time_flags_t flags) const final;
+  bool val_time(Time_val *time) const final;
+  bool val_datetime(Datetime_val *dt, my_time_flags_t flags) const final;
   bool send_to_protocol(Protocol *protocol) const final;
   void sql_type(String &str) const final;
   bool can_be_compared_as_longlong() const final { return true; }
@@ -3045,7 +3117,7 @@ class Field_date : public Field_temporal_with_date {
   enum_field_types type() const final { return MYSQL_TYPE_DATE; }
   enum_field_types real_type() const final { return MYSQL_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const final { return HA_KEYTYPE_UINT24; }
-  type_conversion_status store_packed(longlong nr) final;
+  type_conversion_status store_date(Date_val date) final;
   longlong val_int() const final;
   longlong val_date_temporal() const final;
   String *val_str(String *, String *) const final;
@@ -3086,7 +3158,7 @@ class Field_time final : public Field_temporal {
     two different interfaces: return value and warning. It should be
     refactored to only use return value.
    */
-  type_conversion_status convert_number_to_TIME(longlong nr, bool unsigned_val,
+  type_conversion_status convert_number_to_TIME(longlong val, bool unsigned_val,
                                                 int nanoseconds,
                                                 MYSQL_TIME *ltime,
                                                 int *warning) final;
@@ -3131,6 +3203,7 @@ class Field_time final : public Field_temporal {
   enum_field_types type() const final { return MYSQL_TYPE_TIME; }
   enum_field_types real_type() const final { return MYSQL_TYPE_TIME2; }
   enum_field_types binlog_type() const final { return MYSQL_TYPE_TIME2; }
+  type_conversion_status store_date(Date_val date) final;
   type_conversion_status store_time(Time_val time, uint8 dec_arg) final;
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) final;
   type_conversion_status reset() final;
@@ -3875,6 +3948,7 @@ class Field_json : public Field_blob {
   type_conversion_status store_decimal(const my_decimal *) final;
   type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(Time_val time, uint8 dec_arg) final;
+  type_conversion_status store_date(Date_val date) final;
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg) final;
   type_conversion_status store(const Field_json *field);
 

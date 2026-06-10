@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,31 @@ extern char mysql_home[];
 
 // Unit tests for functions in mysqld.cc.
 namespace mysqld_funcs_unit_test {
+namespace {
+
+#ifndef _WIN32
+std::string relative_default_plugin_dir() {
+  std::string plugindir{PLUGINDIR};
+  const std::string default_home{DEFAULT_MYSQL_HOME};
+
+  // Mirror mysqld's get_relative_path() behavior for test expectations.
+  if (!default_home.empty() && default_home != "/" &&
+      plugindir.rfind(default_home, 0) == 0) {
+    size_t pos = default_home.size();
+    while (pos < plugindir.size() &&
+           (plugindir[pos] == '/' || plugindir[pos] == '\\')) {
+      ++pos;
+    }
+    plugindir.erase(0, pos);
+  }
+
+  if (plugindir.empty() || plugindir.back() != '/') plugindir.push_back('/');
+  return plugindir;
+}
+#endif
+
+}  // namespace
+
 #ifdef HAVE_GETPWNAM
 PasswdValue check_user_drv(const char *user);
 
@@ -65,13 +90,13 @@ class ManifestFileOptionParserHelper : public ::testing::Test {
 #ifdef _WIN32
   const std::string mysql_binary_dir{std::filesystem::current_path().string() +
                                      "\\"};
-  const char *default_opt_plugin_dir{"lib\\plugin\\"};
+  const std::string default_opt_plugin_dir{"lib\\plugin\\"};
   const char *default_real_data_home{"data\\"};
 #else
   const std::string mysql_binary_dir{std::filesystem::current_path().string() +
                                      "/"};
   const char *default_real_data_home{"data/"};
-  const char *default_opt_plugin_dir{"lib/plugin/"};
+  const std::string default_opt_plugin_dir{relative_default_plugin_dir()};
 #endif
   const char *initial_real_data_home{"data"};
   const char *initial_opt_plugin_dir{"blahblahblah"};

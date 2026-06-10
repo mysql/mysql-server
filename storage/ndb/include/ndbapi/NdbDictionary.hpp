@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2245,6 +2245,12 @@ class NdbDictionary {
     unsigned getChildColumnCount() const;
     int getParentColumnNo(unsigned no) const;
     int getChildColumnNo(unsigned no) const;
+
+    /* Returns true if the given table is the parent table */
+    bool isParentTable(const Table *) const;
+
+    /* Returns true if the given table is the child table */
+    bool isChildTable(const Table *) const;
 
     /**
      * return 0 if child refers to parent PK

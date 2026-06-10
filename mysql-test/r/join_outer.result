@@ -3554,7 +3554,7 @@ SELECT  * FROM (t1 RIGHT JOIN
 WHERE 0 IS NOT NULL)) AND t1.f1 >  50;
 pk	f1	pk
 Warnings:
-Warning	1292	Incorrect datetime value: '1995'
+Warning	1292	Truncated incorrect date value: '1995'
 DROP TABLE t3,t1,t2;
 #
 # Bug#28341790: WL#9571: SIG11 IN ITEM_COND::FIX_FIELDS() AT SQL/ITEM_CMPFUNC.CC

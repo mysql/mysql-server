@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,10 @@
 
 #include <vector>
 
-#include "helper/container/generic.h"
 #include "helper/json/serializer_to_text.h"
 #include "mrs/router_observation_entities.h"
+
+#include "mysql/harness/utility/container/generic.h"
 
 namespace mrs {
 namespace database {
@@ -56,7 +57,7 @@ void QueryStatistics::update_statistics(MySQLSession *session,
   {
     auto obj = stt.add_object();
     for (size_t i = 0; i < snap.size(); ++i) {
-      if (helper::container::has(direct_ids, i)) continue;
+      if (mysql_harness::utility::container::has(direct_ids, i)) continue;
       if (snap[i].first.empty()) continue;
 
       obj->member_add_value(snap[i].first, snap[i].second);

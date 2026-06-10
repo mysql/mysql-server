@@ -1,0 +1,91 @@
+  
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+#
+# Note:
+#
+# There is no easy way to actually verify the metrics
+# reported actually match what is discovered,
+# as this imply to deploy an external system and inspect it.
+#
+# This test generates some stress for code coverage.
+#
+
+-- echo # Existing meters
+SELECT NAME, ENABLED FROM performance_schema.setup_meters
+  ORDER BY NAME;
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT "Discovery found meters" as status;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED = 'NO';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT "Discovery found disabled meters" as status;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED = 'YES';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT "Discovery found enabled meters" as status;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_enabled=OFF;
+
+SELECT "No discovery" as status;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_enabled=ON;
+
+#
+# Now test state changes while the component is loaded.
+#
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED = 'NO';
+
+SELECT "Detected meters are disabled" as status;
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED = 'YES';
+
+SELECT "Detected meters are enabled" as status;
+
+UPDATE performance_schema.setup_meters
+  SET FREQUENCY = FREQUENCY + 1000;
+
+SELECT "Detected meters frequency changed" as status;
+
+UPDATE performance_schema.setup_meters
+  SET FREQUENCY = FREQUENCY - 1000;
+
+SELECT "Detected meters frequency changed" as status;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+

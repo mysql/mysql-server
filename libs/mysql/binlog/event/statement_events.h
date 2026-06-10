@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -428,6 +428,12 @@ const uint64_t INVALID_XID = 0xffffffffffffffffULL;
     <td>2 byte integer</td>
     <td>Value of the config variable default_table_encryption</td>
   </tr>
+  <tr>
+    <td>enable_cascade_triggers</td>
+    <td>Q_ENABLE_CASCADE_TRIGGERS</td>
+    <td>1 byte boolean</td>
+    <td>Value of the config variable enable_cascade_triggers</td>
+  </tr>
   </table>
 
   @subsection Query_event_notes_on_previous_versions Notes on Previous Versions
@@ -530,7 +536,12 @@ class Query_event : public Binary_log_event {
     /*
       Replicate default_table_encryption.
     */
-    Q_DEFAULT_TABLE_ENCRYPTION
+    Q_DEFAULT_TABLE_ENCRYPTION,
+
+    /*
+      Replicate enable_cascade_triggers.
+    */
+    Q_ENABLE_CASCADE_TRIGGERS
   };
   const char *query;
   const char *db;
@@ -647,6 +658,8 @@ class Query_event : public Binary_log_event {
   uint8_t sql_require_primary_key;
 
   uint8_t default_table_encryption;
+
+  uint8_t enable_cascade_triggers;
 
   /**
     The constructor will be used while creating a Query_event, to be

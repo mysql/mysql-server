@@ -80,15 +80,15 @@ INSERT INTO t1 SELECT x, x, x, x, x FROM thousand;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-# Table scans should be preferred over index scans if we do not need order.
-EXPLAIN FORMAT=TREE SELECT * FROM t1;
+# Index scans with PRIMARY is picked over a table scan unless we force table scans.
+EXPLAIN FORMAT=TREE SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.516..516 rows=1000)
 
-# Scanning along the primary index should be slightly more expensive than a table scan.
+# Scanning along the primary index should be the same cost as table scan.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY p;
 EXPLAIN
--> Index scan on t1 using PRIMARY  (cost=0.518..518 rows=1000)
+-> Index scan on t1 using PRIMARY  (cost=0.516..516 rows=1000)
 
 # Index scans on non-covering indexes are much more expensive than scans on covering or primary indexes.
 # We have to force scanning along the secondary index as otherwise sorting would be chosen.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,23 +26,25 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "helper/cache/cache.h"
 #include "helper/string/random.h"
 #include "mrs/database/entry/auth_user.h"
+#include "mysql/harness/utility/cache.h"
 
-using namespace helper::cache;
 using namespace mrs::database::entry;
 using namespace testing;
 
 using UserIndex = AuthUser::UserIndex;
 using UserId = AuthUser::UserId;
-using Lru = helper::cache::policy::Lru;
 
 const char *const kUserVendorId = "123456789";
 const AuthUser::UserId kUserId{15, 0};
+static constexpr size_t kCacheSize = 3;
 
+template <typename CacheType>
 class MrsCacheUserData : public Test {
  public:
+  using Cache = CacheType;
+
   void SetUp() override {
     user.email = "test@test.com";
     user.name = "Tester Joe";
@@ -50,9 +52,6 @@ class MrsCacheUserData : public Test {
     user.has_user_id = true;
     user.vendor_user_id = kUserVendorId;
   }
-
-  template <uint32_t noOfEntries>
-  using UserCache = Cache<UserIndex, AuthUser, noOfEntries, Lru>;
 
   AuthUser create_other_user() {
     static uint64_t other_user_id = 10000;
@@ -88,75 +87,108 @@ class MrsCacheUserData : public Test {
   }
 
   AuthUser user;
+  Cache cache_;
 };
 
-TEST_F(MrsCacheUserData, get_entry_by_vendor_id) {
-  UserCache<1> cache;
+template <typename Key, typename Value, uint32_t size>
+class TestSuiteDynamicLruCache
+    : public mysql_harness::utility::cache::DynamicLruCache<Key, Value> {
+ public:
+  template <uint32_t other_size>
+  using OtherSize = class TestSuiteDynamicLruCache<Key, Value, other_size>;
 
-  cache.set(UserIndex(user), user);
+  TestSuiteDynamicLruCache()
+      : mysql_harness::utility::cache::DynamicLruCache<Key, Value>(size) {}
+};
+
+template <typename Key, typename Value, uint32_t size>
+class TestSuiteFixedLruCache
+    : public mysql_harness::utility::cache::FixedLruCache<Key, Value, size> {
+ public:
+  template <uint32_t other_size>
+  using OtherSize = class TestSuiteDynamicLruCache<Key, Value, other_size>;
+};
+
+using TestTypes =
+    ::testing::Types<TestSuiteFixedLruCache<UserIndex, AuthUser, kCacheSize>,
+                     TestSuiteDynamicLruCache<UserIndex, AuthUser, kCacheSize>>;
+
+TYPED_TEST_SUITE(MrsCacheUserData, TestTypes);
+
+TYPED_TEST(MrsCacheUserData, get_entry_by_vendor_id) {
+  auto &cache = this->cache_;
+  auto &container = cache.get_container();
+
+  cache.set(UserIndex(this->user), this->user);
   ASSERT_NE(nullptr, cache.get_cached_value(UserIndex(kUserVendorId)));
+  ASSERT_EQ(1, container.size());
 }
 
-TEST_F(MrsCacheUserData, get_entry_by_id) {
-  UserCache<1> cache;
+TYPED_TEST(MrsCacheUserData, get_entry_by_id) {
+  auto &cache = this->cache_;
+  auto &container = cache.get_container();
 
-  cache.set(UserIndex(user), user);
-  ASSERT_NE(nullptr, cache.get_cached_value(UserIndex(kUserId)));
+  cache.set(UserIndex(this->user), this->user);
+  auto cached_user = cache.get_cached_value(UserIndex(this->user));
+
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(this->user, cached_user));
+
+  ASSERT_EQ(1, container.size());
 }
 
-TEST_F(MrsCacheUserData, multiple_entries_lru1) {
-  UserCache<1> cache;
+TYPED_TEST(MrsCacheUserData, multiple_entries_lru1) {
+  typename TestFixture::Cache::template OtherSize<1> cache;
 
-  put_user(cache, create_other_user());
-  put_user(cache, create_other_user());
-  put_user(cache, create_other_user());
-  auto last_user = put_user(cache, create_other_user());
+  this->put_user(cache, this->create_other_user());
+  this->put_user(cache, this->create_other_user());
+  this->put_user(cache, this->create_other_user());
+  auto last_user = this->put_user(cache, this->create_other_user());
   auto cached_user =
       cache.get_cached_value(UserIndex(last_user.vendor_user_id));
 
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(last_user, cached_user));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(last_user, cached_user));
 
   auto &container = cache.get_container();
   ASSERT_EQ(1, container.size());
 }
 
-TEST_F(MrsCacheUserData, multiple_entries_lru3) {
-  UserCache<3> cache;
+TYPED_TEST(MrsCacheUserData, multiple_entries_lru3) {
+  auto &cache = this->cache_;
 
-  auto user_1 = put_user(cache, create_other_user());
-  auto user_2 = put_user(cache, create_other_user());
-  auto user_3 = put_user(cache, create_other_user());
-  auto user_4 = put_user(cache, create_other_user());
+  auto user_1 = this->put_user(cache, this->create_other_user());
+  auto user_2 = this->put_user(cache, this->create_other_user());
+  auto user_3 = this->put_user(cache, this->create_other_user());
+  auto user_4 = this->put_user(cache, this->create_other_user());
 
   auto cached_user2 = cache.get_cached_value(UserIndex(user_2.vendor_user_id));
   auto cached_user3 = cache.get_cached_value(UserIndex(user_3.vendor_user_id));
   auto cached_user4 = cache.get_cached_value(UserIndex(user_4.vendor_user_id));
 
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(user_2, cached_user2));
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(user_3, cached_user3));
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(user_4, cached_user4));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(user_2, cached_user2));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(user_3, cached_user3));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(user_4, cached_user4));
 
   auto &container = cache.get_container();
   ASSERT_EQ(3, container.size());
 }
 
-TEST_F(MrsCacheUserData, multiple_entries_lru3_intermediate_access) {
-  UserCache<3> cache;
+TYPED_TEST(MrsCacheUserData, multiple_entries_lru3_intermediate_access) {
+  auto &cache = this->cache_;
 
-  auto user_1 = put_user(cache, create_other_user());
-  auto user_2 = put_user(cache, create_other_user());
-  auto user_3 = put_user(cache, create_other_user());
+  auto user_1 = this->put_user(cache, this->create_other_user());
+  auto user_2 = this->put_user(cache, this->create_other_user());
+  auto user_3 = this->put_user(cache, this->create_other_user());
   // Move user1 to the cache head.
   cache.get_cached_value(UserIndex(user_1.vendor_user_id));
-  auto user_4 = put_user(cache, create_other_user());
+  auto user_4 = this->put_user(cache, this->create_other_user());
 
   auto cached_user1 = cache.get_cached_value(UserIndex(user_1.vendor_user_id));
   auto cached_user3 = cache.get_cached_value(UserIndex(user_3.vendor_user_id));
   auto cached_user4 = cache.get_cached_value(UserIndex(user_4.vendor_user_id));
 
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(user_1, cached_user1));
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(user_3, cached_user3));
-  ASSERT_NO_FATAL_FAILURE(assertAuthUser(user_4, cached_user4));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(user_1, cached_user1));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(user_3, cached_user3));
+  ASSERT_NO_FATAL_FAILURE(this->assertAuthUser(user_4, cached_user4));
 
   auto &container = cache.get_container();
   ASSERT_EQ(3, container.size());

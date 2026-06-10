@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -4600,9 +4601,9 @@ void get_privilege_desc(char *to, uint max_length, Access_bitmask access) {
 
 */
 void iterate_comma_separated_quoted_string(
-    std::string str, const std::function<bool(const std::string)> &f) {
+    std::string_view str, const std::function<bool(std::string_view)> &f) {
   if (str.length() == 0) return;
-  std::string::iterator i = str.begin();
+  auto i = str.begin();
   std::stringstream ss;
   bool q1 = false;
   bool q2 = false;
@@ -4618,13 +4619,13 @@ void iterate_comma_separated_quoted_string(
         q2 = false;
       else
         q2 = true;
-    } else if (!q1 && !q2 && *i == '\'') {
+    } else if (!q1 && !q2 && *i == '\"') {
       if (q3)
         q3 = false;
       else
         q3 = true;
     } else if (q1 == false && q2 == false && q3 == false && *i == ',') {
-      if (f(ss.str())) return;
+      if (f(ss.view())) return;
       ss.str("");
       ++i;
       continue;
@@ -4635,7 +4636,7 @@ void iterate_comma_separated_quoted_string(
     ss << *i;
     ++i;
   }
-  f(ss.str());
+  f(ss.view());
 }
 
 /**
@@ -4646,8 +4647,8 @@ void iterate_comma_separated_quoted_string(
 */
 
 std::pair<std::string, std::string> get_authid_from_quoted_string(
-    std::string str) {
-  std::string::iterator i;
+    std::string_view str) {
+  std::string_view::const_iterator i;
   std::stringstream user;
   std::stringstream host;
   int ct = 0;
@@ -4685,7 +4686,7 @@ std::pair<std::string, std::string> get_authid_from_quoted_string(
       host << *i;
     }
   }
-  if (ct == 0 && !user.str().empty()) host << '%';
+  if (ct == 0 && !user.view().empty()) host << '%';
   return std::make_pair(user.str(), host.str());
 }
 
@@ -7318,7 +7319,7 @@ bool check_authorization_id_string(THD *thd, LEX_STRING &mandatory_roles) {
     error = true;
   } else {
     iterate_comma_separated_quoted_string(
-        authid_str, [&thd, &error, &mandatory_roles](const std::string item) {
+        authid_str, [&thd, &error, &mandatory_roles](std::string_view item) {
           auto el = get_authid_from_quoted_string(item);
           // Don't accept anonymous users. Keep in sync with mysql_grant_role()
           if (el.first == "")  // don't accept anonymous users
@@ -7371,10 +7372,9 @@ void get_mandatory_roles(std::vector<Role_id> *mandatory_roles) {
     option SQL variable.
   */
   opt_mandatory_roles_cache = true;
-  std::string role_str;
-  role_str.append(opt_mandatory_roles.str, opt_mandatory_roles.length);
+  std::string_view role_str = to_string_view(opt_mandatory_roles);
   iterate_comma_separated_quoted_string(role_str, [&mandatory_roles](
-                                                      const std::string item) {
+                                                      std::string_view item) {
     auto el = get_authid_from_quoted_string(item);
     if (el.second == "") el.second = "%";
     Role_id role_id(el.first, el.second);

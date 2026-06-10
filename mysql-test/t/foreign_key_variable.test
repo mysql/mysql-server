@@ -100,6 +100,66 @@ DROP TABLE t1, t2;
 --let SEARCH_PATTERN=The syntax '--innodb_native_foreign_keys' is deprecated and will be removed
 --source include/search_pattern.inc
 
+#WL 17024 - Activate triggers on referencing tables during foreign key CASCADE
+###############################################################################
+--echo # FR 2: Test new system variable enable_cascade_triggers
+###############################################################################
+CREATE TABLE logtable (id INT PRIMARY KEY AUTO_INCREMENT, tbl_name VARCHAR(16), operation VARCHAR(16), val int);
+CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t2 (f1 INT UNIQUE REFERENCES t1(f1) ON DELETE CASCADE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
+CREATE TRIGGER t2_ad AFTER DELETE ON t2
+    FOR EACH ROW INSERT INTO logtable(tbl_name, operation, val)
+    VALUES ('t2', 'DELETE', OLD.f1);
+
+###############################################################################
+--echo # FR 2.1: When innodb_native_foreign_keys = ON, enable_cascade_triggers
+--echo # variable must not have any effect; foreign keys and cascades remain
+--echo # handled inside InnoDB with no SQL-layer cascade-trigger firing
+--echo # restart with innodb_native_foreign_keys = ON
+###############################################################################
+--exec echo "restart: --innodb_native_foreign_keys=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $restart_parameters=restart: --innodb_native_foreign_keys=ON
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+SET enable_cascade_triggers = OFF;
+DELETE FROM t1 WHERE f1 = 1;
+SELECT * FROM logtable;
+DELETE FROM logtable;
+
+SET enable_cascade_triggers = ON;
+DELETE FROM t1 WHERE f1 = 2;
+SELECT * FROM logtable;
+DELETE FROM logtable;
+
+###############################################################################
+--echo # FR 2.2: When innodb_native_foreign_keys = OFF and
+--echo # enable_cascade_triggers = ON, triggers on rows affected by SQL-layer
+--echo # FK cascades must be fired.
+--echo # restart with innodb_native_foreign_keys default value
+###############################################################################
+--exec echo "restart: --innodb_native_foreign_keys=OFF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $restart_parameters=restart: --innodb_native_foreign_keys=OFF
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+SET enable_cascade_triggers = ON;
+DELETE FROM t1 WHERE f1 = 3;
+SELECT * FROM logtable;
+DELETE FROM logtable;
+
+###############################################################################
+--echo # FR 2.3: When innodb_native_foreign_keys = OFF and
+--echo # enable_cascade_triggers = OFF, child table triggers must not fire
+--echo # during cascade changes
+###############################################################################
+SET enable_cascade_triggers = OFF;
+DELETE FROM t1 WHERE f1 = 4;
+SELECT * FROM logtable;
+DELETE FROM logtable;
+
+DROP TABLE logtable, t1, t2;
+
 ###############################################################################
 # Test Case: Cleanup: Restart without innodb_native_foreign_keys system variable
 ###############################################################################

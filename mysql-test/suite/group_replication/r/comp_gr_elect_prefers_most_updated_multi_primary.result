@@ -1,0 +1,136 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install component on member M1
+[connection server1]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 2. Install component on member M2 and increase member
+#    weight to have highest priority on primary election
+[connection server2]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+#  3. Force member to suspend applying transactions until
+#     sending an unblock signal
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+############################################################
+# 4. Install component and join to group member M3
+[connection server3]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 5. Insert transactions on the group
+[connection server1]
+CREATE TABLE t1(a int primary key);
+CREATE PROCEDURE dml_operations()
+BEGIN
+declare x INT;
+set x=1;
+while x<=48 do
+insert into t1 values (x);
+set x=x+1;
+end  while;
+end$$
+
+----call procedure----
+call dml_operations();
+
+
+############################################################
+# 6. Execute a change to single primary mode
+[connection server3]
+SELECT group_replication_switch_to_single_primary_mode();
+
+############################################################
+# 7. Unblock M2 to apply pending transactions
+[connection server2]
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+
+############################################################
+# 8. Reap connection that change to single primary mode
+[connection server3]
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+
+############################################################
+# 9. Confirm global status variables didn't change
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+[connection server2]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+[connection server3]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 10. Assert M3 is primary member, it has highest weight
+[connection server2]
+include/gr_assert_primary_member.inc
+
+############################################################
+# 11. Switch for multi primary
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+############################################################
+# 12. Confirm global status variables didn't change
+[connection server1]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+[connection server2]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+[connection server3]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 13. Cleanup
+[connection server1]
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+[connection server2]
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+[connection server3]
+DROP TABLE t1;
+DROP PROCEDURE dml_operations;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/group_replication_end.inc

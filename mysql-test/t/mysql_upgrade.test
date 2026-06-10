@@ -123,5 +123,33 @@ SHOW GRANTS for u34068378;
 # cleanup
 DROP USER u34068378;
 
+--echo #
+--echo # Test for MANAGE_DATA_MASKING_POLICY privilege
+--echo #
+
+CREATE USER wl16525create, wl16525drop;
+GRANT CREATE ON *.* TO wl16525create;
+GRANT DROP ON *.* TO wl16525drop;
+--echo # Must not have MANAGE_DATA_MASKING_POLICY
+SHOW GRANTS FOR wl16525create;
+--echo # Must not have MANAGE_DATA_MASKING_POLICY
+SHOW GRANTS FOR wl16525drop;
+
+# Remove MANAGE_DATA_MASKING_POLICY
+REVOKE MANAGE_DATA_MASKING_POLICY ON *.* FROM root@localhost;
+
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+--echo Must have MANAGE_DATA_MASKING_POLICY
+SHOW GRANTS FOR wl16525create;
+--echo Must have MANAGE_DATA_MASKING_POLICY
+SHOW GRANTS FOR wl16525drop;
+--let $user = root@localhost
+--source include/show_grants.inc
+
+DROP USER wl16525create, wl16525drop;
+
 --echo
 --echo End of tests

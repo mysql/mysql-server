@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -230,7 +230,11 @@ class Command {
                                    const std::string &args);
   Result cmd_env(std::istream &input, Execution_context *context,
                  const std::string &args);
+  // Mysqltest basic compatibility methods
+  Result cmd_eval(std::istream &input, Execution_context *context,
+                  const std::string &args);
 
+  // Generic methods
   Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
                        const std::vector<std::string> &auth_methods);

@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
 # Copyright (c) 1991-2018 Unicode, Inc.
 #
 # This file contains the Chinese Han characters whose sorting order are defined

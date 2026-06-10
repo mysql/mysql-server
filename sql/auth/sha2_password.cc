@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "base64_encode.h"
 #include "crypt_genhash_impl.h"
 #include "lex_string.h"
 #include "m_string.h"
@@ -61,6 +62,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"       /* ER_*                        */
 #include "rwlock_scoped_lock.h" /* rwlock_scoped_lock          */
+#include "scope_guard.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/i_sha2_password.h" /* Internal classes            */
 #include "sql/auth/i_sha2_password_common.h"
@@ -73,18 +75,40 @@
 #include "sql/sql_const.h" /* MAX_FIELD_WIDTH             */
 #include "violite.h"
 
+#include <openssl/kdf.h>
+#include <openssl/ssl.h>
+namespace {
+template <typename T>
+constexpr auto to_integral(T t) noexcept
+  requires(std::is_enum_v<T>)
+{
+  return static_cast<std::underlying_type_t<T>>(t);
+}
+
+using sha2_password::Stored_digest_info;
+constexpr Stored_digest_info str_to_stored_digest_info(
+    const std::string_view &str) {
+  if (str == "A") return Stored_digest_info::CRYPT5;
+  if (str == "B") return Stored_digest_info::PBKDF2_SHA512;
+  return Stored_digest_info::LAST;
+}
+
+bool caching_sha2_proxy_users = false;
+unsigned int caching_sha2_digest_rounds =
+    sha2_password::DEFAULT_STORED_DIGEST_ROUNDS;
+unsigned long caching_sha2_storage_format(
+    to_integral(sha2_password::Stored_digest_info::CRYPT5));
+bool caching_sha2_enforce_storage_format = false;
+}  // namespace
 class THD;
 struct SYS_VAR;
-
-#include <openssl/ssl.h>
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
 bool caching_sha2_auto_generate_rsa_keys = true;
-static bool caching_sha2_proxy_users = false;
 
 Rsa_authentication_keys *g_caching_sha2_rsa_keys = nullptr;
-int caching_sha2_digest_rounds = 0;
+
 static bool init_event_tracking_authentication();
 static bool deinit_event_tracking_authentication();
 
@@ -171,22 +195,25 @@ static PSI_rwlock_info all_rwlocks[] = {
 /**
   Caching_sha2_password constructor - Initializes rw lock
 
-  @param [in] plugin_handle        MYSQL_PLUGIN reference
-  @param [in] stored_digest_rounds Number of rounds for
-                                   stored digest generation
-  @param [in] fast_digest_rounds   Number of rounds for
-                                   fast digest generation
-  @param [in] digest_type          SHA2 type to be used
+  @param [in] plugin_handle           MYSQL_PLUGIN reference
+  @param [in] stored_digest_rounds    Number of rounds for
+                                      stored digest generation
+  @param [in] digest_type             SHA2 type to be used
+  @param [in] fast_digest_rounds      Number of rounds for
+                                      fast digest generation
+  @param [in] enforce_storage_format  Whether storage format is strictly
+                                      enforced or not
 */
-
 Caching_sha2_password::Caching_sha2_password(
     MYSQL_PLUGIN plugin_handle, size_t stored_digest_rounds,
+    Stored_digest_info digest_type,  /* = Stored_digest_info::CRYPT5 */
     unsigned int fast_digest_rounds, /* = DEFAULT_FAST_DIGEST_ROUNDS */
-    Digest_info digest_type)         /* = Digest_info::SHA256_DIGEST */
+    bool enforce_storage_format)     /* = false */
     : m_plugin_info(plugin_handle),
       m_stored_digest_rounds(stored_digest_rounds),
+      m_stored_digest_type(digest_type),
       m_fast_digest_rounds(fast_digest_rounds),
-      m_digest_type(digest_type) {
+      m_enforce_storage_format(enforce_storage_format) {
   int count = array_elements(all_rwlocks);
   mysql_rwlock_register(category, all_rwlocks, count);
   mysql_rwlock_init(key_m_cache_lock, &m_cache_lock);
@@ -207,6 +234,75 @@ Caching_sha2_password::~Caching_sha2_password() {
   mysql_rwlock_destroy(&m_cache_lock);
 }
 
+/*
+  Compare given string against stored transformation
+
+  @param [in]  src               String to compare
+  @param [in]  stored            Stored transformation
+  @param [in]  authorization_id  AuthID to report error
+  @param [out] digest_type       Password transformation information
+
+  @returns an std::pair<bool, bool> where first value denotes results of
+  comparison (false - Success) and second value denotes sanity check status on
+  stored transformation (true - Valid)
+*/
+std::pair<bool, bool> Caching_sha2_password::compare_against_stored(
+    const std::string &src, const std::string_view &stored,
+    const std::optional<std::string> &authorization_id,
+    Stored_digest_info &digest_type) {
+  std::string salt;
+  std::string digest;
+  std::string generated_digest;
+  size_t iterations;
+  bool match_error{true};
+  bool valid{false};
+
+  auto raise_error = [&](longlong code) {
+    if (m_plugin_info && authorization_id.has_value()) {
+      LogPluginErr(ERROR_LEVEL, code, authorization_id.value().c_str());
+    }
+  };
+
+  /*
+    Get digest type, iterations, salt and digest
+    from the authentication string.
+  */
+  if (deserialize(stored, digest_type, salt, digest, iterations)) {
+    raise_error(ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING);
+    return std::make_pair(match_error, valid);
+  }
+
+  valid = true;
+  switch (digest_type) {
+    case Stored_digest_info::CRYPT5:
+      /*
+        Generate multiple rounds of sha2 hash using plaintext password
+        and salt retrieved from the authentication string.
+      */
+
+      if (this->generate_crypt5(src, salt, generated_digest, iterations)) {
+        raise_error(ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH);
+        return std::make_pair(match_error, valid);
+      }
+      match_error = (memcmp(digest.c_str(), generated_digest.c_str(),
+                            STORED_SHA256_DIGEST_LENGTH) != 0);
+      break;
+    case Stored_digest_info::PBKDF2_SHA512:
+      if (this->generate_pbkdf2(src, salt, generated_digest, iterations)) {
+        raise_error(ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH);
+        return std::make_pair(match_error, valid);
+      }
+      match_error = (memcmp(digest.c_str(), generated_digest.c_str(),
+                            STORED_PBKDF2_DIGEST_LENGTH) != 0);
+      break;
+    default:
+      assert(0);
+      break;
+  }
+
+  return std::make_pair(match_error, valid);
+}
+
 /**
   Perform slow authentication.
 
@@ -220,10 +316,12 @@ Caching_sha2_password::~Caching_sha2_password() {
 
   In case of successful authentication, update password cache.
 
-  @param [in] authorization_id   User information
-  @param [in] serialized_string        Information retrieved from
-                                 mysql.authentication_string column
-  @param [in] plaintext_password Password as received from client
+  @param [in]  authorization_id           User information
+  @param [in]  serialized_string          Information retrieved from
+                                          mysql.authentication_string column
+  @param [in]  plaintext_password         Password as received from client
+  @param [out] set_password_expired_flag  Whether to suggest server to set
+                                          password expired flag
 
   @returns Outcome of comparison against expected hash and whether
            second password was used or not.
@@ -232,7 +330,7 @@ Caching_sha2_password::~Caching_sha2_password() {
 std::pair<bool, bool> Caching_sha2_password::authenticate(
     const std::string &authorization_id,
     const std::string_view *serialized_string,
-    const std::string &plaintext_password) {
+    const std::string &plaintext_password, bool &set_password_expired_flag) {
   DBUG_TRACE;
 
   /* Don't process the password if it is longer than maximum limit. */
@@ -247,81 +345,55 @@ std::pair<bool, bool> Caching_sha2_password::authenticate(
   for (unsigned int i = 0;
        i < MAX_PASSWORDS && serialized_string[i].length() > 0; ++i) {
     second = i > 0;
-    std::string random;
-    std::string digest;
-    std::string generated_digest;
-    Digest_info digest_type;
-    size_t iterations;
 
-    /*
-      Get digest type, iterations, salt and digest
-      from the authentication string.
-    */
-    if (deserialize(serialized_string[i], digest_type, random, digest,
-                    iterations)) {
-      if (m_plugin_info)
-        LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING,
-                     authorization_id.c_str());
-      return std::make_pair(true, second);
-    }
+    Stored_digest_info digest_info;
+    if (compare_against_stored(plaintext_password, serialized_string[i],
+                               authorization_id, digest_info)
+            .first == false) {
+      if (get_enforce_storage_format() &&
+          digest_info != get_stored_digest_type()) {
+        set_password_expired_flag = true;
+      } else {
+        set_password_expired_flag = false;
+        /*
+          If authentication is successful, we would want to make
+          entry in cache for fast authentication. Subsequent
+          authentication attempts would use the fast authentication
+          to speed up the process.
+        */
+        sha2_cache_entry fast_digest;
+        memset(&fast_digest, 0, sizeof(fast_digest));
 
-    /*
-      Generate multiple rounds of sha2 hash using plaintext password
-      and salt retrieved from the authentication string.
-    */
-
-    if (this->generate_sha2_multi_hash(plaintext_password, random,
-                                       generated_digest, iterations)) {
-      if (m_plugin_info)
-        LogPluginErr(ERROR_LEVEL,
-                     ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH,
-                     authorization_id.c_str());
-      return std::make_pair(true, second);
-    }
-
-    /*
-      Generated digest should match with stored digest
-      for successful authentication.
-    */
-    if (memcmp(digest.c_str(), generated_digest.c_str(),
-               STORED_SHA256_DIGEST_LENGTH) == 0) {
-      /*
-        If authentication is successful, we would want to make
-        entry in cache for fast authentication. Subsequent
-        authentication attempts would use the fast authentication
-        to speed up the process.
-      */
-      sha2_cache_entry fast_digest;
-      memset(&fast_digest, 0, sizeof(fast_digest));
-
-      if (generate_fast_digest(plaintext_password, fast_digest, i)) {
-        DBUG_PRINT("info", ("Failed to generate multi-round hash for %s. "
-                            "Fast authentication won't be possible.",
-                            authorization_id.c_str()));
-        return std::make_pair(false, second);
-      }
-
-      const rwlock_scoped_lock wrlock(&m_cache_lock, true, __FILE__, __LINE__);
-      if (m_cache.add(authorization_id, fast_digest)) {
-        sha2_cache_entry stored_digest;
-        m_cache.search(authorization_id, stored_digest);
-
-        /* Same digest is already added, so just return. */
-        if (memcmp(fast_digest.digest_buffer[i], stored_digest.digest_buffer[i],
-                   sizeof(fast_digest.digest_buffer[i])) == 0)
+        if (generate_fast_digest(plaintext_password, fast_digest, i)) {
+          DBUG_PRINT("info", ("Failed to generate multi-round hash for %s. "
+                              "Fast authentication won't be possible.",
+                              authorization_id.c_str()));
           return std::make_pair(false, second);
+        }
 
-        /* Update the digest. */
-        const uint retain_index = i ? 0 : 1;
-        memcpy(fast_digest.digest_buffer[retain_index],
-               stored_digest.digest_buffer[retain_index],
-               sizeof(fast_digest.digest_buffer[retain_index]));
-        m_cache.remove(authorization_id);
-        m_cache.add(authorization_id, fast_digest);
-        DBUG_PRINT("info", ("An old digest for %s was recorded in cache. "
-                            "It has been replaced with the latest digest.",
-                            authorization_id.c_str()));
-        return std::make_pair(false, second);
+        const rwlock_scoped_lock wrlock(&m_cache_lock, true, __FILE__,
+                                        __LINE__);
+        if (m_cache.add(authorization_id, fast_digest)) {
+          sha2_cache_entry stored_digest;
+          m_cache.search(authorization_id, stored_digest);
+
+          /* Same digest is already added, so just return. */
+          if (memcmp(fast_digest.digest_buffer[i],
+                     stored_digest.digest_buffer[i],
+                     sizeof(fast_digest.digest_buffer[i])) == 0)
+            return std::make_pair(false, second);
+
+          /* Update the digest. */
+          const uint retain_index = i ? 0 : 1;
+          memcpy(fast_digest.digest_buffer[retain_index],
+                 stored_digest.digest_buffer[retain_index],
+                 sizeof(fast_digest.digest_buffer[retain_index]));
+          m_cache.remove(authorization_id);
+          m_cache.add(authorization_id, fast_digest);
+          DBUG_PRINT("info", ("An old digest for %s was recorded in cache. "
+                              "It has been replaced with the latest digest.",
+                              authorization_id.c_str()));
+        }
       }
       return std::make_pair(false, second);
     }
@@ -435,7 +507,7 @@ void Caching_sha2_password::remove_cached_entry(
 */
 
 bool Caching_sha2_password::deserialize(
-    const std::string_view &serialized_string, Digest_info &digest_type,
+    const std::string_view &serialized_string, Stored_digest_info &digest_type,
     std::string &salt, std::string &digest, size_t &iterations) {
   DBUG_TRACE;
   if (!serialized_string.length()) return true;
@@ -447,9 +519,8 @@ bool Caching_sha2_password::deserialize(
   }
   const std::string_view digest_type_info =
       serialized_string.substr(delimiter + 1, DIGEST_INFO_LENGTH);
-  if (digest_type_info == "A")
-    digest_type = Digest_info::SHA256_DIGEST;
-  else {
+  digest_type = str_to_stored_digest_info(digest_type_info);
+  if (digest_type == Stored_digest_info::LAST) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Missing digest type information."));
     return true;
@@ -494,17 +565,23 @@ bool Caching_sha2_password::deserialize(
   /* Digest */
   digest =
       serialized_string.substr(delimiter + 1 + SALT_LENGTH, std::string::npos);
+  size_t expected_digest_size{0};
   switch (digest_type) {
-    case Digest_info::SHA256_DIGEST:
-      if (digest.length() != STORED_SHA256_DIGEST_LENGTH) {
-        DBUG_PRINT("info", ("Digest string is not in expected format."
-                            "Invalid digest length."));
-        return true;
-      }
+    case Stored_digest_info::CRYPT5:
+      expected_digest_size = STORED_SHA256_DIGEST_LENGTH;
+      break;
+    case Stored_digest_info::PBKDF2_SHA512:
+      expected_digest_size = STORED_PBKDF2_DIGEST_LENGTH;
       break;
     default:
       return true;
   };
+
+  if (digest.length() != expected_digest_size) {
+    DBUG_PRINT("info", ("Digest string is not in expected format."
+                        "Invalid digest length."));
+    return true;
+  }
   return false;
 }
 
@@ -518,10 +595,13 @@ bool Caching_sha2_password::deserialize(
   DELIMITER[digest_type]DELIMITER[iterations]DELIMITER[salt][digest]
 
   digest_type:
-  A => SHA256
+  A => CRYPT5
+  B => PBKDF2
 
   iterations:
-  5000 => 005
+  3 digit hex * 1000
+  E.g.
+  For 5000 => 005
 
   salt:
   Random string. Length CRYPT_SALT_LENGTH
@@ -537,7 +617,7 @@ bool Caching_sha2_password::deserialize(
 */
 
 bool Caching_sha2_password::serialize(std::string &serialized_string,
-                                      const Digest_info &digest_type,
+                                      const Stored_digest_info &digest_type,
                                       const std::string &salt,
                                       const std::string &digest,
                                       size_t iterations) {
@@ -545,8 +625,11 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
   std::stringstream ss;
   /* Digest type */
   switch (digest_type) {
-    case Digest_info::SHA256_DIGEST:
+    case Stored_digest_info::CRYPT5:
       ss << DELIMITER << "A" << DELIMITER;
+      break;
+    case Stored_digest_info::PBKDF2_SHA512:
+      ss << DELIMITER << "B" << DELIMITER;
       break;
     default:
       return true;
@@ -570,22 +653,27 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
   serialized_string.append(salt.c_str(), salt.length());
 
   /* Digest */
+  size_t expected_length{0};
   switch (digest_type) {
-    case Digest_info::SHA256_DIGEST:
-      if (digest.length() != STORED_SHA256_DIGEST_LENGTH) {
-        DBUG_PRINT("info", ("Invalid digest size."));
-        return true;
-      }
-      serialized_string.append(digest.c_str(), digest.length());
+    case Stored_digest_info::CRYPT5:
+      expected_length = STORED_SHA256_DIGEST_LENGTH;
+      break;
+    case Stored_digest_info::PBKDF2_SHA512:
+      expected_length = STORED_PBKDF2_DIGEST_LENGTH;
       break;
     default:
       return true;
   };
+  if (digest.length() != expected_length) {
+    DBUG_PRINT("info", ("Invalid digest size."));
+    return true;
+  }
+  serialized_string.append(digest.c_str(), digest.length());
   return false;
 }
 
 /**
-  Generate digest based on m_fast_digest_rounds
+  Generate digest based on get_fast_digest_rounds()
 
   @param [out] digest Digest output buffer
   @param [in]  plaintext_password Source text
@@ -602,6 +690,7 @@ bool Caching_sha2_password::generate_fast_digest(
   DBUG_TRACE;
   assert(pos < MAX_PASSWORDS);
   SHA256_digest sha256_digest;
+  auto fast_digest_rounds = get_fast_digest_rounds();
   unsigned char digest_buffer[CACHING_SHA2_DIGEST_LENGTH];
   assert(sizeof(digest.digest_buffer[pos]) == sizeof(digest_buffer));
 
@@ -613,7 +702,7 @@ bool Caching_sha2_password::generate_fast_digest(
     return true;
   }
 
-  for (unsigned int i = 1; i < m_fast_digest_rounds; ++i) {
+  for (unsigned int i = 1; i < fast_digest_rounds; ++i) {
     sha256_digest.scrub();
     if (sha256_digest.update_digest(digest_buffer,
                                     CACHING_SHA2_DIGEST_LENGTH) ||
@@ -636,45 +725,134 @@ bool Caching_sha2_password::generate_fast_digest(
   This is a wrapper around my_crypt_genhash
 
   @param [in]  source    Source text
-  @param [in]  random    Random text
+  @param [in]  salt      Random text
   @param [out] digest    Generated sha2 digest
   @param [in] iterations Number of hash iterations
 
-  @returns result of password check
-    @retval false Password matches
-    @retval true  Password does not match
+  @returns result of hash generation
+    @retval false Success
+    @retval true  Error
 */
 
-bool Caching_sha2_password::generate_sha2_multi_hash(const std::string &source,
-                                                     const std::string &random,
-                                                     std::string &digest,
-                                                     unsigned int iterations) {
+bool Caching_sha2_password::generate_crypt5(const std::string &source,
+                                            const std::string &salt,
+                                            std::string &digest,
+                                            unsigned int iterations) {
   DBUG_TRACE;
-  char salt[SALT_LENGTH + 1];
-  /* Generate salt including terminating \0 */
-  generate_user_salt(salt, SALT_LENGTH + 1);
+  char buffer[CRYPT_MAX_PASSWORD_SIZE + 1];
+  memset(buffer, 0, sizeof(buffer));
+  assert(source.length() <= CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
+  my_crypt_genhash(buffer, CRYPT_MAX_PASSWORD_SIZE, source.c_str(),
+                   source.length(), salt.c_str(), nullptr, &iterations);
 
-  switch (m_digest_type) {
-    case Digest_info::SHA256_DIGEST: {
-      char buffer[CRYPT_MAX_PASSWORD_SIZE + 1];
-      memset(buffer, 0, sizeof(buffer));
-      assert(source.length() <= CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
-      my_crypt_genhash(buffer, CRYPT_MAX_PASSWORD_SIZE, source.c_str(),
-                       source.length(), random.c_str(), nullptr, &iterations);
+  /*
+    Returned value in buffer would be in format:
+    $5$<SALT_LENGTH><STORED_SHA256_DIGEST_LENGTH>
+    We need to extract STORED_SHA256_DIGEST_LENGTH chars from it
+  */
+  digest.assign(buffer + 3 + SALT_LENGTH + 1, STORED_SHA256_DIGEST_LENGTH);
+  return false;
+}
 
-      /*
-        Returned value in buffer would be in format:
-        $5$<SALT_LENGTH><STORED_SHA256_DIGEST_LENGTH>
-        We need to extract STORED_SHA256_DIGEST_LENGTH chars from it
-      */
-      digest.assign(buffer + 3 + SALT_LENGTH + 1, STORED_SHA256_DIGEST_LENGTH);
+/**
+  Transform given password into PKBDF2 digest
+
+  @param [in]  source     Source text
+  @param [in]  salt       Random text
+  @param [out] digest     Generated PBKDF2 digest
+  @param [in]  iterations Number of iterations
+
+  @returns Result of the digest generation
+    @retval false Success
+    @retval true  Error
+ */
+bool Caching_sha2_password::generate_pbkdf2(const std::string &source,
+                                            const std::string &salt,
+                                            std::string &digest,
+                                            unsigned int iterations) {
+  unsigned char derived_key[PBKDF2_DIGEST_LENGTH];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_KDF *kdf{nullptr};
+  EVP_KDF_CTX *ctx{nullptr};
+  OSSL_PARAM params[5];
+  char sha512[] = "SHA512";
+
+  kdf = EVP_KDF_fetch(nullptr, "PBKDF2", nullptr);
+  ctx = EVP_KDF_CTX_new(kdf);
+
+  auto cleanup_guard = create_scope_guard([&] {
+    if (ctx) EVP_KDF_CTX_free(ctx);
+    if (kdf) EVP_KDF_free(kdf);
+  });
+
+  params[0] = OSSL_PARAM_construct_utf8_string("digest", sha512, 0);
+  params[1] = OSSL_PARAM_construct_octet_string(
+      "salt", static_cast<void *>(const_cast<char *>(salt.c_str())),
+      salt.length());
+  params[2] = OSSL_PARAM_construct_uint("iter", (unsigned int *)&iterations);
+  params[3] = OSSL_PARAM_construct_octet_string(
+      "pass", static_cast<void *>(const_cast<char *>(source.c_str())),
+      source.length());
+  params[4] = OSSL_PARAM_construct_end();
+
+  if (EVP_KDF_derive(ctx, derived_key, PBKDF2_DIGEST_LENGTH, params) != 1)
+    return true;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  if (PKCS5_PBKDF2_HMAC(source.c_str(), source.length(),
+                        reinterpret_cast<const unsigned char *>(salt.c_str()),
+                        salt.length(), iterations, EVP_sha512(),
+                        PBKDF2_DIGEST_LENGTH, derived_key) != 1)
+    return true;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  digest = oci::ssl::base64_encode(derived_key, PBKDF2_DIGEST_LENGTH);
+  assert(digest.length() == STORED_PBKDF2_DIGEST_LENGTH);
+  return false;
+}
+
+/*
+  Generates password transformation from give source string and create
+  serialized string that contains required information such as digest type,
+  number of iterations, salt digest.
+
+  @param [in]  src             Source string
+  @param [out] stored_digest   Serialized digest
+
+  @returns Result of digest generation
+    @retval false Success
+    @retval true  Error
+*/
+bool Caching_sha2_password::generate_stored_digest(
+    const std::string &src, std::string &serialized_string) {
+  DBUG_TRACE;
+  auto digest_type = get_stored_digest_type();
+  auto rounds = get_stored_digest_rounds();
+  char salt[sha2_password::SALT_LENGTH + 1];
+  generate_user_salt(salt, sha2_password::SALT_LENGTH + 1);
+  std::string salt_string(salt, sha2_password::SALT_LENGTH);
+  std::string generated_digest;
+  bool return_value = true;
+
+  switch (digest_type) {
+    case Stored_digest_info::CRYPT5:
+      return_value =
+          generate_crypt5(src, salt_string, generated_digest, rounds);
       break;
-    }
+    case Stored_digest_info::PBKDF2_SHA512:
+      return_value =
+          generate_pbkdf2(src, salt_string, generated_digest, rounds);
+      break;
     default:
       assert(false);
       return true;
   }
-  return false;
+
+  /* Digest generation function returned an error. So we stop here. */
+  if (return_value) return true;
+
+  return_value = serialize(serialized_string, digest_type, salt_string,
+                           generated_digest, rounds);
+
+  return return_value;
 }
 
 /**
@@ -708,7 +886,7 @@ void Caching_sha2_password::clear_cache() {
 bool Caching_sha2_password::validate_hash(
     const std::string &serialized_string) {
   DBUG_TRACE;
-  Digest_info digest_type;
+  Stored_digest_info digest_type;
   std::string salt;
   std::string digest;
   size_t iterations;
@@ -1106,8 +1284,10 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                            : "",
                        info->additional_auth_string_length)};
   const std::string plaintext_password((char *)pkt, pkt_len - 1);
+  bool set_password_expired_flag = false;
   std::pair<bool, bool> auth_success = g_caching_sha2_password->authenticate(
-      authorization_id, serialized_string, plaintext_password);
+      authorization_id, serialized_string, plaintext_password,
+      set_password_expired_flag);
   if (auth_success.first) return CR_AUTH_USER_CREDENTIALS;
 
   if (auth_success.second) {
@@ -1123,7 +1303,8 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     DBUG_PRINT("info", ("caching_sha2_password_proxy_users is enabled, "
                         "setting authenticated_as to NULL"));
   }
-  return CR_OK;
+
+  return set_password_expired_flag ? CR_OK_FORCE_PASSWORD_CHANGE : CR_OK;
 }
 
 /**
@@ -1146,9 +1327,7 @@ static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
                                           const char *inbuf,
                                           unsigned int inbuflen) {
   DBUG_TRACE;
-  std::string digest;
   const std::string source(inbuf, inbuflen);
-  std::string random;
   std::string serialized_string;
 
   if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
@@ -1164,23 +1343,15 @@ static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
     return 0;
   }
 
-  char salt[sha2_password::SALT_LENGTH + 1];
-  generate_user_salt(salt, sha2_password::SALT_LENGTH + 1);
-  random.assign(salt, sha2_password::SALT_LENGTH);
-
-  if (g_caching_sha2_password->generate_sha2_multi_hash(
-          source, random, digest, g_caching_sha2_password->get_digest_rounds()))
-    return 1;
-
-  if (g_caching_sha2_password->serialize(
-          serialized_string, g_caching_sha2_password->get_digest_type(), random,
-          digest, g_caching_sha2_password->get_digest_rounds()))
+  if (g_caching_sha2_password->generate_stored_digest(source,
+                                                      serialized_string))
     return 1;
 
   if (serialized_string.length() > MAX_FIELD_WIDTH) {
     *buflen = 0;
     return 1;
   }
+
   memcpy(outbuf, serialized_string.c_str(), serialized_string.length());
   *buflen = serialized_string.length();
 
@@ -1242,8 +1413,12 @@ static int caching_sha2_authentication_init(MYSQL_PLUGIN plugin_ref) {
   DBUG_TRACE;
 
   caching_sha2_auth_plugin_ref = plugin_ref;
-  g_caching_sha2_password = new sha2_password::Caching_sha2_password(
-      caching_sha2_auth_plugin_ref, caching_sha2_digest_rounds);
+  g_caching_sha2_password =
+      new (std::nothrow) sha2_password::Caching_sha2_password(
+          caching_sha2_auth_plugin_ref, caching_sha2_digest_rounds,
+          static_cast<sha2_password::Stored_digest_info>(
+              caching_sha2_storage_format),
+          caching_sha2_digest_rounds, caching_sha2_enforce_storage_format);
   if (!g_caching_sha2_password) return 1;
 
   return init_event_tracking_authentication() ? 1 : 0;
@@ -1288,37 +1463,19 @@ static int compare_caching_sha2_password_with_hash(
     unsigned long cleartext_length, int *is_error) {
   DBUG_TRACE;
 
-  const std::string serialized_string(hash, hash_length);
+  const std::string_view stored(hash, hash_length);
   const std::string plaintext_password(cleartext, cleartext_length);
-  std::string random;
-  std::string digest;
-  std::string generated_digest;
-  sha2_password::Digest_info digest_type;
-  size_t iterations;
+  sha2_password::Stored_digest_info digest_type;
 
-  assert(cleartext_length <=
-         sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
   if (cleartext_length >
       sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
     return -1;
 
-  if (g_caching_sha2_password->deserialize(serialized_string, digest_type,
-                                           random, digest, iterations)) {
-    *is_error = 1;
-    return -1;
-  }
+  auto ret = g_caching_sha2_password->compare_against_stored(
+      plaintext_password, stored, std::nullopt, digest_type);
 
-  if (g_caching_sha2_password->generate_sha2_multi_hash(
-          plaintext_password, random, generated_digest, iterations)) {
-    *is_error = 1;
-    return -1;
-  }
-
-  *is_error = 0;
-  const int result = memcmp(digest.c_str(), generated_digest.c_str(),
-                            sha2_password::STORED_SHA256_DIGEST_LENGTH);
-
-  return result;
+  *is_error = ret.second ? 0 : 1;
+  return ret.first ? 1 : 0;
 }
 
 /**
@@ -1370,18 +1527,75 @@ static MYSQL_SYSVAR_BOOL(
     "at the default location.",
     nullptr, nullptr, true);
 
-static MYSQL_SYSVAR_INT(
+static int caching_sha2_digest_round_check(MYSQL_THD thd [[maybe_unused]],
+                                           SYS_VAR *var [[maybe_unused]],
+                                           void *save [[maybe_unused]],
+                                           struct st_mysql_value *value) {
+  longlong new_value;
+  if (value->val_int(value, &new_value) != 0) {
+    return 1; /* NULL value */
+  }
+
+  if (new_value <
+          static_cast<longlong>(sha2_password::MIN_STORED_DIGEST_ROUNDS) ||
+      new_value >
+          static_cast<longlong>(sha2_password::MAX_STORED_DIGEST_ROUNDS)) {
+    return 1; /* Invalid value */
+  }
+  *(reinterpret_cast<ulonglong *>(save)) = static_cast<ulonglong>(new_value);
+  return 0;
+}
+
+static void caching_sha2_digest_update_update(MYSQL_THD thd [[maybe_unused]],
+                                              SYS_VAR *var [[maybe_unused]],
+                                              void *var_ptr [[maybe_unused]],
+                                              const void *save) {
+  ulonglong new_value = *(reinterpret_cast<const ulonglong *>(save));
+  caching_sha2_digest_rounds = new_value;
+  g_caching_sha2_password->set_stored_digest_rounds(new_value);
+}
+
+static MYSQL_SYSVAR_UINT(
     digest_rounds,               // Name.
     caching_sha2_digest_rounds,  // Variable.
-    PLUGIN_VAR_READONLY,         // Argument optional for cmd line
+    PLUGIN_VAR_RQCMDARG,         // Argument optional for cmd line
     "Number of SHA2 rounds to be done when storing a password hash onto disk.",
-    nullptr,                                      // Check function.
-    nullptr,                                      // Update function.
+    caching_sha2_digest_round_check,              // Check function.
+    caching_sha2_digest_update_update,            // Update function.
     sha2_password::DEFAULT_STORED_DIGEST_ROUNDS,  // Default value.
     sha2_password::MIN_STORED_DIGEST_ROUNDS,      // Min value.
     sha2_password::MAX_STORED_DIGEST_ROUNDS,      // Max value.
     1                                             // Block size.
 );
+
+static const char *caching_sha2_storage_format_values[] = {
+    "CRYPT5", "PBKDF2_SHA512", nullptr};
+static TYPELIB caching_sha2_storage_format_typelib = {
+    .count = array_elements(caching_sha2_storage_format_values) - 1,
+    .name = "caching_sha2_storage_format_typelib",
+    .type_names = caching_sha2_storage_format_values,
+    .type_lengths = nullptr};
+
+static void caching_sha2_storage_format_update(MYSQL_THD thd [[maybe_unused]],
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *var_ptr [[maybe_unused]],
+                                               const void *save) {
+  ulonglong new_value = *(reinterpret_cast<const ulonglong *>(save));
+  caching_sha2_storage_format = static_cast<unsigned long>(new_value);
+  g_caching_sha2_password->set_stored_digest_type(
+      static_cast<sha2_password::Stored_digest_info>(
+          caching_sha2_storage_format));
+}
+
+static MYSQL_SYSVAR_ENUM(
+    storage_format,                                          // Name
+    caching_sha2_storage_format,                             // Variable
+    PLUGIN_VAR_RQCMDARG,                                     // Type
+    "Storage format for credentials.",                       // Description
+    nullptr,                                                 // Check
+    caching_sha2_storage_format_update,                      // Update
+    to_integral(sha2_password::Stored_digest_info::CRYPT5),  // Default
+    &caching_sha2_storage_format_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     proxy_users, caching_sha2_proxy_users, PLUGIN_VAR_OPCMDARG,
@@ -1392,6 +1606,69 @@ static MYSQL_SYSVAR_BOOL(
     "check_proxy_users is enabled.",
     nullptr, nullptr, false);
 
+static int caching_sha2_enforce_format_check(MYSQL_THD thd [[maybe_unused]],
+                                             SYS_VAR *var [[maybe_unused]],
+                                             void *save [[maybe_unused]],
+                                             struct st_mysql_value *value) {
+  longlong val = 0;
+  const int type = value->value_type(value);
+  if (type == MYSQL_VALUE_TYPE_INT) {
+    if (value->val_int(value, &val)) return 1;
+
+    if (val != 0 && val != 1) {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
+               "caching_sha2_password_enforce_storage_format",
+               std::to_string(val).c_str());
+      return 1;
+    }
+  } else if (type == MYSQL_VALUE_TYPE_STRING) {
+    char buffer[STRING_BUFFER_USUAL_SIZE];
+    int buffer_length = sizeof(buffer);
+    const char *buf = value->val_str(value, buffer, &buffer_length);
+
+    if (buf == nullptr) return 1;
+
+    if (!native_strcasecmp(buf, "ON") || !strcmp(buf, "1"))
+      val = 1;
+    else if (!native_strcasecmp(buf, "OFF") || !strcmp(buf, "0"))
+      val = 0;
+    else {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
+               "caching_sha2_password_enforce_storage_format", buf);
+      return 1;
+    }
+  } else {
+    my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0),
+             "caching_sha2_password_enforce_storage_format");
+    return 1;
+  }
+  *(reinterpret_cast<ulonglong *>(save)) = static_cast<ulonglong>(val);
+  return 0;
+}
+
+static void caching_sha2_enforce_format_update(MYSQL_THD thd [[maybe_unused]],
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *var_ptr [[maybe_unused]],
+                                               const void *save) {
+  ulonglong new_value = *(reinterpret_cast<const ulonglong *>(save));
+  caching_sha2_enforce_storage_format = (new_value != 0);
+  g_caching_sha2_password->set_enforce_storage_format(new_value != 0);
+}
+
+static MYSQL_SYSVAR_BOOL(
+    enforce_storage_format,               // Name
+    caching_sha2_enforce_storage_format,  // Variable
+    PLUGIN_VAR_OPCMDARG,                  // Type
+    "Enforce storage format for credentials. If set to TRUE, then accounts "
+    "that are using caching_sha2_password and have password transformation "
+    "stored in format other than what is specified by "
+    "--caching_sha2_password_storage_format, will be forced to change their "
+    "password upon login.",              // Description
+    caching_sha2_enforce_format_check,   // Check
+    caching_sha2_enforce_format_update,  // Update
+    false                                // Default
+);
+
 /** Array of system variables. Used in plugin declaration. */
 static SYS_VAR *caching_sha2_password_sysvars[] = {
     MYSQL_SYSVAR(private_key_path),
@@ -1399,6 +1676,8 @@ static SYS_VAR *caching_sha2_password_sysvars[] = {
     MYSQL_SYSVAR(auto_generate_rsa_keys),
     MYSQL_SYSVAR(digest_rounds),
     MYSQL_SYSVAR(proxy_users),
+    MYSQL_SYSVAR(storage_format),
+    MYSQL_SYSVAR(enforce_storage_format),
     nullptr};
 
 /** Array of status variables. Used in plugin declaration. */

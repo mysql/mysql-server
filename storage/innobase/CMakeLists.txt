@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -157,6 +157,7 @@ SET(INNOBASE_SOURCES
   handler/ha_innodb.cc
   handler/ha_innopart.cc
   handler/handler0alter.cc
+  handler/ha0check.cc
   handler/i_s.cc
   handler/p_s.cc
   ibuf/ibuf0ibuf.cc

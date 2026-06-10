@@ -1,0 +1,136 @@
+########################################################################
+#
+# Test binlogging for DDL + DML of JSON duality views:
+#    1. Test first creates the JDV on the server.
+#    2. Test then performs INSERT, UPDATE, DELETE,
+#       ALTER, and DROP against the JDV on the source,
+#       and makes sure that these operations are
+#       properly logged in the binary log for all values of
+#       binlog_row_image.
+#
+# References:
+# WL#16620: JSON Duality Views
+########################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+# Create an auxiliary file which will be used later in the test
+--source include/rpl/save_binlog_file_position.inc
+--write_file $MYSQLTEST_VARDIR/tmp/binlog_jdv.inc
+--echo # Create a JSON duality view
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+        "_id" : f3,
+        "f4" : f4,
+        "ChildNode" : (
+            SELECT JSON_DUALITY_OBJECT(
+            WITH (INSERT, UPDATE)
+                    "f1" : f1,
+                    "f2" : f2)
+            FROM p_t1
+            WHERE p_t1.f1 = p_t2.f3
+        )
+) FROM p_t2;
+
+SHOW CREATE VIEW p_dv1;
+
+# Assert that the DDL is written into the binary log in STATEMENT format
+--let $event_sequence= !Gtid_or_anon # Query/use.*CREATE.*OR.*REPLACE.*JSON.*DUALITY.*VIEW.*p_dv1.*AS.*SELECT.*JSON_DUALITY_OBJECT.*
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
+
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+
+# Assert that the query is written into the binary log.
+--let $event_sequence= !Gtid_or_anon # !Begin # (Query/use.*INSERT INTO p_dv1.*)|(Table_map # Write_rows # Table_map # Write_rows) # !Commit
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
+
+UPDATE p_dv1 SET data = '{
+    "f4": 400,
+    "_id": 2,
+    "ChildNode": {
+        "f1": 2,
+        "f2": 400
+    },
+    "_metadata": {
+        "etag": "aa5116936fc25283af51df31f4cbe0f7"
+    }
+}';
+
+# Assert that the query is written into the binary log.
+--let $event_sequence= !Gtid_or_anon # !Begin # (Query/use.*UPDATE p_dv1 SET data.*)|(Table_map # Update_rows # Table_map # Update_rows) # !Commit
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 2;
+# Assert that the query is written into the binary log.
+# Note that there is only one delete because the subquery does not have
+# privilege for DELETE operation.
+--let $event_sequence= !Gtid_or_anon # !Begin # (Query/use.*DELETE FROM p_dv1.*)|(Table_map # Delete_rows) # !Commit
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
+
+SELECT * from p_dv1;
+
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+        "_id" : f3,
+        "ChildNode" : (
+            SELECT JSON_DUALITY_OBJECT(
+            WITH (INSERT, UPDATE)
+                    "f1" : f1,
+                    "f2" : f2
+            )
+            FROM p_t1
+            WHERE p_t1.f1 = p_t2.f3
+        )
+) FROM p_t2;
+
+# Assert that the query is written into the binary log.
+--let $event_sequence= !Gtid_or_anon # Query/use.*ALTER.*JSON.*DUALITY.*VIEW.*p_dv1.*
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
+
+DROP VIEW p_dv1;
+--let $event_sequence= !Gtid_or_anon # Query/use.*DROP VIEW p_dv1.*
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
+
+# Clear the table for next iteration
+TRUNCATE TABLE p_t1;
+TRUNCATE TABLE p_t2;
+--source include/rpl/save_binlog_file_position.inc
+
+--echo # No I_S views contents on the server
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`);
+EOF
+
+#
+# Assert that the queries are binlogged properly for all values of binlog_row_image.
+#
+--let $saved_binlog_row_image=`SELECT @@GLOBAL.binlog_row_image`
+SET SESSION binlog_row_image='FULL';
+--source $MYSQLTEST_VARDIR/tmp/binlog_jdv.inc
+SET SESSION binlog_row_image='MINIMAL';
+--source $MYSQLTEST_VARDIR/tmp/binlog_jdv.inc
+SET SESSION binlog_row_image='NOBLOB';
+--source $MYSQLTEST_VARDIR/tmp/binlog_jdv.inc
+--eval SET SESSION binlog_row_image='$saved_binlog_row_image';
+
+# Remove the auxiliary file
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_jdv.inc
+DROP TABLE p_t1, p_t2;

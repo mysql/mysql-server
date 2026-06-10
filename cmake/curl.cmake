@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -298,7 +298,7 @@ FUNCTION(FIND_CUSTOM_WIN_CURL_LIBRARY WITH_CURL_PATH CURL_LIBRARY)
   SET(ZLIB_DLL_REQUIRED 1)
   FIND_OBJECT_DEPENDENCIES("${HAVE_CURL_DLL}" DEPENDENCY_LIST)
   LIST(FIND DEPENDENCY_LIST "zlib.dll" FOUNDIT1)
-  LIST(FIND DEPENDENCY_LIST "zlib1.dll" FOUNDIT2)
+  LIST(FIND DEPENDENCY_LIST "z.dll" FOUNDIT2)
   GET_FILENAME_COMPONENT(CURL_DLL_NAME "${HAVE_CURL_DLL}" NAME)
   MESSAGE(STATUS "${CURL_DLL_NAME} DEPENDENCY_LIST ${DEPENDENCY_LIST}")
   IF(FOUNDIT1 LESS 0 AND FOUNDIT2 LESS 0)
@@ -306,14 +306,14 @@ FUNCTION(FIND_CUSTOM_WIN_CURL_LIBRARY WITH_CURL_PATH CURL_LIBRARY)
   ENDIF()
 
   FIND_FILE(HAVE_ZLIB_DLL
-    NAMES zlib.dll zlib1.dll
+    NAMES zlib.dll z.dll
     PATHS "${WITH_CURL_PATH}/lib"
     NO_DEFAULT_PATH
     )
   MESSAGE(STATUS "HAVE_ZLIB_DLL ${HAVE_ZLIB_DLL}")
 
   IF(ZLIB_DLL_REQUIRED AND NOT HAVE_ZLIB_DLL)
-    MESSAGE(FATAL_ERROR "libcurl.dll depends on zlib.dll or zlib1.dll")
+    MESSAGE(FATAL_ERROR "libcurl.dll depends on zlib.dll or z.dll")
   ENDIF()
 
   IF(ZLIB_DLL_REQUIRED AND HAVE_ZLIB_DLL)

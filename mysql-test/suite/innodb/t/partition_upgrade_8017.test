@@ -1,4 +1,0 @@
---source include/have_nodebug.inc
-
---let $OLD_VERSION = 8017
---source suite/innodb/include/partition_upgrade.inc

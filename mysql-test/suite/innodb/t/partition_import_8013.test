@@ -1,4 +1,0 @@
---source include/have_nodebug.inc
-
---let $OLD_VERSION = 8013
---source suite/innodb/include/partition_import.inc

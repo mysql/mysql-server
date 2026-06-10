@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,21 +93,19 @@ const LEX_CSTRING interval_type_to_name[INTERVAL_LAST] = {
   Generate flags to use when converting a string to a date or datetime value
 
   @todo Consider whether to always accept zero date and zero in date.
-        (Add TIME_FUZZY_DATE).
   Accept invalid dates when ALLOW_INVALID_DATES SQL mode is set.
   Reject zero date if TIME_NO_ZERO_DATE is set.
-  Reject dates with zero as day or month when TIME_NO_ZERO_IN_DATE is set,
-  even if TIME_FUZZY_DATE is also set.
+  Reject dates with zero as day or month when TIME_NO_ZERO_IN_DATE is set.
   TIME_FRAC_TRUNCATE controls whether to round or truncate if the input
   value has greater precision than the wanted result.
 
   @param thd  Thread handle
 
-  @returns    Flags to use for calls to e.g my_str_to_datetime()
+  @returns    Flags to use for calls to e.g str_to_datetime()
 */
 my_time_flags_t DatetimeConversionFlags(const THD *thd) {
   const sql_mode_t mode = thd->variables.sql_mode;
-  return (mode & MODE_INVALID_DATES ? TIME_INVALID_DATES : 0) |
+  return ((mode & MODE_INVALID_DATES) == 0 ? TIME_NO_INVALID_DATES : 0) |
          (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0) |
          (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
          (thd->is_fsp_truncate_mode() ? TIME_FRAC_TRUNCATE : 0);
@@ -195,26 +193,26 @@ bool str_to_datetime(const CHARSET_INFO *cs, const char *str, size_t length,
 
   @return False on success, true on error.
 */
-bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
+bool str_to_datetime_with_warn(String *str, Datetime_val *dt,
                                my_time_flags_t flags) {
   MYSQL_TIME_STATUS status;
   THD *thd = current_thd;
-  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
-  if (thd->variables.sql_mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
+  sql_mode_t sql_mode = thd->variables.sql_mode;
+  if (sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
+  if ((sql_mode & MODE_INVALID_DATES) == 0) flags |= TIME_NO_INVALID_DATES;
   if (thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
   bool ret_val = propagate_datetime_overflow(
-      thd, &status.warnings, str_to_datetime(str, l_time, flags, &status));
+      thd, &status.warnings, str_to_datetime(str, dt, flags, &status));
   if (ret_val || status.warnings) {
-    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                     ErrConvString(str), l_time->time_type,
-                                     NullS))
+    if (make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(str), dt->time_type, NullS))
       return true;
     if (ret_val) status.squelch_deprecation();
   }
-  check_deprecated_datetime_format(current_thd, str->charset(), status);
+  check_deprecated_datetime_format(thd, str->charset(), status);
 
   if (ret_val) return true;
-  return convert_time_zone_displacement(thd->time_zone(), l_time);
+  return convert_time_zone_displacement(thd->time_zone(), dt);
 }
 
 /**
@@ -230,8 +228,8 @@ bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
 static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
                                 my_time_flags_t flags, int *warnings) {
   if (lld.rem < 0 ||  // Catch negative numbers with zero int part, e.g: -0.1
-      number_to_datetime(lld.quot, ltime, flags, warnings) == -1LL) {
-    /* number_to_datetime does not clear ltime in case of ZERO DATE */
+      int_to_datetime(lld.quot, ltime, flags, warnings) == -1LL) {
+    /* int_to_datetime does not clear ltime in case of ZERO DATE */
     set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
     if (!*warnings) /* Neither sets warnings in case of ZERO DATE */
       *warnings |= MYSQL_TIME_WARN_TRUNCATED;
@@ -257,47 +255,45 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
   Convert decimal value to datetime.
 
   @param       decimal The value to convert from.
-  @param[out]  ltime   The variable to convert to.
+  @param[out]  dt      The variable to convert to.
   @param       flags   Conversion flags.
 
   @returns false on success, true if not convertible to datetime.
 */
-bool decimal_to_datetime(const my_decimal *decimal, MYSQL_TIME *ltime,
+bool decimal_to_datetime(const my_decimal *decimal, Datetime_val *dt,
                          my_time_flags_t flags) {
   lldiv_t lld;
   if (my_decimal2lldiv_t(0, decimal, &lld)) {
     return true;
   }
   int warnings = 0;
-  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
+  return lldiv_t_to_datetime(lld, dt, flags, &warnings);
 }
 
 /**
   Convert decimal value to datetime value with a warning.
   @param       decimal The value to convert from.
-  @param[out]  ltime   The variable to convert to.
+  @param[out]  dt   The variable to convert to.
   @param       flags   Conversion flags.
 
   @return False on success, true on error.
 */
-bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
-                                      MYSQL_TIME *ltime,
-                                      my_time_flags_t flags) {
+bool decimal_to_datetime_with_warn(const my_decimal *decimal, Datetime_val *dt,
+                                   my_time_flags_t flags) {
   lldiv_t lld;
   int warnings = 0;
   bool rc;
 
   if ((rc = my_decimal2lldiv_t(0, decimal, &lld))) {
     warnings |= MYSQL_TIME_WARN_TRUNCATED;
-    set_zero_time(ltime, MYSQL_TIMESTAMP_NONE);
+    set_zero_time(dt, MYSQL_TIMESTAMP_NONE);
   } else
     rc = propagate_datetime_overflow(
-        current_thd, &warnings,
-        lldiv_t_to_datetime(lld, ltime, flags, &warnings));
+        current_thd, &warnings, lldiv_t_to_datetime(lld, dt, flags, &warnings));
 
   if (warnings) {
     if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                     ErrConvString(decimal), ltime->time_type,
+                                     ErrConvString(decimal), dt->time_type,
                                      NullS))
       return true;
   }
@@ -308,72 +304,144 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
   Convert double value to datetime.
 
   @param       nr      The value to convert from.
-  @param[out]  ltime   The variable to convert to.
+  @param[out]  dt      The variable to convert to.
   @param       flags   Conversion flags.
 
   @returns false on success, true if not convertible to datetime.
 */
-bool double_to_datetime(double nr, MYSQL_TIME *ltime, my_time_flags_t flags) {
+bool double_to_datetime(double nr, Datetime_val *dt, my_time_flags_t flags) {
   lldiv_t lld;
   if (double2lldiv_t(nr, &lld)) {
     return true;
   }
   int warnings = 0;
-  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
+  return lldiv_t_to_datetime(lld, dt, flags, &warnings);
 }
 
 /**
   Convert double value to datetime value with a warning.
   @param       nr      The value to convert from.
-  @param[out]  ltime   The variable to convert to.
+  @param[out]  dt      The variable to convert to.
   @param       flags   Conversion flags.
 
   @return False on success, true on error.
 */
-bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
-                                     my_time_flags_t flags) {
+bool double_to_datetime_with_warn(double nr, Datetime_val *dt,
+                                  my_time_flags_t flags) {
   lldiv_t lld;
   int warnings = 0;
   bool rc;
 
   if ((rc = (double2lldiv_t(nr, &lld) != E_DEC_OK))) {
     warnings |= MYSQL_TIME_WARN_TRUNCATED;
-    set_zero_time(ltime, MYSQL_TIMESTAMP_NONE);
+    set_zero_time(dt, MYSQL_TIMESTAMP_NONE);
   } else
     rc = propagate_datetime_overflow(
-        current_thd, &warnings,
-        lldiv_t_to_datetime(lld, ltime, flags, &warnings));
+        current_thd, &warnings, lldiv_t_to_datetime(lld, dt, flags, &warnings));
 
   if (warnings) {
     if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                     ErrConvString(nr), ltime->time_type,
-                                     NullS))
+                                     ErrConvString(nr), dt->time_type, NullS))
       return true;
   }
   return rc;
 }
 
 /**
-  Convert longlong value to datetime value with a warning.
-  @param       nr      The value to convert from.
-  @param[out]  ltime   The variable to convert to.
-  @param       flags   Conversion flags
+  Convert integer value to date value with possible warning.
+
+  @param      val    The value to convert from.
+  @param[out] date   The variable to convert to.
+  @param      flags  Conversion flags
 
   @return False on success, true on error.
 */
-bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
-                                       my_time_flags_t flags) {
+bool int_to_date_with_warn(longlong val, Date_val *date,
+                           my_time_flags_t flags) {
   int warnings = 0;
-  bool rc = propagate_datetime_overflow(
-                current_thd, &warnings,
-                number_to_datetime(nr, ltime, flags, &warnings)) == -1LL;
-  if (warnings) {
+  bool rc = int_to_date(val, date, flags, &warnings);
+
+  if (warnings != 0) {
+    (void)make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                       ErrConvString(val), MYSQL_TIMESTAMP_NONE,
+                                       NullS);
+    return true;
+  }
+  return rc;
+}
+
+/**
+  Convert double value to date value with possible warning
+
+  @param      nr     The number to convert from.
+  @param[out] date   The variable to convert to.
+  @param      flags  Conversion flags
+
+  @returns false on success, true if not convertible to date.
+*/
+bool double_to_date_with_warn(double nr, Date_val *date,
+                              my_time_flags_t flags) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld)) {
+    (void)make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                       ErrConvString(nr), MYSQL_TIMESTAMP_DATE,
+                                       NullS);
+    return true;
+  }
+  return int_to_date_with_warn(lld.quot, date, flags);
+}
+
+bool decimal_to_date_with_warn(my_decimal const *dec, Date_val *date,
+                               my_time_flags_t flags) {
+  int warnings = 0;
+
+  bool rc = decimal_to_date(dec, date, flags, &warnings);
+  if (warnings != 0) {
     if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                     ErrConvString(nr), MYSQL_TIMESTAMP_NONE,
+                                     ErrConvString(dec), MYSQL_TIMESTAMP_DATE,
                                      NullS))
       return true;
   }
   return rc;
+}
+
+bool decimal_to_date(my_decimal const *decimal_value, Date_val *date,
+                     my_time_flags_t flags, int *warnings) {
+  // Truncate away decimals
+  my_decimal truncated;
+  decimal_round(decimal_value, &truncated, 0, TRUNCATE);
+
+  longlong int_value;
+  bool rc = my_decimal2int(E_DEC_FATAL_ERROR, &truncated, false, &int_value);
+  if (rc) {
+    *warnings |= MYSQL_TIME_WARN_TRUNCATED;
+    date->set_zero();
+  } else {
+    rc = int_to_date(int_value, date, flags, warnings);
+  }
+  return rc;
+}
+
+/**
+  Convert integer value to datetime value with possible warning.
+
+  @param      val     The value to convert from.
+  @param[out] dt      The variable to convert to.
+  @param      flags   Conversion flags
+
+  @return False on success, true on error.
+*/
+bool int_to_datetime_with_warn(longlong val, Datetime_val *dt,
+                               my_time_flags_t flags) {
+  int warnings = 0;
+  (void)int_to_datetime(val, dt, flags, &warnings);
+  if (warnings != 0) {
+    (void)make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                       ErrConvString(val), MYSQL_TIMESTAMP_NONE,
+                                       NullS);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -386,7 +454,7 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
   @return False on success, true on error.
 */
 static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings) {
-  if (number_to_time(lld.quot, ltime, warnings)) return true;
+  if (int_to_time(lld.quot, ltime, warnings)) return true;
   /*
     Both lld.quot and lld.rem can give negative result value,
     thus combine them using "|=".
@@ -411,21 +479,30 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings) {
 }
 
 /**
-  Convert decimal number to TIME
+  Convert decimal number to  time value
 
   @param      decimal  The number to convert from.
-  @param[out] ltime          The variable to convert to.
+  @param[out] time     The variable to convert to.
 
   @returns false on success, true if not convertible to time.
 */
-bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime) {
+bool decimal_to_time(const my_decimal *decimal, Time_val *time) {
   lldiv_t lld;
   int warnings = 0;
 
   if (my_decimal2lldiv_t(0, decimal, &lld)) {
     return true;
   }
-  return lldiv_t_to_time(lld, ltime, &warnings);
+  MYSQL_TIME mtime;
+  if (lldiv_t_to_time(lld, &mtime, &warnings)) return true;
+  if (mtime.time_type == MYSQL_TIMESTAMP_TIME) {
+    *time = Time_val(mtime);
+  } else if (mtime.time_type == MYSQL_TIMESTAMP_DATETIME) {
+    *time = Time_val::strip_date(mtime);
+  } else {
+    assert(false);
+  }
+  return false;
 }
 
 /**
@@ -435,7 +512,7 @@ bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime) {
 
   @return False on success, true on error.
 */
-bool my_decimal_to_time_with_warn(const my_decimal *decimal, Time_val *time) {
+bool decimal_to_time_with_warn(const my_decimal *decimal, Time_val *time) {
   lldiv_t lld;
   int warnings = 0;
   MYSQL_TIME mtime;
@@ -497,7 +574,7 @@ bool double_to_time(double nr, Time_val *time) {
 
   @return False on success, true on error.
 */
-bool my_double_to_time_with_warn(double nr, Time_val *time) {
+bool double_to_time_with_warn(double nr, Time_val *time) {
   lldiv_t lld;
   int warnings = 0;
 
@@ -527,23 +604,25 @@ bool my_double_to_time_with_warn(double nr, Time_val *time) {
 }
 
 /**
-  Convert longlong number to TIME
-  @param      nr     The number to convert from.
+  Convert integer number to TIME
+
+  @param      val    The number to convert from.
   @param[out] time   The variable to convert to.
 
-  @return False on success, true on error.
+  @return false on success, true on error.
 */
-bool my_longlong_to_time_with_warn(longlong nr, Time_val *time) {
+bool int_to_time_with_warn(longlong val, Time_val *time) {
   MYSQL_TIME mtime;
   int warnings = 0;
   bool rc = propagate_datetime_overflow(current_thd, &warnings,
-                                        number_to_time(nr, &mtime, &warnings));
-  if (warnings) {
+                                        int_to_time(val, &mtime, &warnings));
+  if (warnings != 0) {
     if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                     ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                     ErrConvString(val), MYSQL_TIMESTAMP_TIME,
                                      NullS))
       return true;
   }
+  if (rc) return true;
   assert(mtime.time_type == MYSQL_TIMESTAMP_DATETIME ||
          mtime.time_type == MYSQL_TIMESTAMP_TIME);
   if (mtime.time_type == MYSQL_TIMESTAMP_TIME) {
@@ -551,7 +630,7 @@ bool my_longlong_to_time_with_warn(longlong nr, Time_val *time) {
   } else {
     *time = Time_val::strip_date(mtime);
   }
-  return rc;
+  return false;
 }
 
 /**
@@ -633,6 +712,8 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
   Zero datetime '0000-00-00 00:00:00.000000'
   is allowed and is mapper to {tv_sec=0, tv_usec=0}.
 
+  Note: datetime must be valid, check should be replaced with assert!
+
   Note: In case of error, tm value is not initialized.
 
   Note: "warnings" is not initialized to zero,
@@ -694,6 +775,44 @@ bool str_to_time_with_warn(String *str, Time_val *time) {
   return ret_val;
 }
 
+bool str_to_date_with_warn(String *str, Date_val *date, my_time_flags_t flags) {
+  MYSQL_TIME mt;
+  MYSQL_TIME_STATUS status;
+
+  THD *thd = current_thd;
+  sql_mode_t mode = thd->variables.sql_mode;
+  if (mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
+  if ((mode & MODE_INVALID_DATES) == 0) flags |= TIME_NO_INVALID_DATES;
+
+  bool rc = propagate_datetime_overflow(
+      thd, &status.warnings, str_to_datetime(str, &mt, flags, &status));
+  if (rc || status.warnings != 0) {
+    if (make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(str), MYSQL_TIMESTAMP_DATE,
+                                     NullS))
+      return true;
+    if (rc) status.squelch_deprecation();
+  }
+  check_deprecated_datetime_format(thd, str->charset(), status);
+
+  if (rc) return true;
+  if (mt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+    if (convert_time_zone_displacement(thd->time_zone(), &mt)) return true;
+  }
+  if (mt.time_type == MYSQL_TIMESTAMP_DATETIME) {
+    if ((flags & TIME_EXACT_DATE_ONLY) && non_zero_time(mt)) {
+      (void)make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                                         ErrConvString(str),
+                                         MYSQL_TIMESTAMP_DATE, NullS);
+      return true;
+    }
+    datetime_to_date(&mt);
+  }
+  assert(mt.time_type == MYSQL_TIMESTAMP_DATE);
+  *date = Date_val(mt);
+  return false;
+}
+
 /**
   Convert a time string to a MYSQL_TIME struct and produce a warning
   if string was cut during conversion.
@@ -723,20 +842,41 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
 
   return ret_val;
 }
+
+/**
+  Convert time to date.
+  Return the current date value.
+
+  @param thd        Thread context
+  @param [in] in    Time value to convert from.
+  @param [out] out  Date value to convert to.
+*/
+void time_to_date(THD *thd, const Time_val *in, Date_val *out) {
+  MYSQL_TIME in_mt = MYSQL_TIME(*in);
+  MYSQL_TIME out_mt;
+  thd->variables.time_zone->gmt_sec_to_TIME(
+      &out_mt, static_cast<my_time_t>(thd->query_start_in_secs()));
+  assert(out_mt.time_type == MYSQL_TIMESTAMP_DATETIME);
+  mix_date_and_time(&out_mt, in_mt);
+  datetime_to_date(&out_mt);
+  *out = Date_val(out_mt);
+}
+
 /**
   Convert time to datetime.
 
   The time value is added to the current datetime value.
   @param thd            Thread context
-  @param [in] ltime     Time value to convert from.
-  @param [out] ltime2   Datetime value to convert to.
+  @param [in] in        Time value to convert from.
+  @param [out] out      Datetime value to convert to.
 */
-void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2) {
+void time_to_datetime(THD *thd, const Time_val *in, Datetime_val *out) {
   thd->variables.time_zone->gmt_sec_to_TIME(
-      ltime2, static_cast<my_time_t>(thd->query_start_in_secs()));
-  ltime2->hour = ltime2->minute = ltime2->second = ltime2->second_part = 0;
-  ltime2->time_type = MYSQL_TIMESTAMP_DATE;
-  mix_date_and_time(ltime2, *ltime);
+      out, static_cast<my_time_t>(thd->query_start_in_secs()));
+  assert(out->time_type == MYSQL_TIMESTAMP_DATETIME);
+  datetime_to_date(out);
+  MYSQL_TIME mt = MYSQL_TIME(*in);
+  mix_date_and_time(out, mt);
 }
 
 /**
@@ -921,18 +1061,14 @@ void propagate_datetime_overflow_helper(THD *thd, int *warnings) {
 my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
                                             enum enum_field_types type,
                                             longlong packed_value) {
-  assert(type != MYSQL_TYPE_TIME);
+  assert(type != MYSQL_TYPE_TIME && type != MYSQL_TYPE_DATE);
 
-  MYSQL_TIME ltime;
+  Datetime_val dt;
   switch (type) {
-    case MYSQL_TYPE_DATE:
-      TIME_from_longlong_date_packed(&ltime, packed_value);
-      ulonglong2decimal(TIME_to_ulonglong_date(ltime), dec);
-      return dec;
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
-      TIME_from_longlong_datetime_packed(&ltime, packed_value);
-      return date2my_decimal(&ltime, dec);
+      TIME_from_longlong_datetime_packed(&dt, packed_value);
+      return datetime_to_decimal(&dt, dec);
     default:
       assert(false);
       ulonglong2decimal(0, dec);
@@ -949,24 +1085,24 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
    @return time as ulonglong
 */
 ulonglong gmt_time_to_local_time(ulonglong gmt_time) {
-  MYSQL_TIME time;
+  Datetime_val dt;
   bool not_used;
 
   THD *thd = current_thd;
   Time_zone *tz = thd->variables.time_zone;
 
   // Convert longlong time to MYSQL_TIME format
-  my_longlong_to_datetime_with_warn(gmt_time, &time, MYF(0));
+  int_to_datetime_with_warn(gmt_time, &dt, MYF(0));
 
   // Convert MYSQL_TIME to epoc second according to GMT time_zone.
   my_time_t timestamp;
-  timestamp = my_tz_OFFSET0->TIME_to_gmt_sec(&time, &not_used);
+  timestamp = my_tz_OFFSET0->TIME_to_gmt_sec(&dt, &not_used);
 
   // Convert epoc seconds to local time
-  tz->gmt_sec_to_TIME(&time, timestamp);
+  tz->gmt_sec_to_TIME(&dt, timestamp);
 
   // Return ulonglong value from MYSQL_TIME
-  return TIME_to_ulonglong_datetime(time);
+  return TIME_to_ulonglong_datetime(dt);
 }
 
 MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -3626,34 +3626,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       new_path.assign(dd_path);
     }
 
-    std::string space_str(space_name);
-
-    std::string old_space;
-    bool file_name_changed = false;
-    bool file_path_changed = (state == Fil_state::MOVED);
-
-    if (state == Fil_state::MATCHES || state == Fil_state::MOVED ||
-        state == Fil_state::MOVED_PREV) {
-      /* We need to update space name and table name for partitioned tables
-      if letter case is different. */
-      if (fil_update_partition_name(space_id, fsp_flags, true, space_str,
-                                    new_path)) {
-        file_name_changed = true;
-        if (state != Fil_state::MOVED_PREV) {
-          state = Fil_state::MOVED;
-        }
-      }
-
-      /* Update DD if tablespace name is corrected. */
-      if (space_str.compare(space_name) != 0) {
-        old_space.assign(space_name);
-        space_name = space_str.c_str();
-        if (state != Fil_state::MOVED_PREV) {
-          state = Fil_state::MOVED;
-        }
-      }
-    }
-
     switch (state) {
       case Fil_state::COMPARE_ERROR:
         ut_error;
@@ -3694,25 +3666,10 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
           break;
         }
 
-        if (!old_space.empty()) {
-          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CORRECTED, prefix.c_str(),
-                   static_cast<unsigned long long>(dd_tablespace->id()),
-                   static_cast<unsigned int>(space_id), old_space.c_str(),
-                   space_name);
-        }
-
-        if (file_path_changed) {
-          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CHANGED_PATH, prefix.c_str(),
-                   static_cast<unsigned long long>(dd_tablespace->id()),
-                   static_cast<unsigned int>(space_id), space_name,
-                   dd_path.c_str(), new_path.c_str());
-
-        } else if (file_name_changed) {
-          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME, prefix.c_str(),
-                   static_cast<unsigned long long>(dd_tablespace->id()),
-                   static_cast<unsigned int>(space_id), space_name,
-                   dd_path.c_str(), new_path.c_str());
-        }
+        ib::info(ER_IB_MSG_FIL_STATE_MOVED_CHANGED_PATH, prefix.c_str(),
+                 static_cast<unsigned long long>(dd_tablespace->id()),
+                 static_cast<unsigned int>(space_id), space_name,
+                 dd_path.c_str(), new_path.c_str());
 
         filename = new_path.c_str();
 
@@ -9119,8 +9076,7 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
           ut_d(ut_error); /* purecov: inspected */
         } else if (elt.field_type() == MYSQL_TYPE_DATE) {
           /* Temporal data has at most 8 bytes length */
-          Json_datetime::from_packed_to_key(elt.get_data(), elt.field_type(),
-                                            data, fld->decimals());
+          Json_date::from_packed_to_key(elt.get_data(), data);
           mysql_data = data;
         } else {
           mysql_data = reinterpret_cast<const byte *>(elt.get_data());
@@ -9181,7 +9137,13 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
             dfield_set_data(dfield, buf, dfield->type.len);
             break;
           }
-          case MYSQL_TYPE_DATE:
+          case MYSQL_TYPE_DATE: {
+            /* Temporal data has at most 8 bytes length */
+            Json_date::from_packed_to_key(elt.get_data(), buf);
+
+            dfield_set_data(dfield, buf, dfield->type.len);
+            break;
+          }
           case MYSQL_TYPE_DATETIME:
           case MYSQL_TYPE_TIMESTAMP: {
             /* Temporal data has at most 8 bytes length */

@@ -1,4 +1,4 @@
-# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,13 @@ FOREACH(test ${TESTS})
     LINK_LIBRARIES gunit_small
     COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
 ENDFOREACH()
+
+# Set test properties.
+#
+# Disable this test in ctest runs to avoid overloading the machine when tests
+# are executed in parallel (e.g., `ctest -j N`). The test binary is still built
+# and can be executed manually (by invoking the executable directly).
+SET_TESTS_PROPERTIES(nested_sets_exhaustive PROPERTIES DISABLED True)
 
 # Tests that need to link with part of server
 SET(SRC_FILES

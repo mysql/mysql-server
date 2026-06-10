@@ -21,14 +21,14 @@ SELECT n, FLOOR(RAND(0)*1e3), FLOOR(RAND(1)*1e3), REPEAT('A',500) FROM num_1e3;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN FORMAT=TREE SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (...)
 
 SET DEBUG="d,in_memory_0";
-EXPLAIN FORMAT=JSON INTO @explain0 SELECT * FROM t1;
+EXPLAIN FORMAT=JSON INTO @explain0 SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 SET DEBUG="d,in_memory_50";
-EXPLAIN FORMAT=JSON INTO @explain50 SELECT * FROM t1;
+EXPLAIN FORMAT=JSON INTO @explain50 SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 SELECT check_cost_ratio(@explain50, @explain0, 0.5, 0.05);
 check_cost_ratio(@explain50, @explain0, 0.5, 0.05)
 1
@@ -74,7 +74,7 @@ check_cost_ratio(@explain_1_row, @explain_2_rows, 1.0, 0.01)
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<100;
 EXPLAIN
 -> Filter: (t1.a < 100)  (...)
-    -> Table scan on t1  (...)
+    -> Index scan on t1 using PRIMARY  (...)
 
 SET DEBUG="d,in_memory_100";
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<100;

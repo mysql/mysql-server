@@ -1,0 +1,149 @@
+################################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that when
+# `replica_allow_higher_version_source` is OFF, in a LTS (Long Term Support)
+# version, the replication framework correctly enforces version compatibility
+# rules between the source and the replica.
+#
+# ==== Requirement ====
+# When `replica_allow_higher_version_source` is OFF in a LTS version,
+# the system shall prevent a replica from connecting to a higher-version source
+# and ensure that replication is established only with a compatible source.
+#
+# ==== Implementation ====
+# 1. Initial source-replica setup.
+# 2. Disable the system variable that allows a replica to connect to
+#    a higher-version source.
+# 3. Verify that replication enforces version compatibility between
+#    the source and replica across different scenarios.
+#    3.1 Source has a higher major version. Verify replication is disallowed.
+#    3.2 Source has a higher patch version. Verify replication is allowed.
+#    3.3 Source has a lower patch version. Verify replication is allowed.
+# 4. Clean up
+#
+# ==== References ====
+# WL#17202: Allow/disallow asynchronous replication from a higher version source
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_mysql_version_maturity_lts.inc
+--source include/have_binlog_format_row.inc
+
+
+--echo #
+--echo # 1. Initial source-replica setup.
+--echo #
+--source include/rpl/init_source_replica.inc
+
+# Compute derived version string for assertion checks
+let $source_ver_major_inc = `SELECT CONCAT(
+    CAST(SUBSTRING_INDEX(v, '.', 1) AS UNSIGNED) + 1,
+    SUBSTRING(v, LENGTH(SUBSTRING_INDEX(v, '.', 1)) + 1)
+) AS new_version
+FROM (SELECT @@global.version AS v) AS t`;
+
+# Prepare some data for replication
+CREATE TABLE t1 (a INT PRIMARY KEY);
+--source include/rpl/sync_to_replica.inc
+
+--let $messages = Replication from higher version source.*
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+let $replica_ver=`select version()`;
+
+--echo #
+--echo # 2. Disable the system variable that allows a replica to connect to
+--echo #    a higher-version source.
+--echo #
+--source include/rpl/stop_receiver.inc
+SET @saved_replica_allow_higher_version_source = @@GLOBAL.replica_allow_higher_version_source;
+SET GLOBAL replica_allow_higher_version_source=OFF;
+--source include/rpl/start_receiver.inc
+
+--echo #
+--echo # 3. Verify that replication enforces version compatibility between
+--echo #    the source and replica across different scenarios.
+--let $i = 1
+--let $count = 3
+while ($i <= $count)
+{
+  if ($i == 1)
+  {
+    --echo #
+    --echo # 3.$i Source has a higher major version. Verify replication is disallowed.
+    --echo #
+    --let $debug_point = increment_source_major_version
+    --let $source_expected_version = $source_ver_major_inc
+    --let $expect_incompatibility = 1
+  }
+  if ($i == 2)
+  {
+    --echo #
+    --echo # 3.$i Source has a higher patch version. Verify replication is allowed.
+    --echo #
+    --let $debug_point = increment_source_patch_version
+    --let $expect_incompatibility = 0
+  }
+  if ($i == 3)
+  {
+    --echo #
+    --echo # 3.$i Source has a lower patch version. Verify replication is allowed.
+    --echo #
+    --let $debug_point = increment_replica_patch_version
+    --let $expect_incompatibility = 0
+  }
+
+  --source include/rpl/stop_receiver.inc
+  --source include/add_debug_point.inc
+
+  START REPLICA IO_THREAD;
+
+  if ($expect_incompatibility == 1)
+  {
+    --let $slave_io_errno = convert_error(ER_RPL_REPLICA_VERSION_INCOMPATIBLE)
+    --let $show_slave_io_error = 0
+    --source include/rpl/wait_for_receiver_error.inc
+
+    # Validate error message in replica error log
+    --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+    --let $assert_only_after = Replica receiver thread for channel .* Starting GTID-based replication
+    --let $assert_select = Replication from higher version source \($source_expected_version\) to lower version replica \($replica_ver\) is disallowed
+    --let $assert_text = Found expected incompatibility log entry
+    --let $assert_count = 1
+    --source include/assert_grep.inc
+  }
+  if($expect_incompatibility == 0)
+  {
+    # Transaction to validate replication.
+    --source include/rpl/wait_for_receiver_to_start.inc
+    --source include/rpl/connection_source.inc
+    --eval INSERT INTO t1 VALUES($i);
+    --source include/rpl/sync_to_replica.inc
+
+    --source include/rpl/stop_receiver.inc
+  }
+
+  --source include/remove_debug_point.inc
+  --source include/rpl/start_receiver.inc
+
+  --inc $i
+}
+
+--echo #
+--echo # 4. Clean up
+--echo #
+# Restoring the original replica version
+--source include/rpl/stop_receiver.inc
+--let $debug_point = decrement_replica_patch_version
+--source include/add_debug_point.inc
+--source include/rpl/start_receiver.inc
+--source include/remove_debug_point.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+SET GLOBAL replica_allow_higher_version_source= @saved_replica_allow_higher_version_source;
+
+--source include/rpl/deinit.inc

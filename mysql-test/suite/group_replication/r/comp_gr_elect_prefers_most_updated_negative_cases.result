@@ -1,0 +1,131 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install component on all 3 servers and bootstrap group with member M1
+
+############################################################
+[connection server1]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+[connection server2]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+[connection server3]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 2. Assert group_replication_elect_prefers_most_updated is enabled by default
+
+############################################################
+[connection server1]
+include/assert.inc ['group_replication_elect_prefers_most_updated is enabled by default']
+
+############################################################
+# 3. Uninstall component and verify ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+
+############################################################
+[connection server2]
+include/stop_group_replication.inc
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_group_replication.inc
+[connection server_1]
+# killing
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+# restarting
+[connection server_1]
+include/rpl/reconnect.inc
+[connection server2]
+# check that there are 2 members in the group
+include/rpl/gr_wait_for_number_of_members.inc
+
+# 4. Confirm error log contain message that states most
+#     uptodate method was not used to elect new primary
+[connection server3]
+include/assert_grep.inc [Server 2 did not use most uptodate method.]
+
+############################################################
+# 5. Disable group_replication_elect_prefers_most_updated
+and verify ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+
+############################################################
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+[connection server3]
+show variables like '%most_updated%';
+Variable_name	Value
+group_replication_elect_prefers_most_updated.enabled	ON
+SET @@GLOBAL.group_replication_elect_prefers_most_updated.enabled=0;
+[connection server_2]
+# killing
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+# restarting
+[connection server_2]
+include/rpl/reconnect.inc
+[connection server3]
+# check that there are 2 members in the group
+include/rpl/gr_wait_for_number_of_members.inc
+############################################################
+# 6. Confirm error log contain message that states most
+#     uptodate method was not used to elect new primary
+
+############################################################
+[connection server3]
+include/assert_grep.inc [Server 1 did not use most uptodate method.]
+
+############################################################
+# 7. Cleanup
+
+############################################################
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+set session sql_log_bin=0;
+call mtr.add_suppression(".*Members have different configurations.*");
+set session sql_log_bin=1;
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Fatal error during the primary election process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression(".*Members have different configurations.*");
+set session sql_log_bin=1;
+SET GLOBAL SUPER_READ_ONLY=ON;
+[connection server2]
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Fatal error during the primary election process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression(".*Members have different configurations.*");
+set session sql_log_bin=1;
+SET GLOBAL SUPER_READ_ONLY=ON;
+include/group_replication_end.inc

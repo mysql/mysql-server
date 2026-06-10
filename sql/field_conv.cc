@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -360,24 +360,37 @@ static void do_field_decimal(Copy_field *, const Field *from_field,
   to_field->store_decimal(from_field->val_decimal(&value));
 }
 
-inline type_conversion_status copy_time_to_time(const Field *from, Field *to) {
-  Datetime_val dt;
-  if (from->type() == MYSQL_TYPE_TIME) {
-    Time_val time;
-    (void)from->val_time(&time);
-    *implicit_cast<MYSQL_TIME *>(&dt) = MYSQL_TIME(time);
-  } else {
-    from->val_datetime(&dt, TIME_FUZZY_DATE);
+static inline type_conversion_status copy_temporal(const Field *from,
+                                                   Field *to) {
+  switch (from->type()) {
+    case MYSQL_TYPE_TIME: {
+      Time_val time;
+      (void)from->val_time(&time);
+      return to->store_time(time, from->decimals());
+    }
+    case MYSQL_TYPE_DATE: {
+      Date_val date;
+      (void)from->val_date(&date, 0);
+      return to->store_date(date);
+    }
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP: {
+      Datetime_val dt;
+      from->val_datetime(&dt, 0);
+      return to->store_time(&dt);
+    }
+    default:
+      assert(false);
+      return TYPE_OK;
   }
-  return to->store_time(&dt);
 }
 
 /**
-  Convert between fields using time representation.
+  Convert between fields using temporal representation.
 */
-static void do_field_time(Copy_field *, const Field *from_field,
-                          Field *to_field) {
-  (void)copy_time_to_time(from_field, to_field);
+static void do_field_temporal(Copy_field *, const Field *from_field,
+                              Field *to_field) {
+  (void)copy_temporal(from_field, to_field);
 }
 
 /**
@@ -624,7 +637,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func() {
           m_from_field->type() != MYSQL_TYPE_YEAR) {
         if (is_temporal_type(m_to_field->type()) &&
             m_to_field->type() != MYSQL_TYPE_YEAR) {
-          return do_field_time;
+          return do_field_temporal;
         } else {
           if (m_to_field->result_type() == INT_RESULT) return do_field_int;
           if (m_to_field->result_type() == REAL_RESULT) return do_field_real;
@@ -813,8 +826,8 @@ type_conversion_status field_conv_slow(Field *to, const Field *from) {
     return TYPE_OK;
   } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
              to->result_type() == INT_RESULT) {
-    longlong nr;
     if (from_type == MYSQL_TYPE_TIME) {
+      longlong nr;
       Time_val time;
       (void)from->val_time(&time);
       if (current_thd->is_fsp_truncate_mode()) {
@@ -822,18 +835,25 @@ type_conversion_status field_conv_slow(Field *to, const Field *from) {
       } else {
         nr = time.to_int_rounded();
       }
-    } else {
+      return to->store(nr, false);
+    } else if (from_type == MYSQL_TYPE_DATE) {
       Date_val date;
-      (void)from->val_date(&date, TIME_FUZZY_DATE);
-      if (current_thd->is_fsp_truncate_mode())
-        nr = TIME_to_ulonglong_datetime(date);
-      else {
+      (void)from->val_date(&date, 0);
+      return to->store_date(date);
+    } else {
+      longlong nr;
+      Datetime_val dt;
+      (void)from->val_datetime(&dt, 0);
+      if (current_thd->is_fsp_truncate_mode()) {
+        nr = TIME_to_ulonglong_datetime(dt);
+      } else {
         nr = propagate_datetime_overflow(current_thd, [&](int *w) {
-          return TIME_to_ulonglong_datetime_round(date, w);
+          return TIME_to_ulonglong_datetime_round(dt, w);
         });
       }
+      assert(nr >= 0);
+      return to->store(nr, false);
     }
-    return to->store(nr, false);
   } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
              (to->result_type() == REAL_RESULT ||
               to->result_type() == DECIMAL_RESULT ||
@@ -846,7 +866,7 @@ type_conversion_status field_conv_slow(Field *to, const Field *from) {
     return to->store_decimal(from->val_decimal(&tmp));
   } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
              is_temporal_type(to_type) && to_type != MYSQL_TYPE_YEAR) {
-    return copy_time_to_time(from, to);
+    return copy_temporal(from, to);
   } else if (from_type == MYSQL_TYPE_JSON &&
              (is_integer_type(to_type) || to_type == MYSQL_TYPE_YEAR)) {
     return to->store(from->val_int(), from->is_flag_set(UNSIGNED_FLAG));
@@ -857,21 +877,29 @@ type_conversion_status field_conv_slow(Field *to, const Field *from) {
              (to_type == MYSQL_TYPE_FLOAT || to_type == MYSQL_TYPE_DOUBLE)) {
     return to->store(from->val_real());
   } else if (from_type == MYSQL_TYPE_JSON && is_temporal_type(to_type)) {
-    MYSQL_TIME mtime;
     bool res = true;
+    type_conversion_status store_res = TYPE_OK;
     switch (to_type) {
       case MYSQL_TYPE_TIME: {
         Time_val time;
         res = from->val_time(&time);
-        mtime = MYSQL_TIME(time);
+        store_res = to->store_time(time, 0);
+        break;
+      }
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE: {
+        Date_val date;
+        res = from->val_date(&date, 0);
+        store_res = to->store_date(date);
         break;
       }
       case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_TIMESTAMP:
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_NEWDATE:
-        res = from->val_date((Date_val *)(&mtime), 0);
+      case MYSQL_TYPE_TIMESTAMP: {
+        Datetime_val dt;
+        res = from->val_datetime(&dt, 0);
+        store_res = to->store_time(&dt);
         break;
+      }
       default:  // MYSQL_TYPE_YEAR is handled as an integer above
         assert(false);
     }
@@ -880,7 +908,6 @@ type_conversion_status field_conv_slow(Field *to, const Field *from) {
       zero, which is then stored in the `to` field, so in case conversion errors
       are ignored we can read zeros instead of garbage.
     */
-    const type_conversion_status store_res = to->store_time(&mtime);
     return res ? TYPE_ERR_BAD_VALUE : store_res;
   } else if ((from->result_type() == STRING_RESULT &&
               (to->result_type() == STRING_RESULT ||

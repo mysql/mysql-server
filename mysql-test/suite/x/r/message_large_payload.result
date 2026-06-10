@@ -1,0 +1,64 @@
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (value TEXT);
+INSERT INTO xtest.xtable(value) VALUES("");
+SET GLOBAL mysqlx_max_allowed_packet = 2097152;
+
+
+## I. Verify that sending an X Protocol message that generates
+##    SQL larger than a certain limit (SQL > 1MB) doesn't
+##    return ER_QUERY_INTERRUPTED.
+#
+# 1. Send StmtExecute with 1MB encoded literal.
+# 2. Send CRUD-find with 1MB encoded literal.
+# 3. Send CRUD-delete with 1MB encoded literal.
+# 4. Send CRUD-insert with 1MB encoded literal.
+# 5. Send CRUD-update with 1MB encoded literal.
+# 6. Send CRUD-CreateView with 1MB encoded literal.
+# 7. Send Mysqlx.Prepare.Prepare with 1MB encoded literal.
+# 8. Send Mysqlx.Cursor.Open with 1MB encoded literal.
+
+
+#
+# I.1
+## Send large message
+result
+%LARGE_TEXT%
+0 rows affected
+
+#
+# I.2
+result
+%LARGE_TEXT%
+command ok
+
+#
+# I.3
+
+0 rows affected
+
+#
+# I.4
+Got expected error: Data too long for column 'value' at row 1 (code 1406)
+
+#
+# I.5
+Got expected error: Data too long for column 'value' at row 1 (code 1406)
+
+#
+# I.6
+RUN recvok
+
+#
+# I.7
+RUN recvok
+
+#
+# I.8
+RUN recvok
+result
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;

@@ -43,13 +43,13 @@ SELECT check_cost_ratio(@explain50, @explain0, 0.5, 0.05);
 
 # Table scan.
 --replace_regex $elide_costs_and_rows
-EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN FORMAT=TREE SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 
 SET DEBUG="d,in_memory_0";
-EXPLAIN FORMAT=JSON INTO @explain0 SELECT * FROM t1;
+EXPLAIN FORMAT=JSON INTO @explain0 SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 
 SET DEBUG="d,in_memory_50";
-EXPLAIN FORMAT=JSON INTO @explain50 SELECT * FROM t1;
+EXPLAIN FORMAT=JSON INTO @explain50 SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 
 eval $is_proportional;
 
@@ -100,7 +100,7 @@ EXPLAIN FORMAT=JSON INTO @explain_1_row SELECT * FROM t1 WHERE a<1;
 EXPLAIN FORMAT=JSON INTO @explain_2_rows SELECT * FROM t1 WHERE a<2;
 SELECT check_cost_ratio(@explain_1_row, @explain_2_rows, 1.0, 0.01);
 
-# Use table scan if the table is not cached.
+# Use table scan/index scan on primary if the table is not cached.
 --replace_regex $elide_costs_and_rows
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<100;
 

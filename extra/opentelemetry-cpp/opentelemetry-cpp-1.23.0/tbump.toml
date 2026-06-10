@@ -1,0 +1,143 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# ===========================================================================
+# OpenTelemetry-cpp maintainer:
+#
+# RESOURCES:
+#   https://github.com/your-tools/tbump
+#   https://hackernoon.com/lets-automate-version-number-updates-not-a91q3x7n
+#
+# USAGE:
+#   When making a new opentelemetry-cpp release:
+#   tbump 1.23.0 --only-patch
+#
+#   When making a new -dev version in the main branch:
+#   tbump 1.24.0-dev --only-patch
+#
+# ===========================================================================
+
+# Uncomment this if your project is hosted on GitHub:
+github_url = "https://github.com/open-telemetry/opentelemetry-cpp"
+
+[version]
+current = "1.23.0"
+
+# Example of a semver regexp.
+# Make sure this matches current_version before
+# using tbump
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  ((?P<dash>-)(?P<release>[a-z]+))?
+  '''
+
+[[field]]
+# the name of the field
+name = "release"
+# the default value to use, if there is no match
+default = ""
+
+[[field]]
+# the name of the field
+name = "dash"
+# the default value to use, if there is no match
+default = ""
+
+[git]
+message_template = "Bump to {new_version}"
+tag_template = "v{new_version}"
+
+# For each file to patch, add a [[file]] config
+# section containing the path of the file, relative to the
+# tbump.toml location.
+
+[[file]]
+src = "CMakeLists.txt"
+version_template = "{major}.{minor}.{patch}"
+search = "OPENTELEMETRY_VERSION_NUMBER \"{current_version}\""
+
+[[file]]
+src = "CMakeLists.txt"
+# Longer template because release can be empty.
+version_template = "OPENTELEMETRY_VERSION_SUFFIX \"{dash}{release}\""
+search = "set[(]{current_version}[)]"
+
+[[file]]
+src = "MODULE.bazel"
+search = "version = \"{current_version}\""
+
+[[file]]
+src = "api/include/opentelemetry/version.h"
+search = "#define OPENTELEMETRY_VERSION \"{current_version}\""
+
+[[file]]
+src = "api/include/opentelemetry/version.h"
+version_template = "{major}"
+search = "#define OPENTELEMETRY_VERSION_MAJOR {current_version}"
+
+[[file]]
+src = "api/include/opentelemetry/version.h"
+version_template = "{minor}"
+search = "#define OPENTELEMETRY_VERSION_MINOR {current_version}"
+
+[[file]]
+src = "api/include/opentelemetry/version.h"
+version_template = "{patch}"
+search = "#define OPENTELEMETRY_VERSION_PATCH {current_version}"
+
+[[file]]
+src = "sdk/include/opentelemetry/sdk/version/version.h"
+search = "#define OPENTELEMETRY_SDK_VERSION \"{current_version}\""
+
+[[file]]
+src = "sdk/src/version/version.cc"
+version_template = "{major}"
+search = "const int major_version\\s*=\\s*{current_version}"
+
+[[file]]
+src = "sdk/src/version/version.cc"
+version_template = "{minor}"
+search = "const int minor_version\\s*=\\s*{current_version}"
+
+[[file]]
+src = "sdk/src/version/version.cc"
+version_template = "{patch}"
+search = "const int patch_version\\s*=\\s*{current_version}"
+
+[[file]]
+src = "sdk/src/version/version.cc"
+# Longer template because release can be empty.
+version_template = "= \"{release}\""
+search = "pre_release\\s*{current_version}"
+
+[[file]]
+src = "sdk/src/version/version.cc"
+version_template = "{major}.{minor}.{patch}"
+search = "short_version\\s*= [\"]{current_version}[\"]"
+
+[[file]]
+src = "sdk/src/version/version.cc"
+search = "full_version\\s*= ['\"]{current_version}['\"]"
+
+[[file]]
+src = "functional/configuration/shelltests/kitchen-sink.test"
+search = "telemetry.sdk.version: {current_version}"
+
+
+# You can specify a list of commands to
+# run after the files have been patched
+# and before the git commit is made
+
+#  [[before_commit]]
+#  name = "check changelog"
+#  cmd = "grep -q {new_version} Changelog.rst"
+
+# Or run some commands after the git tag and the branch
+# have been pushed:
+#  [[after_push]]
+#  name = "publish"
+#  cmd = "./publish.sh"

@@ -1,0 +1,2 @@
+--echo #FR 10.2.3:Source(enable_cascade_triggers=ON) -> Replica(enable_cascade_triggers=OFF)
+--source common/rpl/rpl_fk_enable_triggers.test

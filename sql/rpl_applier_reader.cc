@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,6 +183,27 @@ Log_event *Rpl_applier_reader::read_next_event() {
       if (read_active_log_end_pos()) break;
 
       /*
+        If the receiver thread is waiting for relay log space, a previous
+        attempt to purge relay logs may have been skipped due to
+        LOCK INSTANCE FOR BACKUP.
+
+        Retry purging applied relay logs here once the SQL thread has
+        consumed all available events, but only if the shared backup
+        lock can be acquired without blocking.
+      */
+      {
+        if (m_rli->is_receiver_waiting_for_rl_space.load()) {
+          Shared_backup_lock_guard backup_lock{current_thd};
+          if (backup_lock == Shared_backup_lock_guard::Lock_result::locked) {
+            if (purge_applied_logs()) {
+              m_errmsg = "Error purging applied logs after backup lock";
+              return nullptr;
+            }
+          }
+        }
+      }
+
+      /*
         At this point the coordinator has no job to delegate to workers.
         However, workers are executing their assigned jobs and as such
         the checkpoint routine must be periodically invoked.
@@ -324,9 +345,10 @@ bool Rpl_applier_reader::wait_for_new_event() {
     auto guard = m_rli->get_applier_metrics()
                      .get_work_from_source_wait_metric()
                      .time_scope();
-    if (m_rli->is_parallel_exec() &&
-        (opt_mta_checkpoint_period != 0 ||
-         DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0))) {
+    if (m_rli->is_receiver_waiting_for_rl_space.load() ||
+        (m_rli->is_parallel_exec() &&
+         (opt_mta_checkpoint_period != 0 ||
+          DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)))) {
       std::chrono::nanoseconds timeout =
           std::chrono::nanoseconds{opt_mta_checkpoint_period * 1000000ULL};
       DBUG_EXECUTE_IF("check_replica_debug_group",

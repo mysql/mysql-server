@@ -1,0 +1,158 @@
+################################################
+# Initialize the Replication setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+################################################
+# Create tables on the source
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+# Create a JSON duality view on the source
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+# Print the view definition stored on the source
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'f4':`p_t2`.`f4`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+# Checksum the I_S view contents
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+# Insert new row in the JSON duality view (on the source)
+# In effect, it should enter values in the underlying tables.
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+################################################
+# Switching to replica
+include/rpl/sync_to_replica.inc
+################################################
+# Print the view definition stored on the replica
+# This makes sure that view exists on the replica
+# and has the same definition as source.
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'f4':`p_t2`.`f4`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+# Checksum the I_S view contents
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+# SELECT the data from JSON duality view on
+# replica.
+# This makes sure that INSERT was replicated
+# successfully (on the replica).
+include/diff_tables.inc [master:p_t1, slave:p_t1]
+include/diff_tables.inc [master:p_t2, slave:p_t2]
+################################################
+# Switch back to the source
+[connection master]
+################################################
+# Run UPDATE statement on the source
+# In effect, it should update values in the underlying tables.
+UPDATE p_dv1 SET data = '{
+    "f4": 400,
+    "_id": 2,
+    "ChildNode": {
+        "f1": 2,
+        "f2": 400
+    },
+    "_metadata": {
+        "etag": "aa5116936fc25283af51df31f4cbe0f7"
+    }
+}';
+################################################
+# Switch to the replica
+include/rpl/sync_to_replica.inc
+################################################
+# SELECT data from view to make sure that the data
+# got UPDATE-d (on the replica)
+include/diff_tables.inc [master:p_t1, slave:p_t1]
+include/diff_tables.inc [master:p_t2, slave:p_t2]
+################################################
+# Switch back to the source
+[connection master]
+################################################
+# Run DELETE statement on the source
+# In effect, it should update values in the underlying tables.
+DELETE FROM p_dv1
+WHERE json_value(data, '$._id') = 2;
+################################################
+# Switch to the replica
+include/rpl/sync_to_replica.inc
+################################################
+# SELECT data from view to make sure that the data
+# got DELETE-d (on the replica)
+include/diff_tables.inc [master:p_t1, slave:p_t1]
+include/diff_tables.inc [master:p_t2, slave:p_t2]
+################################################
+# Switch back to source
+[connection master]
+################################################
+# Run ALTER for the JSON DUALITY VIEW on the source
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+# Print the new view definition stored on the source
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+# Checksum the I_S view contents
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+################################################
+# Switch to replica
+include/rpl/sync_to_replica.inc
+################################################
+# Make sure that ALTER got replicated
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+# Checksum the I_S view contents
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+################################################
+# Switch back to source
+[connection master]
+################################################
+# Drop view and tables
+DROP VIEW p_dv1;
+DROP TABLE p_t1, p_t2;
+# No I_S views contents on the source
+################################################
+# Switch to replica
+include/rpl/sync_to_replica.inc
+################################################
+# No I_S views contents on the replica
+################################################
+# Switch back to source
+[connection master]
+################################################
+include/rpl/deinit.inc

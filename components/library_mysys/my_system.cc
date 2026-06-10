@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,17 +124,18 @@ static inline uint64_t total_physical_memory() noexcept {
     GlobalMemoryStatusEx(&ms);
     mem = ms.ullTotalPhys;
 #elif defined(HAVE_UNISTD_H) /* _WIN32 */
-    assert(should_use_container_config);
-    if (*should_use_container_config) {
-      mem = my_cgroup_mem_limit();
-      if (mem != 0) {
-        return mem;
-      }
-    }
     long pages = sysconf(_SC_PHYS_PAGES);
     long pagesize = sysconf(_SC_PAGESIZE);
     if (pages > 0 && pagesize > 0) {
-      mem = static_cast<uint64_t>(pages * pagesize);
+      mem = static_cast<uint64_t>(pages) * static_cast<uint64_t>(pagesize);
+    }
+    assert(should_use_container_config);
+    if (should_use_container_config && *should_use_container_config) {
+      const uint64_t cgroup_mem = my_cgroup_mem_limit();
+      /* Use cgroup_mem if sysconf fails */
+      if (cgroup_mem != 0 && (mem == 0 || cgroup_mem <= mem)) {
+        return cgroup_mem;
+      }
     }
 #else
 #error "Missing implementation of sysconf or GlobalMemoryStatusEx"
@@ -175,25 +176,9 @@ uint64_t my_physical_memory() noexcept {
 
 uint32_t my_num_vcpus() noexcept {
   assert(should_use_container_config);
-  try {
-    uint32_t n_vcpus = 0;
-
-#ifndef _WIN32
-    if (should_use_container_config && *should_use_container_config) {
-      n_vcpus = my_cgroup_vcpu_limit();
-      if (n_vcpus != 0) {
-        return n_vcpus;
-      }
-    }
-#endif
-
-    n_vcpus = my_system_num_vcpus();
-    if (n_vcpus != 0) {
-      return n_vcpus;
-    }
-
-    return std::thread::hardware_concurrency();
-  } catch (...) {
-    return 0;
+  if (const uint32_t n_vcpus = my_system_num_vcpus(); n_vcpus != 0) {
+    return n_vcpus;
   }
+
+  return std::thread::hardware_concurrency();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,8 +99,20 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
 
   if (!dd::has_primary_key(*m_table_object) &&
       thd->variables.sql_require_primary_key) {
-    my_error(ER_TABLE_WITHOUT_PK, MYF(0));
-    return true;
+    // Need PK, but have none. Check for PKE. If there is none, error out.
+    bool have_pke = false;
+    const Table::Index_collection *inxs = m_table_object->indexes();
+
+    for (const Index *i : *inxs) {
+      if (i->is_candidate_key()) {
+        have_pke = true;
+      }
+    }
+
+    if (!have_pke) {
+      my_error(ER_TABLE_WITHOUT_PK, MYF(0));
+      return true;
+    }
   }
 
   const CHARSET_INFO *dd_charset_info =

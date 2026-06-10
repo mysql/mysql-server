@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 #include "helper/container/map.h"
 #include "helper/http/url.h"
+#include "helper/json/error.h"
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/serializer_to_text.h"
 #include "helper/json/text_to.h"
@@ -327,8 +328,11 @@ Result Authentication::do_basic_json_flow(
 
   if (result.status != HttpStatusCode::Ok) return result;
 
-  auto [access_token, session_id] =
-      helper::json::text_to_handler<ParseJsonResponse>(result.body);
+  auto json = helper::json::text_to_handler<ParseJsonResponse>(result.body);
+
+  if (!json) throw helper::json::ErrorJsonParse();
+
+  auto [access_token, session_id] = *json;
 
   if (session_id.has_value() && access_token.has_value())
     throw std::runtime_error(
@@ -462,8 +466,11 @@ auto check_bearer_cookies(const Result &result, bool must_have_cookies,
     }
   }
 
-  auto [access_token, session_id] =
-      helper::json::text_to_handler<ParseJsonResponse>(result.body);
+  auto json = helper::json::text_to_handler<ParseJsonResponse>(result.body);
+
+  if (!json) throw helper::json::ErrorJsonParse();
+
+  auto [access_token, session_id] = *json;
 
   if (must_have_cookies && !found_cookies)
     throw std::runtime_error("Expected cookie sets, but there were none.");
@@ -524,15 +531,18 @@ Result Authentication::do_scram_post_flow(
 
   check_bearer_cookies(result, false, false);
 
-  auto data =
+  auto json =
       helper::json::text_to_handler<ParseJsonObjectChallenge>(result.body);
-  if (!data.nonce.has_value() || !data.iterations.has_value() ||
-      !data.salt.has_value()) {
+
+  if (!json) throw helper::json::ErrorJsonParse();
+
+  if (!json->nonce.has_value() || !json->iterations.has_value() ||
+      !json->salt.has_value()) {
     throw std::runtime_error(
         "The challenge message is missing required fields.");
   }
 
-  scram.parse_auth_data_phase1(data);
+  scram.parse_auth_data_phase1(*json);
   scram.calculate_proof(password);
 
   JsonObject request_continue{{"state", "response"},
@@ -598,9 +608,11 @@ Result Authentication::do_scram_get_flow(
 
   check_bearer_cookies(result, false, false);
 
-  auto data = helper::json::text_to_handler<ParseJsonRawChallenge>(result.body);
+  auto json = helper::json::text_to_handler<ParseJsonRawChallenge>(result.body);
 
-  scram.parse_auth_data_phase1(data);
+  if (!json) throw helper::json::ErrorJsonParse();
+
+  scram.parse_auth_data_phase1(*json);
 
   auto url_final = url + "?" + scram.calculate_proof(password);
 

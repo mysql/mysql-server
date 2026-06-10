@@ -1,0 +1,87 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+##############################################################
+#### SETUP
+==== 1. Install component ====
+[connection slave]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+##############################################################
+#### binlog_compression = 0
+==== 2. Create tables ====
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+==== 3. Block updates on t1 ====
+[connection slave]
+LOCK TABLE t1 READ;
+==== 4. Commit transaction ====
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+==== 5. Wait until transaction is blocked and verify the reported progress is as expected ====
+[connection slave]
+include/assert_eventually.inc [Eventually, worker increments APPLIED_SIZE_BYTES to the size up to the insert into t1]
+==== 6. Block updates on t2, unblock updates on t1 ====
+[connection slave1]
+LOCK TABLE t2 READ;
+[connection slave]
+UNLOCK TABLES;
+==== 7. Wait until transaction is blocked again and verify the reported progress is as expected ====
+include/assert_eventually.inc [Eventually, worker increments APPLIED_SIZE_BYTES to the size up to the insert into t2]
+==== 8. Clean up ====
+[connection slave1]
+UNLOCK TABLES;
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/sync_to_replica.inc
+==== 9. Repeat with binlog compression enabled ====
+[connection master]
+SET @@session.binlog_transaction_compression = 1;
+##############################################################
+#### binlog_compression = 1
+==== 2. Create tables ====
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+==== 3. Block updates on t1 ====
+[connection slave]
+LOCK TABLE t1 READ;
+==== 4. Commit transaction ====
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+==== 5. Wait until transaction is blocked and verify the reported progress is as expected ====
+[connection slave]
+include/assert_eventually.inc [Eventually, worker increments APPLIED_SIZE_BYTES to the size up to the insert into t1]
+==== 6. Block updates on t2, unblock updates on t1 ====
+[connection slave1]
+LOCK TABLE t2 READ;
+[connection slave]
+UNLOCK TABLES;
+==== 7. Wait until transaction is blocked again and verify the reported progress is as expected ====
+include/assert_eventually.inc [Eventually, worker increments APPLIED_SIZE_BYTES to the size up to the insert into t2]
+==== 8. Clean up ====
+[connection slave1]
+UNLOCK TABLES;
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/sync_to_replica.inc
+==== 9. Repeat with binlog compression enabled ====
+[connection master]
+SET @@session.binlog_transaction_compression = 1;
+==== 10. Uninstall plugin ====
+[connection slave]
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+include/rpl/deinit.inc

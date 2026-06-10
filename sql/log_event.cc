@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3390,6 +3390,18 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     *start++ = thd->variables.default_table_encryption;
   }
 
+  if (thd && need_enable_cascade_triggers) {
+    *start++ = Q_ENABLE_CASCADE_TRIGGERS;
+    if (is_sql_fk_checks_enabled(thd)) {
+      *start++ = thd->variables.enable_cascade_triggers;
+    } else {
+      // Execution of triggers on FK cascade operations is supported by only SQL
+      // FK. Force log status of this variable as OFF if SQL FK is not in use.
+      if (thd->variables.enable_cascade_triggers)
+        LogErr(WARNING_LEVEL, ER_RPL_STMT_FORCE_DISABLE_CASCADE_TRIGGERS);
+      *start++ = false;
+    }
+  }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -3504,6 +3516,27 @@ static bool is_default_table_encryption_needed(const LEX *lex) {
       return ((sct != nullptr) &&
               (sct->get_options().encryption.str == nullptr));
     }
+    default:
+      break;
+  }
+  return false;
+}
+
+/**
+  Returns whether or not the statement held by the `LEX` object parameter
+  requires `Q_ENABLE_CASCADE_TRIGGERS` to be logged together with the statement.
+ */
+static bool is_enable_cascade_triggers_needed(const LEX *lex) {
+  enum enum_sql_command cmd = lex->sql_command;
+  switch (cmd) {
+    case SQLCOM_INSERT:  // INSERT ON DUPLICATE can lead to cascade
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_REPLACE:
+    case SQLCOM_REPLACE_SELECT:
+      return true;
     default:
       break;
   }
@@ -3879,6 +3912,8 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
 
   needs_default_table_encryption = is_default_table_encryption_needed(lex);
 
+  need_enable_cascade_triggers = is_enable_cascade_triggers_needed(lex);
+
   assert(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   assert(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
   DBUG_PRINT("info", ("Query_log_event has flags2: %lu  sql_mode: %llu",
@@ -4143,6 +4178,12 @@ void Query_log_event::print_query_header(
     my_b_printf(file,
                 "/*!80016 SET @@session.default_table_encryption=%d*/%s\n",
                 default_table_encryption, print_event_info->delimiter);
+  }
+  if (enable_cascade_triggers != print_event_info->enable_cascade_triggers) {
+    my_b_printf(file, "/*!90700 SET @@session.enable_cascade_triggers=%d*/%s\n",
+                static_cast<int>(enable_cascade_triggers),
+                print_event_info->delimiter);
+    print_event_info->enable_cascade_triggers = enable_cascade_triggers;
   }
 }
 
@@ -4563,6 +4604,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           };
           thd->rpl_thd_ctx.post_filters_actions().push_back(f);
         }
+      }
+
+      assert(enable_cascade_triggers == 0 || enable_cascade_triggers == 1);
+      const bool new_val = static_cast<bool>(enable_cascade_triggers);
+      if (thd->variables.enable_cascade_triggers != new_val) {
+        thd->variables.enable_cascade_triggers = new_val;
       }
 
       thd->table_map_for_update = (table_map)table_map_for_update;
@@ -14387,6 +14434,7 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
       thread_id(0),
       thread_id_printed(false),
       default_table_encryption(0xff),
+      enable_cascade_triggers(0),
       base64_output_mode(BASE64_OUTPUT_UNSPEC),
       printed_fd_event(false),
       have_unflushed_events(false),

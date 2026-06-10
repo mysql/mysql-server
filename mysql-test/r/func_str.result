@@ -5468,8 +5468,8 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - 
 DO REPEAT(LAST_INSERT_ID(''), 0x96e4ed7e70a7fec7f11572c8980a);
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
-Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
 Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
 # Bug#33142010: Failure on complex const argument to string functions
 CREATE VIEW v AS SELECT LPAD('x', 1 NOT IN (0), 1) AS c;
 SHOW CREATE TABLE v;
@@ -6173,3 +6173,89 @@ utf8mb4_0900_ai_ci
 select JSON_OBJECT('a', vector_to_string(string_to_vector('[1,2]')));
 JSON_OBJECT('a', vector_to_string(string_to_vector('[1,2]')))
 {"a": "[1.00000e+00,2.00000e+00]"}
+#
+# Bug#39053808: failing in Item_func_conv::val_str
+#
+SELECT SUBSTRING(BIN(EXP(UUID_SHORT())), 13, 3);
+ERROR 22003: DOUBLE value is out of range in 'exp(uuid_short())'
+SELECT UNCOMPRESS(BIN(POW(-9223372036854775807, 0xa5)));
+ERROR 22003: DOUBLE value is out of range in 'pow(-(9223372036854775807),0xa5)'
+SELECT JSON_TYPE(BIN(EXP(0x5f022b6c81)));
+ERROR 22003: DOUBLE value is out of range in 'exp(0x5f022b6c81)'
+SELECT BIN(EXP(55415508248253877499791772201022128128.000000));
+ERROR 22003: DOUBLE value is out of range in 'exp(55415508248253877499791772201022128128.000000)'
+#
+# Bug#39053812: failing in Item_func_soundex::val_str
+#
+SELECT ST_X(35) SOUNDS LIKE 0x35;
+ERROR 22023: Invalid GIS data provided to function st_x.
+#
+# Bug#39083924: failure in function left()
+#
+SELECT LEFT((9223372036854775807 * 10129) - SYSDATE(1), 97);
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 * 10129)'
+SELECT RIGHT((9223372036854775807 * 10129) - SYSDATE(1), 97);
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 * 10129)'
+SELECT REPEAT((9223372036854775807 * 10129) - SYSDATE(1), 10);
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 * 10129)'
+#
+# Bug#39083976: failing in remove_leading_zeroes
+#
+SELECT ST_INTERSECTION(MBRDISJOINT(1, POINT(8156,-19591)),
+(SELECT INTERVAL((-28347), (SELECT 1)))
+);
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
+SELECT INTERVAL(BIT_XOR(ST_NUMPOINTS(ST_GEOMCOLLFROMWKB(ST_ASWKB(POINT(186,57)),
+0))) OVER(), NOW(2), DENSE_RANK() OVER());
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
+#
+# Bug#39083984: soundex fails in Item_func_soundex::val_str
+#
+SELECT SOUNDEX(ABS(COALESCE(ST_DIMENSION(1), NULL, 18446744073709551616)));
+ERROR 22023: Invalid GIS data provided to function st_dimension.
+#
+# Bug#39084121: failing in Item_func_conv::val_str
+#
+SELECT BIN(IFNULL(JSON_LENGTH('ba' ,'{"aabbc":"abbab","bbccb":"a","cbacb":2}'),
+BIT_OR(ANY_VALUE(MINUTE('2537-01-12 00:52:47') AND TRUE))
+)
+);
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 0.
+SELECT BIN(IFNULL(JSON_LENGTH(5), RELEASE_ALL_LOCKS()));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_length; a JSON string or JSON type is required.
+SELECT OCT(IFNULL(uuid_to_bin(sin(0x69)), (-23447) DIV 14115145681444956431));
+ERROR HY000: Incorrect string value: '-0.9705352835374847' for function uuid_to_bin
+#
+# Bug#39084126: failure in String::set_charset with substring_index()
+#
+SELECT SUBSTRING_INDEX(IFNULL(SIGN(0xab) AND
+JSON_QUOTE(ABS(9223372036854775806)), UUID_SHORT()),
+4595, 45);
+ERROR HY000: Incorrect type for argument 1 in function json_quote.
+#
+# Bug#39084205: failure in Item_func_str_to_temporal::resolve_type
+#
+SELECT CONVERT(STR_TO_DATE(CURRENT_TIMESTAMP,
+COALESCE(INET_ATON(32767), LOCATE(0xc4, 20, 27),
+JSON_STORAGE_SIZE('a'))) USING EUCKR);
+ERROR HY000: Cannot convert string '\xC4' from binary to utf8mb4
+#
+# Bug#39085310: failing in Item_func_aswkb::val_str
+#
+SELECT ST_POINTATDISTANCE(ST_GEOMCOLLFROMWKB(ST_ASWKB(POINT(4389, -24885)), 0,
+'axis-order=srid-defined'
+                                            ),
+ST_ASBINARY(- ROW_COUNT(), 'axis-order=srid-defined')
+);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
+#
+# Bug39056621: Function find_in_set returns wrong result
+#
+SET collation_connection = 'utf8mb4_0900_ai_ci';
+SELECT FIND_IN_SET('ắ', 'a');
+FIND_IN_SET('ắ', 'a')
+1
+SELECT FIND_IN_SET('ắ', 'a,b,c');
+FIND_IN_SET('ắ', 'a,b,c')
+1
+SET collation_connection = default;

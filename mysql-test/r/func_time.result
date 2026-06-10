@@ -133,7 +133,9 @@ date_format('1999-12-31','%x-%v')	date_format('2000-01-01','%x-%v')
 1999-52	1999-52
 select dayname("1962-03-03"),dayname("1962-03-03")+0;
 dayname("1962-03-03")	dayname("1962-03-03")+0
-Saturday	5
+Saturday	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'Saturday'
 select monthname("1972-03-04"),monthname("1972-03-04")+0;
 monthname("1972-03-04")	monthname("1972-03-04")+0
 March	0
@@ -477,12 +479,12 @@ SELECT month(updated) from t1;
 month(updated)
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Truncated incorrect date value: ''
 SELECT year(updated) from t1;
 year(updated)
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Truncated incorrect date value: ''
 drop table t1;
 create table t1 (d date, dt datetime, t timestamp, c char(10));
 insert ignore into t1 values ("0000-00-00", "0000-00-00", "0000-00-00", "0000-00-00");
@@ -494,50 +496,50 @@ select dayofyear("0000-00-00"),dayofyear(d),dayofyear(dt),dayofyear(t),dayofyear
 dayofyear("0000-00-00")	dayofyear(d)	dayofyear(dt)	dayofyear(t)	dayofyear(c)
 NULL	NULL	NULL	NULL	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select dayofmonth("0000-00-00"),dayofmonth(d),dayofmonth(dt),dayofmonth(t),dayofmonth(c) from t1;
 dayofmonth("0000-00-00")	dayofmonth(d)	dayofmonth(dt)	dayofmonth(t)	dayofmonth(c)
 NULL	0	0	0	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select month("0000-00-00"),month(d),month(dt),month(t),month(c) from t1;
 month("0000-00-00")	month(d)	month(dt)	month(t)	month(c)
 NULL	0	0	0	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select quarter("0000-00-00"),quarter(d),quarter(dt),quarter(t),quarter(c) from t1;
 quarter("0000-00-00")	quarter(d)	quarter(dt)	quarter(t)	quarter(c)
 NULL	0	0	0	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select week("0000-00-00"),week(d),week(dt),week(t),week(c) from t1;
 week("0000-00-00")	week(d)	week(dt)	week(t)	week(c)
 NULL	NULL	NULL	NULL	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select year("0000-00-00"),year(d),year(dt),year(t),year(c) from t1;
 year("0000-00-00")	year(d)	year(dt)	year(t)	year(c)
 NULL	0	0	0	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select yearweek("0000-00-00"),yearweek(d),yearweek(dt),yearweek(t),yearweek(c) from t1;
 yearweek("0000-00-00")	yearweek(d)	yearweek(dt)	yearweek(t)	yearweek(c)
 NULL	NULL	NULL	NULL	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select to_days("0000-00-00"),to_days(d),to_days(dt),to_days(t),to_days(c) from t1;
 to_days("0000-00-00")	to_days(d)	to_days(dt)	to_days(t)	to_days(c)
 NULL	NULL	NULL	NULL	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select extract(MONTH FROM "0000-00-00"),extract(MONTH FROM d),extract(MONTH FROM dt),extract(MONTH FROM t),extract(MONTH FROM c) from t1;
 extract(MONTH FROM "0000-00-00")	extract(MONTH FROM d)	extract(MONTH FROM dt)	extract(MONTH FROM t)	extract(MONTH FROM c)
 NULL	0	0	0	NULL
@@ -788,7 +790,7 @@ last_day('2001-02-12');
 f1	f2	f3	f4	f5	last_day(NULL)	last_day('2001-02-12')
 2000-02-29	2002-12-31	NULL	2003-04-30	2001-01-31	NULL	2001-02-28
 Warnings:
-Warning	1292	Incorrect datetime value: '2003-03-32'
+Warning	1292	Truncated incorrect date value: '2003-03-32'
 create table t1 select last_day('2000-02-05') as a,
 from_days(to_days("960101")) as b;
 describe t1;
@@ -851,12 +853,12 @@ select last_day('2005-00-00');
 last_day('2005-00-00')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '2005-00-00'
+Warning	1292	Truncated incorrect date value: '2005-00-00'
 select last_day('2005-00-01');
 last_day('2005-00-01')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '2005-00-01'
+Warning	1292	Truncated incorrect date value: '2005-00-01'
 select last_day('2005-01-00');
 last_day('2005-01-00')
 2005-01-31
@@ -911,7 +913,7 @@ f1
 select f1 from t1 where cast("2006-1-1" as date) between f1 and cast('zzz' as date);
 f1
 Warnings:
-Warning	1292	Incorrect datetime value: 'zzz'
+Warning	1292	Truncated incorrect date value: 'zzz'
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 f1
 2006-01-01
@@ -1068,13 +1070,11 @@ select last_day('0000-00-00');
 last_day('0000-00-00')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
 week(20061108), week(20061108.01), week(20061108085411.000002);
 isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
 0	0	45	45	45
-Warnings:
-Warning	1292	Truncated incorrect date value: '20061108.01'
 End of 4.1 tests
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
@@ -1426,7 +1426,7 @@ MAKEDATE(11111111,1)
 NULL
 SELECT WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1);
 WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1)
-NULL
+5
 #
 # Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
 #
@@ -1439,6 +1439,8 @@ Warning	1292	Incorrect datetime value: '0'
 SELECT SUBTIME('0000-01-00 00:00','00:00');
 SUBTIME('0000-01-00 00:00','00:00')
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-01-00 00:00'
 SELECT LEAST(TIMESTAMP('0000-01-00','0'),'2011-10-24') > 0;
 LEAST(TIMESTAMP('0000-01-00','0'),'2011-10-24') > 0
 NULL
@@ -1505,46 +1507,46 @@ TO_DAYs(STR_TO_DATE('200910','%Y%m'))	NULL
 Warnings:
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '200910' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '200910' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '200910' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '200910' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '2009-10-00'
+Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '200910' for function str_to_date
@@ -1604,46 +1606,46 @@ TO_DAYs(STR_TO_DATE('000001','%Y%m'))	NULL
 Warnings:
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '000001' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '000001' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '000001' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '000001' for function str_to_date
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Incorrect datetime value: '0000-01-00'
+Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1411
 Message	Incorrect datetime value: '000001' for function str_to_date
@@ -1733,6 +1735,7 @@ min(timestampadd(month, 1>'', from_days('%Z')))
 NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '%Z'
+Warning	6527	DATE value is out of range in 'from_days('%Z')'
 create table t1(a time);
 insert into t1 values ('00:00:00'),('00:01:00');
 select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
@@ -2155,7 +2158,7 @@ SELECT SUBTIME('0000-00-00 00:00:00', vc) AS c FROM t1;
 c
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: 'a'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00 00:00:00'
 DROP TABLE t1;
 #
 # Bug#37864777: Assertion `null_value || current_thd->is_error()
@@ -2167,8 +2170,6 @@ TIMEDIFF(SUBTIME(t, '12:59:38'), '1994-01-14')) AS c
 FROM t1;
 c
 NULL
-Warnings:
-Warning	1292	Truncated incorrect time value: '1994-01-14'
 DROP TABLE t1;
 #
 # Bug#37881114: Assertion `mt.time_type == MYSQL_TIMESTAMP_DATETIME'
@@ -2195,6 +2196,8 @@ SELECT SUBTIME(FROM_UNIXTIME(3569025024, CONCAT_WS(':', '%V', '%V', '%m', '%T')
 ), '00:00:00') AS c;
 c
 2005-05-02 06:50:24
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '05:05:02:06:50:24' at row 1 is deprecated. Prefer the standard '-'.
 #
 # Bug#37976294: Assertion `hour <= TIME_MAX_HOUR &&
 #                          minute <= TIME_MAX_MINUTE'
@@ -2204,3 +2207,72 @@ c
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '4617000000'
+#
+# Bug#38179658: TIMEDIFF is not consistent with documentation
+#
+CREATE TABLE t(t2 TIME, t4 DATETIME);
+INSERT INTO t VALUES(TIME'01:01:01', TIMESTAMP'2001-02-01 01:01:01');
+SELECT t2, t4, TIMEDIFF(t2, t4) AS v FROM t;
+t2	t4	v
+01:01:01	2001-02-01 01:01:01	NULL
+SELECT TIMEDIFF('01:01:01', '2001-02-01 01:01:01');
+TIMEDIFF('01:01:01', '2001-02-01 01:01:01')
+NULL
+SELECT TIMEDIFF(TIME'01:01:01', TIMESTAMP'2001-02-01 01:01:01');
+TIMEDIFF(TIME'01:01:01', TIMESTAMP'2001-02-01 01:01:01')
+NULL
+DROP TABLE t;
+#
+# Bug#38177844: TO_DAYS() result is inconsistent
+#
+SELECT FROM_DAYS(3652499), FROM_DAYS(3652500), FROM_DAYS(3652501);
+FROM_DAYS(3652499)	FROM_DAYS(3652500)	FROM_DAYS(3652501)
+NULL	NULL	NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(3652499)'
+Warning	6527	DATE value is out of range in 'from_days(3652500)'
+Warning	6527	DATE value is out of range in 'from_days(3652501)'
+#
+# Bug#38177993: TO_DAYS() result with argument < 366 is inconsistent
+#
+SELECT FROM_DAYS(1), FROM_DAYS(365);
+FROM_DAYS(1)	FROM_DAYS(365)
+0000-01-01	0000-12-31
+#
+# Bug#38181443: TIMEDIFF returns wrong result when first argument
+#               is DATETIME and second argument is DATE
+#
+SELECT TIMEDIFF(TIMESTAMP'0000-01-01 00:00:00.00000', DATE'2025-08-01');
+TIMEDIFF(TIMESTAMP'0000-01-01 00:00:00.00000', DATE'2025-08-01')
+-838:59:59.00000
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17755872:00:00.00000'
+SELECT TIMEDIFF(TIMESTAMP'0000-01-01 00:00:00.00000', '2025-08-01');
+TIMEDIFF(TIMESTAMP'0000-01-01 00:00:00.00000', '2025-08-01')
+-838:59:59.00000
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17755872:00:00.00000'
+SELECT TIMEDIFF('0000-01-01 00:00:00.00000', DATE'2025-08-01');
+TIMEDIFF('0000-01-01 00:00:00.00000', DATE'2025-08-01')
+-838:59:59.00000
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17755872:00:00.00000'
+SELECT TIMEDIFF('0000-01-01 00:00:00.00000', '2025-08-01');
+TIMEDIFF('0000-01-01 00:00:00.00000', '2025-08-01')
+-838:59:59.00000
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17755872:00:00.00000'
+#
+# Bug#38980002: Assertion 'dt.time_type == MYSQL_TIMESTAMP_DATETIME ||
+#               dt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ' failed
+#
+SELECT CEILING(CONVERT_TZ('2025-01-01' ,'-01:00','-08:00')) AS ceil;
+ceil
+20241231170000
+#
+# Bug#38979962: Assertion 'hour != 0 && minute != 0 && second != 0 &&
+#               microsecond != 0' failed'
+#
+SELECT SEC_TO_TIME(-00.0000004584) AS tv;
+tv
+00:00:00.000000

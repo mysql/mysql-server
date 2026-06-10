@@ -1,0 +1,44 @@
+#Configure optimizer to exercise BKA while using the optimizer's default ordered/merge path
+#Note: We set mrr=off to disable the storage engine MRR implementation and force the
+#optimizer's fallback (priority-queue/ordered) path for inner range lookups under BKA.
+
+SET SESSION optimizer_switch =
+  'engine_condition_pushdown=off,index_condition_pushdown=off,mrr=off,batched_key_access=on';
+SET @@sql_mode='';
+
+CREATE TABLE t0 (
+  a INT
+) ENGINE=InnoDB;
+
+INSERT INTO t0 VALUES (1);
+
+CREATE TABLE t1 (
+  c0 INT,
+  c1 INT,
+  KEY i_c0 (c0)
+) ENGINE=InnoDB
+PARTITION BY RANGE (c0) (
+  PARTITION p0 VALUES LESS THAN (1000),
+  PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+
+--echo Seed a few rows to exercise ordered/merge scan setup
+INSERT INTO t1 VALUES (0,1),(1,1),(2,0),(1500,1);
+
+--echo SELECT (drive BKA on inner t1; expect index_init(sorted=1), then range phases with sorted=false)
+# We intentionally keep the EXPLAIN output checks minimal and stable across
+# platforms/optimizer estimate changes. Only the "Extra" column is relevant for
+# proving that BKA is used.
+--replace_column 11 DONT_CARE
+EXPLAIN SELECT /*+ BKA(t1) */ 1
+  FROM t0 STRAIGHT_JOIN t1 ON (t1.c0 = 0)
+ WHERE t1.c1;
+
+SELECT /*+ BKA(t1) */ 1
+  FROM t0 STRAIGHT_JOIN t1 ON (t1.c0 = 0)
+ WHERE t1.c1;
+
+ALTER TABLE t1 ADD PRIMARY KEY (c0);
+
+DROP TABLE t1;
+DROP TABLE t0;

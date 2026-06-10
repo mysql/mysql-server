@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,20 @@ using ContentFile = ContentFileEndpoint::ContentFile;
 using ContentFilePtr = ContentFileEndpoint::ContentFilePtr;
 using UniversalId = ContentFileEndpoint::UniversalId;
 using EnabledType = ContentFileEndpoint::EnabledType;
+
+static json::ParseFileSharingOptions::Result parse_content_file_options(
+    const std::string &options) {
+  auto result =
+      helper::json::text_to_handler<json::ParseFileSharingOptions>(options);
+
+  if (!result) {
+    log_error(
+        "Failed to parse 'ContentFileEndpoint' options from db_objects JSON "
+        "configuration");
+  }
+
+  return result.value_or(json::ParseFileSharingOptions::Result{});
+}
 
 ContentFileEndpoint::ContentFileEndpoint(const ContentFile &entry,
                                          EndpointConfigurationPtr configuration,
@@ -134,8 +148,7 @@ void ContentFileEndpoint::activate_public() {
   const auto &options = parent.get()->get_options();
 
   if (options.has_value()) {
-    auto fs = helper::json::text_to_handler<json::ParseFileSharingOptions>(
-        options.value());
+    auto fs = parse_content_file_options(options.value());
     for (const auto &[k, _] : fs.default_static_content_) {
       if (k ==
           handler::remove_leading_slash_from_path(get_my_url_path_part())) {

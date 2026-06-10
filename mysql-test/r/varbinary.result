@@ -579,7 +579,7 @@ SELECT DATEDIFF((_binary '12012-05-19 09:06:07' | _binary '12012-05-19 09:06:07'
 DATEDIFF((_binary '12012-05-19 09:06:07' | _binary '12012-05-19 09:06:07'), '2012-05-21 09:06:07')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '12012-05-19 09:06:07'
+Warning	1292	Truncated incorrect date value: '12012-05-19 09:06:07'
 SELECT DATEDIFF(120120519090607 | 120120519090607, '2012-05-21 09:06:07');
 DATEDIFF(120120519090607 | 120120519090607, '2012-05-21 09:06:07')
 NULL
@@ -590,7 +590,7 @@ DATEDIFF(120120519090607, '12012-05-21 09:06:07')
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '120120519090607'
-Warning	1292	Incorrect datetime value: '12012-05-21 09:06:07'
+Warning	1292	Truncated incorrect date value: '12012-05-21 09:06:07'
 SELECT SUBTIME((_binary '12007-12-31 23:59:59.999999' | _binary '12007-12-31 23:59:59.999999'),'1 1:1:1.000002');
 SUBTIME((_binary '12007-12-31 23:59:59.999999' | _binary '12007-12-31 23:59:59.999999'),'1 1:1:1.000002')
 NULL
@@ -616,7 +616,7 @@ DATEDIFF(BIT_OR(a), '2012-05-21 09:06:07')
 -2
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '12012-05-19 09:06:07'
+Warning	1292	Truncated incorrect date value: '12012-05-19 09:06:07'
 SELECT DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07') FROM t1 GROUP BY gid;
 DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07')
 -2
@@ -633,7 +633,7 @@ SELECT DATEDIFF(BIT_OR(a), '2012-05-21 09:06:07') FROM t1 WHERE gid = 2;
 DATEDIFF(BIT_OR(a), '2012-05-21 09:06:07')
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '12012-05-19 09:06:07'
+Warning	1292	Truncated incorrect date value: '12012-05-19 09:06:07'
 SELECT DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07') FROM t1 WHERE gid = 2;
 DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07')
 NULL

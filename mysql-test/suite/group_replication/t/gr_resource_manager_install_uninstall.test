@@ -1,0 +1,52 @@
+###############################################################################
+# Install Uninstall test for
+# group_replication_resource_manager and GR.
+#
+
+--source include/big_test.inc
+--source include/have_group_replication_resource_manager.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+# INSTALL
+# GR - GR_RM
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+
+# UN-INSTALL
+# GR - GR_RM
+--source include/uninstall_group_replication_plugin.inc
+
+# Wait for one fetch cicle.
+--sleep 6
+
+--let $assert_text= 'applier lag is 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_resource_manager_applier_channel_lag", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'recovery lag is 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_resource_manager_recovery_channel_lag", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'used memory is reported'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_resource_manager_memory_used", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+
+# INSTALL
+# GR_RM - GR
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+--source include/install_group_replication_plugin.inc
+
+# UN-INSTALL
+# GR_RM - GR
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+--source include/uninstall_group_replication_plugin.inc
+
+--source include/install_group_replication_plugin.inc
+
+--source include/group_replication_end.inc

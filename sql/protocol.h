@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,8 +130,8 @@ class Protocol {
   virtual bool store_float(float from, uint32 decimals, uint32 zerofill) = 0;
   virtual bool store_double(double from, uint32 decimals, uint32 zerofill) = 0;
   virtual bool store_datetime(const MYSQL_TIME &time, uint precision) = 0;
-  virtual bool store_date(const MYSQL_TIME &time) = 0;
-  virtual bool store_time(const Time_val &time, uint precision) = 0;
+  virtual bool store_date(const Date_val date) = 0;
+  virtual bool store_time(const Time_val time, uint precision) = 0;
   virtual bool store_field(const Field *field) = 0;
   // Convenience wrappers
   bool store(int from) { return store_long(longlong{from}, 0); }

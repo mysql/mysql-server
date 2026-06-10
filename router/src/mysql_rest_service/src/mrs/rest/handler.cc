@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,12 @@ mrs::interface::Options parse_json_options(
     const std::optional<std::string> &options) {
   if (!options.has_value()) return {};
 
-  return helper::json::text_to_handler<ParseOptions>(options.value());
+  // Ignore parse errors here, as there may be multiple handlers defined for the
+  // same JSON configuration. Error reporting will be handled by the parent
+  // object, such as Endpoint.
+  auto result = helper::json::text_to_handler<ParseOptions>(options.value());
+
+  return result.value_or(ParseOptions::Result{});
 }
 
 Handler::Handler(const Protocol protocol, const std::string &url_host,

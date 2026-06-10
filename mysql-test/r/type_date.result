@@ -336,7 +336,7 @@ SELECT 1 FROM (SELECT LAST_DAY('0')) a;
 1
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Truncated incorrect date value: '0'
 SELECT 1 FROM (SELECT MAKEDATE(2011,0)) a;
 1
 1
@@ -419,7 +419,7 @@ NULL	NULL
 101010.9999	2010-10-10
 -101010.9999	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '-101010.9999'
+Warning	1292	Truncated incorrect date value: '-101010.9999'
 DROP TABLE t1;
 #
 # Testing CASE with DATE type without a found item
@@ -513,13 +513,13 @@ SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
 a
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+Warning	1292	Truncated incorrect date value: '0000-00-00 00:00:00'
 SELECT * FROM t1 WHERE
 LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;
 a
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+Warning	1292	Truncated incorrect date value: '0000-00-00 00:00:00'
 DROP TABLE t1,t2;
 #
 # Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
@@ -747,6 +747,160 @@ DROP TABLE t;
 #
 SELECT IFNULL(LAST_DAY('201:34:36.298754'), FROM_DAYS(0)) AS c;
 c
-0000-00-00
+NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '201:34:36.298754'
+Warning	1292	Truncated incorrect date value: '201:34:36.298754'
+Warning	6527	DATE value is out of range in 'from_days(0)'
+#
+# Bug#38475846: Sig11 at Date_val::to_string|mysys/my_temporal.cc
+#
+CREATE TABLE t1(d DATE, vc VARCHAR(10));
+INSERT INTO t1 VALUES(DATE'2025-09-25', '2025-09-24');
+SELECT d
+FROM t1 AS ot
+WHERE EXISTS (SELECT it.d
+FROM t1 AS it
+WHERE LEAST(it.d, it.vc) <= ot.vc
+);
+d
+2025-09-25
+DROP TABLE t1;
+#
+# Bug#38460273: Assertion (*left)->data_type() == MYSQL_TYPE_DATE ||
+#                         (*left)->data_type() == MYSQL_TYPE_NULL
+#
+CREATE TABLE dates (d DATE);
+CREATE TABLE times (t TIME);
+SELECT * FROM dates WHERE d >= d AND d = '1994-02-15';
+d
+SELECT * FROM times WHERE t >= t AND t = '11:12:13';
+t
+DROP TABLE dates, times;
+#
+# Bug#38882825: Assertion 'month() != 0 && day() != 0'
+#
+SELECT TO_DAYS(FROM_DAYS(6) + INTERVAL 1933116476 SECOND_MICROSECOND);
+TO_DAYS(FROM_DAYS(6) + INTERVAL 1933116476 SECOND_MICROSECOND)
+6
+#
+# Bug#38043311: Copying a DATE value into an INTEGER field: wrong value
+#
+CREATE TABLE t1(d DATE);
+INSERT INTO t1 VALUES(DATE'1000-01-01'), (DATE'9999-12-31');
+CREATE TABLE t2(i BIGINT);
+INSERT INTO t2(i) SELECT d FROM t1;
+SELECT * FROM t2;
+i
+10000101
+99991231
+ALTER TABLE t1 ADD gcv BIGINT AS (d), ADD gcs BIGINT AS (d) STORED;
+SELECT * FROM t1;
+d	gcv	gcs
+1000-01-01	10000101	10000101
+9999-12-31	99991231	99991231
+DROP TABLE t1, t2;
+#
+# Bug#32019977: Date arithmetic has poor overflow handling
+#
+SELECT DATE'0000-01-02' - INTERVAL 1 DAY;
+DATE'0000-01-02' - INTERVAL 1 DAY
+0000-01-01
+SELECT DATE'0000-01-02' - INTERVAL 2 DAY;
+DATE'0000-01-02' - INTERVAL 2 DAY
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in '(DATE'0000-01-02' - interval 2 day)'
+SELECT DATE'0001-01-02' - INTERVAL 1 DAY;
+DATE'0001-01-02' - INTERVAL 1 DAY
+0001-01-01
+SELECT DATE'0001-01-02' - INTERVAL 2 DAY;
+DATE'0001-01-02' - INTERVAL 2 DAY
+0000-12-31
+SELECT DATE'9999-12-31' + INTERVAL 1 DAY;
+DATE'9999-12-31' + INTERVAL 1 DAY
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in '(DATE'9999-12-31' + interval 1 day)'
+#
+# Bug#22353325: After UPDATE t1 SET B(BIGINT) = A(DATE), 000000 appended
+#
+CREATE TABLE t1(a DATE, b BIGINT, c BIGINT);
+INSERT INTO t1(a) VALUES (DATE'2015-01-01');
+UPDATE t1 SET b = a, c = CAST(a AS SIGNED);
+SELECT a, b, c, a + 1 FROM t1;
+a	b	c	a + 1
+2015-01-01	20150101	20150101	20150102
+DROP TABLE t1;
+#
+# Bug#20583945: No warning when, under ALLOW_INVALID_DATES,
+#               an invalid date is discarded
+#
+set sql_mode = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT DATE '2014-02-31';
+DATE '2014-02-31'
+2014-02-31
+SELECT DATE '2014-01-31';
+DATE '2014-01-31'
+2014-01-31
+SELECT DATE '2014-02-31' + 1;
+DATE '2014-02-31' + 1
+20140232
+SELECT DATE '2014-01-31' + 1;
+DATE '2014-01-31' + 1
+20140132
+SELECT DATE(DATE '2014-02-31');
+DATE(DATE '2014-02-31')
+2014-02-31
+SELECT DATE_FORMAT(DATE '2014-02-31', '%Y%b%e');
+DATE_FORMAT(DATE '2014-02-31', '%Y%b%e')
+2014Feb31
+SELECT DATE_FORMAT(DATE '2014-01-31', '%Y%b%e');
+DATE_FORMAT(DATE '2014-01-31', '%Y%b%e')
+2014Jan31
+set sql_mode = DEFAULT;
+#
+# Bug#39053803: failing in Item_func_str_to_temporal::eval_datetime
+#
+SELECT STR_TO_DATE(EXP(11463), '%S  %S   ');
+ERROR 22003: DOUBLE value is out of range in 'exp(11463)'
+SELECT STR_TO_DATE(COT(IS_IPV6(UUID_TO_BIN(UUID()))), COMPRESS('_&?_[$'));
+ERROR 22003: DOUBLE value is out of range in 'cot(is_ipv6(uuid_to_bin(uuid())))'
+SET @a = NULL;
+SELECT STR_TO_DATE(COT(IS_UUID(@a)), 0x85);
+STR_TO_DATE(COT(IS_UUID(@a)), 0x85)
+NULL
+SELECT STR_TO_DATE(COT(' ;D( c+%'), sleep(0));
+ERROR 22003: DOUBLE value is out of range in 'cot(' ;D( c+%')'
+SELECT STR_TO_DATE(EXP(9223372036854775808), 1);
+ERROR 22003: DOUBLE value is out of range in 'exp(9223372036854775808)'
+#
+# Bug#39038617: CAST asserts: Item_typecast_unsigned::val_int()
+#
+SELECT CAST(FROM_DAYS(-11797) AS UNSIGNED) ^ SLEEP(0);
+CAST(FROM_DAYS(-11797) AS UNSIGNED) ^ SLEEP(0)
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(-(11797))'
+SELECT CAST(CAST(FROM_DAYS(CURRENT_DATE()) AS UNSIGNED) AS SIGNED INTEGER);
+CAST(CAST(FROM_DAYS(CURRENT_DATE()) AS UNSIGNED) AS SIGNED INTEGER)
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(curdate())'
+SELECT CAST((FROM_DAYS(-9223372036854775807)) AS SIGNED INTEGER);
+CAST((FROM_DAYS(-9223372036854775807)) AS SIGNED INTEGER)
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(-(9223372036854775807))'
+SELECT INET6_NTOA((SELECT CONVERT(FROM_DAYS(-15050), SIGNED)));
+INET6_NTOA((SELECT CONVERT(FROM_DAYS(-15050), SIGNED)))
+NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(-(15050))'
+SELECT STD(CONVERT(FROM_DAYS("-479:27:44.090745"), SIGNED INTEGER));
+STD(CONVERT(FROM_DAYS("-479:27:44.090745"), SIGNED INTEGER))
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '-479:27:44.090745'
+Warning	6527	DATE value is out of range in 'from_days('-479:27:44.090745')'

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2025, Oracle and/or its affiliates.
+Copyright (c) 2012, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1139,12 +1139,27 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
 
   for (ulint i = 0; i < index->n_fields; ++i, ++field, ++cfg_field) {
     if (strcmp(field->name(), cfg_field->name()) != 0) {
-      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index field name %s doesn't match tablespace metadata"
-              " field name %s for field position %lu",
-              field->name(), cfg_field->name(), (ulong)i);
+      bool allow = false;
+      if (dict_index_is_sdi(index)) {
+        /* SDI-only compatibility: accept legacy swap between
+           compressed_len and uncompressed_len, regardless of position. */
+        const bool swap_mismatch =
+            (strcmp(field->name(), "uncompressed_len") == 0 &&
+             strcmp(cfg_field->name(), "compressed_len") == 0) ||
+            (strcmp(field->name(), "compressed_len") == 0 &&
+             strcmp(cfg_field->name(), "uncompressed_len") == 0);
 
-      err = DB_ERROR;
+        allow = swap_mismatch;
+      }
+
+      if (!allow) {
+        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+                "Index field name %s doesn't match tablespace metadata"
+                " field name %s for field position %lu",
+                field->name(), cfg_field->name(), (ulong)i);
+
+        err = DB_ERROR;
+      }
     }
 
     if (cfg_field->prefix_len != field->prefix_len) {

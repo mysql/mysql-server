@@ -106,24 +106,24 @@ test_user	localhost	{"Restrictions": [{"Database": "test_db", "Privileges": ["SE
 ## Drop the user, so all modifications are gone.
 DROP USER 'test_user'@'localhost';
 ## Test the script with 'ANSI_QUOTES' turned on.
-SET GLOBAL sql_mode = 'ANSI_QUOTES';
+SET SESSION sql_mode = 'ANSI_QUOTES';
 ## Create the user back and grant privileges as on the beginning.
 CREATE USER 'test_user'@'localhost';
 GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO 'test_user'@'localhost';
 GRANT SELECT, INSERT, UPDATE, DELETE ON test_db.* TO 'test_user'@'localhost';
 ## Revoke privileges from schema.
 ## ##############################
-CALL sys.revoke_schema_privileges_from_all_accounts_except("test_db", JSON_ARRAY("SELECT", "insert", "Update", "deletE"), JSON_ARRAY("'root'@'localhost'", "'mysql.infoschema'@'LOCALHOST'", "'mysql.session'@'Localhost'", "'mysql.sys'@'locaLHost'"));
+CALL sys.revoke_schema_privileges_from_all_accounts_except('test_db', JSON_ARRAY('SELECT', 'insert', 'Update', 'deletE'), JSON_ARRAY('''root''@''localhost''', '''mysql.infoschema''@''LOCALHOST''', '''mysql.session''@''Localhost''', '''mysql.sys''@''locaLHost'''));
 ## User grants.
 SHOW GRANTS FOR 'test_user'@'localhost';
 Grants for test_user@localhost
-GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `test_user`@`localhost`
-REVOKE SELECT, INSERT, UPDATE, DELETE ON `test_db`.* FROM `test_user`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO "test_user"@"localhost"
+REVOKE SELECT, INSERT, UPDATE, DELETE ON "test_db".* FROM "test_user"@"localhost"
 ## Schema privilege should be missing.
-SELECT * FROM INFORMATION_SCHEMA.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = 'test_db' AND GRANTEE NOT IN ("'root'@'localhost'", "'mysql.infoschema'@'localhost'", "'mysql.session'@'localhost'", "'mysql.sys'@'localhost'") ORDER BY PRIVILEGE_TYPE;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = 'test_db' AND GRANTEE NOT IN ('''root''@''localhost''', '''mysql.infoschema''@''localhost''', '''mysql.session''@''localhost''', '''mysql.sys''@''localhost''') ORDER BY PRIVILEGE_TYPE;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 ## Global privileges should be present.
-SELECT grantee, privilege_type FROM INFORMATION_SCHEMA.USER_PRIVILEGES WHERE GRANTEE NOT IN ("'root'@'localhost'", "'mysql.infoschema'@'localhost'", "'mysql.session'@'localhost'", "'mysql.sys'@'localhost'") ORDER BY PRIVILEGE_TYPE;
+SELECT grantee, privilege_type FROM INFORMATION_SCHEMA.USER_PRIVILEGES WHERE GRANTEE NOT IN ('''root''@''localhost''', '''mysql.infoschema''@''localhost''', '''mysql.session''@''localhost''', '''mysql.sys''@''localhost''') ORDER BY PRIVILEGE_TYPE;
 grantee	privilege_type
 'test_user'@'localhost'	DELETE
 'test_user'@'localhost'	INSERT
@@ -133,6 +133,7 @@ grantee	privilege_type
 SELECT User, Host, User_attributes FROM mysql.user WHERE User = 'test_user';
 User	Host	User_attributes
 test_user	localhost	{"Restrictions": [{"Database": "test_db", "Privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"]}]}
+SET SESSION sql_mode = @@GLOBAL.sql_mode;
 DROP USER 'test_user'@'localhost';
 DROP DATABASE test_db;
 SET GLOBAL partial_revokes = @old_partial_revokes;

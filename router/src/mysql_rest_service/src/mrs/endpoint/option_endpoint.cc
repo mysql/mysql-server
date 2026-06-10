@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,8 @@
 
 #include "mrs/endpoint/option_endpoint.h"
 
-#include "helper/container/generic.h"
+#include "mysql/harness/utility/container/generic.h"
+
 #include "helper/json/text_to.h"
 #include "mrs/json/parse_file_sharing_options.h"
 
@@ -33,6 +34,21 @@ namespace mrs {
 namespace endpoint {
 
 using OptionalIndexNames = OptionEndpoint::OptionalIndexNames;
+
+static json::ParseFileSharingOptions::Result parse_file_sharing_options(
+    const std::string &options) {
+  auto result =
+      helper::json::text_to_handler<mrs::json::ParseFileSharingOptions>(
+          options);
+
+  if (!result) {
+    log_error(
+        "Failed to parse 'OptionEndpoint' options from db_objects JSON "
+        "configuration");
+  }
+
+  return result.value_or(mrs::json::ParseFileSharingOptions::Result{});
+}
 
 OptionEndpoint::OptionEndpoint(UniversalId service_id,
                                EndpointConfigurationPtr configuration,
@@ -65,8 +81,7 @@ void OptionEndpoint::update() {
     using namespace helper::json;
     using namespace mrs::json;
 
-    // Get options for current endpoint.
-    auto fs = text_to_handler<ParseFileSharingOptions>(opt.value());
+    auto fs = parse_file_sharing_options(opt.value());
 
     directory_indexes_ = fs.directory_index_directive_;
 
@@ -80,7 +95,8 @@ void OptionEndpoint::update() {
     }
 
     for (const auto &[k, v] : fs.default_static_content_) {
-      const bool is_index = helper::container::has(directory_indexes, k);
+      const bool is_index =
+          mysql_harness::utility::container::has(directory_indexes, k);
       // When the url path is empty, its root path, which
       // http plugin processes as "", instead "/".
       // In case of root path and index, we do not need

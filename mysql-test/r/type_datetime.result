@@ -388,7 +388,7 @@ if(@bug28261 = f1, '', @bug28261:= f1)
 2002-02-02
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Truncated incorrect date value: ''
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
 if(@bug28261 = f1, '', @bug28261:= f1)
 2001-01-01
@@ -573,19 +573,19 @@ CAST('NULL' AS DATE) < CAST('NULL' AS DATE) n9;
 n1	n2	n3	n4	n5	n6	n7	n8	n9
 0	0	1	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
-Warning	1292	Incorrect datetime value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
+Warning	1292	Truncated incorrect date value: 'NULL'
 End of 5.0 tests
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
@@ -1174,3 +1174,121 @@ INTO @v;
 SELECT CASE WHEN 1 THEN SYSDATE() ELSE dt.n END AS ct
 FROM (SELECT NULL) AS dt(n)
 INTO @v;
+#
+# Bug#38585820: Result mismatch with GROUP BY on DATE column
+#
+CREATE TABLE t1 (
+d DATE DEFAULT NULL,
+t TIME DEFAULT NULL,
+dt DATETIME DEFAULT NULL,
+pk INT NOT NULL PRIMARY KEY,
+ci INT DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+('1982-07-14','11:12:13','1982-07-14 11:12:13',1,-2086898178),
+(NULL,NULL,NULL,2,-549278089),
+('2035-09-13','12:13:14','2035-09-13 12:13:14',3,1616004595),
+('2011-03-24','13:14:15','2011-03-24 13:14:15',4,-1457068597),
+('1976-05-25','14:15:16','1976-05-25 14:15:16',5,-726291594),
+('1986-12-09','15:16:17','1986-12-09 15:16:17',6,1775995858),
+('2017-05-17','16:17:18','2017-05-17 16:17:18',7,-1267712153),
+('2034-09-09','17:18:19','2034-09-09 17:18:19',8,514287676),
+('2033-06-22','18:19:20','2033-06-22 18:19:20',9,1526531818),
+(NULL,NULL,NULL,10,-1026887600);
+SELECT alias2.d AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SELECT alias2.t AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SELECT alias2.dt AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+DROP TABLE t1;
+#
+# Bug#38819341: Incompatible behavior between integer columns when
+#               comparing with datetime
+#
+CREATE TABLE t1 (c1 INTEGER, c2 BIGINT);
+INSERT INTO t1 VALUES (1, 1);
+SELECT c1 = CAST(0.0 AS DATETIME) FROM t1;
+c1 = CAST(0.0 AS DATETIME)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0.0'
+SELECT c2 = CAST(0.0 AS DATETIME) FROM t1;
+c2 = CAST(0.0 AS DATETIME)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0.0'
+Warning	1292	Incorrect datetime value: '0.0'
+DROP TABLE t1;
+#
+# Bug#35093107: virtual bool Item_temporal_with_ref::get_date Assertion
+#
+set sql_mode = '';
+CREATE TABLE t1(c1 DATETIME DEFAULT NULL, KEY(c1));
+INSERT INTO t1 VALUES('2000-05-24 15:57:23');
+SELECT c1
+FROM t1
+GROUP BY (SUBSTR(c1, 2)) WITH ROLLUP
+HAVING - 0;
+c1
+SELECT DISTINCT NULLIF(c1, FOUND_ROWS())
+FROM t1
+GROUP BY FOUND_ROWS() WITH ROLLUP;
+NULLIF(c1, FOUND_ROWS())
+2000-05-24 15:57:23
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+DROP TABLE t1;
+set sql_mode = DEFAULT;
+#
+# Bug#34889757: Value change caused by DISTINCT and date functions
+#
+CREATE TABLE t (c1 int);
+INSERT INTO t VALUES (1);
+SELECT 1 % f1
+FROM (SELECT DAYNAME('2010-07-20') AS f1
+FROM t
+WHERE DATE_ADD(TIMEDIFF('2000-08-04 02:09:39', '2002-08-11 22:00:35'),
+INTERVAL 1 YEAR) NOT IN (1)
+) AS t2;
+1 % f1
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17707:50:56'
+Warning	1292	Truncated incorrect DOUBLE value: 'Tuesday'
+Warning	1365	Division by 0
+SELECT 1 % f1
+FROM (SELECT DISTINCT DAYNAME('2010-07-20') AS `f1`
+      FROM t
+WHERE DATE_ADD(TIMEDIFF('2000-08-04 02:09:39', '2002-08-11 22:00:35'),
+INTERVAL 1 YEAR) NOT IN (1)
+) AS t2;
+1 % f1
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17707:50:56'
+Warning	1292	Truncated incorrect DOUBLE value: 'Tuesday'
+Warning	1365	Division by 0
+DROP TABLE t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -532,6 +532,19 @@ int flush_master_info(Master_info *mi, bool force, bool need_lock = true,
 void add_replica_skip_errors(const char *arg);
 void set_replica_skip_errors(char **replica_skip_errors_ptr);
 int add_new_channel(Master_info **mi, const char *channel);
+
+/*
+  Function to check whether replication from a given source MySQL version
+  is allowed for a replica running the specified local version.
+
+    @param source_ver_str  Version string reported by the source server
+    @param replica_ver_str   Version string of the local replica server
+    @return true  If the source version is compatible
+    @return false Otherwise
+*/
+[[nodiscard]] bool is_version_compatible(const char *source_ver_str,
+                                         const char *replica_ver_str);
+
 /**
   Terminates the slave threads according to the given mask.
 

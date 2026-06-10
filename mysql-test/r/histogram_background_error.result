@@ -8,7 +8,18 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
 include/save_error_log_position.inc
 INSERT INTO t1 VALUES (1), (2), (3);
-# Wait for an error to show up in the error log.
-# Verify that the error comes from the background histogram update.
+# Wait for the expected error code to show up in the error log.
+# Verify that the error code comes from the background histogram update.
 include/assert_error_log.inc [server: 1, pattern: Background histogram update on test.t1: Unable to build histogram statistics for column 'field' in table 'schema'.'table']
+#
+# Bug#38983545: Stale diagnostic area conditions should not be re-logged
+#               after subsequent background histogram updates.
+#
+SET GLOBAL DEBUG = '-d,update_histograms_failure';
+include/save_error_log_position.inc
+INSERT INTO t1 VALUES (4), (5), (6);
+# Wait for the background histogram update to complete successfully.
+# Verify that no stale errors were re-logged.
+include/assert_error_log.inc [server: 1, pattern: NONE]
+SET GLOBAL DEBUG = '+d,update_histograms_failure';
 DROP TABLE t1;

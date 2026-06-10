@@ -1,4 +1,4 @@
-/* Copyright (c) 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,9 @@
 #include "sql/mysqld.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
-#include "sql/table.h"  // TABLE_SHARE_FOREIGN_KEY_INFO
+#include "sql/table.h"                     // TABLE_SHARE_FOREIGN_KEY_INFO
+#include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "sql/trigger_chain.h"
 
 /**
   With the ON CASCADE DELETE/UPDATE clause, deleting from the parent table
@@ -47,6 +49,14 @@
   the excessive foreign key constraint before proceeding.
 */
 constexpr uint32_t FK_MAX_CASCADE_DEPTH = 15;
+
+/**
+  With the ON CASCADE DELETE/UPDATE clause and triggers on child tables,
+  multiple foreign key chains can form. This constant defines the maximum
+  number of tables allowed across such cascades. Exceeding the limit causes
+  the parent-table operation to fail.
+*/
+constexpr uint32_t FK_MAX_TABLES_IN_CASCADE_CHAIN = 30;
 
 /**
   Class to store all foreign key names during CASCADE. Used to identify
@@ -569,6 +579,21 @@ static bool is_fk_cascade(TABLE *table, enum_fk_dml_type dml_type,
 }
 
 /**
+  In stored functions/triggers, sub-statements follow the open-table
+  call flow, so query_id ends up being set on the unused TABLE instance.
+  SQL FK handling does not go through the open-table call path. Therefore,
+  we set query_id for the TABLE instance if enable_cascade_triggers=ON
+
+  @param thd    Thread descriptor
+  @param table  Table Handle
+*/
+static void set_query_id(THD *thd, TABLE *table) {
+  if (is_cascade_triggers_enabled(thd)) {
+    table->query_id = thd->query_id;
+  }
+}
+
+/**
  * @brief Function to get TABLE instance of a other table in FK relationship.
  *        Table is first searched in the open table list. If table is not
  *        opened or scan is already opened, then table is opened.
@@ -614,6 +639,8 @@ static bool get_foreign_key_table(THD *thd, const char *db_name,
                    ("get_foreign_key_table(): table = %s.%s, lock_type = %d",
                     db_name, table_name, fk_tbl->reginfo.lock_type));
         *table = fk_tbl;
+
+        set_query_id(thd, fk_tbl);
         return false;
       }
       mdl_type = MDL_SHARED_WRITE;
@@ -637,7 +664,11 @@ static bool get_foreign_key_table(THD *thd, const char *db_name,
   }
 
   *table = open_table_for_fk(thd, db_name, table_name);
-  if (*table != nullptr) *is_table_opened = true;
+  if (*table != nullptr) {
+    *is_table_opened = true;
+    (*table)->open_for_fk_name = fk_name;
+    set_query_id(thd, *table);
+  }
   return false;
 }
 
@@ -815,6 +846,123 @@ bool is_cascade_from_parent_legal(const TABLE *table_p, const KEY *key_info_p,
 }
 
 /**
+ * Extracts the current value of FK into a buffer.
+ *
+ * @param[out] out      Buffer to receive the FK columns' value.
+ * @param table         TABLE instance containing the row.
+ * @param fk            FK info structure (for column list).
+ * @param record        Row buffer to extract from (table->record[0]).
+ * @return              total number of bytes used in out
+ */
+static int extract_fk_from_record(uchar *out, const TABLE *table,
+                                  const TABLE_SHARE_FOREIGN_KEY_INFO *fk,
+                                  const uchar *record) {
+  // Find the key index in table for the referencing columns (FK columns)
+  uint key_idx =
+      get_key_index(table, fk->columns, fk->referencing_column_names);
+  const KEY *key_info = &table->key_info[key_idx];
+  int key_len = 0;
+  key_copy_fk(out, MAX_KEY_LENGTH, record, key_info, key_info, true, &key_len);
+  return key_len;
+}
+
+/**
+ * @brief Executes BEFORE triggers for cascade operations when enabled
+ *        and validate constraints if trigger updates any field.
+ *
+ * @param thd                 Thread handle.
+ * @param table               Table on which triggers should be fired.
+ * @param fk                  Foreign key information
+ * @param event               Trigger event type.
+ * @param old_row_is_record1  If record1 contains old or new field.
+ *
+ * @return true if trigger execution reports an error; false otherwise.
+ */
+static bool process_before_triggers(THD *thd, TABLE *table,
+                                    const TABLE_SHARE_FOREIGN_KEY_INFO *fk,
+                                    enum_trigger_event_type event,
+                                    bool old_row_is_record1) {
+  if (table->triggers == nullptr) return false;
+
+  Trigger_chain *tc = table->triggers->get_triggers(event, TRG_ACTION_BEFORE);
+  if (tc == nullptr) return false;
+
+  DBUG_PRINT("fk", ("SQL FK firing BEFORE %s trigger on child %s",
+                    (event == TRG_EVENT_DELETE) ? "DELETE" : "UPDATE",
+                    table->s->table_name.str));
+
+  uchar fk_value_before[MAX_KEY_LENGTH];
+  if (event == TRG_EVENT_UPDATE) {
+    extract_fk_from_record(fk_value_before, table, fk, table->record[0]);
+  }
+
+  table->triggers->enable_fields_temporary_nullability(thd);
+
+  bool rc = table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
+                                              old_row_is_record1);
+
+  table->triggers->disable_fields_temporary_nullability();
+
+  if (!rc && tc->has_updated_trigger_fields(table->write_set)) {
+    uchar fk_value_after[MAX_KEY_LENGTH];
+    int fk_len =
+        extract_fk_from_record(fk_value_after, table, fk, table->record[0]);
+    rc = memcmp(fk_value_before, fk_value_after, fk_len) != 0;
+    if (rc) {
+      my_error(ER_FK_CASCADE_TRIGGER_UPDATING_FK_COLUMNS_NOT_SUPPORTED, MYF(0));
+    }
+
+    /*
+      Re-calculate generated fields to cater for cases when base columns are
+      updated by the triggers.
+    */
+    if (!rc && table->has_gcol()) {
+      // Dont save old value while re-calculating generated fields.
+      // Before image will already be saved in the first calculation.
+      table->blobs_need_not_keep_old_value();
+      rc = update_generated_write_fields(table->write_set, table);
+    }
+
+    if (!rc) {
+      rc = check_record(thd, table->field);
+    }
+
+    if (!rc) {
+      if (invoke_table_check_constraints(thd, table)) {
+        rc = thd->is_error();
+      }
+    }
+  }
+
+  table->triggers->reset_field_nulls();
+
+  return rc;
+}
+
+/**
+ * @brief Executes AFTER triggers for cascade operations when enabled.
+ *
+ * @param thd                 Thread handle.
+ * @param table               Table on which triggers should be fired.
+ * @param event               Trigger event type.
+ * @param old_row_is_record1  If record1 contains old or new field.
+ *
+ * @return true if trigger execution reports an error; false otherwise.
+ */
+static bool execute_after_triggers(THD *thd, TABLE *table,
+                                   enum_trigger_event_type event,
+                                   bool old_row_is_record1) {
+  if (table->triggers == nullptr) return false;
+
+  DBUG_PRINT("fk", ("SQL FK firing AFTER %s trigger on child %s",
+                    (event == TRG_EVENT_DELETE) ? "DELETE" : "UPDATE",
+                    table->s->table_name.str));
+
+  return table->triggers->process_triggers(thd, event, TRG_ACTION_AFTER,
+                                           old_row_is_record1);
+}
+
+/**
  * @brief Helper function to apply ON DELETE/ON UPDATE RESTRICT or NOACTION to
  *        child table on DML operation.
  * Note: ON DELETE|UPDATE SET DEFAULT also behaves like RESTRICT
@@ -878,6 +1026,12 @@ static bool on_delete_cascade(THD *thd, TABLE *table_c,
                       fk_c->fk_name.str));
 
     do {
+      if (is_cascade_triggers_enabled(thd) &&
+          process_before_triggers(thd, table_c, fk_c, TRG_EVENT_DELETE,
+                                  false)) {
+        return true;
+      }
+
       // binlog sequence(child binlog is applied before parent at replica)
       // during CASCADE breaks foreign key check, so FK checks are skipped
       // for binlog events generated during CASCADE.
@@ -891,6 +1045,11 @@ static bool on_delete_cascade(THD *thd, TABLE *table_c,
 
       if (check_all_child_fk_ref(thd, table_c, dml_type, chain)) {
         return thd->is_error();
+      }
+
+      if (is_cascade_triggers_enabled(thd) &&
+          execute_after_triggers(thd, table_c, TRG_EVENT_DELETE, false)) {
+        return true;
       }
     } while (!(*error = table_c->file->ha_index_next_same(table_c->record[0],
                                                           key_value, key_len)));
@@ -997,6 +1156,11 @@ static bool on_update_cascade(THD *thd, const TABLE *table_p, TABLE *table_c,
         return report_row_referenced_error(thd, table_c, fk_c);
       }
 
+      if (is_cascade_triggers_enabled(thd) &&
+          process_before_triggers(thd, table_c, fk_c, TRG_EVENT_UPDATE, true)) {
+        return true;
+      }
+
       // binlog sequence(child binlog is applied before parent at replica)
       // during CASCADE breaks foreign key check, so FK checks are skipped
       // for binlog events generated during CASCADE.
@@ -1010,8 +1174,20 @@ static bool on_update_cascade(THD *thd, const TABLE *table_p, TABLE *table_c,
       DBUG_PRINT("fk",
                  ("on_update_cascade(): Updated new value to child table %s.%s",
                   table_c->s->db.str, table_c->s->table_name.str));
-      if (check_all_child_fk_ref(thd, table_c, dml_type, chain)) {
+
+      // BEFORE UPDATE triggers could have modified FK columns referring to
+      // other parent tables using SET NEW.column syntax, so
+      // check_all_parent_fk_ref() call is required.
+      if (check_all_parent_fk_ref(thd, table_c, enum_fk_dml_type::FK_UPDATE,
+                                  fk_c) ||
+          check_all_child_fk_ref(thd, table_c, enum_fk_dml_type::FK_UPDATE,
+                                 chain)) {
         return thd->is_error();
+      }
+
+      if (is_cascade_triggers_enabled(thd) &&
+          execute_after_triggers(thd, table_c, TRG_EVENT_UPDATE, true)) {
+        return true;
       }
     } while (!(*error = table_c->file->ha_index_next_same(table_c->record[0],
                                                           key_value, key_len)));
@@ -1100,6 +1276,11 @@ static bool on_delete_on_update_set_null(THD *thd, const TABLE *table_p,
         return report_row_referenced_error(thd, table_c, fk_c);
       }
 
+      if (is_cascade_triggers_enabled(thd) &&
+          process_before_triggers(thd, table_c, fk_c, TRG_EVENT_UPDATE, true)) {
+        return true;
+      }
+
       // binlog sequence(child binlog is applied before parent at replica)
       // during CASCADE breaks foreign key check, so FK checks are skipped
       // for binlog events generated during CASCADE.
@@ -1114,9 +1295,16 @@ static bool on_delete_on_update_set_null(THD *thd, const TABLE *table_p,
                         "%s.%s null value",
                         table_c->s->db.str, table_c->s->table_name.str));
 
-      if (check_all_child_fk_ref(thd, table_c, enum_fk_dml_type::FK_UPDATE,
+      if (check_all_parent_fk_ref(thd, table_c, enum_fk_dml_type::FK_UPDATE,
+                                  fk_c) ||
+          check_all_child_fk_ref(thd, table_c, enum_fk_dml_type::FK_UPDATE,
                                  chain)) {
         return thd->is_error();
+      }
+
+      if (is_cascade_triggers_enabled(thd) &&
+          execute_after_triggers(thd, table_c, TRG_EVENT_UPDATE, true)) {
+        return true;
       }
     } while (!(*error = table_c->file->ha_index_next_same(table_c->record[0],
                                                           key_value, key_len)));
@@ -1230,9 +1418,26 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
                                    table_p->s->table_name.str, parent_key_idx);
         DBUG_PRINT("fk", ("Foreign_key_chain visiting parent: %s %d",
                           table_p->s->table_name.str, parent_key_idx));
+      } else if (dml_type == enum_fk_dml_type::FK_DELETE &&
+                 dd::Foreign_key::RULE_RESTRICT != fk_c->delete_rule &&
+                 dd::Foreign_key::RULE_SET_DEFAULT != fk_c->delete_rule &&
+                 dd::Foreign_key::RULE_NO_ACTION != fk_c->delete_rule) {
+        if (chain->table_exists(table_c->s->db.str,
+                                table_c->s->table_name.str)) {
+          DBUG_PRINT("fk", ("delete cascade on same table detected: %s",
+                            table_c->s->table_name.str));
+          return false;
+        }
+        // Add parent table and key info into the chain
+        chain->add_parent_table(table_p->s->db.str, table_p->s->table_name.str);
+        chain->mark_parent_visited(table_p->s->db.str,
+                                   table_p->s->table_name.str, parent_key_idx);
+        DBUG_PRINT("fk", ("Foreign_key_chain visiting parent: %s %d",
+                          table_p->s->table_name.str, parent_key_idx));
       }
       chain->add_foreign_key(table_c->s->db.str, fk_c->fk_name.str);
       fk_added_to_chain = true;
+      thd->inc_fk_cascade_chain_tables();
     }
     DBUG_PRINT("fk", ("check_child_fk_ref(): Added %s to Foreign_key_chain %d",
                       fk_c->fk_name.str, chain->size()));
@@ -1240,6 +1445,7 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
   auto cleanup_chain_guard = create_scope_guard([&] {
     if (chain && fk_added_to_chain) {
       chain->remove_foreign_key(table_c->s->db.str, fk_c->fk_name.str);
+      thd->dec_fk_cascade_chain_tables();
       DBUG_PRINT("fk",
                  ("check_child_fk_ref(): Removed %s from Foreign_key_chain %d",
                   fk_c->fk_name.str, chain->size()));
@@ -1297,6 +1503,13 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
     // produce the same behaviour as the InnoDB FK recursion depth check.
     if (chain->size() >= FK_MAX_CASCADE_DEPTH) {
       my_error(ER_FK_DEPTH_EXCEEDED, MYF(0), FK_MAX_CASCADE_DEPTH);
+      return true;
+    }
+
+    // Check if cascade chain with trigger cascade not exceed the limit
+    if (thd->fk_cascade_chain_tables() >= FK_MAX_TABLES_IN_CASCADE_CHAIN) {
+      my_error(ER_FK_MAX_TABLES_IN_CASCADE_CHAIN_EXCEEDED, MYF(0),
+               FK_MAX_TABLES_IN_CASCADE_CHAIN);
       return true;
     }
 
@@ -1445,6 +1658,46 @@ static bool check_all_child_fk_ref(THD *thd, const TABLE *table_p,
               }
             });
 
+        const bool is_cascade_action = (lock_type == F_WRLCK);
+        if (is_cascade_action) {
+          /*
+            For self referencing foreign key, table handle is opened
+            during execution phase, so second handle is not added to
+            query table list. As prelocking is done on base table
+            handle, triggers can be loaded here on second table handle for
+            cascade operation.
+          */
+          if (is_table_opened && table_c->s == table_p->s) {
+            if (table_c->triggers &&
+                !table_c->triggers->has_load_been_finalized()) {
+              if (table_c->triggers->finalize_load(thd)) return true;
+            }
+          }
+
+          // Updating a table in a FK CASCADE action induced by a trigger or
+          // stored function is not allowed as the table is already used during
+          // FK cascade handling.
+          if (is_cascade_triggers_enabled(thd)) {
+            for (TABLE *table = thd->open_tables; table != nullptr;
+                 table = table->next) {
+              if (table->s == table_c->s && table->query_id &&
+                  table->query_id != table_c->query_id) {
+                my_error(ER_CANT_UPDATE_USED_TABLE_IN_FK_CASCADE, MYF(0),
+                         table_c->s->table_name.str);
+                return true;
+              }
+            }
+          }
+        }
+
+        auto trigger_load_guard =
+            create_scope_guard([table_c, &is_table_opened]() {
+              if (is_table_opened && table_c->triggers &&
+                  table_c->triggers->has_load_been_finalized()) {
+                table_c->triggers->~Table_trigger_dispatcher();
+              }
+            });
+
         if (check_child_fk_ref(thd, table_p, table_c, fk_c, dml_type, chain))
           return true;
         break;
@@ -1534,14 +1787,18 @@ static bool check_parent_fk_ref(THD *thd, const TABLE *table_c, TABLE *table_p,
     key_map = make_prev_keypart_map(fk->columns);
   }
 
-  auto close_index_guard =
-      create_scope_guard([&] { table_p->file->ha_index_end(); });
-
+  DBUG_EXECUTE_IF("check_parent_fk_index_init_failure",
+                  { DBUG_SET("+d,ha_index_init_fail"); });
   // Check if value exists.
   if ((error = table_p->file->ha_index_init(parent_key_idx, true))) {
     table_p->file->print_error(error, MYF(0));
+    DBUG_EXECUTE_IF("check_parent_fk_index_init_failure",
+                    { DBUG_SET("-d,ha_index_init_fail"); });
     return true;
   }
+
+  auto close_index_guard =
+      create_scope_guard([table_p] { table_p->file->ha_index_end(); });
 
   error = table_p->file->ha_index_read_map(table_p->record[0], key_value,
                                            key_map, HA_READ_KEY_EXACT);
@@ -1581,7 +1838,8 @@ static bool skip_foreign_key_checks(THD *thd, const TABLE *table) {
 }
 
 bool check_all_parent_fk_ref(THD *thd, const TABLE *table_c,
-                             enum_fk_dml_type dml_type) {
+                             enum_fk_dml_type dml_type,
+                             const TABLE_SHARE_FOREIGN_KEY_INFO *ignore_fk) {
   if (skip_foreign_key_checks(thd, table_c)) return false;
 
   DBUG_PRINT("fk", ("check_all_parent_fk_ref() on table: %s.%s",
@@ -1590,6 +1848,12 @@ bool check_all_parent_fk_ref(THD *thd, const TABLE *table_c,
   const TABLE_SHARE *share_c = table_c->s;
   for (TABLE_SHARE_FOREIGN_KEY_INFO *fk = share_c->foreign_key;
        fk < share_c->foreign_key + share_c->foreign_keys; ++fk) {
+    /**
+      During FK cascade, skip parent table foreign key value check because
+      parent row is updated after updating the child row.
+    */
+    if (fk == ignore_fk) continue;
+
     bool self_ref_key =
         ((my_strcasecmp(table_alias_charset, table_c->s->db.str,
                         fk->referenced_table_db.str) == 0) &&
@@ -1663,12 +1927,17 @@ bool check_all_child_fk_ref(THD *thd, const TABLE *table,
                             enum_fk_dml_type dml_type) {
   if (skip_foreign_key_checks(thd, table)) return false;
 
+  if (!thd->in_sub_stmt) thd->reset_fk_cascade_chain_tables();
+
   return check_all_child_fk_ref(thd, table, dml_type, nullptr);
 }
 
 bool is_foreign_key_table_opened(THD *thd, const char *db_name,
-                                 const char *table_name, const char *fk_name) {
+                                 const char *table_name, const char *fk_name,
+                                 bool *is_unused_table) {
   TABLE *fk_table =
       find_fk_table_from_open_tables(thd, db_name, table_name, fk_name);
-  return fk_table != nullptr;
+  if (fk_table == nullptr) return false;
+  *is_unused_table = static_cast<bool>(fk_table->query_id == 0);
+  return true;
 }

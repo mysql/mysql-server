@@ -1,0 +1,53 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.metrics_reader_frequency_1;
+@@global.telemetry.metrics_reader_frequency_1
+10
+SELECT @@session.telemetry.metrics_reader_frequency_1;
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_1' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.metrics_reader_frequency_1';
+Variable_name	Value
+telemetry.metrics_reader_frequency_1	10
+SHOW SESSION VARIABLES LIKE 'telemetry.metrics_reader_frequency_1';
+Variable_name	Value
+telemetry.metrics_reader_frequency_1	10
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.metrics_reader_frequency_1';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.metrics_reader_frequency_1	10
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.metrics_reader_frequency_1';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.metrics_reader_frequency_1	10
+SET GLOBAL telemetry.metrics_reader_frequency_1
+='123';
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_1' is a read only variable
+SET SESSION telemetry.metrics_reader_frequency_1
+='123';
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_1' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_reader_frequency_1
+= 123;
+SELECT @@global.telemetry.metrics_reader_frequency_1;
+@@global.telemetry.metrics_reader_frequency_1
+123
+SET PERSIST telemetry.metrics_reader_frequency_1
+= 456;
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_1' is a read only variable
+SET PERSIST_ONLY telemetry.metrics_reader_frequency_1
+= 456;
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.metrics_reader_frequency_1;
+@@global.telemetry.metrics_reader_frequency_1
+456
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

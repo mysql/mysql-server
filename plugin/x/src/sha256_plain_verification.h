@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,10 +38,11 @@ class Sha256_plain_verification : public iface::Account_verification {
   explicit Sha256_plain_verification(iface::SHA256_password_cache *cache)
       : m_sha256_password_cache(cache) {}
   const std::string &get_salt() const override { return k_empty_salt; }
-  bool verify_authentication_string(
-      const std::string &user, const std::string &host,
-      const std::string &client_string,
-      const std::string &db_string) const override;
+  bool verify_authentication_string(const std::string &user,
+                                    const std::string &host,
+                                    const std::string &client_string,
+                                    const std::string &db_string,
+                                    const bool can_update_cache) const override;
 
  private:
   static const std::string k_empty_salt;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2025, Oracle and/or its affiliates.
+Copyright (c) 2007, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -6225,7 +6225,7 @@ static ST_FIELD_INFO innodb_columns_fields_info[] = {
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define SYS_COLUMN__PRTYPE 4
+#define SYS_COLUMN_PRTYPE 4
     {STRUCT_FLD(field_name, "PRTYPE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
@@ -6332,7 +6332,7 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
 
   OK(fields[SYS_COLUMN_MTYPE]->store(column->mtype));
 
-  OK(fields[SYS_COLUMN__PRTYPE]->store(column->prtype));
+  OK(fields[SYS_COLUMN_PRTYPE]->store(column->prtype));
 
   OK(fields[SYS_COLUMN_COLUMN_LEN]->store(column->len));
 

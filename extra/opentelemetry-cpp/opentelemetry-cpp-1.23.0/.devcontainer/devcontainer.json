@@ -1,0 +1,31 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.162.0/containers/javascript-node
+{
+	"name": "opentelemetry-cpp",
+	"build": {
+		"context": "..",
+		"dockerfile": "Dockerfile.dev",
+		"args": {
+			"USER_UID": "${localEnv:OTEL_CPP_DEVCONTAINER_USER_UID:1000}",
+			"USER_GID": "${localEnv:OTEL_CPP_DEVCONTAINER_USER_GID:1000}",
+			"INSTALL_PACKAGES": "${localEnv:OTEL_CPP_DEVCONTAINER_INSTALL_PACKAGES:}",
+			"CXX_STANDARD": "${localEnv:OTEL_CPP_DEVCONTAINER_CXX_STANDARD:17}"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-azuretools.vscode-docker",
+				"ms-vscode.cpptools-extension-pack"
+			],
+			"settings": {
+				"terminal.integrated.shell.linux": "/bin/bash",
+			}
+		}
+	},
+
+	"remoteUser": "devuser"
+}

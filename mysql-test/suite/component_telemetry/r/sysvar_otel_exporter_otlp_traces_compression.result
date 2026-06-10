@@ -1,0 +1,48 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_compression;
+@@global.telemetry.otel_exporter_otlp_traces_compression
+none
+SELECT @@session.telemetry.otel_exporter_otlp_traces_compression;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_compression' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_compression';
+Variable_name	Value
+telemetry.otel_exporter_otlp_traces_compression	none
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_compression';
+Variable_name	Value
+telemetry.otel_exporter_otlp_traces_compression	none
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_traces_compression';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_traces_compression	none
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_traces_compression';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_traces_compression	none
+SET GLOBAL telemetry.otel_exporter_otlp_traces_compression='gzip';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_compression' is a read only variable
+SET SESSION telemetry.otel_exporter_otlp_traces_compression='gzip';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_compression' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_compression='gzip';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_compression;
+@@global.telemetry.otel_exporter_otlp_traces_compression
+gzip
+SET PERSIST telemetry.otel_exporter_otlp_traces_compression='gzip';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_compression' is a read only variable
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_traces_compression='gzip';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_compression;
+@@global.telemetry.otel_exporter_otlp_traces_compression
+gzip
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

@@ -147,14 +147,22 @@ CREATE TABLE t1(j JSON);
 
 INSERT INTO t1 VALUES('[]'), ('null');
 
+# The empty array '[]' is fine, but 'null' is not an array and can't be indexed
 --error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
-CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
+CREATE INDEX mv_idx_items_of_array ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
 
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (CAST('[9,8,0,1]' AS JSON));
+# The following example is difficult in several ways:
+# The rows with '[]' produce no index records
+# The row '[6,2]' produces 2 index records in opposite order
+# The row '[5]' should get properly indexed
+INSERT INTO t1 VALUES ('[]'), ('[6,2]'), ('[]'), ('[1,4]'), ('[5]');
 
-CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
+CREATE INDEX mv_idx_items_of_array ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
+
+EXPLAIN SELECT * FROM t1 WHERE 5 MEMBER OF (j->'$');
+SELECT * FROM t1 FORCE INDEX(mv_idx_items_of_array) WHERE 5 MEMBER OF (j->'$');
 
 DROP TABLE t1;
 

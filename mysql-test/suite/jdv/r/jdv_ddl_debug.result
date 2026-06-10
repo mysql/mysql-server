@@ -1,0 +1,19 @@
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT REFERENCES t1(c1));
+SET DEBUG = "+d,simulate_context_prepare_fail";
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id": t2.C1,
+"C2":  t2.C2,
+"t2": (
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"C1": t1.C1,
+"C2": t1.C2
+)
+FROM t1
+WHERE t1.C1 = t2.C1
+)
+) FROM t2;
+ERROR HY000: JSON duality view context initialization failed.
+SET DEBUG = "-d, simulate_context_prepare_fail";
+DROP TABLE t1, t2;

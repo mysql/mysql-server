@@ -101,6 +101,35 @@ eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log
 
 
+--echo #
+--echo # Bug#37173479: ORDER BY reduction should be reflected in EXPLAIN Note 1003
+--echo #
+
+CREATE TABLE t_order_reduce(pk INT PRIMARY KEY, a INT, b INT)
+  SECONDARY_ENGINE=mock;
+INSERT INTO t_order_reduce VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+ALTER TABLE t_order_reduce SECONDARY_LOAD;
+ANALYZE TABLE t_order_reduce;
+SET secondary_engine_cost_threshold = 0;
+
+--echo # Complete ORDER BY elision: pk=1 makes a,b constant via PK FD.
+--echo # Note 1003 should not contain ORDER BY in hypergraph optimizer.
+EXPLAIN SELECT * FROM t_order_reduce WHERE pk = 1 ORDER BY a, b;
+
+--echo # Partial ORDER BY reduction with join: pk=1 makes a,b constant,
+--echo # but t2.x is not. Note 1003 should only show ORDER BY t2.x in hypergraph optimizer.
+CREATE TABLE t_order_extra(x INT) SECONDARY_ENGINE=mock;
+INSERT INTO t_order_extra VALUES (1), (2), (3);
+ALTER TABLE t_order_extra SECONDARY_LOAD;
+ANALYZE TABLE t_order_extra;
+EXPLAIN SELECT t_order_reduce.a, t_order_extra.x
+  FROM t_order_reduce JOIN t_order_extra
+  WHERE t_order_reduce.pk = 1
+  ORDER BY t_order_reduce.a, t_order_extra.x;
+
+SET secondary_engine_cost_threshold = default;
+DROP TABLE t_order_reduce, t_order_extra;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,7 @@
 
 #include <vector>
 
-#include "mysql/harness/stdx/monitor.h"
-
 #include "collector/mysql_cache_manager.h"
-#include "helper/wait_variable.h"
 #include "mrs/authentication/authorize_manager.h"
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
@@ -44,6 +41,9 @@
 #include "mrs/interface/query_monitor_factory.h"
 #include "mrs/observability/entities_manager.h"
 #include "mrs/rest/response_cache.h"
+
+#include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/utility/wait_variable.h"
 
 namespace mrs {
 namespace database {
@@ -68,6 +68,9 @@ class SchemaMonitor {
   void reset();
 
  private:
+  template <typename T>
+  using WaitableVariable = mysql_harness::utility::WaitableVariable<T>;
+
   class MetadataSourceDestination {
    public:
     MetadataSourceDestination(collector::MysqlCacheManager *cache,

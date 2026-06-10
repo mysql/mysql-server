@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -301,7 +301,12 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         the integer constant logic.
       */
       my_decimal d_buff;
-      if (d == nullptr) d = (*const_val)->val_decimal(&d_buff);
+      if (d == nullptr) {
+        d = (*const_val)->val_decimal(&d_buff);
+      }
+      if (d == nullptr) {
+        return true;
+      }
       if (ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC) {
         /*
           Round up (or down if field is the right operand) the decimal to next
@@ -481,8 +486,9 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
     case INT_RESULT: {
       my_decimal tmp;
       const auto *const d = (*const_val)->val_decimal(&tmp);
-      if (thd->is_error()) return true;
-      assert(d != nullptr);
+      if (d == nullptr) {
+        return thd->is_error();
+      }
       assert(decimal_actual_fraction(d) == 0);
       const int actual_intg = decimal_intg(d);
 
@@ -542,10 +548,11 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
 
       // Dictionary info about decimal field:
       // Compute actual (minimal) decimal type of the constant
-      my_decimal buff, *d;
-      d = (*const_val)->val_decimal(&buff);
-      if ((*const_val)->null_value) return false;
-      assert(d != nullptr);
+      my_decimal buff;
+      my_decimal *d = (*const_val)->val_decimal(&buff);
+      if (d == nullptr) {
+        return thd->is_error();
+      }
       const int actual_frac = decimal_actual_fraction(d);
       const int actual_intg = decimal_intg(d);
       const bool overflow = actual_intg > f_intg;
@@ -927,7 +934,8 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
             ltime.second_part = 0;
             *place = RP_INSIDE_TRUNCATED;
           }
-          i = new (thd->mem_root) Item_date_literal(&ltime);
+          Date_val date = Date_val(ltime);
+          i = new (thd->mem_root) Item_date_literal(date);
         } else if (!check_time_zone_convertibility(ltime)) {
           Datetime_val dt;
           *implicit_cast<MYSQL_TIME *>(&dt) = ltime;
@@ -972,8 +980,7 @@ static bool analyze_time_field_constant(THD *thd, Item **const_val) {
   */
   Time_val time;
   if ((*const_val)->val_time(&time)) return true;
-  Item *i =
-      new (thd->mem_root) Item_time_literal(&time, time.actual_decimals());
+  Item *i = new (thd->mem_root) Item_time_literal(time, time.actual_decimals());
   if (i == nullptr) return true;
   thd->change_item_tree(const_val, i);
   return false;

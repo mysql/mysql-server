@@ -172,6 +172,8 @@ typedef struct PSI_digest_locker *(*digest_start_v1_t)(
     struct PSI_statement_locker *locker);
 typedef void (*digest_end_v1_t)(struct PSI_digest_locker *locker,
                                 const struct sql_digest_storage *digest);
+typedef void (*digest_set_v6_t)(struct PSI_statement_locker *locker,
+                                const struct sql_digest_storage *digest);
 typedef struct PSI_sp_share *(*get_sp_share_v1_t)(
     unsigned int object_type, const char *schema_name,
     unsigned int schema_name_length, const char *object_name,
@@ -207,6 +209,9 @@ struct PSI_statement_service_v4 {
   void *this_interface_is_obsolete;
 };
 struct PSI_statement_service_v5 {
+  void *this_interface_is_obsolete;
+};
+struct PSI_statement_service_v6 {
   register_statement_v1_t register_statement;
   get_thread_statement_locker_v5_t get_thread_statement_locker;
   refine_statement_v1_t refine_statement;
@@ -246,6 +251,7 @@ struct PSI_statement_service_v5 {
   drop_sp_v1_t drop_sp;
   notify_statement_query_attributes_v5_t notify_statement_query_attributes;
   statement_abort_telemetry_v5_t statement_abort_telemetry;
+  digest_set_v6_t digest_set;
 };
-typedef struct PSI_statement_service_v5 PSI_statement_service_t;
+typedef struct PSI_statement_service_v6 PSI_statement_service_t;
 extern PSI_statement_service_t *psi_statement_service;

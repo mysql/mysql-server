@@ -1,0 +1,428 @@
+
+#Test file contains cases to verify delete operations on JSON duality view.
+
+--echo ################################################################################
+--echo # UPDATE statement restrictions for JSON duality view.
+--echo ################################################################################
+
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+              "_id" : f3,
+               "f4" : f4
+            ) FROM p_t2 ;
+
+--error ER_JDV_OPERATION_NOT_SUPPORTED
+DELETE LOW_PRIORITY FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+
+--error ER_JDV_OPERATION_NOT_SUPPORTED
+DELETE IGNORE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+
+--error ER_JDV_OPERATION_NOT_SUPPORTED
+DELETE p_dv1, p_t2 FROM p_dv1 INNER JOIN p_t2;
+
+--error ER_JDV_OPERATION_NOT_SUPPORTED
+DELETE FROM p_dv1;
+SELECT * FROM p_t2;
+
+DROP TABLE p_t2;
+DROP VIEW p_dv1;
+
+
+--echo ################################################################################
+--echo # Deleting Root Object using PK column of Root Object.
+--echo # Root object - Foreign Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                    '_id' : f11,
+                    'f12' : f12,
+                    'childN' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                'f1' : f1,
+                                                'f2' : f2
+                                            ) FROM p_t1  WHERE p_t1.f1 = p_t2.f11)
+                ) FROM p_t2 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+SELECT * FROM p_t1;
+SELECT * FROM p_t2;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting Root Object using column of Sub-Object.
+--echo # Root object - Foreign Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 5), (2, 5);
+INSERT INTO p_t2 VALUES (1, 5), (2, 5);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                    '_id' : f11,
+                    'f12' : f12,
+                    'childN' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                'f1' : f1,
+                                                'f2' : f2
+                                            ) FROM p_t1  WHERE p_t1.f1 = p_t2.f11)
+                ) FROM p_t2 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f2') = 500;
+SELECT * FROM p_dv1;
+
+--error ER_JDV_OPERATION_NOT_SUPPORTED
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f2') = 5;
+SELECT * FROM p_dv1;
+SELECT * FROM p_t1 ORDER BY f1;
+SELECT * FROM p_t2 ORDER BY f11;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object when referencing Sub-object still exits.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                    'f11' : f11,
+                                                    'f12' : f12
+                                                )) FROM p_t2
+                                                WHERE p_t1.f1 = p_t2.f11)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object when referencing Sub-object still exits.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                    'f11' : f11,
+                                                    'f12' : f12
+                                                )) FROM p_t2  WHERE p_t1.f1 = p_t2.f11)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object when referencing Sub-object still exits.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                    'f11' : f11,
+                                                    'f12' : f12
+                                                ) FROM p_t2
+                                                WHERE p_t1.f1 = p_t2.f11)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object using sub-object column when referencing Sub-object
+--echo # still exits.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                    'f11' : f11,
+                                                    'f12' : f12
+                                                )) FROM p_t2  WHERE p_t1.f1 = p_t2.f11)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object using sub-object column when referencing Sub-object
+--echo # still exits.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                    'f11' : f11,
+                                                    'f12' : f12
+                                                )) FROM p_t2  WHERE p_t1.f1 = p_t2.f11)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object using sub-object column when referencing Sub-object
+--echo # still exits.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                    'f11' : f11,
+                                                    'f12' : f12
+                                                ) FROM p_t2
+                                                WHERE p_t1.f1 = p_t2.f11)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f11') = 100;
+SELECT * FROM p_dv1;
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f11') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object. Sub-object's non-PK column references Root object.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                    'f11' : f11,
+                                                    'f13' : f13
+                                                )) FROM p_t2  WHERE p_t1.f1 = p_t2.f12)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting PK Root Object using Sub-object's column. Sub-object's
+--echo # non-PK column references Root object.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                        '_id' : f1,
+                        'f2' : f2,
+                        'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                    'f11' : f11,
+                                                    'f13' : f13
+                                                )) FROM p_t2  WHERE p_t1.f1 = p_t2.f12)
+                   ) FROM p_t1 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 100;
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+--echo # Deleting Root Object. Non-PK column of sub-object referencing Root object.
+--echo # Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Primary Key   Table annotations: READ ONLY
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+--echo ################################################################################
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2 ;
+
+SELECT * FROM p_dv1;
+
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_DELETE_TAG
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+
+--echo ################################################################################
+DROP VIEW p_dv1;

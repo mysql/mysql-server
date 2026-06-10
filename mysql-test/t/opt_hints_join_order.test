@@ -684,4 +684,27 @@ WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
 eval $query;
 eval EXPLAIN $query;
 
+--echo # Bug #116084 Uniform syntax of join order and table hints
+
+let $query=
+SELECT /*+ QB_NAME(qb) JOIN_PREFIX(@qb t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+      ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+eval EXPLAIN $query;
+
+let $query=
+SELECT /*+ QB_NAME(qb) JOIN_SUFFIX(@qb t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+      ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+eval EXPLAIN $query;
+
+let $query=
+SELECT /*+ QB_NAME(qb) JOIN_ORDER(@qb t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+      ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+eval EXPLAIN $query;
+
 DROP TABLE t1, t2, t4;

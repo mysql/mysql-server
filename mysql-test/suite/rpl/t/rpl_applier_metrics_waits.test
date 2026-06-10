@@ -1,0 +1,463 @@
+# ==== Purpose ====
+#
+# Testing all the waiting metrics of replication_applier_metrics
+# Testing for base metrics of the same table is done at:
+#   - rpl_applier_metrics_basic.test
+#
+# ==== Requirements ====
+#
+# R1. When installed, after the channel is restarted, the table
+#     exposes time-related performance metrics for the channel,
+#      allowing the user to diagnose where the applier is spending time
+#
+# ==== Implementation ====
+#
+# 1. Install the plugin in the replica server
+#    Reduce the number of workers to 2
+#    Create 2 tables
+# 2. Cause a dependency blockage
+#    Check the table shows this
+# 3. Cause shortage of workers
+#    Check the table shows this
+# 4. Test waits for full worker queues
+#    Check the table shows this
+# 5. Test out of memory on worker queues scenarios
+#    Check the table shows this
+# 6. Cause a commit order wait
+#    Check the table shows this
+# 7. Test that metrics values are kept after restarting the applier
+# 8. Cleanup
+#
+# ==== References ====
+#
+# WL#15620:  MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test scenarios need to control the numbers and sizes of events.
+--source include/have_binlog_format_row.inc
+
+# Test scenarios are constructed assuming replica_preserve_commit_order=1.
+--source include/have_replica_preserve_commit_order.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Install the plugin in the replica server
+--echo #    Reduce the number of workers to 2
+--echo #    Create 2 tables
+
+--source include/rpl/connection_replica.inc
+
+--let $sysvars_to_save = [ "GLOBAL.replica_parallel_workers" ]
+--source include/save_sysvars.inc
+SET @@GLOBAL.replica_parallel_workers = 2;
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+# Make the dependency counts deterministic
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 (a) VALUES(1);
+
+--source include/rpl/sync_to_replica.inc
+
+--let $from_ch = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--echo
+--echo ##############################################################
+--echo # 2. Make coordinator wait on a transaction dependency
+--echo #    Check the table shows this
+
+--source include/rpl/connection_replica1.inc
+
+# block the update to t1
+LOCK TABLE t1 READ;
+
+--source include/rpl/connection_source.inc
+
+# Coordinator will schedule the first transation, which will block. Then,
+# coordinator wants to schedule the second transction, and has to wait for
+# the dependency.
+UPDATE t1 SET a = 11 WHERE a = 1;
+UPDATE t1 SET a = 21 WHERE a = 11;
+
+--source include/rpl/connection_replica.inc
+
+# The first transaction since channel start always performs a pointless wait on
+# a dependency, even if there is no preceding transaction to wait for. This
+# increments the counter to 1. Hence the "real" wait in this scenario increments
+# the counter to 2.
+--let $assert_text = Eventually, coordinator increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT to 2
+--let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increments TRANSACTIONS_ONGOING_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, receiver increments TRANSACTIONS_PENDING_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME to nonzero.
+--let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME $from_ch] > 0
+--source include/assert_eventually.inc
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $wait_condition = SELECT TRANSACTIONS_COMMITTED_COUNT = 4 $from_ch
+--source include/wait_condition.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Cause shortage of workers
+--echo #    Check the table shows this
+
+# Block the inserts on t1
+LOCK TABLE t1 WRITE;
+
+--source include/rpl/connection_source.inc
+
+# Coordinator will schedule the first two transactions, which will block.
+# Then coordinator wants to schedule the third transactions, and has to wait
+# for available workers.
+INSERT INTO t1 (a) VALUES(2);
+INSERT INTO t1 (a) VALUES(3);
+INSERT INTO t1 (a) VALUES(4);
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, receiver increases TRANSACTIONS_PENDING_COUNT to 3
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 3
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_ONGOING_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increases WAITS_FOR_AVAILABLE_WORKER_COUNT to 1
+--let $assert_cond = [SELECT WAITS_FOR_AVAILABLE_WORKER_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increases WAITS_FOR_AVAILABLE_WORKER_SUM_TIME to nonzero
+--let $assert_cond = [SELECT WAITS_FOR_AVAILABLE_WORKER_SUM_TIME $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $time = `SELECT WAITS_FOR_AVAILABLE_WORKER_SUM_TIME $from_ch`
+--let $assert_text = Coordinator keeps increasing WAITS_FOR_AVAILABLE_WORKER_SUM_TIME while waiting
+--let $assert_cond = [SELECT WAITS_FOR_AVAILABLE_WORKER_SUM_TIME $from_ch] > $time
+--source include/assert_eventually.inc
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $wait_condition = SELECT TRANSACTIONS_COMMITTED_COUNT = 7 $from_ch
+--source include/wait_condition.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Test waiting for a full worker queue
+--echo #    Check the table shows this
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t2(c1 INT UNSIGNED PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica1.inc
+
+# block the inserts on t2
+LOCK TABLE t2 WRITE;
+
+--source include/rpl/connection_source.inc
+
+# Coordinator will schedule events until the worker queue is full. Usually, the
+# worker would consume the queue which would make place in it where the
+# coordinator can submit more events. But now the worker is blocked by the table
+# lock and therefore will not consume events. Therefore, once the coordinator
+# has filled the queue, it will wait for more available slots.
+
+# Binlog compression would compress everything into one event, so the queues
+# would not become full. Disabling compression for this part of the test.
+--let $old_binlog_transaction_compression = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = 0;
+
+# Max queue size is 16384 "job items" (events).
+# Each insert results in two events (table map + row).
+BEGIN;
+--let $row_num = 2
+while ($row_num < 9000) {
+  --disable_query_log
+  --eval INSERT INTO t2 VALUES ($row_num)
+  --enable_query_log
+  --inc $row_num
+}
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, coordinator increments WAITS_WORKER_QUEUES_FULL_COUNT
+--let $assert_cond = [SELECT WAITS_WORKER_QUEUES_FULL_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increments TRANSACTIONS_ONGOING_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increments WAITS_WORKER_QUEUES_FULL_SUM_TIME
+--let $assert_cond = [SELECT WAITS_WORKER_QUEUES_FULL_SUM_TIME $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $time = `SELECT WAITS_WORKER_QUEUES_FULL_SUM_TIME $from_ch`
+--let $assert_text = Coordinator keeps increasing WAITS_WORKER_QUEUES_FULL_SUM_TIME while waiting
+--let $assert_cond = [SELECT WAITS_WORKER_QUEUES_FULL_SUM_TIME $from_ch] > $time
+--source include/assert_eventually.inc
+
+--replace_result $old_binlog_transaction_compression <OLD_VALUE>
+eval SET @@session.binlog_transaction_compression = $old_binlog_transaction_compression;
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $wait_condition = SELECT TRANSACTIONS_COMMITTED_COUNT = 9 $from_ch
+--source include/wait_condition.inc
+
+--echo
+--echo ##############################################################
+--echo # 5. Test waiting for worker queue memory limit
+--echo #    Check the table shows this
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t3(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+CREATE TABLE t4(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+--source include/rpl/stop_applier.inc
+
+--source include/restore_sysvars.inc
+
+--let $sysvars_to_save = [ "GLOBAL.replica_pending_jobs_size_max" ]
+--source include/save_sysvars.inc
+
+SET @@GLOBAL.replica_pending_jobs_size_max = 1024;
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_replica1.inc
+
+# block the inserts on t3
+LOCK TABLE t3 WRITE;
+
+--source include/rpl/connection_source.inc
+
+BEGIN;
+INSERT INTO t3 VALUES (1, REPEAT('a', 550));
+INSERT INTO t4 VALUES (1, REPEAT('a', 550));
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, coordinator increments WAITS_FOR_WORKER_QUEUE_MEMORY_COUNT
+--let $assert_cond = [SELECT WAITS_FOR_WORKER_QUEUE_MEMORY_COUNT $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increments TRANSACTIONS_ONGOING_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increments WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME
+--let $assert_cond = [SELECT WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $time = `SELECT WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME $from_ch`
+--let $assert_text = Coordinator keeps increasing WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME while waiting
+--let $assert_cond = [SELECT WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME $from_ch] > $time
+--source include/assert_eventually.inc
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $wait_condition = SELECT TRANSACTIONS_COMMITTED_COUNT = 12 $from_ch
+--source include/wait_condition.inc
+
+--echo
+--echo ##############################################################
+--echo # 6. Make a worker wait on commit order
+--echo #    Check the table shows this
+
+# Workers may have waited for commit order above. Reset the statistics to make
+# it deterministic.
+--source include/rpl/reset.inc
+
+# block the inserts on t1
+LOCK TABLE t1 WRITE;
+
+--let $assert_text = Initially, no worker has waited for its order to commit
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--let $assert_text = Initially, no time was spent waiting for commit order
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch] = 0
+--source include/assert.inc
+
+# MTA won't parallelize the first two transactions in a binlog. So we execute
+# an extra transaction just to get past that condition.
+--source include/rpl/connection_source.inc
+INSERT INTO t2 (c1) VALUES(20000);
+--source include/rpl/sync_to_replica.inc
+
+# Previous tests may have incremented this metric (or we want the test to be
+# tolerant in case future changes to previous test do). So we read the value and
+# assert that it increments by 1.
+--let $initial_count = `SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch`
+--source include/rpl/connection_source.inc
+
+# The first transaction will be blocked by the lock. When the second transaction
+# completes, it will wait for the first one to commit.
+INSERT INTO t1 (a) VALUES(30000);
+INSERT INTO t2 (c1) VALUES(40000);
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, worker increments WAITS_DUE_TO_COMMIT_ORDER_COUNT
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch] = $initial_count + 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increments TRANSACTIONS_ONGOING_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increments WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME to nonzero
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $time = `SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch`
+--let $assert_text = Worker keeps increasing WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME while waiting
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch] > $time
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 6.1. Make two workers wait on commit order
+--echo #      Verify that waiting time increases at double clock time
+
+--source include/rpl/connection_source.inc
+INSERT INTO t2 VALUES (50000);
+
+--source include/rpl/connection_replica.inc
+--let $assert_text = Eventually, a second worker increments WAITS_DUE_TO_COMMIT_ORDER_COUNT
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch] = $initial_count + 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, both workers are in the stage "Waiting for preceding transaction to commit"
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for preceding transaction to commit'] = 2
+--source include/assert_eventually.inc
+
+--echo # Now that both threads are in this state, we know that both are incrementing WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME.
+--echo # So it ought to be increasing twice as fast as the wall clock.
+
+--let $t0 = `SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch`
+--let $t1 = `SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch`
+--let $t2 = `SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch`
+--sleep 0.31415
+--let $t3 = `SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch`
+--let $t4 = `SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch`
+--let $t5 = `SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch`
+
+--let $assert_text = Worker wait time increased more than twice that of a shorter interval
+--let $assert_cond = $t4 - $t1 >= 2 * ($t3 - $t2)
+--source include/assert.inc
+
+--let $assert_text = Worker wait time increased less than twice that of a longer interval
+--let $assert_cond = $t4 - $t1 <= 2 * ($t5 - $t0)
+--source include/assert.inc
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $assert_text = Eventually, after the worker is unblocked, it  increments TRANSACTIONS_COMMITTED_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 4
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 7. Test that metrics values are preserved when restarting the applier
+
+--source include/rpl/connection_replica.inc
+
+--let $old_commit_order_waited_time = `SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME FROM performance_schema.replication_applier_metrics`
+
+--source include/rpl/stop_applier.inc
+
+--let $assert_text = TRANSACTIONS_COMMITTED_COUNT is preserved when stopping the applier
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 4
+--source include/assert.inc
+
+--let $assert_text = WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME is preserved when stopping the applier
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch] = $old_commit_order_waited_time
+--source include/assert.inc
+
+--let $assert_text = WAITS_DUE_TO_COMMIT_ORDER_COUNT is preserved when stopping the applier
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch] = $initial_count + 2
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+
+--let $assert_text = TRANSACTIONS_COMMITTED_COUNT is preserved when starting the applier again
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 4
+--source include/assert.inc
+
+--let $assert_text = WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME is preserved when starting the applier again
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch] = $old_commit_order_waited_time
+--source include/assert.inc
+
+--let $assert_text = WAITS_DUE_TO_COMMIT_ORDER_COUNT is preserved when starting the applier again
+--let $assert_cond = [SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch] = $initial_count + 2
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 8. Cleanup
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/connection_source.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+--source include/rpl/connection_replica.inc
+--source include/restore_sysvars.inc
+
+--source include/rpl/deinit.inc

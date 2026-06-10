@@ -26,7 +26,7 @@ VARIABLE_NAME LIKE '%source%') AND
 'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 106 variables in the table.]
+include/assert.inc [Expect 107 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -119,6 +119,7 @@ ERROR HY000: Variable 'relay_log_recovery' is a read only variable
 SET PERSIST relay_log_space_limit = @@GLOBAL.relay_log_space_limit;
 ERROR HY000: Variable 'relay_log_space_limit' is a read only variable
 SET PERSIST replica_allow_batching = @@GLOBAL.replica_allow_batching;
+SET PERSIST replica_allow_higher_version_source = @@GLOBAL.replica_allow_higher_version_source;
 SET PERSIST replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
 SET PERSIST replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
 SET PERSIST replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
@@ -230,16 +231,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 84 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 85 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 84 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 84 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 84 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 85 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 85 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc [Expect 85 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -333,6 +334,7 @@ RESET PERSIST IF EXISTS relay_log_space_limit;
 Warnings:
 Warning	3615	Variable relay_log_space_limit does not exist in persisted config file
 RESET PERSIST IF EXISTS replica_allow_batching;
+RESET PERSIST IF EXISTS replica_allow_higher_version_source;
 RESET PERSIST IF EXISTS replica_checkpoint_group;
 RESET PERSIST IF EXISTS replica_checkpoint_period;
 RESET PERSIST IF EXISTS replica_compressed_protocol;

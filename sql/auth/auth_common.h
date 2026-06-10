@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -886,7 +887,7 @@ bool has_grant_role_privilege(THD *thd, const List<LEX_USER> *roles);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 std::string create_authid_str_from(const LEX_USER *user);
 std::pair<std::string, std::string> get_authid_from_quoted_string(
-    std::string str);
+    std::string_view str);
 void append_identifier_with_backtick(String *packet, const char *name,
                                      size_t length);
 bool is_role_id(LEX_USER *authid);
@@ -1109,6 +1110,8 @@ class Auth_id {
   std::string m_key;
 };
 
+using Auth_id_list = std::vector<Auth_id>;
+
 /*
   As of now Role_id is an alias of Auth_id.
   We may extend the Auth_id as Role_id once
@@ -1149,5 +1152,10 @@ bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
                              unsigned char *plain_text, size_t plain_text_len,
                              RSA *private_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
+void iterate_comma_separated_quoted_string(
+    std::string_view str, const std::function<bool(std::string_view)> &f);
+Auth_id_ref create_authid_from(const Role_id &user);
+bool operator==(const Role_id &a, const Role_id &b);
 
 #endif /* AUTH_COMMON_INCLUDED */

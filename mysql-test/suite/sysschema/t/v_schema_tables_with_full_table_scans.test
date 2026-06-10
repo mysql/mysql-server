@@ -48,7 +48,7 @@ CALL sys.ps_truncate_all_tables(false);
 # Following returns 28 rows, but should full scan as j has no index
 # Using RAND() to force no query caching, so ignore results, they are not important
 --disable_result_log
-SELECT i, j, RAND() FROM test.t WHERE j = 12;
+SELECT /*+ NO_INDEX(t) */ i, j, RAND() FROM test.t WHERE j = 12;
 --enable_result_log
 
 # Ensure the base performance schema data is aggregated first
@@ -62,7 +62,7 @@ SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_wi
 
 # Scan again
 --disable_result_log
-SELECT i, j, RAND() FROM test.t WHERE j = 12;
+SELECT /*+ NO_INDEX(t) */ i, j, RAND() FROM test.t WHERE j = 12;
 --enable_result_log
 
 # Again ensure the base performance schema data is aggregated first

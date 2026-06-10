@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,6 +209,8 @@ static Item_cache *make_result_item(Item *value) {
           result = new Item_cache_time();
           break;
         case MYSQL_TYPE_DATE:
+          result = new Item_cache_date();
+          break;
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP:
           result = new Item_cache_datetime(value->data_type());
@@ -1544,8 +1546,13 @@ void Window::apply_temp_table(THD *thd, const Func_ptr_array &items_to_copy,
   // ordering and partitioning items. We need to see through them, so we unwrap
   // them here. Since they get removed on the first call to apply_temp_table(),
   // only unwrap on the first call.
+  // Items might not always be of type Item_ref. set_cmp_func() creates cached
+  // items based on the type of comparison for these types. Therefore,
+  // unwrapping should occur only when the item is an Item_ref.
   const auto unwrap = [first](Item *item) {
-    return first ? down_cast<Item_ref *>(item)->ref_item() : item;
+    return (first && item->type() == Item::REF_ITEM)
+               ? down_cast<Item_ref *>(item)->ref_item()
+               : item;
   };
 
   for (Mem_root_array<Cached_item *> *cached_items :

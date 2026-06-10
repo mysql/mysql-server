@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,9 +64,11 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {
-    "column_format", "geom_type", "interval_count",
-    "not_secondary", "storage",   "treat_bit_as_char",
-    "is_array",      "gipk" /* generated implicit primary key column */};
+    "column_format",  "geom_type",
+    "interval_count", "not_secondary",
+    "storage",        "treat_bit_as_char",
+    "is_array",       "gipk" /* generated implicit primary key column */,
+    "masking_policy"};
 
 ///////////////////////////////////////////////////////////////////////////
 // Column_impl implementation.

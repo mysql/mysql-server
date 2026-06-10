@@ -3758,3 +3758,9 @@ FROM t AS t1,
 DROP TABLE t;
 
 --echo #
+--echo # Bug#38989845: Assertion '!thd->is_error()' failed with GROUPING SETS
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT 1
+GROUP BY GROUPING SETS((ST_LONGFROMGEOHASH(ST_GEOHASH(POINT(79, 146), 107))));

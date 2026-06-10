@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,14 @@ size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
 
   if (max_output_rows == 0) return max_output_rows;
   if (num_input_rows <= 1) return num_input_rows;
-  if (param->max_compare_length() == 0) return num_input_rows;
+  if (param->max_compare_length() == 0) {
+    // Ensure LIMIT (and DISTINCT if enabled) is respected even when no sorting
+    // occurs.
+    if (param->m_remove_duplicates) {
+      return 1;
+    }
+    return std::min(num_input_rows, max_output_rows);
+  }
 
   const auto it_begin = begin(m_record_pointers);
   auto it_end = begin(m_record_pointers) + num_input_rows;

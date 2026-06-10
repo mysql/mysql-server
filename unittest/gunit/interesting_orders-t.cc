@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1197,10 +1197,8 @@ TEST_F(InterestingOrderingTableTest, GroupCover) {
 TEST_F(InterestingOrderingTableTest, NoGroupCoverWithNondeterminism) {
   THD *thd = m_initializer.thd();
 
-  Item_func *r_item =
-      new Item_func_plus(new Item_int(2),
-                         new Item_int(2));  // Guaranteed random.
-  r_item->set_used_tables(RAND_TABLE_BIT);  // Chosen by fair die roll.
+  Item *r_item = new Item_func_rand;
+  ASSERT_FALSE(r_item->fix_fields(thd, &r_item));
   ItemHandle r = m_orderings->GetHandle(r_item);
 
   // Get a new field that's higher than r, so that the grouping below

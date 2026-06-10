@@ -1,0 +1,61 @@
+
+#
+# Note:
+# There is no dedicated test suite for the telemetry_client plugin,
+# and because telemetry_client and component_telemetry are
+# used in the same context, testing the telemetry_client plugin here.
+#
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+--let $PLUGIN_DIR = `select @@plugin_dir`
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+# Expected errors are as follows:
+# - error 2 is EXIT_UNKNOWN_OPTION
+# - error 7 is EXIT_UNKNOWN_VARIABLE
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Default client
+--exec $MYSQL -e "select 'With default' as msg;"
+
+-- echo # Client with telemetry plugin
+--exec $MYSQL --plugin-dir=$PLUGIN_DIR --telemetry-client -e "select 'With telemetry_client' as msg;"
+
+-- echo # Client with telemetry plugin unknown options
+--error 7
+--exec $MYSQL --plugin-dir=$PLUGIN_DIR --telemetry-client --otel-xxx=yyy -e "select 'Should fail';"
+
+--error 2
+--exec $MYSQL --plugin-dir=$PLUGIN_DIR --telemetry-client --otel-unknown -e "select 'Should fail';"
+
+-- echo # Client without telemetry plugin
+--exec $MYSQL --telemetry-client=OFF -e "select 'Without telemetry_client (off)' as msg;"
+
+--exec $MYSQL --skip-telemetry-client -e "select 'Without telemetry_client (skip)' as msg;"
+
+-- echo # Client without telemetry plugin, with unknown options
+--error 7
+--exec $MYSQL --skip-telemetry-client --xxx=yyy -e "select 'Should fail';"
+
+--error 2
+--exec $MYSQL --skip-telemetry-client --xxx -e "select 'Should fail';"
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+#
+# Test more combinations for coverage
+#
+
+-- echo # No client, no server telemetry
+--exec $MYSQL --skip-telemetry-client -e "select 'Without any telemetry' as msg;"
+
+-- echo # Client telemetry alone, no server telemetry installed
+--exec $MYSQL --plugin-dir=$PLUGIN_DIR --telemetry-client -e "select 'With telemetry_client alone' as msg;"
+

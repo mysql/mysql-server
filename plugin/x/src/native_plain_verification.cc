@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,8 @@ const std::string Native_plain_verification::k_empty_salt;
 
 bool Native_plain_verification::verify_authentication_string(
     const std::string &user, const std::string &host,
-    const std::string &client_string, const std::string &db_string) const {
+    const std::string &client_string, const std::string &db_string,
+    const bool can_update_cache) const {
   // There is no need to perform additional authentication if the given
   // credentials are already in the cache.
   if (m_sha256_password_cache &&
@@ -47,7 +48,7 @@ bool Native_plain_verification::verify_authentication_string(
     client_string_matches = true;
   }
 
-  if (client_string_matches && m_sha256_password_cache) {
+  if (client_string_matches && m_sha256_password_cache && can_update_cache) {
     m_sha256_password_cache->upsert(user, host, client_string);
   }
 

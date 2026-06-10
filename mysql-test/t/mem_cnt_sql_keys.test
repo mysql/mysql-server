@@ -90,7 +90,7 @@ let $test_query = SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t2;
 DROP TABLE t2;
 
 --echo # Testing memory/sql/Filesort_info::merge.
-CREATE TABLE t2(a CHAR(0), b CHAR(0) NOT NULL DEFAULT '', c INT);
+CREATE TABLE t2(a CHAR(2), b CHAR(2) NOT NULL DEFAULT '', c INT);
 INSERT INTO t2(c) VALUES
 (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
 (0),(0),(0),(0),(0),(0),(0);

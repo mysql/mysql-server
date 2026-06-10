@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,11 +86,6 @@
   Version from which VCLE was removed.
 */
 #define MEMBER_VERSION_REMOVING_VCLE 0x080300
-
-/*
-  Starting on 8.4.0, inclusive, all 8.4 patch versions are compatible.
-*/
-#define MEMBER_8_4_LTS_VERSION 0x080400
 
 /*
   Preemptive garbage collection configuration default values.

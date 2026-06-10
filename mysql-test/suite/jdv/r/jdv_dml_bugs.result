@@ -1,0 +1,961 @@
+#
+# Verify that etag can only be supplied for root object, and that
+# error is reported if used on subobjects.
+#
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t1 VALUES (3, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1  WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"},
+    "ChildNode" : [{
+                    "f1" : 33
+                   },
+                   {
+                    "f1" : 4
+                   },
+                   {
+                    "_metadata": 42,
+                    "f1" : 5
+                   }
+                   ]
+} ';
+ERROR HY000: Path '$.ChildNode[2]._metadata' is not mapped to any column of `test`.`p_t1`.
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"},
+    "ChildNode" : [{
+                    "f1" : 33
+                   },
+                   {
+                    "f1" : 4
+                   },
+                   {
+                    "_metadata": {"etag": "2df8795d587963d9b7c987375c4fc0b1"},
+                    "f1" : 5
+                   }
+                   ]
+} ';
+ERROR HY000: Path '$.ChildNode[2]._metadata' is not mapped to any column of `test`.`p_t1`.
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+DROP VIEW p_dv1;
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+# Check that incorrect JSON types is rejected
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT) ;
+CREATE TABLE t2 (f11 INT PRIMARY KEY REFERENCES t1(f1), f12 INT);
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t2 VALUES (1, 2);
+# Verify that an error is reported if an array is
+# passed to a singleton child
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_DUALITY_OBJECT(
+'Key' : f1,
+'f2' : f2
+) FROM t1 WHERE t1.f1 = t2.f11)
+) FROM t2;
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 2, "childN": {"f2": 2, "Key": 1}, "_metadata": {"etag": "0870d1033a923e5f5bedb5463d551126"}}
+UPDATE dv1 SET data = '{
+    "_id" : 4,
+    "f12" : 2,
+    "childN" : [{
+                "f1" : 1,
+                "f2" : 30
+               }]
+}';
+ERROR HY000: Path '$.childN' is not of type 'Json_object'.
+INSERT INTO dv1 VALUES ('{
+    "_id" : 4,
+    "f12" : 2,
+    "childN" : [{
+                "f1" : 1,
+                "f2" : 30
+               }]
+}');
+ERROR HY000: Path '$.childN' is not of type 'Json_object'.
+# Verify that an error is reported if an object is
+# passed to a multi child
+CREATE JSON DUALITY VIEW dv2 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : f11,
+'f12' : f12,
+'childN' : (
+SELECT
+JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+'Key' : f1,
+'f2' : f2
+))
+FROM t1 WHERE t1.f1 = t2.f11)
+) FROM t2;
+UPDATE dv2 SET data = '{
+    "_id" : 4,
+    "f12" : 2,
+    "childN" : {
+                "f1" : 1,
+                "f2" : 30
+               }
+}';
+ERROR HY000: Path '$.childN' is not of type 'Json_array'.
+INSERT INTO dv2 VALUES ('{
+    "_id" : 4,
+    "f12" : 2,
+    "childN" : {
+                "f1" : 1,
+                "f2" : 30
+               }
+}');
+ERROR HY000: Path '$.childN' is not of type 'Json_array'.
+DROP VIEW dv2;
+DROP VIEW dv1;
+DROP TABLE t2;
+DROP TABLE t1;
+# Check tag error messages
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t1 VALUES (3, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1  WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 4,
+    "f4" : 2
+}');
+ERROR HY000: Missing INSERT tag on table `test`.`p_t2`, path '$'.
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"},
+    "ChildNode" : [{
+                    "f1" : 33
+                   },
+                   {
+                    "f1" : 4
+                   },
+                   {
+                    "f1" : 5
+                   }
+                   ]
+} ';
+ERROR HY000: Missing UPDATE tag on `test`.`p_t2`.f4, path '$.f4'.
+DROP VIEW p_dv1;
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+# Coverage for ER_JDV_JOIN_CONDITION_VIOLATION
+CREATE TABLE t1 (t1c1 INT PRIMARY KEY, t1c2 INT);
+CREATE TABLE t2 (t2c1 INT PRIMARY KEY, t2c2 INT, t2c3 INT);
+INSERT INTO t1 VALUES (2, 1);
+INSERT INTO t1 VALUES (3, 1);
+INSERT INTO t2 VALUES (1, 1, NULL);
+# Multi-child is read-only
+CREATE JSON DUALITY VIEW dv0 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : t1c1,
+"kt1c2" : t1c2,
+"Multi Child" :
+(SELECT
+JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+"kt2c1" : t2c1,
+"kt2c2" : t2c2,
+"kt2c3" : t2c3
+)) FROM t2 WHERE t2.t2c2 = t1.t1c1
+)) FROM t1;
+SELECT * FROM dv0;
+data
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+INSERT INTO dv0 VALUES ('{"_id": 1, "kt1c2": 64,
+"Multi Child": [{"kt2c1": 42, "kt2c2": 1 }] }');
+ERROR HY000: Read-only subobject with path '$."Multi Child"[0]', maps to row where `test`.`t2`.t2c1 = (42), which does not exist.
+# References existing object and no modification of
+# subobject is required
+INSERT INTO dv0 VALUES ('{"_id": 1, "kt1c2": 100,
+"Multi Child": [{"kt2c1": 1, "kt2c2": 1 }] }');
+SELECT * FROM dv0;
+data
+{"_id": 1, "kt1c2": 100, "_metadata": {"etag": "43055ea46f6884fb7ecad06aeebf04d3"}, "Multi Child": [{"kt2c1": 1, "kt2c2": 1, "kt2c3": null}]}
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+SELECT * FROM t1;
+t1c1	t1c2
+1	100
+2	1
+3	1
+SELECT * FROM t2;
+t2c1	t2c2	t2c3
+1	1	NULL
+DELETE FROM t1 WHERE t1c1 = 1;
+UPDATE t2 SET t2c3 = 3000 WHERE t2c1 = 1;
+# References existing read-only object where join condition is satisfied,
+# but modifies non-join-condition column. This is allowed, but update is
+# ignored.
+INSERT INTO dv0 VALUES ('{"_id": 1, "kt1c2": 100,
+"Multi Child": [{"kt2c1": 1, "kt2c2": 1, "kt2c3": 5000 }] }');
+SELECT * FROM dv0;
+data
+{"_id": 1, "kt1c2": 100, "_metadata": {"etag": "c72fe3a4a5cf79333ea02eb7e6da2865"}, "Multi Child": [{"kt2c1": 1, "kt2c2": 1, "kt2c3": 3000}]}
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+SELECT * FROM t1;
+t1c1	t1c2
+1	100
+2	1
+3	1
+SELECT * FROM t2;
+t2c1	t2c2	t2c3
+1	1	3000
+# Expect to fail since the update needed to preserve
+# the join condition is not allowed. Given that the test case above
+# succeeds, does not make sense to have a specific error for this
+# which is different from missing UPDATE_TAG?
+INSERT INTO dv0 VALUES ('{"_id": 6, "kt1c2": 6,
+"Multi Child": [{"kt2c1": 1, "kt2c2": 6 }] }');
+ERROR HY000: Path '$."Multi Child"[0]' references a READ-ONLY subobject for which column `test`.`t2`.t2c2 violates the join condition of the attempted INSERT.
+SELECT * FROM dv0;
+data
+{"_id": 1, "kt1c2": 100, "_metadata": {"etag": "c72fe3a4a5cf79333ea02eb7e6da2865"}, "Multi Child": [{"kt2c1": 1, "kt2c2": 1, "kt2c3": 3000}]}
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+SELECT * FROM t1;
+t1c1	t1c2
+1	100
+2	1
+3	1
+SELECT * FROM t2;
+t2c1	t2c2	t2c3
+1	1	3000
+DROP VIEW dv0;
+DELETE FROM t1 WHERE t1c1 = 1;
+# On the other hand, if "Multi child" is updatable a modification
+# Of the join condition is OK
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : t1c1,
+"kt1c2" : t1c2,
+"Multi Child" :
+(SELECT
+JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"kt2c1" : t2c1,
+"kt2c2" : t2c2
+)) FROM t2 WHERE t2.t2c2 = t1.t1c1
+)) FROM t1;
+SELECT data FROM dv1;
+data
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+# References existing object and no modification of
+# the join condition is required
+INSERT INTO dv1 VALUES ('{"_id": 1, "kt1c2": 100,
+"Multi Child": [{"kt2c1": 1, "kt2c2": 1 }] }');
+SELECT * FROM dv1;
+data
+{"_id": 1, "kt1c2": 100, "_metadata": {"etag": "110f3429abf06ac24e1d88abccafaacc"}, "Multi Child": [{"kt2c1": 1, "kt2c2": 1}]}
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+SELECT * FROM t1;
+t1c1	t1c2
+1	100
+2	1
+3	1
+SELECT * FROM t2;
+t2c1	t2c2	t2c3
+1	1	3000
+# Insert another record into t1 which ALSO references
+# the one record in t2. This forces an update t2c2 from 1 -> 4
+# breaking the existing association.
+INSERT INTO dv1 VALUES ('{"_id": 4, "kt1c2": 4,
+"Multi Child": [{"kt2c1": 1, "kt2c2": 4 }] }');
+SELECT data FROM dv1;
+data
+{"_id": 1, "kt1c2": 100, "_metadata": {"etag": "bdf7412bb4f5da56d3b9c63ed28d8f87"}, "Multi Child": null}
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+{"_id": 4, "kt1c2": 4, "_metadata": {"etag": "3d78a5c6163774953e79a0c47e0bb25b"}, "Multi Child": [{"kt2c1": 1, "kt2c2": 4}]}
+SELECT * FROM t1;
+t1c1	t1c2
+1	100
+2	1
+3	1
+4	4
+SELECT * FROM t2;
+t2c1	t2c2	t2c3
+1	4	3000
+# This is now allowed regardless of the value for kt1c2 which is not
+# part of the join condition
+INSERT INTO dv1 VALUES ('{"_id": 5, "kt1c2": 3456,
+"Multi Child": [{"kt2c1": 1, "kt2c2": 5 }] }');
+SELECT * FROM dv1;
+data
+{"_id": 1, "kt1c2": 100, "_metadata": {"etag": "bdf7412bb4f5da56d3b9c63ed28d8f87"}, "Multi Child": null}
+{"_id": 2, "kt1c2": 1, "_metadata": {"etag": "45d4eb582691e784f7a2aec4e785ad14"}, "Multi Child": null}
+{"_id": 3, "kt1c2": 1, "_metadata": {"etag": "736f03540d9064f78ecd40d557f140fd"}, "Multi Child": null}
+{"_id": 4, "kt1c2": 4, "_metadata": {"etag": "39b29d7069416204adaf6fc0df732207"}, "Multi Child": null}
+{"_id": 5, "kt1c2": 3456, "_metadata": {"etag": "2dfa9f771b94d81ef1604531038ae179"}, "Multi Child": [{"kt2c1": 1, "kt2c2": 5}]}
+SELECT * FROM t1;
+t1c1	t1c2
+1	100
+2	1
+3	1
+4	4
+5	3456
+SELECT * FROM t2;
+t2c1	t2c2	t2c3
+1	5	3000
+DROP VIEW dv1;
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#37760015: void jdv::append_json_dom(std::string*, Json_dom*):
+# Assertion `false' failed.
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT);
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER
+JSON RELATIONAL DUALITY VIEW v1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT,UPDATE,DELETE)
+"_id": c1,
+"c2":  c2,
+"t2": (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT,UPDATE)
+"c1": c1,
+"c2": c2)
+FROM t2 WHERE (t2.c1 = t1.c1)))
+FROM t1;
+# Verify that inserting a JSON object into the int column
+# reports expected conversion error
+INSERT INTO v1 VALUES('{
+"c2": {"c1": 9, "c2": 24},
+"t2": {"c1": 8, "c2": 22},
+"_id": 8}');
+ERROR HY000: Incorrect integer value: '{"c1": 9, "c2": 24}' for column 'c2' at row 1
+INSERT INTO v1 VALUES('{
+"c2": ["c1", 9, "c2", 24],
+"t2": {"c1": 8, "c2": 22},
+"_id": 8}');
+ERROR HY000: Incorrect integer value: '["c1", 9, "c2", 24]' for column 'c2' at row 1
+DROP VIEW v1;
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#37790927: Attempt to delete a singleton descendent
+# sub-object must error-out
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT);
+INSERT INTO t1 VALUES (0,0),(1,1),(2,2);
+INSERT INTO t2 VALUES (0,0),(1,1),(2,2);
+CREATE JSON DUALITY VIEW v1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT,UPDATE,DELETE)
+"_id": c1,
+"c2":  c2,
+"t2": (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT,UPDATE)
+"c1": c1,
+"c2": c2)
+FROM t2 WHERE (t2.c1 = t1.c1)))
+FROM t1;
+SELECT data FROM v1 WHERE JSON_EXTRACT(data, '$._id') = 1;
+data
+{"c2": 1, "t2": {"c1": 1, "c2": 1}, "_id": 1, "_metadata": {"etag": "9b9bdae3bbea3e083f37e7d0a4bcc131"}}
+UPDATE v1 SET data = JSON_remove(data, '$.t2') WHERE JSON_EXTRACT(data, '$._id') = 1;
+ERROR HY000: Missing DELETE tag on table `test`.`t2`, path '$.t2'.
+SELECT data FROM v1 WHERE JSON_EXTRACT(data, '$._id') = 1;
+data
+{"c2": 1, "t2": {"c1": 1, "c2": 1}, "_id": 1, "_metadata": {"etag": "9b9bdae3bbea3e083f37e7d0a4bcc131"}}
+UPDATE v1 SET data = '{"_id": 1, "c2": 2, "t2": null, "_metadata":
+{"etag": "9b9bdae3bbea3e083f37e7d0a4bcc131"}}' WHERE JSON_EXTRACT(data, '$._id') = 1;
+ERROR HY000: Missing DELETE tag on table `test`.`t2`, path '$.t2'.
+SELECT data FROM v1 WHERE JSON_EXTRACT(data, '$._id') = 1;
+data
+{"c2": 1, "t2": {"c1": 1, "c2": 1}, "_id": 1, "_metadata": {"etag": "9b9bdae3bbea3e083f37e7d0a4bcc131"}}
+DROP VIEW v1;
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#37790998: Inserting an empty object to a JDV succeeds.
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+CREATE JSON DUALITY VIEW v1 AS SELECT JSON_DUALITY_OBJECT(
+"_id": c1) FROM t1;
+SELECT data FROM v1;
+data
+INSERT INTO v1 VALUES ('{"_id": 1}', 'foo');
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO v1 VALUES ('{"_id": 2}', 'foo'), ('{"_id": 3}', 'foo');
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO v1 VALUES ();
+ERROR 21S01: Column count doesn't match value count at row 1
+SELECT data FROM v1;
+data
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#37791178: [with auto:97 = jdv::Single_object_binding; std::string = std::basic_string<char>]:
+# Assertion `false' failed.
+#
+CREATE TABLE students (
+student_id INT NOT NULL,
+name VARCHAR(100) NOT NULL,
+email VARCHAR(100) DEFAULT NULL,
+age int DEFAULT NULL,
+created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY (student_id),
+UNIQUE KEY email (email),
+CONSTRAINT students_chk_1 CHECK ((age >= 5)));
+CREATE TABLE marks (
+mark_id INT NOT NULL,
+student_id INT DEFAULT NULL,
+subject VARCHAR(50) NOT NULL,
+score INT DEFAULT NULL,
+PRIMARY KEY (mark_id),
+KEY student_id (student_id),
+CONSTRAINT marks_ibfk_1 FOREIGN KEY (student_id) REFERENCES students (student_id) ON DELETE CASCADE ON UPDATE CASCADE,
+CONSTRAINT marks_chk_1 CHECK ((score between 0 and 100)));
+INSERT INTO students (student_id, name, email, age)
+VALUES
+(1, 'Alice', 'alice@example.com', 14),
+(2, 'Bob', 'bob@example.com', 15);
+INSERT INTO marks (mark_id, student_id, subject, score)
+VALUES
+(1, 1, 'Math', 90),
+(2, 1, 'Science', 85),
+(3, 2, 'Math', 88);
+CREATE JSON DUALITY VIEW student_dv AS
+SELECT JSON_DUALITY_OBJECT(
+'_id'        : student_id,
+'name'       : name,
+'email'      : email,
+'age'        : age,
+'created_at' : created_at,
+'marks'      : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+'subject' : subject,
+'score'   : score,
+'markId'  : mark_id
+)
+)
+FROM marks m
+WHERE m.student_id = s.student_id
+)
+)
+FROM students s;
+INSERT INTO student_dv VALUES
+('{"_id": 2, "age": 15, "name": "Bob", "email": "bob@example.com",
+"marks": [{"score": 88, "markId": 3, "subject": "Math"}]}');
+ERROR HY000: Missing INSERT tag on table `test`.`students`, path '$'.
+DROP VIEW student_dv;
+DROP TABLE marks;
+DROP TABLE students;
+#
+# Bug#37785061: std::string jdv::make_update(THD*,
+# const jdv::Two_object_binding&): Assertion `false' failed.
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,4),(4,2),(8,2),(10,10);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,2),(10,12);
+# Read-only root with modifiable subobject
+CREATE JSON DUALITY VIEW v1 AS SELECT
+JSON_DUALITY_OBJECT(
+"_id": c1,
+"c2": c2,
+"t2": (SELECT
+JSON_DUALITY_OBJECT(
+WITH (INSERT,UPDATE)
+"c1": c1,
+"c2": c2)
+FROM t2 WHERE (t2.c1 = t1.c2)))
+FROM t1;
+# Missing UPDATE_TAG on PK of subobject
+UPDATE v1 SET data = '{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "e4b53c42d61233f2c5a53b657f1b91a0"}}' WHERE JSON_EXTRACT(data, '$._id') = 10;
+ERROR HY000: Missing UPDATE tag on `test`.`t2`.c1, path '$.t2.c1'.
+# Insert pk c1=11 into t2
+INSERT INTO t2 VALUES (11,11);
+# Still missing UPDATE tag on root node
+UPDATE v1 SET data = '{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "e4b53c42d61233f2c5a53b657f1b91a0"}}' WHERE JSON_EXTRACT(data, '$._id') = 10;
+ERROR HY000: Missing UPDATE tag on `test`.`t1`.c2, path '$.c2'.
+DROP VIEW v1;
+DELETE FROM t2 WHERE c1 = 11;
+# Create view where root is modifiable but subobject is readonly
+CREATE JSON DUALITY VIEW v2 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id": c1,
+"c2": c2,
+"t2": (SELECT
+JSON_DUALITY_OBJECT(
+"c1": c1,
+"c2": c2)
+FROM t2 WHERE (t2.c1 = t1.c2)))
+FROM t1;
+# Fails due to missing UPDATE TAG on sub-object
+UPDATE v2 SET data = '{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "e4b53c42d61233f2c5a53b657f1b91a0"}}' WHERE JSON_EXTRACT(data, '$._id') = 10;
+ERROR HY000: Missing UPDATE tag on `test`.`t2`.c1, path '$.t2.c1'.
+# Insert pk c1=11 into t2
+INSERT INTO t2 VALUES (11,11);
+# Now succeeds (but t2.c2) is not updated
+UPDATE v2 SET data = '{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "e4b53c42d61233f2c5a53b657f1b91a0"}}' WHERE JSON_EXTRACT(data, '$._id') = 10;
+SELECT data FROM v2 WHERE JSON_EXTRACT(data, '$._id') = 10;
+data
+{"c2": 11, "t2": {"c1": 11, "c2": 11}, "_id": 10, "_metadata": {"etag": "72b484d4313e51ad458b894f761bf479"}}
+SELECT * FROM t2 WHERE c1 = 11;
+c1	c2
+11	11
+UPDATE t1 SET c2 = 10 WHERE c1 = 10;
+DELETE FROM t2 WHERE c1 = 11;
+DROP VIEW v2;
+# Create view where root and subobject is modifiable
+CREATE JSON DUALITY VIEW v3 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id": c1,
+"c2": c2,
+"t2": (SELECT
+JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"c1": c1,
+"c2": c2)
+FROM t2 WHERE (t2.c1 = t1.c2)))
+FROM t1;
+# Fails due to missing UPDATE TAG on PK column
+UPDATE v3 SET data = '{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "e4b53c42d61233f2c5a53b657f1b91a0"}}' WHERE JSON_EXTRACT(data, '$._id') = 10;
+ERROR HY000: Missing UPDATE tag on `test`.`t2`.c1, path '$.t2.c1'.
+# Insert pk c1=11 into t2
+INSERT INTO t2 VALUES (11,11);
+# Now succeeds and t2.c2 is updated
+UPDATE v3 SET data = '{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "e4b53c42d61233f2c5a53b657f1b91a0"}}' WHERE JSON_EXTRACT(data, '$._id') = 10;
+SELECT data FROM v3 WHERE JSON_EXTRACT(data, '$._id') = 10;
+data
+{"c2": 11, "t2": {"c1": 11, "c2": 12}, "_id": 10, "_metadata": {"etag": "d61ffdae2ffefabae1f0bbed51dd56c3"}}
+SELECT * FROM t2 WHERE c1 = 11;
+c1	c2
+11	12
+DROP VIEW v3;
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#37832115: Display a proper error message for loading data into a
+# JDV
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES (0),(1),(2);
+CREATE JSON DUALITY VIEW v1 AS SELECT JSON_DUALITY_OBJECT(
+WITH(INSERT,UPDATE,DELETE)
+"_id": c1
+) FROM t1;
+SELECT data FROM v1;
+data
+{"_id": 0, "_metadata": {"etag": "61f0413df077b44a2e4ccd9f59c9c223"}}
+{"_id": 1, "_metadata": {"etag": "5d8117b25a3d3a4bbaba1ef5aa787145"}}
+{"_id": 2, "_metadata": {"etag": "69770f38c13625a1a3ce1549ee5a878c"}}
+SELECT data INTO OUTFILE 'file.csv' FIELDS TERMINATED BY ','  ENCLOSED BY '"'
+LINES TERMINATED BY '\n' FROM v1;
+LOAD DATA INFILE 'file.csv' INTO TABLE v1 FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n' IGNORE 1 LINES;
+ERROR HY000: JSON DUALITY VIEW v1 cannot be used with LOAD.
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#37825753: If multiple sub-objects are projected from a
+# single table, values must be same for given column in all
+# sub-objects.
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, c3 INT);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(3,3,3);
+CREATE TABLE t2(c1 INT PRIMARY KEY, c2 INT, c3 INT);
+INSERT INTO t2 VALUES (1,1,10),(2,2,2),(3,3,3);
+CREATE JSON DUALITY VIEW v1 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH(INSERT, UPDATE, DELETE)
+"_id" : c1,
+"child1" : (
+SELECT JSON_DUALITY_OBJECT(
+with(insert, update)
+"c1" : c1,
+"c2" : c2,
+"c3" : c3) FROM t2 WHERE t2.c1 = t1.c2),
+"child2" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH(INSERT, UPDATE)
+"c1" : c1,
+"c2" : c2,
+"c3" : c3) FROM t2 WHERE t2.c1 = t1.c3)
+) FROM t1;
+SELECT data FROM v1;
+data
+{"_id": 1, "child1": {"c1": 1, "c2": 1, "c3": 10}, "child2": {"c1": 1, "c2": 1, "c3": 10}, "_metadata": {"etag": "af74b18454e6d7054f7fa0b5b05f0b3c"}}
+{"_id": 2, "child1": {"c1": 2, "c2": 2, "c3": 2}, "child2": {"c1": 2, "c2": 2, "c3": 2}, "_metadata": {"etag": "c05aa45d74a3486537b85f1f1c056ef6"}}
+{"_id": 3, "child1": {"c1": 3, "c2": 3, "c3": 3}, "child2": {"c1": 3, "c2": 3, "c3": 3}, "_metadata": {"etag": "b57999bb2a0fa7c455558abb6bbaf94c"}}
+UPDATE  v1 SET data = '{"_id": 1, "child1": {"c1": 1, "c2": 1, "c3": 222}, "child2": {"c1": 1, "c2": 1, "c3": 111}, "_metadata": {"etag": "af74b18454e6d7054f7fa0b5b05f0b3c"}}' WHERE JSON_VALUE(data, '$._id') = 1;
+ERROR HY000: Path '$.child2' is a duplicate for primary key column `test`.`t2`.c1 but has conflicting values for column c3: path '$.child2.c3' vs path '$.child1.c3'
+SELECT data FROM v1;
+data
+{"_id": 1, "child1": {"c1": 1, "c2": 1, "c3": 10}, "child2": {"c1": 1, "c2": 1, "c3": 10}, "_metadata": {"etag": "af74b18454e6d7054f7fa0b5b05f0b3c"}}
+{"_id": 2, "child1": {"c1": 2, "c2": 2, "c3": 2}, "child2": {"c1": 2, "c2": 2, "c3": 2}, "_metadata": {"etag": "c05aa45d74a3486537b85f1f1c056ef6"}}
+{"_id": 3, "child1": {"c1": 3, "c2": 3, "c3": 3}, "child2": {"c1": 3, "c2": 3, "c3": 3}, "_metadata": {"etag": "b57999bb2a0fa7c455558abb6bbaf94c"}}
+DROP VIEW v1;
+DROP TABLE t2;
+DROP TABLE t1;
+# Additional test cases
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+# Singleton child case.
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : f3,
+'f4'  : f4,
+'ChildN1' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+'f1' : f1,
+'f2' : f2
+) FROM p_t1 WHERE p_t2.f3 = p_t1.f1
+),
+'ChildN2' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+'f1' : f1,
+'f2' : f2
+) FROM p_t1 WHERE p_t2.f3 = p_t1.f1
+)
+) FROM p_t2;
+SELECT * FROM p_dv1;
+data
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 3,
+     "ChildN1" :  {
+                      "f1" : 2,
+                      "f2" : 2
+                  },
+     "ChildN2" :  {
+                      "f1" : 2,
+                      "f2" : 2
+                  }
+  } ');
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 4,
+     "ChildN1" :  {
+                      "f1" : 3,
+                      "f2" : 111
+                   },
+     "ChildN2" :  {
+                      "f1" : 3,
+                      "f2" : 333
+                  }
+  } ');
+ERROR HY000: Path '$.ChildN2' is a duplicate for primary key column `test`.`p_t1`.f1 but has conflicting values for column f2: path '$.ChildN2.f2' vs path '$.ChildN1.f2'
+SELECT * FROM p_dv1;
+data
+{"f4": 3, "_id": 2, "ChildN1": {"f1": 2, "f2": 2}, "ChildN2": {"f1": 2, "f2": 2}, "_metadata": {"etag": "7287b43401deec4e2d1832be97a95d2f"}}
+SELECT * FROM p_t1;
+f1	f2	f5
+2	2	NULL
+TRUNCATE TABLE p_t2;
+TRUNCATE TABLE p_t1;
+# Nested child case.
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : f3,
+'f4'  : f4,
+'ChildN1' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'f1' : f1,
+'f2' : f2,
+'f5' : f5
+)) FROM p_t1 WHERE p_t2.f3 = p_t1.f2
+),
+'ChildN2' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'f1' : f1,
+'f2' : f2,
+'f5' : f5
+)) FROM p_t1 WHERE p_t2.f3 = p_t1.f2
+)
+) FROM p_t2;
+SELECT * FROM p_dv1;
+data
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 3,
+     "ChildN1" :  [{
+                      "f1" : 111,
+                      "f2" : 2,
+                      "f5" : 5
+                   }],
+     "ChildN2" :  [{
+                      "f1" : 111,
+                      "f2" : 2,
+                      "f5" : 5
+                  }]
+  } ');
+SELECT * FROM p_dv1;
+data
+{"f4": 3, "_id": 2, "ChildN1": [{"f1": 111, "f2": 2, "f5": 5}], "ChildN2": [{"f1": 111, "f2": 2, "f5": 5}], "_metadata": {"etag": "abd27837ab07b14afd6374ab1d6f0339"}}
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 4,
+     "ChildN1" :  [{
+                      "f1" : 111,
+                      "f2" : 3,
+                      "f5" : 5
+                   }],
+     "ChildN2" :  [{
+                      "f1" : 111,
+                      "f2" : 3,
+                      "f5" : 6
+                  }]
+  } ');
+ERROR HY000: Path '$.ChildN2[0]' is a duplicate for primary key column `test`.`p_t1`.f1 but has conflicting values for column f5: path '$.ChildN2[0].f5' vs path '$.ChildN1[0].f5'
+SELECT * FROM p_dv1;
+data
+{"f4": 3, "_id": 2, "ChildN1": [{"f1": 111, "f2": 2, "f5": 5}], "ChildN2": [{"f1": 111, "f2": 2, "f5": 5}], "_metadata": {"etag": "abd27837ab07b14afd6374ab1d6f0339"}}
+DROP TABLE p_t1;
+DROP TABLE p_t2;
+DROP VIEW p_dv1;
+#
+# Bug#37943600: bool jdv::jdv_handle_insert(THD *, Json_wrapper *,
+# Content_tree_node *, ulonglong *): Assertion `dom != nullptr' failed
+#
+CREATE TABLE t1(id INT PRIMARY key, x INT, y INT);
+CREATE JSON DUALITY VIEW v1 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH(UPDATE, DELETE, INSERT)
+'_id' : id,
+'x' : x,
+'y' : y)
+FROM t1;
+INSERT INTO v1 VALUES (IF(false, JSON_OBJECT(), NULL));
+ERROR HY000: NULL is not allowed when inserting into a JSON DUALITY VIEW.
+INSERT INTO v1 VALUES ((SELECT JSON_OBJECT() LIMIT 0));
+ERROR HY000: NULL is not allowed when inserting into a JSON DUALITY VIEW.
+SET sql_mode = '';
+INSERT INTO v1 VALUES (REPEAT('a', 10000000000000));
+ERROR HY000: NULL is not allowed when inserting into a JSON DUALITY VIEW.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+Error	6499	NULL is not allowed when inserting into a JSON DUALITY VIEW.
+SET sql_mode = DEFAULT;
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#37943333: json_duality_view/dml.cc:2110: Assertion
+# `upd_itm->type() != Item::REF_ITEM' failed.
+#
+CREATE TABLE t1(id INT PRIMARY KEY, x INT, y INT);
+INSERT INTO t1 VALUES (1,2,3), (2,3,4), (3,4,5);
+CREATE JSON DUALITY VIEW v1 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH(UPDATE, DELETE, INSERT)
+'_id' : id,
+'x' : x,
+'y' : y)
+FROM t1;
+UPDATE v1 SET data = data;
+ERROR 0A000: Multiple object update is not supported for JSON Duality Views.
+UPDATE v1 SET data = data WHERE JSON_EXTRACT(data, '$._id') = 3;
+SELECT data FROM v1;
+data
+{"x": 2, "y": 3, "_id": 1, "_metadata": {"etag": "9081fa481a087373c14afc86d22d8e05"}}
+{"x": 3, "y": 4, "_id": 2, "_metadata": {"etag": "9aa53cd69a9bd6641d27faacc2822dc3"}}
+{"x": 4, "y": 5, "_id": 3, "_metadata": {"etag": "f27ce6e671f0dc017bc34e526e4a0076"}}
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#37943171: Segfault when updating a JSON duality view with ORDER BY
+#
+CREATE TABLE t1(id INT PRIMARY KEY, x INT, y INT);
+insert into t1 values (1,2,3), (2,3,4), (3,4,5);
+CREATE JSON DUALITY VIEW v1 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH(UPDATE, DELETE, INSERT)
+'_id' : id,
+'x' : x,
+'y' : y)
+FROM t1;
+UPDATE v1 SET data = '{"_id":1,"x":333,"y":999}' ORDER BY ID;
+ERROR 0A000: UPDATE with ORDER BY clause is not supported for JSON Duality Views.
+DELETE FROM v1 ORDER BY ID;
+ERROR 0A000: DELETE with ORDER BY clause is not supported for JSON Duality Views.
+UPDATE v1 SET data = '{"_id":1,"x":333,"y":999}' LIMIT 1;
+ERROR 0A000: UPDATE with LIMIT clause is not supported for JSON Duality Views.
+DELETE FROM v1 LIMIT 1;
+ERROR 0A000: DELETE with LIMIT clause is not supported for JSON Duality Views.
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#37923753: EXPLAIN does not behave as expected for
+# JSON Duality Views.
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(20));
+INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb');
+CREATE JSON DUALITY VIEW v1 AS SELECT JSON_DUALITY_OBJECT(
+WITH(INSERT,UPDATE,DELETE) "_id":id, "Name":name ) FROM t1;
+EXPLAIN FORMAT = JSON INSERT INTO v1 VALUES('{"_id": 3, "Name": "ccc"}');
+ERROR 0A000: EXPLAIN for INSERT/UPDATE/DELETE is not supported for JSON Duality Views.
+SELECT data FROM v1;
+data
+{"_id": 1, "Name": "aaa", "_metadata": {"etag": "89d444ba55b02d324f94a405c8470f59"}}
+{"_id": 2, "Name": "bbb", "_metadata": {"etag": "a9d36165bf22d9115ea1d97472059cd6"}}
+EXPLAIN FORMAT = JSON UPDATE v1 SET data = '{"_id": 2, "Name": "xxx"}'
+WHERE JSON_EXTRACT(data, '$._id') = 2;
+ERROR 0A000: EXPLAIN for INSERT/UPDATE/DELETE is not supported for JSON Duality Views.
+SELECT data FROM v1;
+data
+{"_id": 1, "Name": "aaa", "_metadata": {"etag": "89d444ba55b02d324f94a405c8470f59"}}
+{"_id": 2, "Name": "bbb", "_metadata": {"etag": "a9d36165bf22d9115ea1d97472059cd6"}}
+EXPLAIN FORMAT = JSON DELETE FROM v1 WHERE JSON_EXTRACT(data, '$._id') = 2;
+ERROR 0A000: EXPLAIN for INSERT/UPDATE/DELETE is not supported for JSON Duality Views.
+SELECT data FROM v1;
+data
+{"_id": 1, "Name": "aaa", "_metadata": {"etag": "89d444ba55b02d324f94a405c8470f59"}}
+{"_id": 2, "Name": "bbb", "_metadata": {"etag": "a9d36165bf22d9115ea1d97472059cd6"}}
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#37948456: DML operations on JDV does not honour the DEFINER
+# privileges.
+#
+CREATE SCHEMA db1;
+CREATE TABLE db1.t1(id INT PRIMARY KEY);
+INSERT INTO db1.t1 VALUES (1),(2);
+CREATE JSON DUALITY VIEW v1 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH(INSERT,UPDATE,DELETE)
+"_id":id)
+FROM db1.t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `v1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`db1`.`t1`.`id`) AS `JSON_DUALITY_OBJECT(
+WITH(INSERT,UPDATE,DELETE)
+"_id":id)` from `db1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v1;
+data
+{"_id": 1, "_metadata": {"etag": "5d8117b25a3d3a4bbaba1ef5aa787145"}}
+{"_id": 2, "_metadata": {"etag": "69770f38c13625a1a3ce1549ee5a878c"}}
+CREATE SQL SECURITY INVOKER JSON DUALITY VIEW v2 AS SELECT
+JSON_DUALITY_OBJECT(
+WITH(INSERT,UPDATE,DELETE)
+"_id":id)
+FROM db1.t1;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER JSON RELATIONAL DUALITY VIEW `v2` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`db1`.`t1`.`id`) AS `JSON_DUALITY_OBJECT(
+WITH(INSERT,UPDATE,DELETE)
+"_id":id)` from `db1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v2;
+data
+{"_id": 1, "_metadata": {"etag": "5d8117b25a3d3a4bbaba1ef5aa787145"}}
+{"_id": 2, "_metadata": {"etag": "69770f38c13625a1a3ce1549ee5a878c"}}
+CREATE USER user1;
+SHOW GRANTS FOR user1;
+Grants for user1@%
+GRANT USAGE ON *.* TO `user1`@`%`
+connect con_user1,localhost,user1,,test;
+SELECT CURRENT_USER();
+CURRENT_USER()
+user1@%
+SELECT * FROM v1;
+data
+{"_id": 1, "_metadata": {"etag": "5d8117b25a3d3a4bbaba1ef5aa787145"}}
+{"_id": 2, "_metadata": {"etag": "69770f38c13625a1a3ce1549ee5a878c"}}
+INSERT INTO v1 VALUES ('{"_id":3}');
+SELECT * FROM v1;
+data
+{"_id": 1, "_metadata": {"etag": "5d8117b25a3d3a4bbaba1ef5aa787145"}}
+{"_id": 2, "_metadata": {"etag": "69770f38c13625a1a3ce1549ee5a878c"}}
+{"_id": 3, "_metadata": {"etag": "32403eb6fb4bd499ba1520cde26ac31f"}}
+SELECT * FROM db1.t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 't1'
+DELETE FROM v1 WHERE data->>'$._id'=2;
+SELECT * FROM v1;
+data
+{"_id": 1, "_metadata": {"etag": "5d8117b25a3d3a4bbaba1ef5aa787145"}}
+{"_id": 3, "_metadata": {"etag": "32403eb6fb4bd499ba1520cde26ac31f"}}
+SELECT * FROM db1.t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 't1'
+INSERT INTO v2 VALUES ('{"_id":3}');
+ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM v2;
+ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+connection default;
+disconnect con_user1;
+DROP USER user1;
+DROP VIEW v2;
+DROP VIEW v1;
+DROP TABLE db1.t1;
+DROP SCHEMA db1;
+#
+# Bug#37901964: void jdv::append_json_dom(std::string*, Json_dom*):
+# Assertion `false' failed.
+#
+CREATE TABLE t1 (
+id int PRIMARY KEY,
+secret_data varchar(255) INVISIBLE,
+data_blob blob NOT NULL);
+CREATE JSON DUALITY VIEW v1 AS SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT,UPDATE,DELETE)
+'_id': id,
+'secret': secret_data,
+'blob': data_blob) FROM t1;
+INSERT INTO t1(id, data_blob) VALUES (42, 'fortytwo');
+SELECT * FROM t1;
+id	data_blob
+42	fortytwo
+SELECT data FROM v1;
+data
+{"_id": 42, "blob": "base64:type252:Zm9ydHl0d28=", "secret": null, "_metadata": {"etag": "49f98943e83017783217945e7d67ff90"}}
+RESULT
+foobar
+RESULT
+{"_id": 5, "blob": "base64:type251:Zm9vYmFy", "secret": "hidden5"}
+SELECT * FROM v1;
+data
+{"_id": 5, "blob": "base64:type252:Zm9vYmFy", "secret": "hidden5", "_metadata": {"etag": "9aaed118387794a1d226ff0dcfa9cc2f"}}
+{"_id": 42, "blob": "base64:type252:Zm9ydHl0d28=", "secret": null, "_metadata": {"etag": "49f98943e83017783217945e7d67ff90"}}
+SELECT * FROM t1;
+id	data_blob
+5	foobar
+42	fortytwo
+DROP VIEW v1;
+DROP TABLE t1;

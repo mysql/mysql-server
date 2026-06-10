@@ -1,6 +1,6 @@
 Licensing Information User Manual
 
-MySQL Router 9.6.0 Community
+MySQL Router 9.7.0 Community
      __________________________________________________________________
 
 Introduction
@@ -8,18 +8,18 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
-   MySQL Router 9.6.0 Community.
+   MySQL Router 9.7.0 Community.
 
-   Last updated: November 2025
+   Last updated: February 2026
 
 Licensing Information
 
-   This release of MySQL Router 9.6.0 Community is brought to you by the
+   This release of MySQL Router 9.7.0 Community is brought to you by the
    MySQL team at Oracle. This software is released under version 2 of the
    GNU General Public License (GPLv2), as set forth below, with the
    following additional permissions:
 
-   This distribution of MySQL Router 9.6.0 Community is designed to work
+   This distribution of MySQL Router 9.7.0 Community is designed to work
    with certain software (including but not limited to OpenSSL) that is
    licensed under separate terms, as designated in a particular file or
    component or in the license documentation. Without limiting your rights
@@ -28,7 +28,7 @@ Licensing Information
    separately licensed software that they have either included with the
    program or referenced in the documentation.
 
-   Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
 Election of GPLv2
 

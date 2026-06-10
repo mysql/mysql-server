@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +206,7 @@ TEST(Time_val, to_string) {
   Time_val time = Time_val(true, 1, 2, 3, 4);
   size_t buf_len = time.to_string(buffer, 6);
   buffer[buf_len] = 0;
-  EXPECT_EQ(0, strcmp(buffer, "-  1:02:03.000004"));
+  EXPECT_EQ(0, strcmp(buffer, "-01:02:03.000004"));
 }
 TEST(Time_val, add) {
   Time_val time0(false, 10, 10, 10, 10);
@@ -216,46 +216,104 @@ TEST(Time_val, add) {
   EXPECT_EQ(time0, Time_val(false, 10, 10, 10, 10));
 
   Interval iv;
-  memset(&iv, 0, sizeof(iv));
 
   Time_val time1(false, 11, 12, 13, 456789);
   iv.second_part = 900000;
-  time1.add(iv, false);
+  EXPECT_FALSE(time1.add(iv, false));
   EXPECT_EQ(time1, Time_val(false, 11, 12, 14, 356789));
-  time1.add(iv, true);
+  EXPECT_FALSE(time1.add(iv, true));
   EXPECT_EQ(time1, Time_val(false, 11, 12, 13, 456789));
 
   Time_val time2(false, 11, 12, 13, 456789);
   iv.second_part = 0;
   iv.second = 60 * 60 + 59;
-  time2.add(iv, false);
+  EXPECT_FALSE(time2.add(iv, false));
   EXPECT_EQ(time2, Time_val(false, 12, 13, 12, 456789));
-  time2.add(iv, true);
+  EXPECT_FALSE(time2.add(iv, true));
   EXPECT_EQ(time2, Time_val(false, 11, 12, 13, 456789));
 
   Time_val time3(false, 11, 12, 13, 456789);
   iv.second = 0;
   iv.minute = 24 * 60 + 59;
-  time3.add(iv, false);
+  EXPECT_FALSE(time3.add(iv, false));
   EXPECT_EQ(time3, Time_val(false, 36, 11, 13, 456789));
-  time3.add(iv, true);
+  EXPECT_FALSE(time3.add(iv, true));
   EXPECT_EQ(time3, Time_val(false, 11, 12, 13, 456789));
 
   Time_val time4(false, 11, 12, 13, 456789);
   iv.minute = 0;
   iv.hour = 800;
-  time4.add(iv, false);
+  EXPECT_FALSE(time4.add(iv, false));
   EXPECT_EQ(time4, Time_val(false, 811, 12, 13, 456789));
-  time4.add(iv, true);
+  EXPECT_FALSE(time4.add(iv, true));
   EXPECT_EQ(time4, Time_val(false, 11, 12, 13, 456789));
 
   Time_val time5(false, 0, 0, 0, 0);
-  time5.add_nanoseconds_round(500);
-  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 1));
+  iv.second_part = 0ULL;
+  iv.second = 0ULL;
+  iv.minute = 0ULL;
+  iv.hour = 839UL;
+  EXPECT_TRUE(time5.add(iv, false));
+  EXPECT_TRUE(time5.add(iv, true));
+  iv.hour = 838UL;
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 838, 0, 0, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(true, 838, 0, 0, 0));
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+
+  iv.minute = 839ULL * 60ULL;
+  iv.hour = 0UL;
+  EXPECT_TRUE(time5.add(iv, false));
+  EXPECT_TRUE(time5.add(iv, true));
+  iv.minute = 838ULL * 60ULL + 59ULL;
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 838, 59, 0, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(true, 838, 59, 0, 0));
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+
+  iv.second = 839ULL * 3600ULL;
+  iv.minute = 0ULL;
+  EXPECT_TRUE(time5.add(iv, false));
+  EXPECT_TRUE(time5.add(iv, true));
+  iv.second = 838ULL * 3600ULL + 59ULL * 60ULL + 59ULL;
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 838, 59, 59, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(true, 838, 59, 59, 0));
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+
+  iv.second_part = 839ULL * 3600ULL * 1000000ULL;
+  iv.second = 0ULL;
+  EXPECT_TRUE(time5.add(iv, false));
+  EXPECT_TRUE(time5.add(iv, true));
+  iv.second_part = (838ULL * 3600ULL + 59ULL * 60ULL + 59ULL) * 1000000ULL;
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 838, 59, 59, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
+  EXPECT_FALSE(time5.add(iv, true));
+  EXPECT_EQ(time5, Time_val(true, 838, 59, 59, 0));
+  EXPECT_FALSE(time5.add(iv, false));
+  EXPECT_EQ(time5, Time_val(false, 0, 0, 0, 0));
 
   Time_val time6(false, 0, 0, 0, 0);
-  time6.add_nanoseconds_round(-500);
-  EXPECT_EQ(time6, Time_val(true, 0, 0, 0, 1));
+  EXPECT_FALSE(time6.add_nanoseconds_round(500));
+  EXPECT_EQ(time6, Time_val(false, 0, 0, 0, 1));
+
+  Time_val time7(false, 0, 0, 0, 0);
+  EXPECT_FALSE(time7.add_nanoseconds_round(-500));
+  EXPECT_EQ(time7, Time_val(true, 0, 0, 0, 1));
 }
 TEST(Time_val, extreme_values) {
   Time_val time;
@@ -292,3 +350,382 @@ TEST(Time_val, actual_decimals) {
   EXPECT_EQ(0, Time_val(false, 23, 59, 59, 0).actual_decimals());
 }
 }  // namespace Time_val_unittest
+
+namespace Date_val_unittest {
+TEST(Date_val, make_date) {
+  Date_val date;
+  EXPECT_FALSE(Date_val::make_date(0, 1, 1, 0, &date));
+  EXPECT_FALSE(Date_val::make_date(9999, 12, 31, 0, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 1, 1, TIME_NO_ZERO_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(9999, 12, 31, TIME_NO_ZERO_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 1, 1, TIME_NO_ZERO_IN_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(9999, 12, 31, TIME_NO_ZERO_IN_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 1, 1, TIME_NO_INVALID_DATES, &date));
+  EXPECT_FALSE(Date_val::make_date(9999, 12, 31, TIME_NO_INVALID_DATES, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 0, 0, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(0, 0, 0, TIME_NO_ZERO_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 0, 1, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(0, 0, 1, TIME_NO_ZERO_IN_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 1, 0, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(0, 1, 0, TIME_NO_ZERO_IN_DATE, &date));
+  EXPECT_FALSE(Date_val::make_date(0, 2, 29, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(0, 2, 29, TIME_NO_INVALID_DATES, &date));
+  EXPECT_FALSE(Date_val::make_date(2000, 2, 30, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(2000, 2, 30, TIME_NO_INVALID_DATES, &date));
+  EXPECT_TRUE(Date_val::make_date(10000, 1, 1, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(0, 13, 1, 0, &date));
+  EXPECT_TRUE(Date_val::make_date(0, 1, 32, 0, &date));
+}
+TEST(Date_val, store_load_date) {
+  uint8_t buffer[3];
+  Date_val date;
+
+  Date_val date1{0, 1, 1};
+  date1.store_date(buffer);
+  Date_val::load_date(buffer, &date);
+  EXPECT_EQ(date, date1);
+
+  Date_val date2{9999, 12, 31};
+  date2.store_date(buffer);
+  Date_val::load_date(buffer, &date);
+  EXPECT_EQ(date, date2);
+}
+TEST(Date_val, MYSQL_TIME) {
+  Date_val date1(2025, 2, 28);
+  MYSQL_TIME mt = static_cast<MYSQL_TIME>(date1);
+  Date_val date2 = Date_val{mt};
+  EXPECT_EQ(0, date1.compare(date2));
+  MYSQL_TIME mytime(2023, 1, 30, 12, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME,
+                    0);
+  Date_val a(2023, 1, 30);
+  EXPECT_EQ(Date_val::strip_time(mytime), a);
+  Date_val b{mt};
+  EXPECT_EQ(0, b.compare(date1));
+}
+TEST(Date_val, fields) {
+  Date_val date(2025, 2, 28);
+  EXPECT_EQ(date.year(), 2025);
+  EXPECT_EQ(date.month(), 2);
+  EXPECT_EQ(date.day(), 28);
+  EXPECT_FALSE(date.is_zero_date());
+  EXPECT_EQ(date.check_date(0), 0);
+  EXPECT_EQ(date.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(date.check_date(TIME_NO_ZERO_IN_DATE), 0);
+  EXPECT_EQ(date.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val zerodate(0, 0, 0);
+  EXPECT_EQ(zerodate.year(), 0);
+  EXPECT_EQ(zerodate.month(), 0);
+  EXPECT_EQ(zerodate.day(), 0);
+  EXPECT_TRUE(zerodate.is_zero_date());
+  EXPECT_EQ(zerodate.check_date(0), 0);
+  EXPECT_EQ(zerodate.check_date(TIME_NO_ZERO_DATE), MYSQL_TIME_WARN_ZERO_DATE);
+  EXPECT_EQ(zerodate.check_date(TIME_NO_ZERO_IN_DATE), 0);
+  EXPECT_EQ(zerodate.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val zeroday(0, 12, 0);
+  EXPECT_EQ(zeroday.year(), 0);
+  EXPECT_EQ(zeroday.month(), 12);
+  EXPECT_EQ(zeroday.day(), 0);
+  EXPECT_FALSE(zeroday.is_zero_date());
+  EXPECT_EQ(zeroday.check_date(0), 0);
+  EXPECT_EQ(zeroday.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(zeroday.check_date(TIME_NO_ZERO_IN_DATE),
+            MYSQL_TIME_WARN_ZERO_IN_DATE);
+  EXPECT_EQ(zeroday.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val zeromonth(0, 0, 31);
+  EXPECT_EQ(zeromonth.year(), 0);
+  EXPECT_EQ(zeromonth.month(), 0);
+  EXPECT_EQ(zeromonth.day(), 31);
+  EXPECT_FALSE(zeromonth.is_zero_date());
+  EXPECT_EQ(zeromonth.check_date(0), 0);
+  EXPECT_EQ(zeromonth.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(zeromonth.check_date(TIME_NO_ZERO_IN_DATE),
+            MYSQL_TIME_WARN_ZERO_IN_DATE);
+  EXPECT_EQ(zeromonth.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val invdate1(2024, 2, 30);
+  EXPECT_EQ(invdate1.year(), 2024);
+  EXPECT_EQ(invdate1.month(), 2);
+  EXPECT_EQ(invdate1.day(), 30);
+  EXPECT_FALSE(invdate1.is_zero_date());
+  EXPECT_EQ(invdate1.check_date(0), 0);
+  EXPECT_EQ(invdate1.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(invdate1.check_date(TIME_NO_ZERO_IN_DATE), 0);
+  EXPECT_EQ(invdate1.check_date(TIME_NO_INVALID_DATES),
+            MYSQL_TIME_WARN_OUT_OF_RANGE);
+
+  Date_val invdate2(2025, 2, 29);
+  EXPECT_EQ(invdate2.year(), 2025);
+  EXPECT_EQ(invdate2.month(), 2);
+  EXPECT_EQ(invdate2.day(), 29);
+  EXPECT_FALSE(invdate2.is_zero_date());
+  EXPECT_EQ(invdate2.check_date(0), 0);
+  EXPECT_EQ(invdate2.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(invdate2.check_date(TIME_NO_ZERO_IN_DATE), 0);
+  EXPECT_EQ(invdate2.check_date(TIME_NO_INVALID_DATES),
+            MYSQL_TIME_WARN_OUT_OF_RANGE);
+
+  Date_val mindate(0, 1, 1);
+  EXPECT_EQ(mindate.year(), 0);
+  EXPECT_EQ(mindate.month(), 1);
+  EXPECT_EQ(mindate.day(), 1);
+  EXPECT_FALSE(mindate.is_zero_date());
+  EXPECT_EQ(mindate.check_date(0), 0);
+  EXPECT_EQ(mindate.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(mindate.check_date(TIME_NO_ZERO_IN_DATE), 0);
+  EXPECT_EQ(mindate.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val maxdate(9999, 12, 31);
+  EXPECT_EQ(maxdate.year(), 9999);
+  EXPECT_EQ(maxdate.month(), 12);
+  EXPECT_EQ(maxdate.day(), 31);
+  EXPECT_FALSE(maxdate.is_zero_date());
+  EXPECT_EQ(maxdate.check_date(0), 0);
+  EXPECT_EQ(maxdate.check_date(TIME_NO_ZERO_DATE), 0);
+  EXPECT_EQ(maxdate.check_date(TIME_NO_ZERO_IN_DATE), 0);
+  EXPECT_EQ(maxdate.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val leapdate1(0, 2, 29);
+  EXPECT_EQ(leapdate1.check_date(TIME_NO_INVALID_DATES),
+            MYSQL_TIME_WARN_OUT_OF_RANGE);
+
+  Date_val leapdate2(1900, 2, 29);
+  EXPECT_EQ(leapdate2.check_date(TIME_NO_INVALID_DATES),
+            MYSQL_TIME_WARN_OUT_OF_RANGE);
+
+  Date_val leapdate3(2000, 2, 29);
+  EXPECT_EQ(leapdate3.check_date(TIME_NO_INVALID_DATES), 0);
+
+  Date_val leapdate4(2024, 2, 29);
+  EXPECT_EQ(leapdate4.check_date(TIME_NO_INVALID_DATES), 0);
+}
+TEST(Date_val, compare) {
+  Date_val date0(0, 1, 1);
+  Date_val date1(0, 1, 2);
+  Date_val date2(0, 1, 31);
+  Date_val date3(0, 2, 1);
+  Date_val date4(0, 2, 28);
+  Date_val date5(0, 12, 31);
+  Date_val date6(1, 1, 1);
+  Date_val date7(1, 12, 31);
+  Date_val date8(1000, 1, 1);
+  Date_val date9(9999, 1, 1);
+  Date_val date10(9999, 12, 31);
+
+  EXPECT_GT(0, date0.compare(date1));
+  EXPECT_GT(0, date1.compare(date2));
+  EXPECT_GT(0, date2.compare(date3));
+  EXPECT_GT(0, date3.compare(date4));
+  EXPECT_GT(0, date4.compare(date5));
+  EXPECT_GT(0, date5.compare(date6));
+  EXPECT_GT(0, date6.compare(date7));
+  EXPECT_GT(0, date7.compare(date8));
+  EXPECT_GT(0, date8.compare(date9));
+  EXPECT_GT(0, date9.compare(date10));
+  EXPECT_LT(date0.for_comparison(), date1.for_comparison());
+  EXPECT_LT(date1.for_comparison(), date2.for_comparison());
+  EXPECT_LT(date2.for_comparison(), date3.for_comparison());
+  EXPECT_LT(date3.for_comparison(), date4.for_comparison());
+  EXPECT_LT(date4.for_comparison(), date5.for_comparison());
+  EXPECT_LT(date5.for_comparison(), date6.for_comparison());
+  EXPECT_LT(date6.for_comparison(), date7.for_comparison());
+  EXPECT_LT(date7.for_comparison(), date8.for_comparison());
+  EXPECT_LT(date8.for_comparison(), date9.for_comparison());
+  EXPECT_LT(date9.for_comparison(), date10.for_comparison());
+}
+TEST(Date_val, to_int) {
+  int32_t date1 = Date_val{1, 1, 1}.to_int();
+  EXPECT_EQ(date1, 10101);
+  int32_t date2 = Date_val{2025, 2, 28}.to_int();
+  EXPECT_EQ(date2, 20250228);
+  int32_t date3 = Date_val{9999, 12, 31}.to_int();
+  EXPECT_EQ(date3, 99991231);
+  int32_t date4 = Date_val{0, 0, 0}.to_int();
+  EXPECT_EQ(date4, 0);
+  int32_t date5 = Date_val{9999, 0, 31}.to_int();
+  EXPECT_EQ(date5, 99990031);
+  int32_t date6 = Date_val{9999, 12, 0}.to_int();
+  EXPECT_EQ(date6, 99991200);
+  int32_t date7 = Date_val{2000, 2, 31}.to_int();
+  EXPECT_EQ(date7, 20000231);
+}
+TEST(Date_val, to_double) {
+  Date_val date1(1, 1, 1);
+  EXPECT_EQ(10101.0e0, date1.to_double());
+  Date_val date2(2025, 2, 28);
+  EXPECT_EQ(20250228.0e0, date2.to_double());
+  Date_val date3(9999, 12, 31);
+  EXPECT_EQ(99991231.0e0, date3.to_double());
+  Date_val date4(0, 0, 0);
+  EXPECT_EQ(0, date4.to_double());
+  Date_val date5(9999, 0, 31);
+  EXPECT_EQ(99990031.0e0, date5.to_double());
+  Date_val date6(9999, 12, 0);
+  EXPECT_EQ(99991200.0e0, date6.to_double());
+  Date_val date7(2000, 2, 31);
+  EXPECT_EQ(20000231.0e0, date7.to_double());
+}
+TEST(Date_val, to_string) {
+  char buffer[11];
+  Date_val date1 = Date_val{1, 1, 1};
+  size_t buf_len = date1.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "0001-01-01"));
+  Date_val date2 = Date_val{2025, 2, 28};
+  buf_len = date2.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "2025-02-28"));
+  Date_val date3 = Date_val{9999, 12, 31};
+  buf_len = date3.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "9999-12-31"));
+  Date_val date4 = Date_val{0, 0, 0};
+  buf_len = date4.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "0000-00-00"));
+  Date_val date5 = Date_val{0, 1, 0};
+  buf_len = date5.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "0000-01-00"));
+  Date_val date6 = Date_val{0, 0, 1};
+  buf_len = date6.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "0000-00-01"));
+  Date_val date7 = Date_val{2000, 2, 30};
+  buf_len = date7.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "2000-02-30"));
+  Date_val date8 = Date_val{2001, 2, 29};
+  buf_len = date8.to_string(buffer);
+  buffer[buf_len] = 0;
+  EXPECT_EQ(0, strcmp(buffer, "2001-02-29"));
+}
+TEST(Date_val, add) {
+  Interval iv;
+  Date_val date1{0, 1, 31};
+  iv.month = 1;
+  EXPECT_TRUE(date1.add(iv, true));
+  EXPECT_FALSE(date1.add(iv, false));
+  // Year zero is not a leap year:
+  EXPECT_EQ(date1, Date_val(0, 2, 28));
+  iv.year = 1;
+  iv.month = 0;
+  EXPECT_FALSE(date1.add(iv, false));
+  EXPECT_EQ(date1, Date_val(1, 2, 28));
+  iv.year = 0;
+  iv.month = 120000;
+  EXPECT_TRUE(date1.add(iv, false));
+  EXPECT_TRUE(date1.add(iv, true));
+  iv.year = 10000;
+  iv.month = 0;
+  EXPECT_TRUE(date1.add(iv, false));
+  EXPECT_TRUE(date1.add(iv, true));
+
+  Date_val date2{2000, 1, 31};
+  iv.year = 0;
+  iv.month = 1;
+  EXPECT_FALSE(date2.add(iv, false));
+  EXPECT_EQ(date2, Date_val(2000, 2, 29));
+  iv.year = 1;
+  iv.month = 0;
+  EXPECT_FALSE(date2.add(iv, false));
+  EXPECT_EQ(date2, Date_val(2001, 2, 28));
+
+  Date_val date3{0, 1, 1};
+  iv.year = 0;
+  iv.month = 0;
+  iv.day = 3652425;
+  EXPECT_TRUE(date3.add(iv, false));
+  EXPECT_TRUE(date3.add(iv, true));
+
+  iv.day = 1;
+  EXPECT_TRUE(date3.add(iv, true));
+  EXPECT_FALSE(date3.add(iv, false));
+  EXPECT_EQ(date3, Date_val(0, 1, 2));
+  iv.day = 365;
+  EXPECT_FALSE(date3.add(iv, false));
+  EXPECT_EQ(date3, Date_val(1, 1, 2));
+
+  Date_val date4{2000, 1, 1};
+  iv.day = 90;
+  EXPECT_FALSE(date4.add(iv, false));
+  EXPECT_EQ(date4, Date_val(2000, 3, 31));
+  EXPECT_FALSE(date4.add(iv, true));
+  EXPECT_EQ(date4, Date_val(2000, 1, 1));
+
+  iv.day = 366;
+  EXPECT_FALSE(date4.add(iv, false));
+  EXPECT_EQ(date4, Date_val(2001, 1, 1));
+  EXPECT_FALSE(date4.add(iv, true));
+  EXPECT_EQ(date4, Date_val(2000, 1, 1));
+
+  Date_val date5{2000, 3, 1};
+  iv.day = 90;
+  EXPECT_FALSE(date5.add(iv, false));
+  EXPECT_EQ(date5, Date_val(2000, 5, 30));
+  EXPECT_FALSE(date5.add(iv, true));
+  EXPECT_EQ(date5, Date_val(2000, 3, 1));
+
+  iv.day = 365;
+  EXPECT_FALSE(date5.add(iv, false));
+  EXPECT_EQ(date5, Date_val(2001, 3, 1));
+  EXPECT_FALSE(date5.add(iv, true));
+  EXPECT_EQ(date5, Date_val(2000, 3, 1));
+
+  Date_val date6{9999, 12, 31};
+  iv.day = 1;
+  EXPECT_TRUE(date6.add(iv, false));
+  EXPECT_FALSE(date6.add(iv, true));
+  EXPECT_EQ(date6, Date_val(9999, 12, 30));
+}
+TEST(Date_val, day_number) {
+  for (uint32_t daynr = 1; daynr <= 3652424; daynr++) {
+    Date_val date{daynr};
+    uint32_t number = date.day_number();
+    EXPECT_EQ(daynr, number);
+  }
+}
+TEST(Date_val, last_day) {
+  Date_val date1{0, 1, 1};
+  date1.set_last_day_of_month();
+  EXPECT_EQ(date1, Date_val(0, 1, 31));
+  Date_val date2{0, 2, 1};
+  date2.set_last_day_of_month();
+  EXPECT_EQ(date2, Date_val(0, 2, 28));
+  Date_val date3{0, 3, 1};
+  date3.set_last_day_of_month();
+  EXPECT_EQ(date3, Date_val(0, 3, 31));
+  Date_val date4{0, 4, 1};
+  date4.set_last_day_of_month();
+  EXPECT_EQ(date4, Date_val(0, 4, 30));
+  Date_val date5{0, 5, 1};
+  date5.set_last_day_of_month();
+  EXPECT_EQ(date5, Date_val(0, 5, 31));
+  Date_val date6{0, 6, 1};
+  date6.set_last_day_of_month();
+  EXPECT_EQ(date6, Date_val(0, 6, 30));
+  Date_val date7{0, 7, 1};
+  date7.set_last_day_of_month();
+  EXPECT_EQ(date7, Date_val(0, 7, 31));
+  Date_val date8{0, 8, 1};
+  date8.set_last_day_of_month();
+  EXPECT_EQ(date8, Date_val(0, 8, 31));
+  Date_val date9{0, 9, 1};
+  date9.set_last_day_of_month();
+  EXPECT_EQ(date9, Date_val(0, 9, 30));
+  Date_val date10{0, 10, 1};
+  date10.set_last_day_of_month();
+  EXPECT_EQ(date10, Date_val(0, 10, 31));
+  Date_val date11{0, 11, 1};
+  date11.set_last_day_of_month();
+  EXPECT_EQ(date11, Date_val(0, 11, 30));
+  Date_val date12{0, 12, 1};
+  date12.set_last_day_of_month();
+  EXPECT_EQ(date12, Date_val(0, 12, 31));
+  Date_val date13{2000, 2, 1};
+  date13.set_last_day_of_month();
+  EXPECT_EQ(date13, Date_val(2000, 2, 29));
+}
+}  // namespace Date_val_unittest

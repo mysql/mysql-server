@@ -1,0 +1,52 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+FROM otel/cpp_format_tools
+
+ARG USER_UID=1000
+ARG USER_GID=1000
+ARG INSTALL_PACKAGES=
+
+ARG CXX_STANDARD=17
+
+ENV CXX_STANDARD=${CXX_STANDARD}
+
+COPY ci /opt/ci
+
+RUN apt update && apt install -y wget \
+    ninja-build \
+    llvm-dev \
+    libclang-dev \
+    clang-tidy \
+    shellcheck \
+    sudo \
+    cmake
+
+RUN cd /opt/ci && bash setup_ci_environment.sh
+RUN cd /opt/ci && bash install_iwyu.sh
+
+ADD https://github.com/bazelbuild/bazelisk/releases/download/v1.22.1/bazelisk-linux-amd64 /usr/local/bin
+	
+RUN git config --global core.autocrlf input \
+	&& chmod +x /usr/local/bin/bazelisk-linux-amd64
+
+ENV INSTALL_PACKAGES=${INSTALL_PACKAGES}
+ENV USER_NAME=devuser
+ENV USER_UID=${USER_UID}
+ENV USER_GID=${USER_GID}
+ENV IS_CONTAINER_BUILD=true
+
+COPY install /opt/install
+COPY ./.devcontainer/customize_container.sh /tmp/opentelemetry_cpp/devcontainer/customize_container.sh
+RUN /tmp/opentelemetry_cpp/devcontainer/customize_container.sh
+RUN apt install -y npm && npm install -g markdownlint-cli@0.44.0
+
+USER devuser
+
+WORKDIR  /workspaces/opentelemetry-cpp
+RUN cd /opt && bash ci/install_thirdparty.sh --install-dir /home/devuser/third-party/install-stable --tags-file install/cmake/third_party_stable
+ENV CMAKE_PREFIX_PATH=/home/devuser/third-party/install-stable
+
+ENTRYPOINT []
+
+CMD ["/bin/bash"]

@@ -1,0 +1,369 @@
+################################################################################
+# Deleting Root Object using PK column of Root Object.
+# Root object - Foreign Key  Table annotations: DELETE
+# Sub-object - Primary Key   Table annotations: NO INSERT, NO UPDATE, NO DELETE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+'f1' : f1,
+'f2' : f2
+) FROM p_t1  WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": {"f1": 1, "f2": 2}, "_metadata": {"etag": "fc4814ef839b66d33df1a52c8dc67d60"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": {"f1": 1, "f2": 2}, "_metadata": {"etag": "fc4814ef839b66d33df1a52c8dc67d60"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+data
+SELECT * FROM p_t1;
+f1	f2
+1	2
+SELECT * FROM p_t2;
+f11	f12
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting Root Object using column of Sub-Object.
+# Root object - Foreign Key  Table annotations: DELETE
+# Sub-object - Primary Key   Table annotations: NO INSERT, NO UPDATE, NO DELETE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 5), (2, 5);
+INSERT INTO p_t2 VALUES (1, 5), (2, 5);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, NO DELETE)
+'f1' : f1,
+'f2' : f2
+) FROM p_t1  WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 5, "childN": {"f1": 1, "f2": 5}, "_metadata": {"etag": "530882fc67fef87b080005b174e96733"}}
+{"_id": 2, "f12": 5, "childN": {"f1": 2, "f2": 5}, "_metadata": {"etag": "b5f30d74377f03ac765d5747b96d519e"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f2') = 500;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 5, "childN": {"f1": 1, "f2": 5}, "_metadata": {"etag": "530882fc67fef87b080005b174e96733"}}
+{"_id": 2, "f12": 5, "childN": {"f1": 2, "f2": 5}, "_metadata": {"etag": "b5f30d74377f03ac765d5747b96d519e"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f2') = 5;
+ERROR 0A000: Multiple object delete is not supported for JSON Duality Views.
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 5, "childN": {"f1": 1, "f2": 5}, "_metadata": {"etag": "530882fc67fef87b080005b174e96733"}}
+{"_id": 2, "f12": 5, "childN": {"f1": 2, "f2": 5}, "_metadata": {"etag": "b5f30d74377f03ac765d5747b96d519e"}}
+SELECT * FROM p_t1 ORDER BY f1;
+f1	f2
+1	5
+2	5
+SELECT * FROM p_t2 ORDER BY f11;
+f11	f12
+1	5
+2	5
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting PK Root Object when referencing Sub-object still exits.
+# Root object - Primary Key  Table annotations: DELETE
+# Sub-object - Foreign Key   Table annotations: DELETE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH DELETE
+'f11' : f11,
+'f12' : f12
+)) FROM p_t2
+WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+data
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting PK Root Object when referencing Sub-object still exits.
+# Root object - Primary Key  Table annotations: DELETE
+# Sub-object - Foreign Key   Table annotations: INSERT, UPDATE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+'f11' : f11,
+'f12' : f12
+) FROM p_t2
+WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": {"f11": 1, "f12": 2}, "_metadata": {"etag": "16d6476134cf8ef9a97036cf9fa8cc9f"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": {"f11": 1, "f12": 2}, "_metadata": {"etag": "16d6476134cf8ef9a97036cf9fa8cc9f"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`p_t2`, CONSTRAINT `p_t2_ibfk_1` FOREIGN KEY (`f11`) REFERENCES `p_t1` (`f1`))
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": {"f11": 1, "f12": 2}, "_metadata": {"etag": "16d6476134cf8ef9a97036cf9fa8cc9f"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting PK Root Object using sub-object column when referencing Sub-object
+# still exits.
+## Root object - Primary Key  Table annotations: DELETE
+## Sub-object - Foreign Key   Table annotations: DELETE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH DELETE
+'f11' : f11,
+'f12' : f12
+)) FROM p_t2  WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 1;
+SELECT * FROM p_dv1;
+data
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+## Root object - Primary Key  Table annotations: READ ONLY
+## Sub-object - Foreign Key   Table annotations: DELETE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH DELETE
+'f11' : f11,
+'f12' : f12
+)) FROM p_t2  WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 1;
+ERROR HY000: Missing DELETE tag on table `test`.`p_t1`, path '$'.
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting PK Root Object using sub-object column when referencing Sub-object
+# still exits.
+# Root object - Primary Key  Table annotations: DELETE
+# Sub-object - Foreign Key   Table annotations: INSERT, UPDATE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+'f11' : f11,
+'f12' : f12
+) FROM p_t2
+WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": {"f11": 1, "f12": 2}, "_metadata": {"etag": "16d6476134cf8ef9a97036cf9fa8cc9f"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f11') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": {"f11": 1, "f12": 2}, "_metadata": {"etag": "16d6476134cf8ef9a97036cf9fa8cc9f"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN.f11') = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`p_t2`, CONSTRAINT `p_t2_ibfk_1` FOREIGN KEY (`f11`) REFERENCES `p_t1` (`f1`))
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": {"f11": 1, "f12": 2}, "_metadata": {"etag": "16d6476134cf8ef9a97036cf9fa8cc9f"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting PK Root Object. Sub-object's non-PK column references Root object.
+# Root object - Primary Key  Table annotations: DELETE
+# Sub-object - Foreign Key   Table annotations: DELETE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH DELETE
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t1.f1 = p_t2.f12)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 2}], "_metadata": {"etag": "c8dde66ca8d10384408350ce46cc8601"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 2}], "_metadata": {"etag": "c8dde66ca8d10384408350ce46cc8601"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+SELECT * FROM p_dv1;
+data
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting PK Root Object using Sub-object's column. Sub-object's
+# non-PK column references Root object.
+# Root object - Primary Key  Table annotations: DELETE
+# Sub-object - Foreign Key   Table annotations: DELETE
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH DELETE
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t1.f1 = p_t2.f12)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 2}], "_metadata": {"etag": "c8dde66ca8d10384408350ce46cc8601"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 100;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 2}], "_metadata": {"etag": "c8dde66ca8d10384408350ce46cc8601"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$.childN[0].f11') = 1;
+SELECT * FROM p_dv1;
+data
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting Root Object. Non-PK column of sub-object referencing Root object.
+# Root object - Primary Key  Table annotations: DELETE
+# Sub-object - Primary Key   Table annotations: READ ONLY
+# Join_condition - Root object.PK = sub_object.non_pk_column
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH DELETE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+ERROR HY000: Missing DELETE tag on table `test`.`p_t1`, path '$.ChildNode[0]'.
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Deleting Root Object. Non-PK column of sub-object referencing Root object.
+# Root object - Primary Key  Table annotations: READ ONLY
+# Sub-object - Primary Key   Table annotations: DELETE
+# Join_condition - Root object.PK = sub_object.non_pk_column
+################################################################################
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH DELETE
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 100;
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 1;
+ERROR HY000: Missing DELETE tag on table `test`.`p_t2`, path '$'.
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+DROP VIEW p_dv1;

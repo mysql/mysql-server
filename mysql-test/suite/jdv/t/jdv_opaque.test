@@ -1,0 +1,53 @@
+--echo #
+--echo # Testing new function FROM_BASE64_NO_NULL() which
+--echo # always report error for failed decoding (instead of returning NULL)
+--echo #
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT FROM_BASE64();
+
+SELECT FROM_BASE64(NULL);
+
+SELECT FROM_BASE64(0);
+
+SELECT FROM_BASE64('foo');
+
+SELECT FROM_BASE64(TO_BASE64('This is a string'));
+
+--echo ################################################################################
+--echo # Verify that it is possible to insert values which are base64 encoded
+--echo # and into a BLOB column, and that invalid base64 is detected.
+--echo ################################################################################
+
+CREATE TABLE t1 (i INT PRIMARY KEY, name LONGBLOB);
+
+INSERT INTO t1 VALUES (1, 'Johnson');
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+              "_id" : i,
+               "name_key" : name) FROM t1;
+SELECT JSON_VALID(data->'$.name_key'), JSON_TYPE(data->'$.name_key') FROM dv1;
+
+SELECT data FROM dv1;
+
+INSERT INTO dv1 VALUES('{"_id": 2, "name_key": "base64:type251:Zm9vYmFy"}');
+
+--error ER_JDV_INVALID_BINARY_TYPE_HEADER
+INSERT INTO dv1 VALUES('{"_id": 3, "name_key": "Some random string value"}');
+
+--error ER_JDV_INVALID_BINARY_TYPE_HEADER
+INSERT INTO dv1 VALUES('{"_id": 4, "name_key": "base64:type, some random string value which happens to start with base64:type"}');
+
+--echo # Test an invalid bas64-encoding
+--error ER_BASE64_DECODE_ERROR
+INSERT INTO dv1 VALUES('{"_id": 2, "name_key": "base64:type251:Zm9_$_vYmFy"}');
+
+SELECT * FROM dv1;
+SELECT * FROM t1;
+
+DROP VIEW dv1;
+DROP TABLE t1;
+
+
+

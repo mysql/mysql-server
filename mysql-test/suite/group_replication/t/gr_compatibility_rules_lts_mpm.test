@@ -22,11 +22,11 @@
 --echo ############################################################
 --echo # 1. Bootstrap the group with server1 that is one patch version
 --echo #    higher than the current version.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# | server1 | ONLINE  | 9.7.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
 --source include/connection.inc
@@ -36,12 +36,12 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 
 --echo ############################################################
 --echo # 2. Join server2 that is one patch lower than the group version.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
-# | server2 | ONLINE  | 8.4.0   | Primary   | LTS        |
+# | server1 | ONLINE  | 9.7.1   | Primary   | LTS        |
+# | server2 | ONLINE  | 9.7.0   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server2
 --source include/connection.inc

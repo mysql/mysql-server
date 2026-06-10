@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2025, Oracle and/or its affiliates.
+Copyright (c) 1996, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -197,11 +197,6 @@ bool match_partition(const std::string &dict_name,
 names within a dictionary table name.
 @param[in,out]  dict_name       table name in dictionary */
 void convert_to_space(std::string &dict_name);
-
-/* Rebuild space name by replacing partition string from dictionary table name.
-@param[in]      dict_name       table name in dictionary
-@param[in,out]  space_name      space name to be rebuilt */
-void rebuild_space(const std::string &dict_name, std::string &space_name);
 
 /** Rebuild table name to convert from 5.7 format to 8.0.
 @param[in,out]  dict_name       table name in dictionary */

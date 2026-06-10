@@ -1,0 +1,208 @@
+ ## Preamble
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (value TEXT);
+INSERT INTO xtest.xtable(value) VALUES("");
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/message_large_payload.xpl
+
+
+## Test case description:
+#
+-->echo
+-->echo
+-->echo ## I. Verify that sending an X Protocol message that generates
+-->echo ##    SQL larger than a certain limit (SQL > 1MB) doesn't
+-->echo ##    return ER_QUERY_INTERRUPTED.
+-->echo #
+-->echo # 1. Send StmtExecute with 1MB encoded literal.
+-->echo # 2. Send CRUD-find with 1MB encoded literal.
+-->echo # 3. Send CRUD-delete with 1MB encoded literal.
+-->echo # 4. Send CRUD-insert with 1MB encoded literal.
+-->echo # 5. Send CRUD-update with 1MB encoded literal.
+-->echo # 6. Send CRUD-CreateView with 1MB encoded literal.
+-->echo # 7. Send Mysqlx.Prepare.Prepare with 1MB encoded literal.
+-->echo # 8. Send Mysqlx.Cursor.Open with 1MB encoded literal.
+-->echo
+
+-->echo
+-->echo #
+-->echo # I.1
+
+# Generate value of size 1MB (1024 * 1024 = 1 048 576 bytes)
+# and pack it into StmtExecute with SELECT.
+-->vargen %LARGE_TEXT% . 1048577
+
+-->quiet
+-->echo ## Send large message
+Mysqlx.Sql.StmtExecute {
+    stmt: "select '%LARGE_TEXT%' as result"
+}
+-->varsub %LARGE_TEXT%
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo # I.2
+
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  projection {
+    source {  type: PLACEHOLDER position: 0 }
+    alias: "result"
+  }
+  args { type: V_OCTETS v_octets {value:"%LARGE_TEXT%"} }
+}
+-->varsub %LARGE_TEXT%
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo # I.3
+
+-->varsub %LARGE_TEXT%
+Mysqlx.Crud.Delete {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  args { type: V_OCTETS v_octets {value:"%LARGE_TEXT%"} }
+  criteria {
+    type: OPERATOR
+    operator {
+       name: "=="
+       param { type: IDENT identifier { name: "value" } }
+       param { type: PLACEHOLDER position: 0 }
+    }
+  }
+}
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo # I.4
+
+Mysqlx.Crud.Insert {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type : LITERAL literal { type: V_OCTETS v_octets {value:"%LARGE_TEXT%"} }
+    }
+  }
+}
+-->expecterror ER_DATA_TOO_LONG
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo # I.5
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'value'
+    }
+    operation: SET
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:"%LARGE_TEXT%"}}
+    }
+  }
+}
+-->expecterror ER_DATA_TOO_LONG
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.6
+Mysqlx.Crud.CreateView {
+  collection { name: "view" schema: "xtest" }
+  stmt: {
+    collection { name: "xtable" schema: "xtest" }
+    projection {
+      source {  type: PLACEHOLDER position: 0 }
+      alias: "result"
+    }
+    args { type: V_OCTETS v_octets {value:"%LARGE_TEXT%"} }
+    data_model: DOCUMENT
+  }
+}
+-->recvok
+
+-->echo
+-->echo #
+-->echo # I.7
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: FIND
+    find: {
+      collection { name: "xtable" schema: "xtest"}
+      data_model: TABLE
+      projection {
+        source {  type: PLACEHOLDER position: 0 }
+        alias: "result"
+      }
+      args { type: V_OCTETS v_octets {value:"%LARGE_TEXT%"} }
+    }
+  }
+}
+-->recvok
+
+-->echo
+-->echo #
+-->echo # I.8
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: FIND
+    find: {
+      collection { name: "xtable" schema: "xtest"}
+      data_model: TABLE
+      projection {
+        source {  type: PLACEHOLDER position: 0 }
+        alias: "result"
+      }
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 100
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 3
+      args {
+        type: SCALAR scalar {
+          type: V_STRING v_string {
+            value: "%LARGE_TEXT%"
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+EOF
+
+# Set the X Protocol packet limit to 2MB (2 × 1024 × 1024 = 2097152 bytes)
+SET GLOBAL mysqlx_max_allowed_packet = 2097152;
+
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/message_large_payload.xpl 2>&1
+
+## Cleanup
+SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
+--source ../include/xplugin_cleanup.inc

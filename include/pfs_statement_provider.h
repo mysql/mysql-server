@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -146,6 +146,9 @@ void pfs_set_prepared_stmt_secondary_engine_vc(PSI_prepared_stmt *prepared_stmt,
 PSI_digest_locker *pfs_digest_start_vc(PSI_statement_locker *locker);
 
 void pfs_digest_end_vc(PSI_digest_locker *locker,
+                       const sql_digest_storage *digest);
+
+void pfs_digest_set_vc(PSI_statement_locker *locker,
                        const sql_digest_storage *digest);
 
 #endif /* WITH_LOCK_ORDER */

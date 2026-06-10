@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2025, Oracle and/or its affiliates.
+Copyright (c) 1996, 2026, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2068,37 +2068,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   /* Compute the maximum possible record size. */
   for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
     const dict_field_t *field = index->get_field(i);
-    const dict_col_t *col = field->col;
-    ulint field_max_size;
-    ulint field_ext_max_size;
-
-    /* Determine the maximum length of the index field. */
-
-    field_max_size = col->get_fixed_size(comp);
-    if (field_max_size) {
-      /* dict_index_add_col() should guarantee this */
-      ut_ad(!field->prefix_len || field->fixed_len == field->prefix_len);
-      /* Fixed lengths are not encoded
-      in ROW_FORMAT=COMPACT. */
-      rec_max_size += field_max_size;
-      continue;
-    }
-
-    field_max_size = col->get_max_size();
-    field_ext_max_size = field_max_size < 256 ? 1 : 2;
-
-    if (field->prefix_len && field->prefix_len < field_max_size) {
-      field_max_size = field->prefix_len;
-    }
-
-    if (comp) {
-      /* Add the extra size for ROW_FORMAT=COMPACT.
-      For ROW_FORMAT=REDUNDANT, these bytes were
-      added to rec_max_size before this loop. */
-      rec_max_size += field_ext_max_size;
-    }
-
-    rec_max_size += field_max_size;
+    get_field_max_size(index->table, index, field, rec_max_size);
   }
 
   return (rec_max_size);
@@ -2140,42 +2110,67 @@ void get_permissible_max_size(const dict_table_t *table,
 
 void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
                         const dict_field_t *field, size_t &rec_max_size) {
+  /* Determine the maximum length of the index field. In case ROW_FORMAT is
+  not REDUNDANT, this function should take into account the extra bytes needed
+  to encode the variable length of the field, computed as the worst case in
+  rec_get_converted_size_comp() for REC_STATUS_ORDINARY records. */
+
   const bool comp = dict_table_is_comp(table);
   const dict_col_t *col = field->col;
-  ulint field_max_size;
-  ulint field_ext_max_size;
 
-  /* In dtuple_convert_big_rec(), variable-length columns
-  that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
-  may be chosen for external storage.
-
-  Fixed-length columns, and all columns of secondary
-  index records are always stored inline. */
-
-  /* Determine the maximum length of the index field.
-  The field_ext_max_size should be computed as the worst
-  case in rec_get_converted_size_comp() for
-  REC_STATUS_ORDINARY records. */
-
-  field_max_size = col->get_fixed_size(comp);
-  if (field_max_size && field->fixed_len != 0) {
+  if (field->fixed_len != 0) {
     /* dict_index_add_col() should guarantee this */
     ut_ad(!field->prefix_len || field->fixed_len == field->prefix_len);
     /* Fixed lengths are not encoded in ROW_FORMAT=COMPACT. */
-    field_ext_max_size = 0;
-    rec_max_size += field_max_size;
+    rec_max_size += field->fixed_len;
+    return;
+  }
+  /* For historical reasons, a spatial index on DATA_GEOMETRY has fixed_len==0,
+  even though in reality it always uses DATA_MBR_LEN bytes for the MBR. We can't
+  change the on-disc format - the extra byte for length is indeed always
+  there. But, we can handle this special case here, explicitly, instead of using
+  the generic code below, which would see field_max_size=ULINT_MAX, add 2, and
+  cause overflow.
+  The first column of spatial index is always one of the geometry types like
+  DATA_POINT, DATA_VAR_POINT or DATA_GEOMETRY. The next field(s) are the PK
+  columns, none of which can be DATA_GEOMETRY as PK can't have unbounded
+  length. This is why we don't need to check if the field is the first field of
+  the spatial index once we see it is DATA_GEOMETRY. We can't check this anyway,
+  because the field might be a dummy object not yet added to the index. */
+  if (dict_index_is_spatial(index) && col->mtype == DATA_GEOMETRY) {
+    rec_max_size += DATA_MBR_LEN + 1;
     return;
   }
 
-  field_max_size = col->get_max_size();
-  field_ext_max_size = field_max_size < 256 ? 1 : 2;
+  size_t field_max_size = col->get_max_size();
+  size_t field_ext_max_size = DATA_BIG_COL(col) ? 2 : 1;
+
+  /* The first dict_index_get_n_unique_in_tree(index) fields are used for
+  navigating the B-tree, so are always inlined for efficient access.
+  This function may be called with a dummy field which doesn't even belong to
+  the index yet. In such case, it is not part of the unique prefix anyway.*/
+  const bool always_inlined = std::any_of(
+      index->fields, index->fields + dict_index_get_n_unique_in_tree(index),
+      [&](const dict_field_t &pref_field) { return field == &pref_field; });
+
+  /* A spatial index on DATA_GEOMETRY should be the only case where we have
+  prefix_len=0 AND unbounded col->get_max_size() AND the field is
+  always_inlined. Otherwise fields used in B-tree navigation could be
+  arbitrarily long, which is impossible to handle efficiently. */
+  ut_ad(!(always_inlined && field_max_size == ULINT_MAX &&
+          field->prefix_len == 0));
 
   if (field->prefix_len) {
+    ut_ad(always_inlined);
     if (field->prefix_len < field_max_size) {
       field_max_size = field->prefix_len;
     }
-  } else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE &&
-             index->is_clustered()) {
+  } else if (!always_inlined &&
+             field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE &&
+             DATA_BIG_COL(col) && index->is_clustered()) {
+    /* In dtuple_convert_big_rec(), a "big" variable-length column that is
+    longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE and is not used for navigation
+    may be chosen for external storage. */
     if (dict_table_has_atomic_blobs(table)) {
       /* In the worst case, we have a locally stored column of
       BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes. The length can be stored in one
@@ -2196,10 +2191,16 @@ void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
     }
   }
 
+  /* Sanity check, preventing overflow. Note that col->get_max_size()==ULINT_MAX
+  implies DATA_BIG_COL(col), and we don't have secondary indexes on BLOBs
+  without prefix_len, so if you combine all the logical conditions leading to
+  this line, you should see why it must hold. */
+  ut_ad(field_max_size != ULINT_MAX);
+
   if (comp) {
     /* Add the extra size for ROW_FORMAT=COMPACT.
-    For ROW_FORMAT=REDUNDANT, these bytes were
-    added to rec_max_size before this loop. */
+    For ROW_FORMAT=REDUNDANT, these bytes were added to rec_max_size before the
+    call. */
     rec_max_size += field_ext_max_size;
   }
 

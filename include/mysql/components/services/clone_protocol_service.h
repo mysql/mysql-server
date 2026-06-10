@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,6 +125,18 @@ DECLARE_METHOD(int, mysql_clone_get_configs,
 */
 DECLARE_METHOD(int, mysql_clone_validate_configs,
                (THD * thd, Mysql_Clone_Key_Values &configs));
+
+/**
+  Check if Clone is allowed from donor to recipient
+  @param[in]  recipient         recipient's version string
+  @param[in]  donor             donor's version string
+  @param[in]  is_recipient_lts  true if recipient is LTS, false otherwise
+  @param[in]  is_donor_lts      true if donor is LTS, false otherwise
+  @return 0 on success, error code otherwise
+*/
+DECLARE_METHOD(int, mysql_clone_validate_version,
+               (const std::string &recipient, const std::string &donor,
+                const bool is_recipient_lts, const bool is_donor_lts));
 
 /**
   Connect to a remote server and switch to clone protocol

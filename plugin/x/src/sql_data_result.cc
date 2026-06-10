@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,18 @@ void Sql_data_result::get_next_field(std::string *value) {
   Field_value *field_value = get_value();
 
   *value = "";
+  if (field_value && field_value->is_string)
+    *value = *field_value->value.v_string;
+}
+
+void Sql_data_result::get_next_field(std::optional<std::string> *value) {
+  validate_field_index({MYSQL_TYPE_VARCHAR, MYSQL_TYPE_STRING,
+                        MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+                        MYSQL_TYPE_VECTOR, MYSQL_TYPE_LONG_BLOB});
+
+  Field_value *field_value = get_value();
+
+  value->reset();
   if (field_value && field_value->is_string)
     *value = *field_value->value.v_string;
 }

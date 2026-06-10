@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -438,7 +438,7 @@ void Dbtc::execCONTINUEB(Signal *signal) {
       return;
     case TcContinueB::ZNF_CHECK_TRANSACTIONS:
       jam();
-      nodeFailCheckTransactions(signal, Tdata0, Tdata1);
+      nodeFailCheckTransactions(signal, Tdata0, Tdata1, Tdata2, Tdata3);
       return;
     case TcContinueB::TRIGGER_PENDING: {
       jam();
@@ -6148,7 +6148,8 @@ void Dbtc::commit020Lab(Signal *signal,
       if (Tcount < 16 &&
           !(ERROR_INSERTED(8057) || ERROR_INSERTED(8073) ||
             ERROR_INSERTED(8089) ||
-            (ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) == 0)))) {
+            (ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) == 0)) ||
+            ERROR_INSERTED(8127))) {
         jam();
         continue;
       } else {
@@ -6167,7 +6168,8 @@ void Dbtc::commit020Lab(Signal *signal,
         signal->theData[0] = TcContinueB::ZSEND_COMMIT_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
-        if (ERROR_INSERTED(8089) || ERROR_INSERTED(8123)) {
+        if (ERROR_INSERTED(8089) || ERROR_INSERTED(8123) ||
+            ERROR_INSERTED(8127)) {
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
         }
@@ -6581,7 +6583,8 @@ void Dbtc::complete010Lab(Signal *signal,
     Tcount += sendCompleteLqh(signal, localTcConnectptr.p, apiConnectptr.p);
     if (tcConList.next(localTcConnectptr)) {
       if (Tcount < 16 && !ERROR_INSERTED(8112) &&
-          !(ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) != 0))) {
+          !(ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) != 0)) &&
+          !ERROR_INSERTED(8127)) {
         jamDebug();
         continue;
       } else {
@@ -6593,7 +6596,8 @@ void Dbtc::complete010Lab(Signal *signal,
         signal->theData[0] = TcContinueB::ZSEND_COMPLETE_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
-        if (ERROR_INSERTED(8112) || ERROR_INSERTED(8123)) {
+        if (ERROR_INSERTED(8112) || ERROR_INSERTED(8123) ||
+            ERROR_INSERTED(8127)) {
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
         }
@@ -8398,7 +8402,8 @@ ABORT020:
   if (tcConnectptr.p->nextList != RNIL) {
     jam();
     tcConnectptr.i = tcConnectptr.p->nextList;
-    if (TloopCount < 1024 && !ERROR_INSERTED(8089) && !ERROR_INSERTED(8105)) {
+    if (TloopCount < 1024 && !ERROR_INSERTED(8089) && !ERROR_INSERTED(8105) &&
+        !ERROR_INSERTED(8127)) {
       goto ABORT020;
     } else {
       jam();
@@ -8414,7 +8419,7 @@ ABORT020:
       signal->theData[2] = apiConnectptr.i;
       signal->theData[3] = apiConnectptr.p->transid[0];
       signal->theData[4] = apiConnectptr.p->transid[1];
-      if (ERROR_INSERTED(8089)) {
+      if (ERROR_INSERTED(8089) || ERROR_INSERTED(8127)) {
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
         return;
       }
@@ -10008,7 +10013,8 @@ void Dbtc::execNODE_FAILREP(Signal *signal) {
     insert_take_over_failed_node(signal, myHostPtr.i);
 
     checkScanActiveInFailedLqh(signal, 0, myHostPtr.i);
-    nodeFailCheckTransactions(signal, 0, myHostPtr.i);
+    nodeFailCheckTransactions(signal, HostRecord::NF_CT_TIMEOUT_TRANSACTIONS, 0,
+                              myHostPtr.i, 0);
     Callback cb = {safe_cast(&Dbtc::ndbdFailBlockCleanupCallback), myHostPtr.i};
     simBlockNodeFailure(signal, myHostPtr.i, cb);
   }
@@ -10183,8 +10189,9 @@ void Dbtc::checkScanActiveInFailedLqh(Signal *signal, Uint32 scanPtrI,
   checkNodeFailComplete(signal, failedNodeId, HostRecord::NF_CHECK_SCAN);
 }
 
-void Dbtc::nodeFailCheckTransactions(Signal *signal, Uint32 transPtrI,
-                                     Uint32 failedNodeId) {
+void Dbtc::nodeFailCheckTransactions(Signal *signal, Uint32 phase,
+                                     Uint32 transPtrI, Uint32 failedNodeId,
+                                     Uint32 wait_for_count) {
   jam();
   Uint32 TtcTimer = ctcTimer;
   Uint32 TapplTimeout = c_appl_timeout_value;
@@ -10193,6 +10200,7 @@ void Dbtc::nodeFailCheckTransactions(Signal *signal, Uint32 transPtrI,
   Uint32 loop_count = 0;
   Uint32 api_ptr = transPtrI;
   bool found = false;
+  bool delay = false;
   while (!found && api_ptr != RNIL && loop_count < RT_BREAK) {
     jam();
     ApiConnectRecordPtr ptrs[8];
@@ -10208,29 +10216,77 @@ void Dbtc::nodeFailCheckTransactions(Signal *signal, Uint32 transPtrI,
       if (transPtr.p->m_transaction_nodes.get(failedNodeId)) {
         jam();
 
-        // Force timeout regardless of state
-        c_appl_timeout_value = 1;
-        setApiConTimer(transPtr, TtcTimer - 2, __LINE__);
-        timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
-        c_appl_timeout_value = TapplTimeout;
+        if (phase == HostRecord::NF_CT_TIMEOUT_TRANSACTIONS) {
+          // Force timeout regardless of state
+          c_appl_timeout_value = 1;
+          setApiConTimer(transPtr, TtcTimer - 2, __LINE__);
+          timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
+          c_appl_timeout_value = TapplTimeout;
 
-        if (i + 1 < ptr_cnt) {
-          api_ptr = ptrs[i + 1].i;
+          if (i + 1 < ptr_cnt) {
+            api_ptr = ptrs[i + 1].i;
+          }
+
+          wait_for_count++;
+        } else {
+          ndbrequire(phase == HostRecord::NF_CT_WAIT_TRANSACTIONS);
+          jam();
+          /* Wait for this transaction involving the failed node to complete */
+          api_ptr = ptrs[i].i;
+          delay = true;
         }
+
         found = true;
         break;
       }
     }
   }
   if (api_ptr == RNIL) {
-    jam();
-    checkNodeFailComplete(signal, failedNodeId,
-                          HostRecord::NF_CHECK_TRANSACTION);
+    if (phase == HostRecord::NF_CT_TIMEOUT_TRANSACTIONS) {
+      jam();
+      g_eventLogger->info(
+          "DBTC %u: Step %s identified %u transactions where failed node %u "
+          "participated which are now being committed or rolled back.",
+          instance(), getNFBitName(HostRecord::NF_CHECK_TRANSACTION),
+          wait_for_count, failedNodeId);
+      /* Proceed to phase 1, waiting for relevant transactions to complete */
+      signal->theData[0] = TcContinueB::ZNF_CHECK_TRANSACTIONS;
+      signal->theData[1] = HostRecord::NF_CT_WAIT_TRANSACTIONS;
+      signal->theData[2] = 0;
+      signal->theData[3] = failedNodeId;
+      sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
+    } else {
+      ndbrequire(phase == HostRecord::NF_CT_WAIT_TRANSACTIONS);
+      /* NF transactions complete, record fact */
+      jam();
+      g_eventLogger->info(
+          "DBTC %u: Step %s all transactions where failed node %u participated "
+          "are now either committed or rolled back.",
+          instance(), getNFBitName(HostRecord::NF_CHECK_TRANSACTION),
+          failedNodeId);
+      checkNodeFailComplete(signal, failedNodeId,
+                            HostRecord::NF_CHECK_TRANSACTION);
+    }
   } else {
+    jam();
+    /* Continue iteration */
     signal->theData[0] = TcContinueB::ZNF_CHECK_TRANSACTIONS;
-    signal->theData[1] = api_ptr;
-    signal->theData[2] = failedNodeId;
-    sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+    signal->theData[1] = phase;
+    signal->theData[2] = api_ptr;
+    signal->theData[3] = failedNodeId;
+    Uint32 siglen = 4;
+    if (phase == HostRecord::NF_CT_TIMEOUT_TRANSACTIONS) {
+      jam();
+      signal->theData[4] = wait_for_count;
+      siglen = 5;
+    }
+    if (delay) {
+      jam();
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 50, siglen);
+    } else {
+      jam();
+      sendSignal(cownref, GSN_CONTINUEB, signal, siglen, JBB);
+    }
   }
 }
 
@@ -16079,8 +16135,7 @@ void Dbtc::execDUMP_STATE_ORD(Signal *signal) {
     return;
   }
 #endif
-  if (arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
-      signal->getLength() == 2) {
+  if (arg == DumpStateOrd::LogNodeFailProgress && signal->getLength() == 2) {
     jam();
     NodeId nodeId = signal->theData[1];
     if (nodeId < MAX_NODES && nodeId < NDB_ARRAY_SIZE(capiConnectClosing)) {

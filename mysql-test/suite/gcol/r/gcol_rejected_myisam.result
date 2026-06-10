@@ -60,8 +60,6 @@ ALTER TABLE t1 ADD gc INTEGER AS (fb) STORED;
 ERROR HY000: Incorrect integer value: 'abcdefgh' for column 'gc' at row 1
 ALTER TABLE t1 ADD gc INTEGER AS (vb) STORED;
 ERROR HY000: Incorrect integer value: 'abcdefgh' for column 'gc' at row 1
-ALTER TABLE t1 ADD gc INTEGER AS (d) STORED;
-ERROR 22003: Out of range value for column 'gc' at row 1
 ALTER TABLE t1 ADD gc INTEGER AS (dt) STORED;
 ERROR 22003: Out of range value for column 'gc' at row 1
 ALTER TABLE t1 ADD gc INTEGER AS (ts) STORED;
@@ -292,8 +290,6 @@ ALTER TABLE t1 ADD gc INTEGER AS (fb) VIRTUAL;
 ERROR HY000: Incorrect integer value: 'abcdefgh' for column 'gc' at row 1
 ALTER TABLE t1 ADD gc INTEGER AS (vb) VIRTUAL;
 ERROR HY000: Incorrect integer value: 'abcdefgh' for column 'gc' at row 1
-ALTER TABLE t1 ADD gc INTEGER AS (d) VIRTUAL;
-ERROR 22003: Out of range value for column 'gc' at row 1
 ALTER TABLE t1 ADD gc INTEGER AS (dt) VIRTUAL;
 ERROR 22003: Out of range value for column 'gc' at row 1
 ALTER TABLE t1 ADD gc INTEGER AS (ts) VIRTUAL;

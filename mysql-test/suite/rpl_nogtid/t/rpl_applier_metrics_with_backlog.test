@@ -1,0 +1,142 @@
+# === Purpose ===
+#
+# Testing that metrics on pending stats are not available for channels with
+# previous backlog to apply. When this backlog is applied, metrics become
+# available.
+#
+# ==== Requirements ====
+#
+# R1. When the previous applier backlog finishes, applier metrics on
+#     pending transactions are available
+#
+# === Implementation ====
+#
+# 1. Create 2 tables on the source.
+#    Force some rotations between executed transactions
+# 2. Block execution of the last relay log on the replica
+#    Install the metric component and start the replica
+#    Check that metrics for pending transactions are not available
+# 3. Unlock the table
+#    Pending metrics should now be available
+# 4. Cleanup
+#
+# === References ===
+#
+# WL#15620:  MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test scenarios need to control the numbers and sizes of events.
+--source include/have_binlog_format_row.inc
+
+# Test scenarios are constructed assuming replica-preserve-commit-order.
+--source include/have_replica_preserve_commit_order.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Create 2 tables on the source.
+--echo #    Force some rotations between executed transactions
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 (a) VALUES(0);
+INSERT INTO t2 (a) VALUES(0);
+# The following 4 transactions can't all enter worker execution (because we have
+# 4 workers, 1 of which is blocked while exectuing the previous transaction, and
+# we use replica_preserve_commit_order=1). Therefore, the applier can't move
+# to a new relay log.
+INSERT INTO t1 (a) VALUES(1);
+INSERT INTO t1 (a) VALUES(2);
+INSERT INTO t1 (a) VALUES(3);
+INSERT INTO t1 (a) VALUES(4);
+
+--source include/rpl/sync_to_replica_received.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Block execution of the last relay log on the replica
+--echo #    Install the metric component and start the replica
+--echo #    Check that metrics for pending transactions are not available
+
+--source include/rpl/connection_replica1.inc
+
+--source include/rpl/stop_receiver.inc
+
+LOCK TABLE t2 WRITE;
+
+--source include/rpl/connection_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/start_replica.inc
+
+# Wait for first transaction to be applied
+--let $wait_condition = SELECT COUNT(*) = 1 FROM t1
+--source include/wait_condition.inc
+
+--let $from_ch = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--let $expected =
+--let $gtid_mode_on = `SELECT @@global.gtid_mode = 'ON'`
+if ($gtid_mode_on) {
+  # When gtid_mode=ON, the table approximates the transaction count based on
+  # GTID_SUBTRACT(retrieved_gtid_set, @@global.gtid_executed)
+  --let $expected = 5
+}
+
+--let $assert_text = Eventually, TRANSACTIONS_PENDING_COUNT is 5 if gtid_mode=ON, NULL if gtid_mode=OFF
+--let $assert_cond = "[SELECT TRANSACTIONS_PENDING_COUNT $from_ch]" = "$expected"
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, the column TRANSACTIONS_PENDING_SIZE_BYTES_SUM is NULL
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_SIZE_BYTES_SUM IS NULL $from_ch] = 1
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Unlock the table
+--echo #    Pending metrics should now be available
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $assert_text = Eventually, workers change TRANSACTIONS_PENDING_COUNT to non-NULL, value 0
+--let $assert_cond = "[SELECT TRANSACTIONS_PENDING_COUNT $from_ch]" = "0"
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers change TRANSACTIONS_PENDING_SIZE_BYTES_SUM to non-NULL, value 0
+--let $assert_cond = "[SELECT TRANSACTIONS_PENDING_SIZE_BYTES_SUM $from_ch]" = "0"
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/connection_source.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/rpl/deinit.inc

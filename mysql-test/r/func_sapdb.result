@@ -68,7 +68,7 @@ select datediff("1997-11-31 23:59:59.000001","1997-12-31");
 datediff("1997-11-31 23:59:59.000001","1997-12-31")
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '1997-11-31 23:59:59.000001'
+Warning	1292	Truncated incorrect date value: '1997-11-31 23:59:59.000001'
 select datediff("1997-11-30 23:59:59.000001",null);
 datediff("1997-11-30 23:59:59.000001",null)
 NULL
@@ -128,12 +128,11 @@ timediff("1997-12-30 23:59:59.000001","1997-12-31 23:59:59.000002")
 select timediff("1997-12-31 23:59:59.000001","23:59:59.000001");
 timediff("1997-12-31 23:59:59.000001","23:59:59.000001")
 NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '23:59:59.000001'
 select timediff("2000:01:01 00:00:00", "2000:01:01 00:00:00.000001");
 timediff("2000:01:01 00:00:00", "2000:01:01 00:00:00.000001")
 -00:00:00.000001
 Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00.000001' at row 1 is deprecated. Prefer the standard '-'.
 select timediff("2005-01-11 15:48:49.999999", "2005-01-11 15:48:50");
 timediff("2005-01-11 15:48:49.999999", "2005-01-11 15:48:50")
@@ -174,7 +173,7 @@ select date("1997-13-31 23:59:59.000001");
 date("1997-13-31 23:59:59.000001")
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '1997-13-31 23:59:59.000001'
+Warning	1292	Truncated incorrect date value: '1997-13-31 23:59:59.000001'
 select time("1997-12-31 23:59:59.000001");
 time("1997-12-31 23:59:59.000001")
 23:59:59.000001
@@ -233,14 +232,14 @@ NULL	NULL
 SELECT TIMEDIFF(t1, t4) As ttt, TIMEDIFF(t2, t3) As qqq,
 TIMEDIFF(t3, t2) As eee, TIMEDIFF(t2, t4) As rrr from test;
 ttt	qqq	eee	rrr
--744:00:00	NULL	NULL	00:00:00
-838:59:59	22:58:58	-22:58:58	-25:01:00
--838:59:59	-22:58:58	22:58:58	-25:01:00
+-744:00:00	NULL	NULL	NULL
+838:59:59	22:58:58	-22:58:58	NULL
+-838:59:59	-22:58:58	22:58:58	NULL
 NULL	26:02:02	-26:02:02	NULL
-00:00:00	-26:02:02	26:02:02	-02:02:02
+00:00:00	-26:02:02	26:02:02	NULL
 NULL	NULL	NULL	NULL
 NULL	NULL	NULL	NULL
-00:00:00	-24:00:00	24:00:00	00:00:00
+00:00:00	-24:00:00	24:00:00	NULL
 Warnings:
 Warning	1292	Truncated incorrect time value: '26305:01:02'
 Warning	1292	Truncated incorrect time value: '-26305:01:02'

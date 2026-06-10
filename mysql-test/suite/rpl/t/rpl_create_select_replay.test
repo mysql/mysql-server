@@ -64,6 +64,8 @@
 
 # SETUP VARIABLES.
 
+--write_file $MYSQLTEST_VARDIR/tmp/binlog_replay.inc
+
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $MYSQLBINLOG_OUTFILE=$MYSQLTEST_VARDIR/tmp/wl13355_mysqlbinlog.sql
 --let $mysqlbinlog_parameters= --result-file=$MYSQLBINLOG_OUTFILE --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001
@@ -83,7 +85,7 @@ CREATE TABLE t1 AS SELECT * FROM t0;
 --echo # Replay without crash.
 DROP TABLE t0,t1;
 RESET BINARY LOGS AND GTIDS;
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -100,7 +102,7 @@ RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 1
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --echo # Recover the server.
 --source include/wait_until_disconnected.inc
@@ -134,7 +136,7 @@ CREATE TABLE t1 AS SELECT * FROM t0;
 --echo # Replay without crash.
 DROP TABLE t0,t1;
 RESET BINARY LOGS AND GTIDS;
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -151,7 +153,7 @@ RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 1
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --echo # Recover the server.
 --source include/wait_until_disconnected.inc
@@ -171,7 +173,7 @@ DROP TABLE t0;
 RESET BINARY LOGS AND GTIDS;
 
 SET GLOBAL DEBUG='+d, force_rollback_in_replica_on_transactional_ddl_commit';
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 --remove_file $MYSQLBINLOG_OUTFILE
 SET global DEBUG='-d, force_rollback_in_replica_on_transactional_ddl_commit';
 
@@ -202,7 +204,7 @@ CALL proc1();
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
 RESET BINARY LOGS AND GTIDS;
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -217,7 +219,7 @@ RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 1
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --echo # Recover the server.
 --source include/wait_until_disconnected.inc
@@ -260,7 +262,7 @@ CALL proc1();
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
 RESET BINARY LOGS AND GTIDS;
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -279,7 +281,7 @@ RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 1
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --echo # Recover the server.
 --source include/wait_until_disconnected.inc
@@ -318,7 +320,7 @@ DEALLOCATE PREPARE stmt;
 --echo # Replay without crash.
 DROP TABLE t0,t1;
 RESET BINARY LOGS AND GTIDS;
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -335,7 +337,7 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --echo # Replay the binlog events and cause crash.
 --error 1
---exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
+--exec $MYSQL $COMMENT_ARG test < $MYSQLBINLOG_OUTFILE
 
 --echo # Recover the server.
 --source include/wait_until_disconnected.inc
@@ -349,3 +351,21 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 DROP TABLE t0;
 --remove_file $MYSQLBINLOG_OUTFILE
 RESET BINARY LOGS AND GTIDS;
+EOF
+
+--echo # Bug#36313112: Applying mysqlbinlog output ERRORS out while
+--echo #               executing CREATE TABLE SELECT
+--echo #
+--echo # Test with --comments=ON and --comments=OFF, to ensure the
+--echo # variable has no impact on PITR.
+
+# Testing with --comments=on
+--let $COMMENT_ARG= --comments=on
+--source $MYSQLTEST_VARDIR/tmp/binlog_replay.inc
+
+# Testing with --comments=off
+--let $COMMENT_ARG= --comments=off
+--source $MYSQLTEST_VARDIR/tmp/binlog_replay.inc
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_replay.inc

@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failure when unregistering service 'group_replication_flow_control_service'");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Component isn't installed so there shall not exist any
+#    Gr_flow_control* global status
+include/assert.inc ['Without component no Gr_flow_control* global status variables are available']
+
+############################################################
+# 2. After component is installed four global status variables should be
+#    available
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+include/assert.inc ['With component installed Gr_flow_control* global status variables are available']
+
+############################################################
+# 3. Uninstall Group Replication plugin to fail when the component
+#    component_group_replication_flow_control_stats is installed.
+UNINSTALL PLUGIN group_replication;
+ERROR HY000: Plugin 'group_replication' cannot be uninstalled now. Please uninstall the component 'component_group_replication_flow_control_stats' and then UNINSTALL PLUGIN group_replication.
+include/assert.inc ['Uninstall Group Replication failed plugin still installed']
+
+############################################################
+# 4. To uninstall Group Replication, component shall be
+#    uninstalled first
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+include/stop_group_replication.inc
+include/uninstall_group_replication_plugin.inc
+include/assert.inc ['With component installed Gr_flow_control* global status variables are available']
+
+############################################################
+# 5. Install component without Group Replication shall fail
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+ERROR HY000: Cannot satisfy dependency for service 'group_replication_flow_control_metrics_service' required by component 'mysql:group_replication_flow_control_stats'.
+include/assert.inc ['Component Group Replication flow control status is not installed']
+
+############################################################
+# 6. Install plugin and start Group Replication
+include/install_group_replication_plugin.inc
+SET GLOBAL group_replication_local_address= @local_address;
+include/start_and_bootstrap_group_replication.inc
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+include/assert.inc ['With component Gr_flow_control* global status variables are available']
+
+############################################################
+# 7. Cleanup
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+include/group_replication_end.inc

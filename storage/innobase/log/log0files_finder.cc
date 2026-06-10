@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ static bool log_files_validate_format(
     if (curr_format_int > to_int(Log_format::CURRENT)) {
       const auto file_path = log_file_path(files_ctx, file.m_id);
       ib::error(ER_IB_MSG_LOG_FILE_FORMAT_UNKNOWN, ulong{curr_format_int},
-                file_path.c_str(), REFMAN "upgrading-downgrading.html");
+                file_path.c_str(), REFMAN "upgrading.html");
       return false;
     }
     if (curr_format_int < to_int(Log_format::VERSION_8_0_30)) {

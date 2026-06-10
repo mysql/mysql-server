@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -279,6 +279,7 @@ ngs::Error_code Sql_data_context::authenticate_internal(
   ngs::Error_code switch_error = switch_to_user(user, host, ip, db);
 
   if (error.error == ER_MUST_CHANGE_PASSWORD_LOGIN) {
+    force_password_expired();
     m_password_expired = true;
 
     // password is expired, client doesn't support it and server wants us to
@@ -389,6 +390,16 @@ bool get_security_context_value(MYSQL_THD thd, const char *option,
   return false == security_context_get_option(scontext, option, result);
 }
 
+template <typename Result_type>
+bool set_security_context_value(MYSQL_THD thd, const char *option,
+                                Result_type *result) {
+  MYSQL_SECURITY_CONTEXT scontext;
+
+  if (thd_get_security_context(thd, &scontext)) return false;
+
+  return false == security_context_set_option(scontext, option, result);
+}
+
 bool Sql_data_context::is_acl_disabled() {
   MYSQL_LEX_CSTRING value{"", 0};
 
@@ -397,6 +408,12 @@ bool Sql_data_context::is_acl_disabled() {
   }
 
   return false;
+}
+
+void Sql_data_context::force_password_expired() {
+  my_svc_bool value{true};
+
+  set_security_context_value(get_thd(), "password_expired", &value);
 }
 
 bool Sql_data_context::has_authenticated_user_a_super_priv() const {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,63 +85,68 @@ class Alter_column {
   const char *name;
 
   /// The default value supplied.
-  Item *def;
+  Item *def{nullptr};
 
   /// The expression to be used to generate the default value.
-  Value_generator *m_default_val_expr;
+  Value_generator *m_default_val_expr{nullptr};
 
   /// The new column name.
-  const char *m_new_name;
+  const char *m_new_name{nullptr};
+
+  /// The new masking policy name.
+  LEX_CSTRING new_masking_policy_name() const {
+    return m_new_masking_policy_name;
+  }
 
   enum class Type {
     SET_DEFAULT,
+    SET_MASKING_POLICY,
     DROP_DEFAULT,
+    DROP_MASKING_POLICY,
     RENAME_COLUMN,
     SET_COLUMN_VISIBLE,
     SET_COLUMN_INVISIBLE
   };
 
- public:
   /// Type of change requested in ALTER TABLE.
-  inline Type change_type() const { return m_type; }
+  Type change_type() const { return m_type; }
 
   /// Constructor used when altering the field's default value with a literal
   /// constant or when dropping a field's default value.
   Alter_column(const char *par_name, Item *literal)
-      : name(par_name),
-        def(literal),
-        m_default_val_expr(nullptr),
-        m_new_name(nullptr) {
-    if (def)
+      : name{par_name}, def{literal} {
+    if (def != nullptr)
       m_type = Type::SET_DEFAULT;
     else
       m_type = Type::DROP_DEFAULT;
   }
 
+  /// Constructor for assigning or unassigning a column's MASKING POLICY.
+  Alter_column(const char *col_name, LEX_CSTRING policy_name)
+      : name{col_name},
+        m_type{policy_name.str != nullptr ? Type::SET_MASKING_POLICY
+                                          : Type::DROP_MASKING_POLICY},
+        m_new_masking_policy_name{policy_name} {}
+
   /// Constructor used when setting a field's DEFAULT value to an expression.
   Alter_column(const char *par_name, Value_generator *gen_def)
       : name(par_name),
-        def(nullptr),
         m_default_val_expr(gen_def),
-        m_new_name(nullptr),
         m_type(Type::SET_DEFAULT) {}
 
   /// Constructor used while renaming field name.
   Alter_column(const char *old_name, const char *new_name)
-      : name(old_name),
-        def(nullptr),
-        m_new_name(new_name),
-        m_type(Type::RENAME_COLUMN) {}
+      : name(old_name), m_new_name(new_name), m_type(Type::RENAME_COLUMN) {}
 
   /// Constructor used while altering column visibility.
-  Alter_column(const char *par_name, bool par_is_visible)
-      : name(par_name), def(nullptr), m_new_name(nullptr) {
+  Alter_column(const char *par_name, bool par_is_visible) : name(par_name) {
     m_type = (par_is_visible ? Type::SET_COLUMN_VISIBLE
                              : Type::SET_COLUMN_INVISIBLE);
   }
 
  private:
   Type m_type;
+  LEX_CSTRING m_new_masking_policy_name{NULL_CSTR};
 };
 
 /// An ALTER INDEX operation that changes the visibility of an index.
@@ -345,8 +350,11 @@ class Alter_info {
     /// Set for column visibility attribute alter.
     ALTER_COLUMN_VISIBILITY = 1ULL << 40,
 
+    /// Set for ALTER [COLUMN] ... SET MASKING POLICY | DROP MASKING POLICY.
+    ALTER_COLUMN_MASKING = 1ULL << 41,
+
     /// Must be last, not a real type.
-    ALTER_TYPE_END = 1ULL << 41
+    ALTER_TYPE_END = 1ULL << 42
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -509,8 +517,8 @@ class Alter_info {
                  const char *change, List<String> *interval_list,
                  const CHARSET_INFO *cs, bool has_explicit_collation,
                  uint uint_geom_type, Value_generator *gcol_info,
-                 Value_generator *default_val_expr, const char *opt_after,
-                 std::optional<gis::srid_t> srid,
+                 Value_generator *default_val_expr, LEX_CSTRING masking_policy,
+                 const char *opt_after, std::optional<gis::srid_t> srid,
                  Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden, bool is_array = false);
 

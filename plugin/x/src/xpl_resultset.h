@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,9 @@
 
 #include "plugin/x/src/buffering_command_delegate.h"
 #include "plugin/x/src/custom_command_delegates.h"
+#include "plugin/x/src/empty_command_delegate.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/resultset.h"
-#include "plugin/x/src/streaming_command_delegate.h"
 
 namespace xpl {
 
@@ -57,7 +57,7 @@ class Process_resultset : public iface::Resultset {
   virtual bool end_row(Row *) = 0;
 
  private:
-  Callback_command_delegate m_callback_delegate;
+  Empty_command_delegate m_callback_delegate;
 };
 
 class Empty_resultset : public iface::Resultset {
@@ -71,7 +71,7 @@ class Empty_resultset : public iface::Resultset {
   }
 
  private:
-  Callback_command_delegate m_callback_delegate;
+  Empty_command_delegate m_callback_delegate;
 };
 
 class Collect_resultset : public iface::Resultset {

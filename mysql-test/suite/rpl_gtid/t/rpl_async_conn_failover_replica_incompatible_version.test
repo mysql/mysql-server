@@ -1,0 +1,181 @@
+################################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that when
+# `replica_allow_higher_version_source` is OFF, asynchronous replication
+# connection is re-established to new source in case the current asynchronous
+# replication connection fails due to incompatible version between the source
+# and the replica.
+#
+# ==== Requirement ====
+# When `replica_allow_higher_version_source` is OFF, the system shall detect
+# attempts by a replica to connect to an incompatible (higher-version) source
+# and automatically re-establish the replication connection to a compatible
+# source.
+#
+# ==== Implementation ====
+# 1. Create a chain replication between server 1, 2, 3 and 4.
+# 2. Insert data on server1 and verify that it is synced to the end of chain
+#    i.e. server4.
+# 3. Stop replica on server 4.
+# 4. Disable the system variable that allows a replica to connect to
+#    a higher-version source.
+# 5. Enable asynchronous replication connection failover and verify it is
+#    enabled.
+# 6. Add three asynchronous connection failover servers and verify that they
+#    are added successfully.
+# 7. Use a debug point to simulate a source version incompatibility on
+#    server 4.
+# 8. Restart replica on server 4 so asynchronous replication connection failover
+#    can execute and connect to new source.
+# 9. Verify that asynchronous replication channel connects to server 2.
+# 10. Insert more data on server1 and verify that it is synced to server 4.
+# 11. Clean up
+#
+# ==== References ====
+# WL#17202: Allow/disallow asynchronous replication from a higher version source
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 1. Create a chain replication between server 1, 2, 3 and 4.
+--echo #
+--let $rpl_server_count= 4
+--let $rpl_topology= 1->2->3->4
+--source include/rpl/init.inc
+
+
+--echo #
+--echo # 2. Insert data on server1 and verify that it is synced to the end of
+--echo #    chain i.e. server4.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--source include/rpl/sync.inc
+
+--let $rpl_connection_name= server_4
+--source include/connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Replication from higher version source.*");
+SET SESSION sql_log_bin = 1;
+
+
+--let $assert_text= 'There is one row on replica'
+--let $assert_cond= [SELECT  COUNT(*) count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # 3. Stop replica on server 4.
+--echo #
+--source include/rpl/stop_replica.inc
+
+--echo #
+--echo # 4. Disable the system variable that allows a replica to connect to
+--echo #    a higher-version source.
+--echo #
+SET @saved_replica_allow_higher_version_source = @@GLOBAL.replica_allow_higher_version_source;
+SET GLOBAL replica_allow_higher_version_source=OFF;
+
+--echo #
+--echo # 5. Enable asynchronous replication connection failover
+--echo #    and verify it is enabled.
+--echo #
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+
+# Verify Asynchronous Replication Connection Failover is enabled.
+--let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # 6. Add three asynchronous connection failover servers and
+--echo #    verify that they are added successfully.
+--echo #
+--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_3, '', 40);
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_2, '', 60);
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_1, '', 50);
+
+--let $assert_text= 'There are three rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
+--source include/assert.inc
+
+--echo #
+--echo # 7. Use a debug point to simulate a source version incompatibility
+--echo #    on server 4.
+--echo #
+--let $debug_point = simulate_source_version_mismatch
+--source include/add_debug_point.inc
+
+# Debug point to disable monitor thread weight check
+--let $debug_point = async_conn_failover_disable_weight_check
+--source include/add_debug_point.inc
+
+--echo #
+--echo # 8. Restart replica on server 4 so asynchronous replication connection
+--echo #    failover can execute and connect to new source.
+--echo #
+--let $rpl_allow_error= 1
+--source include/rpl/start_replica.inc
+
+--echo #
+--echo # 9. Verify that asynchronous replication channel connects to
+--echo #    server 2.
+--echo #
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_2
+--source include/wait_condition.inc
+
+--echo #
+--echo # 10. Insert more data on server1 and verify that it is synced to
+--echo #     server 4.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+
+INSERT INTO t1 VALUES (2);
+
+# Check data is synced to server 4
+--let $rpl_connection_name= server_4
+--source include/connection.inc
+
+--let $wait_condition= SELECT COUNT(*) = 2 FROM t1
+--source include/wait_condition.inc
+
+--echo #
+--echo # 11. Clean up.
+--echo #
+--source include/rpl/stop_replica.inc
+SET GLOBAL replica_allow_higher_version_source= @saved_replica_allow_higher_version_source;
+
+--let $debug_point = async_conn_failover_disable_weight_check
+--source include/remove_debug_point.inc
+--let $debug_point = simulate_source_version_mismatch
+--source include/remove_debug_point.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+
+--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_3, '');
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_2, '');
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_1, '');
+
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+DROP TABLE t1;
+
+--source include/rpl/sync.inc
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

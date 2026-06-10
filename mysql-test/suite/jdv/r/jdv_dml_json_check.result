@@ -1,0 +1,160 @@
+CREATE TABLE t1(t1c1 INT PRIMARY KEY, t1c2 INT);
+INSERT INTO t1 VALUES (0,0), (1,1), (2,2);
+CREATE TABLE t2(t2c1 INT PRIMARY KEY, t2c2 INT);
+INSERT INTO t2 VALUES (0,0), (1,1), (2,2);
+CREATE TABLE t3(t3c1 INT PRIMARY KEY, t3c2 INT);
+INSERT INTO t3 VALUES (0,0), (1,1), (2,2);
+CREATE JSON DUALITY VIEW dv0 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : t1c1,
+"kt1c2" : t1c2)
+FROM t1;
+SELECT * FROM dv0;
+data
+{"_id": 0, "kt1c2": 0, "_metadata": {"etag": "ec974eef84da06c8fc225f21ea139b79"}}
+{"_id": 1, "kt1c2": 1, "_metadata": {"etag": "6966e3323782195471df738f91d8a3b1"}}
+{"_id": 2, "kt1c2": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}
+# Insert into Root object
+# Check invalid json syntax
+INSERT INTO dv0 VALUES ('{ "": ]');
+ERROR 22032: Invalid JSON text in argument 1 to function get_json_wrapper: "Invalid value." at position 6.
+# Check valid non-object json
+INSERT INTO dv0 VALUES ('null');
+ERROR HY000: Path '$' is not of type 'Json_object'.
+INSERT INTO dv0 VALUES ('3');
+ERROR HY000: Path '$' is not of type 'Json_object'.
+INSERT INTO dv0 VALUES ('[ "foo", 3, 3.14 ]');
+ERROR HY000: Path '$' is not of type 'Json_object'.
+# Update of Root object
+# Check invalid json syntax
+UPDATE dv0 SET data = '{ "": ]';
+ERROR 22032: Invalid JSON text in argument 1 to function get_json_wrapper: "Invalid value." at position 6.
+# Check valid non-object json
+UPDATE dv0 SET data = 'null';
+ERROR HY000: Path '$' is not of type 'Json_object'.
+UPDATE dv0 SET data = '3';
+ERROR HY000: Path '$' is not of type 'Json_object'.
+UPDATE dv0 SET data = '[ "foo", 3, 3.14 ]';
+ERROR HY000: Path '$' is not of type 'Json_object'.
+INSERT INTO dv0 VALUES ('{"kt1c2": 6}');
+ERROR HY000: Primary key column `test`.`t1`.t1c1 must be provided as path '$._id'.
+UPDATE dv0 SET data = '{"_id": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}' WHERE data->'$._id' = 2;
+ERROR HY000: Value was not provided for path '$' and could not be inferred for column `test`.`t1`.t1c2.
+UPDATE dv0 SET data = '{"_id": 3, "kt1c2": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}' WHERE data->'$._id' = 2;
+ERROR HY000: Cannot update primary key column `test`.`t1`.t1c1 from path '$._id'.
+UPDATE dv0 SET data = '{"_id": 2, "kt1c2": 65, "_metadata": {"etag": "3004248409575512764"}}' WHERE data->'$._id' = 2;
+ERROR HY000: Cannot update JSON duality view. The ETAG of the document in the database did not match the ETAG '"3004248409575512764"' passed in.
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : t1c1,
+"kt1c2" : t1c2,
+"T2 multi subobject" :
+(SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"kt2c1" : t2c1,
+"kt2c2" : t2c2,
+"T3 single subobject" :
+(SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"kt3c1" : t3c1,
+"kt3c2" : t3c2
+) FROM t3 WHERE t3.t3c1 = t2.t2c1)
+)) FROM t2 WHERE t2.t2c1 = t1.t1c1)
+) FROM t1;
+SELECT data FROM dv1;
+data
+{"_id": 0, "kt1c2": 0, "_metadata": {"etag": "0f18ce0f884f391e7ec72556daf27c00"}, "T2 multi subobject": [{"kt2c1": 0, "kt2c2": 0, "T3 single subobject": {"kt3c1": 0, "kt3c2": 0}}]}
+{"_id": 1, "kt1c2": 1, "_metadata": {"etag": "63a30d6dcc5129ff7ba0f38259585e11"}, "T2 multi subobject": [{"kt2c1": 1, "kt2c2": 1, "T3 single subobject": {"kt3c1": 1, "kt3c2": 1}}]}
+{"_id": 2, "kt1c2": 2, "_metadata": {"etag": "579276f7fa26683425f4db33e7eb4f3b"}, "T2 multi subobject": [{"kt2c1": 2, "kt2c2": 2, "T3 single subobject": {"kt3c1": 2, "kt3c2": 2}}]}
+# Insert of multi subobject
+# Check invalid json syntax
+INSERT INTO dv1 VALUES (
+'{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": { "x": 3 ]}');
+ERROR 22032: Invalid JSON text in argument 1 to function get_json_wrapper: "Missing a comma or '}' after an object member." at position 55.
+# Check valid non-object json
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": 3}');
+ERROR HY000: Path '$."T2 multi subobject"' is not of type 'Json_array'.
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": {"x": 3}}');
+ERROR HY000: Path '$."T2 multi subobject"' is not of type 'Json_array'.
+# Update of multi subobject
+# Check valid non-object json
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_QUOTE('null'))
+WHERE data->'$._id' = 2;
+ERROR HY000: Path '$."T2 multi subobject"' is not of type 'Json_array'.
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_QUOTE('3'))
+WHERE data->'$._id' = 2;
+ERROR HY000: Path '$."T2 multi subobject"' is not of type 'Json_array'.
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_OBJECT('x', 3))
+WHERE data->'$._id' = 2;
+ERROR HY000: Path '$."T2 multi subobject"' is not of type 'Json_array'.
+# Insert of single sub object decendant of multi subobject
+# Check invalid json syntax
+INSERT INTO dv1 VALUES (
+'{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": [{ "x": 3 ]]');
+ERROR 22032: Invalid JSON text in argument 1 to function get_json_wrapper: "Missing a comma or '}' after an object member." at position 56.
+# Check valid non-object json
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": [3]}');
+ERROR HY000: Path '$."T2 multi subobject"[0]' is not of type 'Json_object'.
+INSERT INTO dv1 VALUES ('{ "_id": 3, "kt1c2": 3,
+"T2 multi subobject": [["foo", 3, 3.14]]}');
+ERROR HY000: Path '$."T2 multi subobject"[0]' is not of type 'Json_object'.
+# Update of multi subobject
+# Check valid non-object json
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_ARRAY(3))
+WHERE data->'$._id' = 2;
+ERROR HY000: Path '$."T2 multi subobject"[0]' is not of type 'Json_object'.
+UPDATE dv1 SET data = JSON_REPLACE(data, '$."T2 multi subobject"', JSON_ARRAY('foo', 3, 3.14))
+WHERE data->'$._id' = 2;
+ERROR HY000: Path '$."T2 multi subobject"[0]' is not of type 'Json_object'.
+DROP VIEW dv1;
+DROP VIEW dv0;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+# Verify that string values which are valid JSON are inserted correctly
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 VARCHAR(256));
+INSERT INTO t1 VALUES (0, '{}'),(1,'{"a valid": "JSON object"}');
+CREATE JSON DUALITY VIEW dv1 AS SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : c1,
+"kt1c2" : c2
+) FROM t1;
+SELECT data FROM dv1;
+data
+{"_id": 0, "kt1c2": "{}", "_metadata": {"etag": "889945decc1587976c3d3dda97d917e2"}}
+{"_id": 1, "kt1c2": "{\"a valid\": \"JSON object\"}", "_metadata": {"etag": "3246358883f33262279634a1cf5835e0"}}
+INSERT INTO dv1 VALUES ('{
+    "_id": 2,
+    "kt1c2": "\\"some text in quotes\\""
+}');
+INSERT INTO dv1 VALUES ('{
+    "_id": 3,
+    "kt1c2": "{\\"some key\\": 0}"
+}');
+INSERT INTO dv1 VALUES ('{
+    "_id": 4,
+    "kt1c2": "{ \\"another string\\": 4, \\" which is a valid\\": [], \\"JSON object\\": null } " }');
+SELECT data FROM dv1;
+data
+{"_id": 0, "kt1c2": "{}", "_metadata": {"etag": "889945decc1587976c3d3dda97d917e2"}}
+{"_id": 1, "kt1c2": "{\"a valid\": \"JSON object\"}", "_metadata": {"etag": "3246358883f33262279634a1cf5835e0"}}
+{"_id": 2, "kt1c2": "\"some text in quotes\"", "_metadata": {"etag": "be04ee3cd03c9d17493659ef79b40e6b"}}
+{"_id": 3, "kt1c2": "{\"some key\": 0}", "_metadata": {"etag": "6407bfe68676f0a330dafe67d5f105eb"}}
+{"_id": 4, "kt1c2": "{ \"another string\": 4, \" which is a valid\": [], \"JSON object\": null } ", "_metadata": {"etag": "7502691eb00e9d2218ca1a58e84b4d1c"}}
+SELECT * FROM t1;
+c1	c2
+0	{}
+1	{"a valid": "JSON object"}
+2	"some text in quotes"
+3	{"some key": 0}
+4	{ "another string": 4, " which is a valid": [], "JSON object": null } 
+DROP VIEW dv1;
+DROP TABLE t1;

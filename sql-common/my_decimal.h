@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,9 +319,10 @@ inline int str2my_decimal(uint mask, const char *str, my_decimal *d,
 int str2my_decimal(uint mask, const char *from, size_t length,
                    const CHARSET_INFO *charset, my_decimal *decimal_value);
 
-my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
-my_decimal *time2my_decimal(const Time_val *ltime, my_decimal *dec);
-my_decimal *timeval2my_decimal(const my_timeval *tm, my_decimal *dec);
+my_decimal *time_to_decimal(const Time_val time, my_decimal *dec);
+my_decimal *date_to_decimal(const Date_val date, my_decimal *dec);
+my_decimal *datetime_to_decimal(const Datetime_val *dt, my_decimal *dec);
+my_decimal *timeval_to_decimal(const my_timeval *tm, my_decimal *dec);
 
 inline int double2my_decimal(uint mask, double val, my_decimal *d) {
   return check_result_and_overflow(mask, double2decimal(val, d), d);

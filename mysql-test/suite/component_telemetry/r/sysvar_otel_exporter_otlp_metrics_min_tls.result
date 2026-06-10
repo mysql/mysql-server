@@ -1,0 +1,53 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_metrics_min_tls;
+@@global.telemetry.otel_exporter_otlp_metrics_min_tls
+default
+SELECT @@session.telemetry.otel_exporter_otlp_metrics_min_tls;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_min_tls' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_metrics_min_tls';
+Variable_name	Value
+telemetry.otel_exporter_otlp_metrics_min_tls	default
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_metrics_min_tls';
+Variable_name	Value
+telemetry.otel_exporter_otlp_metrics_min_tls	default
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_metrics_min_tls';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_metrics_min_tls	default
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_metrics_min_tls';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_metrics_min_tls	default
+SET GLOBAL telemetry.otel_exporter_otlp_metrics_min_tls
+='1.1';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_min_tls' is a read only variable
+SET SESSION telemetry.otel_exporter_otlp_metrics_min_tls
+='1.1';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_min_tls' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_metrics_min_tls
+='1.2';
+SELECT @@global.telemetry.otel_exporter_otlp_metrics_min_tls;
+@@global.telemetry.otel_exporter_otlp_metrics_min_tls
+1.2
+SET PERSIST telemetry.otel_exporter_otlp_metrics_min_tls
+='1.3';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_min_tls' is a read only variable
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_metrics_min_tls
+='1.3';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_metrics_min_tls;
+@@global.telemetry.otel_exporter_otlp_metrics_min_tls
+1.3
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

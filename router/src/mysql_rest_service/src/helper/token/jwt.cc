@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,6 @@
 #include <iostream>
 #include <vector>
 
-#include "helper/container/generic.h"
 #include "helper/error.h"
 #include "helper/json/rapid_json_iterator.h"
 #include "helper/json/text_to.h"
@@ -36,6 +35,7 @@
 #include "helper/token/jwt.h"
 
 #include "mysql/harness/string_utils.h"
+#include "mysql/harness/utility/container/generic.h"
 #include "mysqlrouter/base64.h"
 
 namespace helper {
@@ -93,9 +93,10 @@ Jwt Jwt::create(const JwtHolder &holder) {
     throw Error("JWT payload is not JSON");
 
   header_keys = get_payload_names(result.header_);
-  if (!helper::container::has(header_keys, kHeaderClaimAlgorithm))
+  if (!mysql_harness::utility::container::has(header_keys,
+                                              kHeaderClaimAlgorithm))
     throw Error("JWT header doesn't specifies the algorithm");
-  if (!helper::container::has(header_keys, kHeaderClaimType))
+  if (!mysql_harness::utility::container::has(header_keys, kHeaderClaimType))
     throw Error("JWT header doesn't specifies the type");
 
   if (result.get_header_claim_type() != "JWT")

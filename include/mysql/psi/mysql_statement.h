@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,14 @@ struct CHARSET_INFO;
 #define MYSQL_DIGEST_END(LOCKER, DIGEST) inline_mysql_digest_end(LOCKER, DIGEST)
 #else
 #define MYSQL_DIGEST_END(LOCKER, DIGEST) \
+  do {                                   \
+  } while (0)
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+#define MYSQL_DIGEST_SET(LOCKER, DIGEST) inline_mysql_digest_set(LOCKER, DIGEST)
+#else
+#define MYSQL_DIGEST_SET(LOCKER, DIGEST) \
   do {                                   \
   } while (0)
 #endif
@@ -195,6 +203,15 @@ static inline void inline_mysql_digest_end(PSI_digest_locker *locker,
                                            const sql_digest_storage *digest) {
   if (likely(locker != nullptr)) {
     PSI_DIGEST_CALL(digest_end)(locker, digest);
+  }
+}
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+static inline void inline_mysql_digest_set(PSI_statement_locker *locker,
+                                           const sql_digest_storage *digest) {
+  if (likely(locker != nullptr)) {
+    PSI_DIGEST_CALL(digest_set)(locker, digest);
   }
 }
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <utility>
 
 #include "helper/container/map.h"
+#include "helper/json/error.h"
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
 #include "mrs/http/error.h"
@@ -103,21 +104,18 @@ bool WwwAuthenticationHandler::authorize(RequestContext &ctxt,
   }
 
   auto method = ctxt.request->get_method();
-  std::optional<Credentials> credentials_opt;
+  Credentials credentials_opt;
 
   if (HttpMethod::Get == method)
     credentials_opt = authorize_method_get(ctxt, session.get());
   else if (HttpMethod::Post == method)
     credentials_opt = authorize_method_post(ctxt, session.get());
 
-  if (!credentials_opt.has_value()) throw_add_www_authenticate(kBasicSchema);
-
-  if (verify_credential(credentials_opt.value(), &ctxt.sql_session_cache,
-                        out_user)) {
+  if (verify_credential(credentials_opt, &ctxt.sql_session_cache, out_user)) {
     session->user = *out_user;
     session->state = Session::kUserVerified;
 
-    init_session(session, credentials_opt.value());
+    init_session(session, credentials_opt);
     return true;
   }
 
@@ -178,7 +176,7 @@ bool WwwAuthenticationHandler::validate_redirection_url(
   return true;
 }
 
-std::optional<WwwAuthenticationHandler::Credentials>
+WwwAuthenticationHandler::Credentials
 WwwAuthenticationHandler::authorize_method_get(RequestContext &ctxt,
                                                Session *session) {
   auto url = ctxt.get_http_url();
@@ -220,7 +218,7 @@ WwwAuthenticationHandler::authorize_method_get(RequestContext &ctxt,
   auto authorization =
       find_header_or(ctxt.get_in_headers(), kAuthorization, "");
   if (authorization.empty()) {
-    log_debug("WwwAuth: no authorization selected, retry?");
+    log_debug("WwwAuth: no authorization selected, retry.");
     throw_add_www_authenticate(kBasicSchema);
   }
 
@@ -230,34 +228,37 @@ WwwAuthenticationHandler::authorize_method_get(RequestContext &ctxt,
   const std::string &auth_token = args.size() > 1 ? args[1] : "";
 
   if (auth_schema.empty() || auth_schema != kBasicSchema) {
-    log_debug("WwwAuth: no authorization scheme, retry?");
+    log_debug("WwwAuth: no authorization scheme, retry.");
     throw_add_www_authenticate(kBasicSchema);
   }
 
   if (auth_token.empty()) {
-    log_debug("WwwAuth: no authorization token, retry?");
+    log_debug("WwwAuth: no authorization token, retry.");
     throw_add_www_authenticate(kBasicSchema);
   }
 
   Credentials result;
-  if (extract_user_credentials_from_token(auth_token, &result.user,
-                                          &result.password))
-    return result;
+  if (!extract_user_credentials_from_token(auth_token, &result.user,
+                                           &result.password)) {
+    log_debug("WwwAuth: invalid token data, retry.");
+    throw_add_www_authenticate(kBasicSchema);
+  }
 
-  return {};
+  return result;
 }
 
-std::optional<WwwAuthenticationHandler::Credentials>
+WwwAuthenticationHandler::Credentials
 WwwAuthenticationHandler::authorize_method_post(RequestContext &ctxt,
                                                 Session *) {
-  UserJsonData user_post_data =
-      helper::json::text_to_handler<CredentialOptions>(
-          ctxt.request->get_input_body());
+  const auto user_post_data = helper::json::text_to_handler<CredentialOptions>(
+      ctxt.request->get_input_body());
+
+  if (!user_post_data) throw helper::json::ErrorJsonParse();
 
   ctxt.post_authentication = true;
 
-  return {
-      {std::move(user_post_data.username), std::move(user_post_data.password)}};
+  return {std::move(user_post_data->username),
+          std::move(user_post_data->password)};
 }
 
 const AuthApp &WwwAuthenticationHandler::get_entry() const { return entry_; }

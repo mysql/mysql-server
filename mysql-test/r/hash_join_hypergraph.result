@@ -955,12 +955,12 @@ EXPLAIN
 -> Table scan on <temporary>  (rows=2.57)
     -> Temporary table with deduplication  (rows=2.57)
         -> Inner hash join (no condition)  (rows=6.61)
-            -> Covering index scan on alias1 using idx_CC_col_varchar_key  (rows=6)
+            -> Covering index scan on alias1 using PRIMARY  (rows=6)
             -> Hash
                 -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (rows=1.1)
-                    -> Table scan on t1  (rows=6)
+                    -> Index scan on t1 using PRIMARY  (rows=6)
                     -> Hash
-                        -> Covering index scan on alias2 using idx_CC_col_varchar_key  (rows=6)
+                        -> Index scan on alias2 using PRIMARY  (rows=6)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -1046,14 +1046,14 @@ WHERE alias3.pk >= table1.pk));
 EXPLAIN
 -> Hash antijoin (no condition), extra conditions: (alias3.pk >= table1.pk)  (rows=1.33)
     -> Inner hash join (no condition), extra conditions: ((table2.pk = table1.pk) or (table1.col_varchar < 'D'))  (rows=2)
-        -> Table scan on table1  (rows=4)
+        -> Index scan on table1 using PRIMARY  (rows=4)
         -> Hash
-            -> Covering index scan on table2 using varchar_key  (rows=1)
+            -> Covering index scan on table2 using PRIMARY  (rows=1)
     -> Hash
         -> Inner hash join (alias4.col_varchar = alias3.col_varchar_key)  (rows=1)
-            -> Table scan on alias4  (rows=1)
+            -> Index scan on alias4 using PRIMARY  (rows=1)
             -> Hash
-                -> Covering index scan on alias3 using varchar_key  (rows=4)
+                -> Index scan on alias3 using PRIMARY  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
@@ -1311,14 +1311,14 @@ EXPLAIN
     -> Inner hash join (no condition)  (rows=2.94)
         -> Inner hash join (no condition)  (rows=2.94)
             -> Hash semijoin (FirstMatch) (ta3.f2 = t2.f2)  (rows=2.94)
-                -> Covering index scan on ta3 using f2  (rows=6)
+                -> Index scan on ta3 using PRIMARY  (rows=6)
                 -> Hash
-                    -> Covering index scan on t2 using f2  (rows=6)
+                    -> Index scan on t2 using PRIMARY  (rows=6)
             -> Hash
                 -> Table scan on t1  (rows=1)
         -> Hash
             -> Hash semijoin (FirstMatch) (ta4.f1 = t4.f1)  (rows=1)
-                -> Covering index scan on ta4 using f2  (rows=6)
+                -> Covering index scan on ta4 using PRIMARY  (rows=6)
                 -> Hash
                     -> Table scan on t4  (rows=1)
 
@@ -1435,11 +1435,11 @@ EXPLAIN
         -> Covering index scan on alias1 using idx  (rows=20)
         -> Hash
             -> Nested loop inner join  (rows=0.01)
-                -> Table scan on alias2  (rows=1)
+                -> Index scan on alias2 using PRIMARY  (rows=1)
                 -> Index lookup on alias3 using <auto_key0> (col_int_key = alias2.col_int_key, col_varchar_key = alias2.col_varchar_key)  (rows=0.01)
                     -> Materialize  (rows=1)
-                        -> Sort with duplicate removal: sq1_alias1.pk  (rows=1)
-                            -> Table scan on sq1_alias1  (rows=1)
+                        -> Remove duplicates from input grouped on sq1_alias1.pk  (rows=1)
+                            -> Index scan on sq1_alias1 using PRIMARY  (rows=1)
     -> Hash
         -> Table scan on sq2_alias1  (rows=20)
 
@@ -1726,9 +1726,9 @@ EXPLAIN
                                 -> Materialize  (rows=26.7)
                                     -> Limit: 100 row(s)  (rows=26.7)
                                         -> Left hash join (sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_key)  (rows=26.7)
-                                            -> Table scan on sq1_alias2  (rows=20)
+                                            -> Index scan on sq1_alias2 using PRIMARY  (rows=20)
                                             -> Hash
-                                                -> Covering index scan on sq1_alias1 using col_varchar_key  (rows=20)
+                                                -> Index scan on sq1_alias1 using PRIMARY  (rows=20)
                         -> Inner hash join (no condition)  (rows=26.7)
                             -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key = alias1.col_varchar_key)  (rows=1.33)
                             -> Hash
@@ -1843,19 +1843,19 @@ b AS subquery3_t1
 );
 EXPLAIN
 -> Inner hash join (subquery1_t1.col_varchar = subquery1_t2.col_varchar)  (rows=0.2)
-    -> Table scan on subquery1_t2  (rows=2)
+    -> Index scan on subquery1_t2 using PRIMARY  (rows=2)
     -> Hash
         -> Nested loop left join  (rows=1)
-            -> Table scan on subquery1_t1  (rows=1)
+            -> Index scan on subquery1_t1 using PRIMARY  (rows=1)
             -> Filter: <in_optimizer>(subquery1_t1.col_varchar,<exists>(select #4))  (rows=0.141)
                 -> Covering index lookup on table2 using <auto_key0> (col_varchar = subquery1_t1.col_varchar)  (rows=0.141)
                     -> Materialize  (rows=1.41)
                         -> Group (no aggregates)  (rows=1.41)
                             -> Sort: subquery2_t1.col_varchar  (rows=2)
-                                -> Table scan on subquery2_t1  (rows=2)
+                                -> Index scan on subquery2_t1 using PRIMARY  (rows=2)
                 -> Select #4 (subquery in condition; dependent)
                     -> Filter: (<cache>(subquery1_t1.col_varchar) = lower(subquery3_t1.pk))  (rows=1)
-                        -> Table scan on subquery3_t1  (rows=1)
+                        -> Covering index scan on subquery3_t1 using PRIMARY  (rows=1)
 
 SELECT
 table1.col_varchar
@@ -3102,7 +3102,7 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL
 EXPLAIN
 -> Filter: (t2.f1 is null)  (rows=0.4)
     -> Left hash join (t1.f1 = t2.f1)  (rows=4)
-        -> Table scan on t1  (rows=3)
+        -> Covering index scan on t1 using PRIMARY  (rows=3)
         -> Hash
             -> Table scan on t2  (rows=4)
 
@@ -3582,7 +3582,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Table scan on t2  (rows=1)
@@ -3655,13 +3655,13 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXI
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (not exists(select #2))  (rows=400)
-    -> Table scan on alias1  (rows=20)
+    -> Covering index scan on alias1 using PRIMARY  (rows=20)
     -> Hash
-        -> Table scan on alias2  (rows=20)
+        -> Covering index scan on alias2 using PRIMARY  (rows=20)
     -> Select #2 (subquery in extra conditions; dependent)
         -> Limit: 1 row(s)  (rows=1)
             -> Filter: (alias1.pk <> 20)  (rows=20)
-                -> Table scan on t1  (rows=20)
+                -> Covering index scan on t1 using PRIMARY  (rows=20)
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.pk' of SELECT #2 was resolved in SELECT #1
@@ -3999,7 +3999,7 @@ FROM t2 AS c1_1 INNER JOIN t2 AS c1_2 STRAIGHT_JOIN t3 ON t3.i = c1_2.i
 EXPLAIN
 -> Filter: <in_optimizer>((t1.str_col,t1.str_col),<exists>(select #2) is false)  (rows=2)
     -> Left hash join (t2.str_col = t1.str_col)  (rows=2)
-        -> Covering index scan on t2 using idx  (rows=2)
+        -> Index scan on t2 using PRIMARY  (rows=2)
         -> Hash
             -> Table scan on t1  (rows=2)
     -> Select #2 (subquery in condition; dependent)
@@ -4009,9 +4009,9 @@ EXPLAIN
                     -> Table scan on t3  (rows=1)
                     -> Hash
                         -> Inner hash join (no condition)  (rows=4)
-                            -> Covering index scan on c1_1 using idx  (rows=2)
+                            -> Index scan on c1_1 using PRIMARY  (rows=2)
                             -> Hash
-                                -> Covering index scan on c1_2 using idx  (rows=2)
+                                -> Index scan on c1_2 using PRIMARY  (rows=2)
 
 SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
 WHERE (t1.str_col, t1.str_col) NOT IN (
@@ -4041,13 +4041,13 @@ EXPLAIN
 -> Left hash join (no condition), extra conditions: (t.c = 1)  (rows=1)
     -> Table scan on t  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
             -> Table scan on d  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on c  (rows=1)
                     -> Hash
-                        -> Left hash join (no condition)  (rows=1)
+                        -> Left hash join (no condition), extra conditions: true  (rows=1)
                             -> Table scan on b  (rows=1)
                             -> Hash
                                 -> Table scan on a  (rows=1)
@@ -4168,7 +4168,7 @@ test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
 EXPLAIN
 -> Filter: (t2.a is null)  (rows=2.5) (actual rows=0 loops=1)
-    -> Left hash join (no condition)  (rows=25) (actual rows=25 loops=1)
+    -> Left hash join (no condition), extra conditions: true  (rows=25) (actual rows=25 loops=1)
         -> Table scan on t1  (rows=5) (actual rows=5 loops=1)
         -> Hash
             -> Table scan on t2  (rows=5) (actual rows=5 loops=1)
@@ -4528,9 +4528,9 @@ WHERE x1.c <= CHAR(0xd83f);
 EXPLAIN
 -> Left hash join (x1.i2 = x2.i2)  (rows=53.3)
     -> Filter: (x1.c <= <cache>(char(0xd83f)))  (rows=13.3)
-        -> Table scan on x1  (rows=40)
+        -> Index scan on x1 using PRIMARY  (rows=40)
     -> Hash
-        -> Table scan on x2  (rows=40)
+        -> Index scan on x2 using PRIMARY  (rows=40)
 
 SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.i2=x2.i2
 WHERE x1.c <= CHAR(0xd83f);
@@ -4783,26 +4783,26 @@ ON c=d1.s AND c*2<0;
 EXPLAIN
 -> Inner hash join (t1.c = d1.s)  (rows=20) (actual rows=0 loops=1)
     -> Filter: ((t1.c * 2) < 0)  (rows=20) (actual rows=0 loops=1)
-        -> Table scan on t1  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t1 using PRIMARY  (rows=20) (actual rows=20 loops=1)
     -> Hash
         -> Table scan on d1  (rows=5) (never executed)
             -> Materialize  (rows=5) (never executed)
                 -> Table scan on <temporary>  (rows=5) (never executed)
                     -> Aggregate using temporary table  (rows=5) (never executed)
                         -> Inner hash join (no condition), extra conditions: (x1.b < x2.b)  (rows=133) (never executed)
-                            -> Table scan on x2  (rows=20) (never executed)
+                            -> Index scan on x2 using PRIMARY  (rows=20) (never executed)
                             -> Hash
-                                -> Table scan on x1  (rows=20) (never executed)
+                                -> Index scan on x1 using PRIMARY  (rows=20) (never executed)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE b IN
 (SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;
 EXPLAIN
 -> Hash semijoin (FirstMatch) (x1.b = x2.c)  (rows=20) (actual rows=0 loops=1)
     -> Filter: ((x1.c * 2) < 0)  (rows=20) (actual rows=0 loops=1)
-        -> Table scan on x1  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=20) (actual rows=20 loops=1)
     -> Hash
         -> Filter: (x2.b > 0)  (rows=18) (never executed)
-            -> Table scan on x2  (rows=20) (never executed)
+            -> Index scan on x2 using PRIMARY  (rows=20) (never executed)
 
 DROP TABLE t1;
 #

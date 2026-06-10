@@ -645,6 +645,7 @@ ANALYZE TABLE t1;
 --echo # Show operation without index.
 SHOW INDEXES FROM t1 WHERE key_name="i1";
 --replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
 SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
 

@@ -1,0 +1,53 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_metrics_protocol;
+@@global.telemetry.otel_exporter_otlp_metrics_protocol
+http/protobuf
+SELECT @@session.telemetry.otel_exporter_otlp_metrics_protocol;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_protocol' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_metrics_protocol';
+Variable_name	Value
+telemetry.otel_exporter_otlp_metrics_protocol	http/protobuf
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_metrics_protocol';
+Variable_name	Value
+telemetry.otel_exporter_otlp_metrics_protocol	http/protobuf
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_metrics_protocol';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_metrics_protocol	http/protobuf
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_metrics_protocol';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_metrics_protocol	http/protobuf
+SET GLOBAL telemetry.otel_exporter_otlp_metrics_protocol
+='http/json';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_protocol' is a read only variable
+SET SESSION telemetry.otel_exporter_otlp_metrics_protocol
+='http/json';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_protocol' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_metrics_protocol
+='http/json';
+SELECT @@global.telemetry.otel_exporter_otlp_metrics_protocol;
+@@global.telemetry.otel_exporter_otlp_metrics_protocol
+http/json
+SET PERSIST telemetry.otel_exporter_otlp_metrics_protocol
+='http/protobuf';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_metrics_protocol' is a read only variable
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_metrics_protocol
+='http/protobuf';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_metrics_protocol;
+@@global.telemetry.otel_exporter_otlp_metrics_protocol
+http/protobuf
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

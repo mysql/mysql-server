@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6344,7 +6344,7 @@ static void test_simple_temporal() {
     Item_param::val_real()
     Item_param::val_decimal()
 */
-static void test_temporal_param() {
+static void test_temporal_to_numeric() {
 #define N_PARAMS 3
   MYSQL_STMT *stmt = nullptr;
   uint rc;
@@ -6359,7 +6359,7 @@ static void test_temporal_param() {
   if (mysql_get_server_version(mysql) < 50600) {
     if (!opt_silent)
       fprintf(stdout,
-              "Skipping test_temporal_param: this test cannot be "
+              "Skipping test_temporal_to_numeric: this test cannot be "
               "executed on servers prior to 5.6 until bug#16328037 is fixed\n");
     return;
   }
@@ -6486,6 +6486,222 @@ static void test_temporal_param() {
   mysql_stmt_close(stmt);
 }
 
+/*
+  Test DATE/TIME/DATETIME parameters to cover the following functions:
+    Item_param::val_date()
+    Item_param::val_time()
+    Item_param::val_datetime()
+  Expect any temporal parameter and send any temporal parameter from client.
+*/
+static void test_temporal_param() {
+  static constexpr int PARAM_COUNT = 3;
+  MYSQL_STMT *stmt = nullptr;
+  uint rc;
+  ulong length, col_length[PARAM_COUNT];
+  MYSQL_BIND params[PARAM_COUNT];
+  MYSQL_BIND columns[PARAM_COUNT];
+  bool is_null, col_is_null[PARAM_COUNT];
+  MYSQL_TIME tm, col_value[PARAM_COUNT];
+
+  rc = mysql_query(mysql, "SET timestamp=UNIX_TIMESTAMP('2000-01-01')");
+  myquery(rc);
+
+  /* Initialize param/fetch buffers for data, null flags, lengths */
+  memset(&params, 0, sizeof(params));
+  memset(&length, 0, sizeof(length));
+  memset(&is_null, 0, sizeof(is_null));
+  memset(&columns, 0, sizeof(columns));
+  memset(&col_length, 0, sizeof(col_length));
+  memset(&col_is_null, 0, sizeof(col_is_null));
+
+  /* Initialize the first input parameter */
+  params[0].buffer_type = MYSQL_TYPE_DATETIME;
+  params[0].buffer = (void *)&tm;
+  params[0].is_null = &is_null;
+  params[0].length = &length;
+  params[0].buffer_length = (ulong)sizeof(tm);
+
+  /* Clone the second and the third input parameter */
+  params[2] = params[1] = params[0];
+
+  /* Initialize fetch parameters */
+  columns[0].buffer_type = MYSQL_TYPE_DATE;
+  columns[0].length = &col_length[0];
+  columns[0].is_null = &col_is_null[0];
+  columns[0].buffer_length = (ulong)sizeof(MYSQL_TIME);
+  columns[0].buffer = (void *)&col_value[0];
+
+  columns[1].buffer_type = MYSQL_TYPE_TIME;
+  columns[1].length = &col_length[1];
+  columns[1].is_null = &col_is_null[1];
+  columns[1].buffer_length = (ulong)sizeof(MYSQL_TIME);
+  columns[1].buffer = (void *)&col_value[1];
+
+  columns[2].buffer_type = MYSQL_TYPE_DATETIME;
+  columns[2].length = &col_length[2];
+  columns[2].is_null = &col_is_null[2];
+  columns[2].buffer_length = (ulong)sizeof(MYSQL_TIME);
+  columns[2].buffer = (void *)&col_value[2];
+
+  /* Prepare the statement, bind parameters and result columns */
+  stmt = mysql_simple_prepare(
+      mysql,
+      "SELECT CAST(? AS DATE) AS d, CAST(? AS TIME(6)) AS t, "
+      "CAST(? AS DATETIME(6)) AS dt");
+  check_stmt(stmt);
+  verify_param_count(stmt, PARAM_COUNT);
+
+  rc = mysql_stmt_bind_named_param(stmt, params, std::size(params), nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, columns);
+  check_execute(stmt, rc);
+
+  /* Initialize DATETIME value */
+  tm.neg = false;
+  tm.time_type = MYSQL_TIMESTAMP_DATETIME;
+  tm.year = 2001;
+  tm.month = 10;
+  tm.day = 20;
+  tm.hour = 23;
+  tm.minute = 59;
+  tm.second = 59;
+  tm.second_part = 500000;
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(col_value[0].time_type == MYSQL_TIMESTAMP_DATE);
+  DIE_UNLESS(col_value[0].year == 2001 && col_value[0].month == 10 &&
+             col_value[0].day == 20 && col_value[0].hour == 0 &&
+             col_value[0].minute == 0 && col_value[0].second == 0 &&
+             col_value[0].second_part == 0);
+  DIE_UNLESS(col_value[1].time_type == MYSQL_TIMESTAMP_TIME);
+  DIE_UNLESS(col_value[1].year == 0 && col_value[1].month == 0 &&
+             col_value[1].day == 0 && col_value[1].hour == 23 &&
+             col_value[1].minute == 59 && col_value[1].second == 59 &&
+             col_value[1].second_part == 500000);
+  DIE_UNLESS(col_value[2].time_type == MYSQL_TIMESTAMP_DATETIME);
+  DIE_UNLESS(col_value[2].year == 2001 && col_value[2].month == 10 &&
+             col_value[2].day == 20 && col_value[1].hour == 23 &&
+             col_value[2].minute == 59 && col_value[2].second == 59 &&
+             col_value[2].second_part == 500000);
+
+  mysql_stmt_close(stmt);
+
+  /* Prepare the statement, bind parameters and result columns */
+  stmt = mysql_simple_prepare(
+      mysql,
+      "SELECT CAST(? AS DATE) AS d, CAST(? AS TIME(6)) AS t, "
+      "CAST(? AS DATETIME(6)) AS dt");
+  check_stmt(stmt);
+  verify_param_count(stmt, PARAM_COUNT);
+
+  memset(&col_value, 0, sizeof(col_value));
+
+  /* Initialize DATE value */
+  params[0].buffer_type = MYSQL_TYPE_DATE;
+  params[1].buffer_type = MYSQL_TYPE_DATE;
+  params[2].buffer_type = MYSQL_TYPE_DATE;
+
+  tm.time_type = MYSQL_TIMESTAMP_DATE;
+
+  rc = mysql_stmt_bind_named_param(stmt, params, std::size(params), nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, columns);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(col_value[0].time_type == MYSQL_TIMESTAMP_DATE);
+  DIE_UNLESS(col_value[0].year == 2001 && col_value[0].month == 10 &&
+             col_value[0].day == 20 && col_value[0].hour == 0 &&
+             col_value[0].minute == 0 && col_value[0].second == 0 &&
+             col_value[0].second_part == 0);
+  DIE_UNLESS(col_value[1].time_type == MYSQL_TIMESTAMP_TIME);
+  DIE_UNLESS(col_value[1].year == 0 && col_value[1].month == 0 &&
+             col_value[1].day == 0 && col_value[1].hour == 0 &&
+             col_value[1].minute == 0 && col_value[1].second == 0 &&
+             col_value[1].second_part == 0);
+  DIE_UNLESS(col_value[2].time_type == MYSQL_TIMESTAMP_DATETIME);
+  DIE_UNLESS(col_value[2].year == 2001 && col_value[2].month == 10 &&
+             col_value[2].day == 20 && col_value[1].hour == 0 &&
+             col_value[2].minute == 0 && col_value[2].second == 0 &&
+             col_value[2].second_part == 0);
+
+  mysql_stmt_close(stmt);
+
+  /* Prepare the statement, bind parameters and result columns */
+  stmt = mysql_simple_prepare(
+      mysql,
+      "SELECT CAST(? AS DATE) AS d, CAST(? AS TIME(6)) AS t, "
+      "CAST(? AS DATETIME(6)) AS dt");
+  check_stmt(stmt);
+  verify_param_count(stmt, N_PARAMS);
+
+  memset(&col_value, 0, sizeof(col_value));
+
+  /* Initialize TIME value */
+  params[0].buffer_type = MYSQL_TYPE_TIME;
+  params[1].buffer_type = MYSQL_TYPE_TIME;
+  params[2].buffer_type = MYSQL_TYPE_TIME;
+
+  tm.time_type = MYSQL_TIMESTAMP_TIME;
+  tm.year = 0;
+  tm.month = 0;
+  tm.day = 0;
+
+  rc = mysql_stmt_bind_named_param(stmt, params, std::size(params), nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, columns);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(col_value[0].time_type == MYSQL_TIMESTAMP_DATE);
+  DIE_UNLESS(col_value[0].year == 2000 && col_value[0].month == 1 &&
+             col_value[0].day == 1 && col_value[0].hour == 0 &&
+             col_value[0].minute == 0 && col_value[0].second == 0 &&
+             col_value[0].second_part == 0);
+  DIE_UNLESS(col_value[1].time_type == MYSQL_TIMESTAMP_TIME);
+  DIE_UNLESS(col_value[1].year == 0 && col_value[1].month == 0 &&
+             col_value[1].day == 0 && col_value[1].hour == 23 &&
+             col_value[1].minute == 59 && col_value[1].second == 59 &&
+             col_value[1].second_part == 500000);
+  DIE_UNLESS(col_value[2].time_type == MYSQL_TIMESTAMP_DATETIME);
+  DIE_UNLESS(col_value[2].year == 2000 && col_value[2].month == 1 &&
+             col_value[2].day == 1 && col_value[1].hour == 23 &&
+             col_value[2].minute == 59 && col_value[2].second == 59 &&
+             col_value[2].second_part == 500000);
+
+  mysql_stmt_close(stmt);
+}
+
 static void test_temporal_functions() {
   MYSQL_STMT *stmt = nullptr;
   uint rc;
@@ -6551,6 +6767,9 @@ static void test_temporal_functions() {
   check_execute(stmt, rc);
 
   mysql_stmt_close(stmt);
+
+  rc = mysql_query(mysql, "SET timestamp=default");
+  myquery(rc);
 }
 
 /* Misc tests to keep pure coverage happy */
@@ -17327,9 +17546,6 @@ static void test_bug40365() {
     if (!opt_silent)
       fprintf(stdout, "\ntime[%d]: %02d-%02d-%02d ", i, tm[i].year, tm[i].month,
               tm[i].day);
-    DIE_UNLESS(tm[i].year == 0);
-    DIE_UNLESS(tm[i].month == 0);
-    DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
   rc = mysql_commit(mysql);
@@ -22266,7 +22482,7 @@ static void test_bug32915973() {
 
   mysql_free_result(result);
 
-  // Test 4: ADDDATE with time interval and time parameter, result is NULL
+  // Test 4: ADDDATE with time interval and time parameter, result is time
 
   rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
   check_execute(stmt, rc);
@@ -22296,7 +22512,7 @@ static void test_bug32915973() {
   rc = mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == 0);
 
-  DIE_UNLESS(is_null[1]);
+  DIE_UNLESS(tm[1].hour == 2 && tm[1].minute == 2 && tm[1].second == 3);
 
   mysql_free_result(result);
 
@@ -23943,6 +24159,7 @@ static void test_bug36686351() {
 }
 
 static struct my_tests_st my_tests[] = {
+    {"test_temporal_param", test_temporal_param},
     {"disable_query_logs", disable_query_logs},
     {"client_query", client_query},
     {"test_prepare_insert_update", test_prepare_insert_update},
@@ -24011,7 +24228,7 @@ static struct my_tests_st my_tests[] = {
     {"test_date", test_date},
     {"test_date_frac", test_date_frac},
     {"test_simple_temporal", test_simple_temporal},
-    {"test_temporal_param", test_temporal_param},
+    {"test_temporal_to_numeric", test_temporal_to_numeric},
     {"test_temporal_functions", test_temporal_functions},
     {"test_date_date", test_date_date},
     {"test_date_time", test_date_time},

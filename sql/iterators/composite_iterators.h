@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_COMPOSITE_ITERATORS_H_
 #define SQL_ITERATORS_COMPOSITE_ITERATORS_H_
 
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,11 +96,12 @@ class FilterIterator final : public RowIterator {
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
-  bool DoInit() override { return m_source->Init(); }
+  bool DoInit() override;
   int DoRead() override;
 
   unique_ptr_destroy_only<RowIterator> m_source;
   Item *m_condition;
+  bool m_no_rows{false};
 };
 
 /**

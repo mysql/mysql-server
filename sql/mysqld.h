@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -343,6 +343,7 @@ enum enum_binlog_error_action {
 };
 extern const char *binlog_error_action_list[];
 extern char *opt_authentication_policy;
+extern bool opt_replica_allow_higher_version_source;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;

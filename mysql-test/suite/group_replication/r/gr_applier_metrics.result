@@ -1,0 +1,61 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install the component on both members
+[connection server1]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/start_group_replication.inc
+
+############################################################
+# 2. Create some transactions on the group
+[connection server1]
+CREATE TABLE test.table (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO test.table VALUES (1);
+include/rpl/sync.inc
+
+############################################################
+# 3. Confirm the transactions are received on server 2
+[connection server2]
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_COMMITTED_COUNT to 2]
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM to nonzero]
+
+############################################################
+# 4. Check GR applier channel metrics
+[connection server_1]
+LOCK TABLE test.table WRITE;
+[connection server2]
+INSERT INTO test.table VALUES (2);
+INSERT INTO test.table VALUES (3);
+[connection server1]
+include/assert_eventually.inc [Eventually, receiver increases TRANSACTIONS_PENDING_COUNT to 2]
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_ONGOING_COUNT to 1]
+include/assert.inc [TRANSACTIONS_COMMITTED_COUNT remains 0]
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM to nonzero]
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM to nonzero]
+include/assert_eventually.inc [Eventually, coordinator increases WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT to > 1]
+include/assert_eventually.inc [Eventually, coordinator increases WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME to nonzero]
+include/assert_eventually.inc [replication_applier_metrics contains 2 rows, one per GR channel]
+
+############################################################
+# 5. Check also the worker table
+include/assert_eventually.inc [One worker has set ONGOING_TRANSACTION_TYPE = 'DML']
+include/assert_eventually.inc [One worker has incremented ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to nonzero]
+include/assert.inc [replication_applier_progress_by_worker contains 4 rows, 2 per GR channel]
+
+############################################################
+# 6. Cleanup
+[connection server_1]
+UNLOCK TABLES;
+[connection server1]
+DROP TABLE test.table;
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection server2]
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+include/group_replication_end.inc

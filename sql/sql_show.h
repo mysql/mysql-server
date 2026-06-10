@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -355,6 +355,20 @@ class Sql_cmd_show_create_user : public Sql_cmd_show {
   Sql_cmd_show_create_user() : Sql_cmd_show(SQLCOM_SHOW_CREATE_USER) {}
   bool check_privileges(THD *thd) override;
   bool execute_inner(THD *thd) override;
+};
+
+/// Represents SHOW CREATE MASKING POLICY statement.
+
+class Sql_cmd_show_create_masking_policy : public Sql_cmd_show_noplan {
+ public:
+  explicit Sql_cmd_show_create_masking_policy(LEX_CSTRING policy_name)
+      : Sql_cmd_show_noplan{SQLCOM_SHOW_CREATE_MASKING_POLICY},
+        m_policy_name{policy_name} {}
+  bool check_privileges(THD *thd) override;
+  bool execute_inner(THD *thd) override;
+
+ private:
+  LEX_CSTRING m_policy_name;
 };
 
 /// Represents SHOW DATABASES statement.

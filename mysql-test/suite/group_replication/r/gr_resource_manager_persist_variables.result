@@ -1,0 +1,61 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 0. Check that there are no persisted variables.
+[connection server1]
+RESET PERSIST;
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/assert.inc ['Expect 0 persisted variables.']
+
+############################################################
+# 1. Test SET PERSIST. Verify persisted variables.
+CREATE TABLE grvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
+INSERT INTO grvars (varname, varvalue)
+SELECT * FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'group_replication_resource_manager%'
+ ORDER BY VARIABLE_NAME;
+SELECT * FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'group_replication_resource_manager%'
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+group_replication_resource_manager.applier_channel_lag	3600
+group_replication_resource_manager.memory_used_limit	100
+group_replication_resource_manager.quarantine_time	3600
+group_replication_resource_manager.recovery_channel_lag	3600
+
+SET PERSIST_ONLY group_replication_resource_manager.applier_channel_lag = @@GLOBAL.group_replication_resource_manager.applier_channel_lag;
+SET PERSIST_ONLY group_replication_resource_manager.memory_used_limit = @@GLOBAL.group_replication_resource_manager.memory_used_limit;
+SET PERSIST_ONLY group_replication_resource_manager.quarantine_time = @@GLOBAL.group_replication_resource_manager.quarantine_time;
+SET PERSIST_ONLY group_replication_resource_manager.recovery_channel_lag = @@GLOBAL.group_replication_resource_manager.recovery_channel_lag;
+
+include/assert.inc ['Expect 4 persisted variables.']
+
+############################################################
+# 2. Restart server, server must preserve the persisted settings.
+#    Verify persisted configuration.
+# restart
+include/rpl/reconnect.inc
+
+include/assert.inc ['Expect 4 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 4 variables which last value was set through SET PERSIST.']
+
+############################################################
+# 3. Test RESET PERSIST.
+#    Verify that there are no persisted variables.
+RESET PERSIST IF EXISTS group_replication_resource_manager.applier_channel_lag;
+RESET PERSIST IF EXISTS group_replication_resource_manager.memory_used_limit;
+RESET PERSIST IF EXISTS group_replication_resource_manager.quarantine_time;
+RESET PERSIST IF EXISTS group_replication_resource_manager.recovery_channel_lag;
+include/assert.inc ['Expect 0 persisted variables.']
+
+############################################################
+# 4. Clean up.
+DROP TABLE grvars;
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

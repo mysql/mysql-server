@@ -12,6 +12,39 @@
 SET optimizer_trace='enabled=on';
 
 --echo #
+--echo # WL#17265: hypergraph optimizer is settable when available
+--echo #
+
+SET SESSION optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@session.optimizer_switch) > 0;
+
+SET SESSION optimizer_switch='hypergraph_optimizer=off';
+SELECT LOCATE('hypergraph_optimizer=off', @@session.optimizer_switch) > 0;
+
+SET SESSION optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@session.optimizer_switch) > 0;
+
+SET GLOBAL optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+
+SET GLOBAL optimizer_switch='hypergraph_optimizer=off';
+SELECT LOCATE('hypergraph_optimizer=off', @@global.optimizer_switch) > 0;
+
+SET GLOBAL optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+
+SET PERSIST optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+
+SET PERSIST optimizer_switch='hypergraph_optimizer=off';
+SELECT LOCATE('hypergraph_optimizer=off', @@global.optimizer_switch) > 0;
+
+SET PERSIST optimizer_switch='hypergraph_optimizer=on';
+SELECT LOCATE('hypergraph_optimizer=on', @@global.optimizer_switch) > 0;
+
+RESET PERSIST optimizer_switch;
+
+--echo #
 --echo # Bug #33296454: Use the hypergraph optimizer for SET statements
 --echo #
 

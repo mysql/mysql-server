@@ -1,4 +1,4 @@
-// Copyright (c) 2025, Oracle and/or its affiliates.
+// Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ using Key_iterator = Projection_iterator<0, Value_iterator_t>;
 
 /// Factory function to create a new iterator from a given iterator over pairs.
 ///
-/// @tparam Value_iterator_t Source iterator that yields value pairs.
+/// @param[in] iterator Source iterator that yields value pairs.
 [[nodiscard]] auto make_key_iterator(const auto &iterator) {
   return make_projection_iterator<0>(iterator);
 }
@@ -142,7 +142,7 @@ using Key_view = Projection_view<0, Source_t>;
 
 /// Factory function to create a new view over the keys in a range of pairs.
 ///
-/// @tparam Source_t Source range.
+/// @param[in] source Source range.
 [[nodiscard]] auto make_key_view(const auto &source) {
   return make_projection_view<0>(source);
 }
@@ -157,7 +157,7 @@ using Mapped_iterator = Projection_iterator<1, Value_iterator_t>;
 
 /// Factory function to create a new iterator from a given iterator over pairs.
 ///
-/// @tparam Value_iterator_t Source iterator that yields value pairs.
+/// @param[in] iterator Source iterator that yields value pairs.
 [[nodiscard]] auto make_mapped_iterator(const auto &iterator) {
   return make_projection_iterator<1>(iterator);
 }
@@ -171,7 +171,7 @@ using Mapped_view = Projection_view<1, Source_t>;
 /// Factory function to create a new view over the mapped values in a range of
 /// pairs.
 ///
-/// @tparam Source_t Source range.
+/// @param[in] source Source range.
 [[nodiscard]] auto make_mapped_view(const auto &source) {
   return make_projection_view<1>(source);
 }

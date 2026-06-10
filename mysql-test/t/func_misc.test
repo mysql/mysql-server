@@ -887,3 +887,127 @@ DO LEAST(0x00, NAME_CONST('a', _tis620 '1'));
 
 --error ER_WRONG_ARGUMENTS
 DO BENCHMARK(2, (JSON_ARRAY(UTC_TIME(3)) >= PERIOD_DIFF(32105, 2924299961)));
+
+--echo #
+--echo # Bug#38547818: Assertion '!thd->is_error()' failed
+--echo #
+
+CREATE TABLE t1(ci BIGINT);
+
+INSERT INTO t1 VALUES
+  (0), (NULL), (-2491715280669015460), (88), (21012), (-7981727315169723565);
+
+CREATE TABLE t2 LIKE t1;
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t2
+SELECT *
+FROM t1
+WHERE ci IN ('G', 'yBm', 'West Virginia', 'X');
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#38980338: Assertion 'field->type() != MYSQL_TYPE_TIME &&
+--echo #               field->type() != MYSQL_TYPE_DATE' failed
+--echo #
+
+CREATE TABLE t(c0 DATE, KEY(c0));
+
+INSERT INTO t VALUES(DATE'2026-02-19');
+
+SELECT *
+FROM t
+WHERE c0 NOT IN (FROM_UNIXTIME(71) ,"2026-02-19 00:00:00");
+
+SELECT *
+FROM t
+WHERE c0 NOT IN (FROM_UNIXTIME(71) ,"2026-02-19 01:02:03");
+
+SELECT *
+FROM t
+WHERE c0 IN (FROM_UNIXTIME(71) ,"2026-02-19 00:00:00");
+
+SELECT *
+FROM t
+WHERE c0 IN (FROM_UNIXTIME(71) ,"2026-02-19 01:02:03");
+
+DROP TABLE t;
+
+CREATE TABLE t(c0 TIME, KEY(c0));
+
+set timestamp = UNIX_TIMESTAMP('2026-02-19 11:12:13');
+
+INSERT INTO t VALUES(TIME'11:12:13');
+
+SELECT *
+FROM t
+WHERE c0 NOT IN (FROM_UNIXTIME(71) ,"2026-02-19 11:12:13");
+
+SELECT *
+FROM t
+WHERE c0 NOT IN (FROM_UNIXTIME(71) ,"2026-02-19 11:12:12");
+
+SELECT *
+FROM t
+WHERE c0 IN (FROM_UNIXTIME(71) ,"2026-02-19 11:12:13");
+
+SELECT *
+FROM t
+WHERE c0 IN (FROM_UNIXTIME(71) ,"2026-02-19 11:12:12");
+
+DROP TABLE t;
+
+set timestamp = DEFAULT;
+
+--echo #
+--echo # Bug#37864937: Wrong Result of an and expression
+--echo #
+
+CREATE TABLE t0(c0 DECIMAL(1, 0));
+INSERT INTO t0(c0) VALUES(0);
+
+SELECT (NOT IFNULL(c0, c0)) AND 0.1 IN (c0) FROM t0;
+
+SELECT * FROM t0 WHERE (NOT IFNULL(c0, c0)) AND 0.1 IN (c0);
+
+SELECT * FROM t0 WHERE (NOT IFNULL(c0, c0)) AND 0. IN (c0);
+
+SELECT * FROM t0 WHERE (NOT IFNULL(c0, c0)) AND 10. IN (c0);
+
+DROP TABLE t0;
+
+--echo #
+--echo # Bug#37864930: Wrong Right Join involving a predicate containing IFNULL
+--echo #
+
+CREATE TABLE t0(c0 DECIMAL);
+CREATE TABLE t2(c0 INT);
+
+INSERT INTO t0(c0) VALUES (NULL), (1);
+INSERT INTO t2(c0) VALUES (0);
+
+SELECT IFNULL(t0.c0, 1) IN (t0.c0)
+FROM t0 RIGHT JOIN t2 ON 0.5 = t0.c0;
+
+SELECT *
+FROM t0 RIGHT JOIN t2 ON 0.5 = t0.c0
+WHERE IFNULL(t0.c0, 1) IN (t0.c0);
+
+DROP TABLE t0, t2;
+
+--echo #
+--echo # Bug#38979801: Assertion failed: in_item
+--echo #
+
+CREATE TABLE t (
+  c0 datetime,
+  my_id bigint
+);
+
+INSERT INTO t VALUES
+ (TIMESTAMP'2025-01-01 00:00:01', 1), (TIMESTAMP'2025-01-01 00:00:00', 2);
+
+SELECT * FROM t WHERE my_id NOT IN ('3544-04-19', c0);
+
+DROP TABLE t;

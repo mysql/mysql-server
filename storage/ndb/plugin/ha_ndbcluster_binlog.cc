@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,17 +25,18 @@
 
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
 
+#include <chrono>
 #include <unordered_map>
 
 #include "m_string.h"
 #include "my_config.h"  // WORDS_BIGENDIAN
 #include "my_dbug.h"
+#include "my_io.h"  // FN_REFLEN
 #include "my_thread.h"
 #include "mysql/plugin.h"
 #include "mysql/strings/m_ctype.h"
 #include "nulls.h"
 #include "sql/auth/acl_change_notification.h"
-#include "sql/binlog.h"
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
 #include "sql/dd/types/tablespace.h"      // dd::Tablespace
 #include "sql/debug_sync.h"               // debug_sync_set_action, DEBUG_SYNC
@@ -1361,7 +1362,7 @@ class Ndb_schema_dist_data {
   bool metadata_changed;
 
   void init(Ndb_cluster_connection *cluster_connection) {
-    const Uint32 max_subscribers = cluster_connection->max_api_nodeid() + 1;
+    const Uint32 max_subscribers = MAX_NODES;
     m_own_nodeid = cluster_connection->node_id();
     NDB_SCHEMA_OBJECT::init(m_own_nodeid);
 
@@ -1419,6 +1420,14 @@ class Ndb_schema_dist_data {
                     data_node_id, subscriber_node_id);
     ndbcluster::ndbrequire(subscriber_node_id != 0);
 
+    if (subscriber_node_id > MAX_NODES_ID) {
+      ndb_log_error(
+          "Ignoring subscribe from node %u. "
+          "The maximum supported node ID is %u",
+          subscriber_node_id, MAX_NODES_ID);
+      return;
+    }
+
     Node_subscribers *subscribers = find_node_subscribers(data_node_id);
     if (subscribers) {
       subscribers->set(subscriber_node_id);
@@ -1433,6 +1442,14 @@ class Ndb_schema_dist_data {
     ndb_log_verbose(1, "Data node %d reports unsubscribe from node %d",
                     data_node_id, subscriber_node_id);
     ndbcluster::ndbrequire(subscriber_node_id != 0);
+
+    if (subscriber_node_id > MAX_NODES_ID) {
+      ndb_log_error(
+          "Ignoring unsubscribe from node %u. "
+          "The maximum supported node ID is %u",
+          subscriber_node_id, MAX_NODES_ID);
+      return;
+    }
 
     Node_subscribers *subscribers = find_node_subscribers(data_node_id);
     if (subscribers) {
@@ -4168,6 +4185,23 @@ class Ndb_schema_event_handler {
                                             pOp->getReqNodeId());
         // No 'check_wakeup_clients', adding subscribers doesn't complete
         // anything
+
+        DBUG_EXECUTE_IF("ndb_test_high_api_node_id", {
+          // Test the subscription of an API node with an ID higher than
+          // the existing ones.
+          m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(),
+                                              MAX_NODES_ID);
+
+          // Test the subscription of a node with an ID higher than
+          // the cluster limit.
+          m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(),
+                                              MAX_NODES_ID + 1);
+
+          // Clean up step to revert the fake subscription introduced
+          // by the test.
+          m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(),
+                                                MAX_NODES_ID);
+        });
         break;
       }
 
@@ -4175,6 +4209,14 @@ class Ndb_schema_event_handler {
         /* Remove node as subscriber */
         m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(),
                                               pOp->getReqNodeId());
+
+        DBUG_EXECUTE_IF("ndb_test_high_api_node_id", {
+          // Test the unsubscription of a node with an ID higher than
+          // the cluster limit.
+          m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(),
+                                                MAX_NODES_ID + 1);
+        });
+
         check_wakeup_clients(Ndb_schema_dist::NODE_UNSUBSCRIBE,
                              "Node unsubscribed");
         break;
@@ -7121,15 +7163,15 @@ void Ndb_binlog_thread::check_reconnect_incident(
   if (incident_id == MYSQLD_STARTUP) {
     msg = "mysqld startup";
 
-    Log_info log_info;
-    mysql_bin_log.get_current_log(&log_info);
-    log_verbose(60, " - current binlog file: %s", log_info.log_file_name);
+    char filename[FN_REFLEN];
+    injector::get_current_binlog_filename(filename);
+    log_verbose(60, " - current binlog file: %s", filename);
 
     uint log_number = 0;
-    if ((sscanf(strend(log_info.log_file_name) - 6, "%u", &log_number) == 1) &&
+    if (sscanf(strend(filename) - 6, "%u", &log_number) == 1 &&
         log_number == 1) {
       /*
-        This is the fist binlog file, skip writing incident since
+        This is the first binlog file, skip writing incident since
         there is really no log to have a gap in
       */
       log_verbose(60, " - skipping incident for first log, log_number: %u",
@@ -7890,6 +7932,9 @@ restart_cluster_failure:
              i_pOp->getState() != NdbEventOperation::EO_DROPPED);
     }
 
+    // Publish current binlog filename if someone is waiting
+    m_binlog_tracker.publish_if_waiters();
+
     release_thd_resources(thd);
 
     // Check that "microsecond timestamps used in query" has been reset
@@ -8036,6 +8081,10 @@ int ndbcluster_binlog_get_schema_participant_count(THD *, SHOW_VAR *var,
   var->value = buf;
   *(pointer_cast<int *>(buf)) = g_subscriber_count.load();
   return 0;
+}
+
+bool ndbcluster_binlog_wait_for_published_binlog_file(std::string &filename) {
+  return ndb_binlog_thread.wait_for_published_binlog_file(filename);
 }
 
 /*

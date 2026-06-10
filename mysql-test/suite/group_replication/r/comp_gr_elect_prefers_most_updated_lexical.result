@@ -1,0 +1,68 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install component and bootstrap group with member M1
+[connection server1]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Install component, join to group member M2 and increase
+#    to have highest weight on primary election
+[connection server2]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_group_replication.inc
+
+############################################################
+# 3. Install component and join to group member M3
+[connection server3]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_group_replication.inc
+
+############################################################
+# 4. Insert transactions on the group
+[connection server1]
+CREATE TABLE t1(a int primary key);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+
+############################################################
+# 5. Force a failover primary election by restarting primary
+# killing
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+# restarting
+[connection server_1]
+include/rpl/reconnect.inc
+[connection server2]
+# check that there are 2 members in the group
+include/rpl/gr_wait_for_number_of_members.inc
+
+############################################################
+# 6. Confirm server with lower lexical uuid is the new
+#    primary server
+include/gr_assert_primary_member.inc
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 7. Confirm error log contain message that states most
+#    uptodate method was used to elect new primary
+include/assert_grep.inc [Server 2 used most uptodate method to elect new primary.]
+[connection server3]
+include/assert_grep.inc [Server 2 used most uptodate method to elect new primary.]
+
+############################################################
+# 8. Cleanup
+DROP TABLE t1;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=OFF;
+[connection server1]
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=ON;
+include/group_replication_end.inc

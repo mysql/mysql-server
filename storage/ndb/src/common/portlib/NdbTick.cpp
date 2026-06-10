@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,7 +215,10 @@ NDB_TICKS NdbTick_getCurrentTicks() {
   }
 }
 
-NDB_TICKS NdbTick_AddMilliseconds(NDB_TICKS ticks, Uint64 ms) {
+NDB_TICKS NdbTick_AddMilliseconds(NDB_TICKS ticks, Int64 ms) {
+  // Check ms against 100 years, if assert failed maybe caller messed up?
+  assert(ms < 100LL * 366 * 24 * 3600 * 1000);
+  assert(ms > -100LL * 366 * 24 * 3600 * 1000);
   assert(isInited);
   assert(NdbTick_IsValid(ticks));
   assert(NdbDuration::tick_frequency >= MILLISEC_PER_SEC);

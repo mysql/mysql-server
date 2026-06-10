@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 
 #include <stdexcept>
 
-#include "helper/container/generic.h"
 #include "helper/http/url.h"
 #include "helper/json/rapid_json_iterator.h"
 #include "helper/json/text_to.h"
@@ -35,9 +34,10 @@
 #include "helper/json/to_string.h"
 #include "helper/mysql_numeric_value.h"
 #include "mrs/database/entry/object.h"
-#include "mysqlrouter/utils_sqlstring.h"
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/container/generic.h"
+#include "mysqlrouter/utils_sqlstring.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -102,7 +102,7 @@ ColumnValues create_function_argument_list(
   for (auto json_field : helper::json::member_iterator(doc)) {
     auto key = json_field.first;
     std::shared_ptr<database::entry::ObjectField> object_field;
-    if (!helper::container::get_if(
+    if (!mysql_harness::utility::container::get_if(
             object_fields, [key](auto &v) { return v->name == key; },
             &object_field)) {
       throw std::invalid_argument("Not allowed object_field:"s + key);
@@ -199,7 +199,8 @@ ColumnValues create_function_argument_list(
   for (const auto &[key, _] : query_kv) {
     const ObjectFieldPtr *param;
     CompareFieldNameF search_for(key);
-    if (!helper::container::get_ptr_if(object_fields, search_for, &param)) {
+    if (!mysql_harness::utility::container::get_ptr_if(object_fields,
+                                                       search_for, &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not allowed parameter:"s + key);
     }
@@ -291,7 +292,8 @@ void fill_procedure_argument_list_with_binds(
   for (const auto &[key, _] : query_kv) {
     const database::entry::Field *param;
     CompareFieldNameP search_for(key);
-    if (!helper::container::get_ptr_if(pf, search_for, &param)) {
+    if (!mysql_harness::utility::container::get_ptr_if(pf, search_for,
+                                                       &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not allowed parameter:"s + key);
     }

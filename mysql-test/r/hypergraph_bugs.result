@@ -353,7 +353,7 @@ EXPLAIN
         -> Nested loop inner join (FirstMatch)  (rows=0.1)
             -> Limit: 1 row(s)  (rows=0.1)
                 -> Filter: (((t3.f1 = t2.f2) and (t2.f2 = t4.f1)) or (t3.f2 >= t3.f1))  (rows=0.1)
-                    -> Left hash join (no condition)  (rows=0.1)
+                    -> Left hash join (no condition), extra conditions: true  (rows=0.1)
                         -> Inner hash join (t3.f1 = t2.f2)  (rows=0.1)
                             -> Table scan on t2  (rows=1)
                             -> Hash
@@ -395,7 +395,7 @@ EXPLAIN
             -> Table scan on t2  (rows=10)
             -> Hash
                 -> Inner hash join (t1.x = t3.x)  (rows=10)
-                    -> Table scan on t1  (rows=10)
+                    -> Index scan on t1 using PRIMARY  (rows=10)
                     -> Hash
                         -> Table scan on t3  (rows=10)
 
@@ -429,7 +429,7 @@ EXPLAIN
                 -> Table scan on t1  (rows=1)
             -> Hash
                 -> Filter: (t2.f2 = t4.f2)  (rows=100e-6)
-                    -> Left hash join (no condition)  (rows=0.001)
+                    -> Left hash join (no condition), extra conditions: true  (rows=0.001)
                         -> Filter: (t3.f1 = t2.f2)  (rows=0.001)
                             -> Inner hash join (t2.f2 = t3.f1), (t3.f1 = t2.f2)  (rows=0.01)
                                 -> Table scan on t2  (rows=1)
@@ -624,64 +624,64 @@ test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a), (x1.b = x2.b)  (rows=200) (actual rows=200 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.a=x2.a AND x1.b=x2.b AND x2.c=x3.c AND x2.d=x3.d;
 EXPLAIN
 -> Nested loop inner join  (rows=2) (actual rows=200 loops=1)
     -> Inner hash join (x2.c = x3.c), (x2.d = x3.d)  (rows=1) (actual rows=100 loops=1)
-        -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x3 using PRIMARY  (rows=100) (actual rows=100 loops=1)
         -> Hash
-            -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Index lookup on x1 using PRIMARY (a = x2.a, b = x2.b)  (rows=2) (actual rows=2 loops=100)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.e=x2.e AND x1.f=x2.f;
 EXPLAIN
 -> Inner hash join (x1.e = x2.e), (x1.f = x2.f)  (rows=200) (actual rows=200 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.e=x2.e AND x1.f=x2.f AND x1.g=x2.g;
 EXPLAIN
 -> Inner hash join (x1.e = x2.e), (x1.f = x2.f), (x1.g = x2.g)  (rows=100) (actual rows=100 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.e=x2.e;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a), (x1.e = x2.e)  (rows=16) (actual rows=400 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
 AND x1.e=x2.e AND x1.f=x2.f;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a), (x1.b = x2.b), (x1.e = x2.e), (x1.f = x2.f)  (rows=4) (actual rows=200 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.a=x2.a AND x2.b=x3.b;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a)  (rows=800) (actual rows=800 loops=1)
     -> Inner hash join (x2.b = x3.b)  (rows=200) (actual rows=200 loops=1)
-        -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x3 using PRIMARY  (rows=100) (actual rows=100 loops=1)
         -> Hash
-            -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=8;
 EXPLAIN
 -> Nested loop inner join  (rows=8) (actual rows=8 loops=1)
     -> Filter: (x1.b = 8)  (rows=2) (actual rows=2 loops=1)
-        -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Index lookup on x2 using PRIMARY (a = x1.a)  (rows=4) (actual rows=4 loops=2)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
@@ -689,7 +689,7 @@ AND x1.c=8;
 EXPLAIN
 -> Nested loop inner join  (rows=2) (actual rows=2 loops=1)
     -> Filter: (x1.c = 8)  (rows=1) (actual rows=1 loops=1)
-        -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Index lookup on x2 using PRIMARY (a = x1.a, b = x1.b)  (rows=2) (actual rows=2 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=7
@@ -697,42 +697,42 @@ AND x1.c=8;
 EXPLAIN
 -> Nested loop inner join  (rows=0.08) (actual rows=0 loops=1)
     -> Filter: ((x1.c = 8) and (x1.b = 7))  (rows=0.02) (actual rows=0 loops=1)
-        -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Index lookup on x2 using PRIMARY (a = x1.a)  (rows=4) (never executed)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
 AND x1.c=x2.c;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a), (x1.b = x2.b), (x1.c = x2.c)  (rows=100) (actual rows=100 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE a=b;
 EXPLAIN
 -> Filter: (t1.a = t1.b)  (rows=4) (actual rows=50 loops=1)
-    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE a=b AND c=d;
 EXPLAIN
 -> Filter: ((t1.c = t1.d) and (t1.a = t1.b))  (rows=0.04) (actual rows=50 loops=1)
-    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.a=x2.a AND x2.b=x3.b AND x3.c=x1.c;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a), (x2.b = x3.b)  (rows=8) (actual rows=200 loops=1)
-    -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
         -> Inner hash join (x3.c = x1.c)  (rows=100) (actual rows=100 loops=1)
-            -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x3 using PRIMARY  (rows=100) (actual rows=100 loops=1)
             -> Hash
-                -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+                -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 JOIN num10 ON h=n;
 EXPLAIN
 -> Nested loop inner join  (rows=10) (actual rows=10 loops=1)
-    -> Table scan on num10  (rows=10) (actual rows=10 loops=1)
+    -> Covering index scan on num10 using PRIMARY  (rows=10) (actual rows=10 loops=1)
     -> Single-row index lookup on t1 using k2 (h = num10.n)  (rows=1) (actual rows=1 loops=10)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE
@@ -740,9 +740,9 @@ x1.a=x2.a AND x1.b=x2.b AND x1.b=x3.h;
 EXPLAIN
 -> Nested loop inner join  (rows=4) (actual rows=200 loops=1)
     -> Inner hash join (x1.a = x2.a), (x1.b = x2.b)  (rows=4) (actual rows=200 loops=1)
-        -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
         -> Hash
-            -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Single-row index lookup on x3 using k2 (h = x1.b)  (rows=1) (actual rows=1 loops=200)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3
@@ -750,22 +750,22 @@ WHERE x1.a=x2.c AND x1.b=x2.b AND x2.b=x3.b;
 EXPLAIN
 -> Inner hash join (x1.b = x3.b)  (rows=10000) (actual rows=100 loops=1)
     -> Inner hash join (x1.a = x2.c), (x1.b = x2.b)  (rows=200) (actual rows=50 loops=1)
-        -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
         -> Hash
-            -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x3 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1 LEFT JOIN
 (t1 x2 JOIN t1 x3 ON x2.a=x3.a AND x2.b=x3.b) ON x3.b=x1.d;
 EXPLAIN
 -> Left hash join (x1.d = x2.b)  (rows=400) (actual rows=250 loops=1)
-    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
         -> Inner hash join (x2.b = x3.b), (x2.a = x3.a)  (rows=200) (actual rows=200 loops=1)
-            -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
             -> Hash
-                -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+                -> Index scan on x3 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM  t1 x1
 WHERE 3 IN (SELECT x2.b FROM t1 x2 LEFT JOIN t1 x3 ON x2.c=x3.a AND x2.d=x3.b);
@@ -774,7 +774,7 @@ EXPLAIN
     -> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
         -> Nested loop left join  (rows=4) (actual rows=1 loops=1)
             -> Filter: (x2.b = 3)  (rows=2) (actual rows=1 loops=1)
-                -> Table scan on x2  (rows=100) (actual rows=13 loops=1)
+                -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=13 loops=1)
             -> Covering index lookup on x3 using PRIMARY (a = x2.c, b = x2.d)  (rows=2) (actual rows=1 loops=1)
     -> Covering index scan on x1 using k2  (rows=100) (actual rows=100 loops=1)
 
@@ -783,7 +783,7 @@ EXPLAIN
 -> Inner hash join (cast(x1.a as double) = cast(x2.v as double)), (x1.b = x2.b)  (rows=200) (actual rows=200 loops=1)
     -> Covering index scan on x1 using k2  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on x2 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2, t1 x3
 WHERE x1.a=x2.c AND x1.a=x3.v AND x1.b=x3.f;
@@ -792,7 +792,7 @@ EXPLAIN
     -> Inner hash join (cast(x1.a as double) = cast(x3.v as double)), (x1.b = x3.f)  (rows=200) (actual rows=200 loops=1)
         -> Covering index scan on x1 using k2  (rows=100) (actual rows=100 loops=1)
         -> Hash
-            -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+            -> Index scan on x3 using PRIMARY  (rows=100) (actual rows=100 loops=1)
     -> Hash
         -> Covering index scan on x2 using k2  (rows=100) (actual rows=100 loops=1)
 
@@ -837,12 +837,12 @@ EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
 EXPLAIN
 -> Table scan on <temporary>  (rows=7) (actual rows=7 loops=1)
     -> Temporary table with deduplication  (rows=7) (actual rows=7 loops=1)
-        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+        -> Index scan on t1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT DISTINCT b,c FROM t1;
 EXPLAIN
 -> Sort with duplicate removal: t1.b, t1.c  (rows=20.6) (actual rows=35 loops=1)
-    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=100) (actual rows=100 loops=1)
 
 DROP TABLE t1;
 #
@@ -868,20 +868,20 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE x1.c IN
 (SELECT c FROM t1 x2 WHERE  b<"150" AND c<70);
 EXPLAIN
 -> Hash semijoin (FirstMatch) (x1.c = x2.c)  (rows=35)
-    -> Table scan on x1  (rows=100)
+    -> Index scan on x1 using PRIMARY  (rows=100)
     -> Hash
         -> Filter: ((x2.c < 70) and (x2.b < '150'))  (rows=35)
-            -> Table scan on x2  (rows=100)
+            -> Index scan on x2 using PRIMARY  (rows=100)
 
 EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<70;
 EXPLAIN
 -> Filter: ((t1.c < 70) and (t1.b < '150'))  (rows=35)
-    -> Table scan on t1  (rows=100)
+    -> Index scan on t1 using PRIMARY  (rows=100)
 
 EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<80;
 EXPLAIN
 -> Filter: ((t1.b < '150') and (t1.c < 80))  (rows=40)
-    -> Table scan on t1  (rows=100)
+    -> Index scan on t1 using PRIMARY  (rows=100)
 
 #
 # BUG 35507456
@@ -891,7 +891,7 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1
 WHERE  b<"150" AND RAND(0)>-1 AND c< 70;
 EXPLAIN
 -> Filter: ((t1.c < 70) and (t1.b < '150') and (rand(0) > <cache>(-(1))))  (rows=35)
-    -> Table scan on t1  (rows=100)
+    -> Index scan on t1 using PRIMARY  (rows=100)
 
 CREATE FUNCTION foo(i INT)
 RETURNS INT
@@ -902,7 +902,7 @@ END $$
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE foo(2)=3 AND c=5;
 EXPLAIN
 -> Filter: ((t1.c = 5) and (foo(2) = 3))  (rows=1)
-    -> Table scan on t1  (rows=100)
+    -> Index scan on t1 using PRIMARY  (rows=100)
 
 DROP FUNCTION foo;
 DROP TABLE num, t1;
@@ -967,12 +967,12 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c=FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c = floor(rand(0)))  (rows=16) (actual rows=16 loops=1)
-    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE FLOOR(RAND(0))=c;
 EXPLAIN
 -> Filter: (floor(rand(0)) = t1.c)  (rows=16) (actual rows=16 loops=1)
-    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE d=FLOOR(RAND(0));
 EXPLAIN
@@ -1008,7 +1008,7 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c=(SELECT MIN(b) FROM t1);
 EXPLAIN
 -> Filter: (t1.c = (select #2))  (rows=16) (actual rows=16 loops=1)
-    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: min(t1.b)  (rows=1) (actual rows=1 loops=1)
             -> Covering index scan on t1 using k1  (rows=256) (actual rows=256 loops=1)
@@ -1021,12 +1021,12 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c<>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c <> floor(rand(0)))  (rows=240) (actual rows=240 loops=1)
-    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE FLOOR(RAND(0))<>c;
 EXPLAIN
 -> Filter: (floor(rand(0)) <> t1.c)  (rows=240) (actual rows=240 loops=1)
-    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b<>(SELECT MIN(b) FROM t1);
 EXPLAIN
@@ -1039,7 +1039,7 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c<>(SELECT MIN(b) FROM t1);
 EXPLAIN
 -> Filter: (t1.c <> (select #2))  (rows=240) (actual rows=240 loops=1)
-    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: min(t1.b)  (rows=1) (actual rows=1 loops=1)
             -> Covering index scan on t1 using k1  (rows=256) (actual rows=256 loops=1)
@@ -1064,7 +1064,7 @@ EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1 WHERE d =
 (SELECT MIN(g) FROM t1 x2 WHERE x1.b<>x2.b);
 EXPLAIN
 -> Filter: (x1.d = (select #2))  (rows=256) (actual rows=16 loops=1)
-    -> Table scan on x1  (rows=256) (actual rows=256 loops=1)
+    -> Index scan on x1 using PRIMARY  (rows=256) (actual rows=256 loops=1)
     -> Select #2 (subquery in condition; dependent)
         -> Aggregate: min(x2.g)  (rows=1) (actual rows=1 loops=256)
             -> Filter: (x1.b <> x2.b)  (rows=240) (actual rows=240 loops=256)
@@ -1094,13 +1094,13 @@ EXPLAIN
 -> Nested loop inner join (FirstMatch)  (rows=0.1)
     -> Limit: 1 row(s)  (rows=0.1)
         -> Inner hash join (x2.b = x3.d), (x2.c = x3.e)  (rows=0.1)
-            -> Table scan on x3  (rows=1)
+            -> Index scan on x3 using PRIMARY  (rows=1)
             -> Hash
                 -> Inner hash join (x2.e = x4.e), (x2.b = x4.b)  (rows=0.1)
-                    -> Table scan on x4  (rows=1)
+                    -> Index scan on x4 using PRIMARY  (rows=1)
                     -> Hash
-                        -> Table scan on x2  (rows=1)
-    -> Covering index scan on x1 using k1  (rows=1)
+                        -> Index scan on x2 using PRIMARY  (rows=1)
+    -> Covering index scan on x1 using PRIMARY  (rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 (a int, b int);
@@ -1149,13 +1149,13 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x0 WHERE (b=3 OR c=4) AND a <>
 (SELECT MAX(x1.a+x2.a) FROM t2 x1 JOIN t2 x2 ON x1.b<x2.b);
 EXPLAIN
 -> Filter: (((x0.b = 3) or (x0.c = 4)) and (x0.a <> (select #2)))  (rows=0.2)
-    -> Table scan on x0  (rows=1)
+    -> Index scan on x0 using PRIMARY  (rows=1)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max((x1.a + x2.a))  (rows=1)
             -> Inner hash join (no condition), extra conditions: (x1.b < x2.b)  (rows=833)
-                -> Table scan on x1  (rows=50)
+                -> Index scan on x1 using PRIMARY  (rows=50)
                 -> Hash
-                    -> Table scan on x2  (rows=50)
+                    -> Index scan on x2 using PRIMARY  (rows=50)
 
 DROP TABLE t1,t2;
 #
@@ -1182,7 +1182,7 @@ EXPLAIN
     -> Covering index skip scan on x1 using k2 over NULL < c < 1  (...)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.b)  (...)
-            -> Covering index scan on x2 using k2  (...)
+            -> Index scan on x2 using PRIMARY  (...)
 
 DROP TABLE t1;
 #
@@ -1253,12 +1253,12 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.b <=> floor(rand(0)))  (rows=2)
-    -> Table scan on t1  (rows=30)
+    -> Index scan on t1 using PRIMARY  (rows=30)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c <=> floor(rand(0)))  (rows=2)
-    -> Table scan on t1  (rows=30)
+    -> Index scan on t1 using PRIMARY  (rows=30)
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
 Table	Op	Msg_type	Msg_text
@@ -1294,12 +1294,12 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.b <=> floor(rand(0)))  (rows=2)
-    -> Table scan on t1  (rows=30)
+    -> Index scan on t1 using PRIMARY  (rows=30)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c <=> floor(rand(0)))  (rows=2)
-    -> Table scan on t1  (rows=30)
+    -> Index scan on t1 using PRIMARY  (rows=30)
 
 DROP TABLE t1;
 #
@@ -1332,17 +1332,17 @@ test.t2	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE t1.a IN (SELECT t2.l FROM t2);
 EXPLAIN
 -> Hash semijoin (FirstMatch) (t1.a = t2.l)  (rows=10) (actual rows=10 loops=1)
-    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
     -> Hash
-        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t2 using PRIMARY  (rows=20) (actual rows=20 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
 EXPLAIN
 -> Hash semijoin (FirstMatch) (t1.a = t2.l), extra conditions: (t1.b <> t2.k)  (rows=14.3) (actual rows=10 loops=1)
-    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
     -> Hash
-        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t2 using PRIMARY  (rows=20) (actual rows=20 loops=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1352,7 +1352,7 @@ EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=10) (actual rows=10 loops=1)
     -> Sort with duplicate removal: (t2.l + abs(t2.l))  (rows=4.47) (actual rows=10 loops=1)
-        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t2 using PRIMARY  (rows=20) (actual rows=20 loops=1)
     -> Filter: (t1.a = (t2.l + abs(t2.l)))  (rows=0.0333) (actual rows=1 loops=10)
         -> Single-row index lookup on t1 using PRIMARY (a = (t2.l + abs(t2.l)))  (rows=1) (actual rows=1 loops=10)
 
@@ -1363,7 +1363,7 @@ EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=14.8) (actual rows=15 loops=1)
     -> Sort with duplicate removal: (t2.k + t2.l)  (rows=4.47) (actual rows=15 loops=1)
-        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t2 using PRIMARY  (rows=20) (actual rows=20 loops=1)
     -> Filter: (t1.a = (t2.k + t2.l))  (rows=0.0333) (actual rows=1 loops=15)
         -> Single-row index lookup on t1 using PRIMARY (a = (t2.k + t2.l))  (rows=1) (actual rows=1 loops=15)
 
@@ -1373,9 +1373,9 @@ EXPLAIN ANALYZE SELECT * FROM t1 WHERE NOT EXISTS
 (SELECT 1 FROM t2 WHERE t1.a=t2.l);
 EXPLAIN
 -> Hash antijoin (t1.a = t2.l)  (rows=20) (actual rows=20 loops=1)
-    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
     -> Hash
-        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t2 using PRIMARY  (rows=20) (actual rows=20 loops=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1383,9 +1383,9 @@ EXPLAIN ANALYZE SELECT * FROM t1 WHERE NOT EXISTS
 (SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
 EXPLAIN
 -> Hash antijoin (t1.a = t2.l), extra conditions: (t1.b <> t2.k)  (rows=15.7) (actual rows=20 loops=1)
-    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
     -> Hash
-        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+        -> Index scan on t2 using PRIMARY  (rows=20) (actual rows=20 loops=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1396,14 +1396,14 @@ EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.02)
     -> Sort with duplicate removal: t2.l  (rows=0.02)
         -> Filter: (t2.l < 0)  (rows=0.02)
-            -> Table scan on t2  (rows=20)
+            -> Index scan on t2 using PRIMARY  (rows=20)
     -> Single-row index lookup on t1 using PRIMARY (a = t2.l)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
 EXPLAIN
 -> Nested loop inner join (FirstMatch)  (rows=1)
     -> Limit: 1 row(s)  (rows=1)
-        -> Table scan on t2  (rows=20)
+        -> Covering index scan on t2 using PRIMARY  (rows=20)
     -> Single-row index lookup on t1 using PRIMARY (a = 5)  (rows=1)
 
 DROP TABLE t1,t2;
@@ -1424,9 +1424,9 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.a IN (SELECT x2.b FROM t1 x2);
 EXPLAIN
 -> Hash semijoin (FirstMatch) (x1.a = x2.b)  (rows=10)
-    -> Table scan on x1  (rows=30)
+    -> Index scan on x1 using PRIMARY  (rows=30)
     -> Hash
-        -> Table scan on x2  (rows=30)
+        -> Index scan on x2 using PRIMARY  (rows=30)
 
 SELECT REGEXP_SUBSTR(
 trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
@@ -1458,13 +1458,13 @@ EXPLAIN
 -> Inner hash join (no condition)  (rows=104e+6)
     -> Inner hash join (no condition)  (rows=1.03e+6)
         -> Inner hash join (no condition)  (rows=10201)
-            -> Table scan on x1  (rows=101)
+            -> Index scan on x1 using PRIMARY  (rows=101)
             -> Hash
-                -> Table scan on x2  (rows=101)
+                -> Index scan on x2 using PRIMARY  (rows=101)
         -> Hash
-            -> Table scan on x3  (rows=101)
+            -> Index scan on x3 using PRIMARY  (rows=101)
     -> Hash
-        -> Table scan on x4  (rows=101)
+        -> Index scan on x4 using PRIMARY  (rows=101)
 
 SELECT REGEXP_SUBSTR(trace, " - \\{HASH_JOIN[^\n]*keeping",1,1,'n')
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -1616,7 +1616,7 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Nested loop inner join  (rows=20)
         -> Nested loop inner join  (rows=20)
-            -> Table scan on x1  (rows=20)
+            -> Index scan on x1 using PRIMARY  (rows=20)
             -> Single-row index lookup on x2 using PRIMARY (a = x1.b)  (rows=1)
         -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=1)
             -> Single-row index lookup on x3 using PRIMARY (a = x2.b)  (rows=1)
@@ -1629,18 +1629,18 @@ EXPLAIN
         -> Nested loop inner join  (rows=80)
             -> Sort: x2.b  (rows=40)
                 -> Inner hash join (x1.b = x2.d)  (rows=40)
-                    -> Table scan on x1  (rows=20)
+                    -> Index scan on x1 using PRIMARY  (rows=20)
                     -> Hash
-                        -> Table scan on x2  (rows=20)
+                        -> Index scan on x2 using PRIMARY  (rows=20)
             -> Index lookup on x3 using k1 (d = x2.b)  (rows=2)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
 ON x1.a <=> x2.a AND  x1.a <=> x2.a;
 EXPLAIN
 -> Left hash join (x1.a <=> x2.a), (x1.a <=> x2.a)  (rows=20)
-    -> Table scan on x1  (rows=20)
+    -> Index scan on x1 using PRIMARY  (rows=20)
     -> Hash
-        -> Table scan on x2  (rows=20)
+        -> Index scan on x2 using PRIMARY  (rows=20)
 
 DROP TABLE t1;
 #
@@ -1657,9 +1657,9 @@ WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=7.96)
     -> Inner hash join (t1.pk = t2.x)  (rows=12)
-        -> Table scan on t2  (rows=12)
+        -> Index scan on t2 using PRIMARY  (rows=12)
         -> Hash
-            -> Table scan on t1  (rows=12)
+            -> Index scan on t1 using PRIMARY  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1668,18 +1668,18 @@ EXPLAIN
     -> Table scan on <temporary>  (rows=7.96)
         -> Temporary table with deduplication  (rows=7.96)
             -> Inner hash join (t1.pk = t2.x)  (rows=12)
-                -> Table scan on t2  (rows=12)
+                -> Index scan on t2 using PRIMARY  (rows=12)
                 -> Hash
-                    -> Table scan on t1  (rows=12)
+                    -> Index scan on t1 using PRIMARY  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
 EXPLAIN
 -> Sort with duplicate removal: t1.x, t1.pk  (rows=9.36)
     -> Inner hash join (t1.pk = t2.x)  (rows=12)
-        -> Table scan on t2  (rows=12)
+        -> Index scan on t2 using PRIMARY  (rows=12)
         -> Hash
-            -> Table scan on t1  (rows=12)
+            -> Index scan on t1 using PRIMARY  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
@@ -1688,18 +1688,18 @@ EXPLAIN
     -> Table scan on <temporary>  (rows=9.36)
         -> Temporary table with deduplication  (rows=9.36)
             -> Inner hash join (t1.pk = t2.x)  (rows=12)
-                -> Table scan on t2  (rows=12)
+                -> Index scan on t2 using PRIMARY  (rows=12)
                 -> Hash
-                    -> Table scan on t1  (rows=12)
+                    -> Index scan on t1 using PRIMARY  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=3.46)
     -> Inner hash join (t1.pk = t2.x)  (rows=12)
-        -> Table scan on t2  (rows=12)
+        -> Covering index scan on t1 using PRIMARY  (rows=12)
         -> Hash
-            -> Covering index scan on t1 using PRIMARY  (rows=12)
+            -> Index scan on t2 using PRIMARY  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1708,9 +1708,9 @@ EXPLAIN
     -> Table scan on <temporary>  (rows=3.46)
         -> Temporary table with deduplication  (rows=3.46)
             -> Inner hash join (t1.pk = t2.x)  (rows=12)
-                -> Table scan on t2  (rows=12)
+                -> Covering index scan on t1 using PRIMARY  (rows=12)
                 -> Hash
-                    -> Covering index scan on t1 using PRIMARY  (rows=12)
+                    -> Index scan on t2 using PRIMARY  (rows=12)
 
 DROP TABLE t;
 #
@@ -1743,9 +1743,9 @@ EXPLAIN
                 -> Table scan on <temporary>  (rows=10)
                     -> Aggregate using temporary table  (rows=10)
                         -> Inner hash join (no condition), extra conditions: (x2.c < x3.b)  (rows=133)
-                            -> Table scan on x2  (rows=20)
+                            -> Index scan on x2 using PRIMARY  (rows=20)
                             -> Hash
-                                -> Table scan on x3  (rows=20)
+                                -> Index scan on x3 using PRIMARY  (rows=20)
 
 DROP TABLE t1;
 #
@@ -1839,7 +1839,7 @@ EXPLAIN
             -> Filter: (1 = (t2.x + 1))  (...)
                 -> Table scan on t2  (...)
             -> Hash
-                -> Table scan on t3  (...)
+                -> Covering index scan on t3 using PRIMARY  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
@@ -1853,7 +1853,7 @@ EXPLAIN
             -> Filter: (1 = (t2.x + 1))  (...)
                 -> Table scan on t2  (...)
             -> Hash
-                -> Table scan on t3  (...)
+                -> Covering index scan on t3 using PRIMARY  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
@@ -1867,7 +1867,7 @@ EXPLAIN
             -> Filter: (1 = (t2.x + 1))  (...)
                 -> Table scan on t2  (...)
             -> Hash
-                -> Table scan on t3  (...)
+                -> Covering index scan on t3 using PRIMARY  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
@@ -1881,7 +1881,7 @@ EXPLAIN
             -> Filter: (1 = (t2.x + 1))  (...)
                 -> Table scan on t2  (...)
             -> Hash
-                -> Table scan on t3  (...)
+                -> Covering index scan on t3 using PRIMARY  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
@@ -2392,7 +2392,7 @@ SET optimizer_trace='enabled=on';
 EXPLAIN FORMAT=TREE SELECT a, b FROM t ORDER BY a, b;
 EXPLAIN
 -> Sort: t.a  (rows=3)
-    -> Table scan on t  (rows=3)
+    -> Index scan on t using PRIMARY  (rows=3)
 
 SET optimizer_trace='enabled=off';
 SELECT REGEXP_SUBSTR(TRACE, '(?s)Functional dependencies.*?""') AS dependencies
@@ -2492,3 +2492,723 @@ WHERE i IN (SELECT i FROM t AS t2)
 GROUP BY i;
 LAG (i) OVER ()
 DROP TABLE t;
+#
+# Bug#38704535: Assertion `std::cmp_less(pred_idx,
+#               m_graph->num_filter_predicates)' failed.
+#
+CREATE TABLE t(a INT, KEY(a));
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT *
+FROM
+t AS t1 LEFT JOIN
+t AS t2 INNER JOIN
+(SELECT DISTINCT a FROM t WHERE a <> a) AS t3
+ON t3.a = t2.a
+ON TRUE
+WHERE t3.a = 1 OR t1.a = 2;
+EXPLAIN
+-> Filter: ((t3.a = 1) or (t1.a = 2))  (rows=3)
+    -> Nested loop left join  (rows=3)
+        -> Covering index scan on t1 using a  (rows=3)
+        -> Zero rows (impossible WHERE)  (rows=0)
+
+SELECT *
+FROM
+t AS t1 LEFT JOIN
+t AS t2 INNER JOIN
+(SELECT DISTINCT a FROM t WHERE a <> a) AS t3
+ON t3.a = t2.a
+ON TRUE
+WHERE t3.a = 1 OR t1.a = 2;
+a	a	a
+2	NULL	NULL
+EXPLAIN FORMAT=TREE SELECT *
+FROM
+t AS t1 INNER JOIN
+t AS t2 INNER JOIN
+(SELECT DISTINCT a FROM t WHERE a <> a) AS t3
+ON t3.a = t2.a
+ON TRUE
+WHERE t3.a = 1 OR t1.a = 2;
+EXPLAIN
+-> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
+
+DROP TABLE t;
+#
+# Bug#38763106 - sort with limit in hypergraph gets wrong result
+#
+CREATE TABLE t1 (char_0_col CHAR(0) COLLATE utf8mb4_general_ci NOT NULL);
+INSERT INTO t1 VALUES (''), ('');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT char_0_col FROM t1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Table scan on t1  (rows=2)
+
+EXPLAIN FORMAT=TREE
+SELECT char_0_col FROM t1
+ORDER BY char_0_col LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (rows=2)
+    -> Table scan on t1  (rows=2)
+
+# Test 1: Basic LIMIT 1 (original bug case)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1;
+char_0_col
+
+# Test 2: LIMIT equals number of rows
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 2;
+char_0_col
+
+
+# Test 3: LIMIT greater than number of rows
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 5;
+char_0_col
+
+
+# Test 4: LIMIT with OFFSET 0 (should behave like LIMIT 1)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 0;
+char_0_col
+
+# Test 5: LIMIT with OFFSET 1 (skip first row)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 1;
+char_0_col
+
+# Test 6: LIMIT with OFFSET equal to total rows (no rows)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 2;
+char_0_col
+# Test 7: LIMIT with OFFSET greater than total rows (no rows)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 5;
+char_0_col
+# Test 8: Multiple rows with various LIMIT values
+INSERT INTO t1 VALUES (''), (''), ('');
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1;
+char_0_col
+
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 3;
+char_0_col
+
+
+
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 10;
+char_0_col
+
+
+
+
+
+# Test 9: LIMIT with OFFSET on larger dataset
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 2 OFFSET 1;
+char_0_col
+
+
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 2 OFFSET 3;
+char_0_col
+
+
+# Test 10: Verify with COUNT to ensure correct row counts
+SELECT COUNT(*) FROM (
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1
+) AS derived;
+COUNT(*)
+1
+SELECT COUNT(*) FROM (
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 3
+) AS derived;
+COUNT(*)
+3
+SELECT COUNT(*) FROM (
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 2
+) AS derived;
+COUNT(*)
+1
+# Test 11: DESC order with LIMIT
+SELECT * FROM t1 ORDER BY char_0_col DESC LIMIT 1;
+char_0_col
+
+SELECT * FROM t1 ORDER BY char_0_col DESC LIMIT 2 OFFSET 1;
+char_0_col
+
+
+# Test 12: Explicit hypergraph hint (ensure it works)
+SELECT /*+ SET_VAR(optimizer_switch="hypergraph_optimizer=on") */
+* FROM t1 ORDER BY char_0_col LIMIT 1;
+char_0_col
+
+# Test 13: Verify old optimizer still works (regression check)
+SELECT /*+ SET_VAR(optimizer_switch="hypergraph_optimizer=off") */
+* FROM t1 ORDER BY char_0_col LIMIT 1;
+char_0_col
+
+# Test 14: LIMIT 0 (edge case - should return no rows)
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 0;
+char_0_col
+# Test 15: Large OFFSET that skips all rows
+SELECT * FROM t1 ORDER BY char_0_col LIMIT 1 OFFSET 100;
+char_0_col
+# Test 16: DISTINCT with zero-length key should yield 1 row
+SELECT DISTINCT char_0_col FROM t1 ORDER BY char_0_col;
+char_0_col
+
+# Test 17: DISTINCT with LIMIT should still yield at most 1
+SELECT DISTINCT char_0_col FROM t1 ORDER BY char_0_col LIMIT 5;
+char_0_col
+
+# Test 18: DISTINCT with hypergraph hint
+SELECT /*+ SET_VAR(optimizer_switch="hypergraph_optimizer=on") */
+DISTINCT char_0_col FROM t1 ORDER BY char_0_col;
+char_0_col
+
+DROP TABLE t1;
+#
+# Bug#38292966: Hypergraph: Optimizer trace should not state
+#               "This is a bug" for known inconsistent row counts
+#
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 SELECT n,n FROM num UNION SELECT n+10,n+10 FROM num;
+CREATE TABLE t2 (a INT, b INT);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET optimizer_trace='enabled=on';
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+LEFT JOIN t2 x2 ON x1.b=x2.a
+LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
+EXPLAIN
+-> Group aggregate: count(x1.b)  (cost=35.1..38.2 rows=4.47)
+    -> Sort: k  (cost=34.2..34.2 rows=20)
+        -> Left hash join (x1.b = x2.a)  (cost=14.7..24.5 rows=20)
+            -> Table scan on x1  (cost=0.359..7.19 rows=20)
+            -> Hash
+                -> Left hash join (x2.b = x3.a)  (cost=13.2..13.5 rows=2)
+                    -> Table scan on x2  (cost=0.359..0.359 rows=1)
+                    -> Hash
+                        -> Table scan on x3  (cost=0.313..6.27 rows=20)
+
+SET optimizer_trace='enabled=off';
+Optimizer trace correctly contains WARNING about inconsistent row counts.
+Optimizer trace correctly omits "This is a bug" message.
+DROP TABLE num, t1, t2;
+#
+# Bug#38822359: Assertion `std::cmp_less(pred_idx,
+#               m_graph->num_where_predicates)' failed.
+#
+CREATE TABLE t(f1 INT PRIMARY KEY, f2 INT, KEY(f2));
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Verify that the assertion does not fail, and that t2, t3 and t4 are
+# pruned from the query plan and replaced by "Zero rows".
+EXPLAIN FORMAT=TREE SELECT t1.f1 FROM t AS t1 LEFT JOIN (
+(SELECT DISTINCT * FROM t AS t2 WHERE f2 <> f2) AS dt1,
+(SELECT t4.* FROM t AS t3 STRAIGHT_JOIN t AS t4 ON t4.f1 = t3.f1) AS dt2
+) ON TRUE;
+EXPLAIN
+-> Nested loop left join  (rows=3)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
+    -> Zero rows (impossible WHERE)  (rows=0)
+
+SELECT t1.f1 FROM t AS t1 LEFT JOIN (
+(SELECT DISTINCT * FROM t AS t2 WHERE f2 <> f2) AS dt1,
+(SELECT t4.* FROM t AS t3 STRAIGHT_JOIN t AS t4 ON t4.f1 = t3.f1) AS dt2
+) ON TRUE;
+f1
+1
+2
+3
+DROP TABLE t;
+#
+# Bug#38585820: Result mismatch with GROUP BY on DATE column
+#
+CREATE TABLE t1 (
+d DATE DEFAULT NULL,
+t TIME DEFAULT NULL,
+dt DATETIME DEFAULT NULL,
+pk INT NOT NULL PRIMARY KEY,
+ci INT DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+('1982-07-14','11:12:13','1982-07-14 11:12:13',1,-2086898178),
+(NULL,NULL,NULL,2,-549278089),
+('2035-09-13','12:13:14','2035-09-13 12:13:14',3,1616004595),
+('2011-03-24','13:14:15','2011-03-24 13:14:15',4,-1457068597),
+('1976-05-25','14:15:16','1976-05-25 14:15:16',5,-726291594),
+('1986-12-09','15:16:17','1986-12-09 15:16:17',6,1775995858),
+('2017-05-17','16:17:18','2017-05-17 16:17:18',7,-1267712153),
+('2034-09-09','17:18:19','2034-09-09 17:18:19',8,514287676),
+('2033-06-22','18:19:20','2033-06-22 18:19:20',9,1526531818),
+(NULL,NULL,NULL,10,-1026887600);
+SET optimizer_switch='hypergraph_optimizer=off';
+SELECT alias2.d AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SELECT alias2.t AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SELECT alias2.dt AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SET optimizer_switch='hypergraph_optimizer=on';
+SELECT alias2.d AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SELECT alias2.t AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SELECT alias2.dt AS field1,
+MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 RIGHT JOIN t1 AS alias3
+ON alias3.ci = alias2.pk
+ON alias3.ci = alias2.ci
+GROUP BY field1;
+field1	field2
+NULL	1
+SET optimizer_switch='hypergraph_optimizer=default';
+DROP TABLE t1;
+#
+# Bug#38866140: Inconsistent row counts assertion with RAND
+#              predicates in hypergraph optimizer
+#
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+CREATE TABLE t1 (
+col_date3 DATE DEFAULT NULL,
+col_int INT DEFAULT NULL,
+col_datetime6 DATETIME DEFAULT NULL,
+col_tinytext_character_set_utf8mb4_key TINYTEXT
+);
+INSERT INTO t1 VALUES
+('2024-01-01', 1, '2024-01-01 00:00:00', 'abc'),
+('2024-02-01', 2, '2024-02-01 00:00:00', 'def'),
+('2024-03-01', 3, '2024-03-01 00:00:00', 'ghi');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i <> t2.i AND t2.i = t3.i + RAND() AND t1.i <> t3.i;
+SELECT table2.col_date3 AS field2
+FROM t1 AS table1
+RIGHT JOIN t1 AS table2
+LEFT JOIN t1 AS table3 ON table2.col_date3 <> table3.col_int
+ON REPLACE(table1.col_date3, '', RAND(table3.col_int))
+LIKE table3.col_tinytext_character_set_utf8mb4_key
+WHERE table1.col_tinytext_character_set_utf8mb4_key >
+table2.col_tinytext_character_set_utf8mb4_key;
+SELECT 1 FROM t AS t1
+INNER JOIN t AS t2 ON t1.i <> t2.i
+INNER JOIN t AS t3 ON t2.i = t3.i + RAND()
+WHERE t1.i <> t3.i;
+SELECT 1 FROM t AS t1, t AS t2, t AS t3, t AS t4
+WHERE t1.i <> t2.i
+AND t2.i <> t4.i
+AND t3.i <> t4.i
+AND t2.i = t3.i + RAND();
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i + RAND() = t2.i
+AND t2.i + RAND() = t3.i
+AND t1.i <> t3.i
+AND t1.i <> t2.i;
+SELECT 1 FROM t AS t1, t AS t2, t AS t3, t AS t4
+WHERE t1.i <> t2.i
+AND t2.i = t3.i + RAND()
+AND t3.i <> t4.i
+AND t1.i <> t4.i;
+SELECT * FROM t AS t1
+INNER JOIN t AS t3 ON t1.i <> t3.i
+LEFT JOIN t AS t2 ON t1.i = t2.i + RAND()
+WHERE t2.i IS NULL OR t2.i <> t3.i;
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i = t2.i AND t2.i = t3.i + RAND() AND t1.i <> t3.i;
+SELECT 1 FROM t AS t1, t AS t2, t AS t3
+WHERE t1.i <> t2.i AND t2.i = t3.i + UUID_SHORT() AND t1.i <> t3.i;
+DROP TABLE t, t1;
+#
+# Bug#38097990: Const folding caused inequivalent join_cond_optim
+#               in hypergraph
+#
+CREATE TABLE t1 (
+id_col       INT PRIMARY KEY,
+smallint_col SMALLINT,
+int_col      INT
+);
+CREATE TABLE t2 (
+id_col       INT PRIMARY KEY,
+smallint_col SMALLINT,
+int_col      INT
+);
+SELECT COUNT(ref_1.int_col)
+FROM   t1 AS ref_0
+LEFT JOIN t2 AS ref_1
+ON ( ( ref_0.smallint_col IS NULL )
+OR ( ref_0.id_col IS NOT NULL ) );
+COUNT(ref_1.int_col)
+0
+INSERT INTO t1 VALUES (1, 10, 100), (2, NULL, 200);
+INSERT INTO t2 VALUES (1, 10, 100);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT COUNT(ref_1.int_col)
+FROM   t1 AS ref_0
+LEFT JOIN t2 AS ref_1
+ON ( ( ref_0.smallint_col IS NULL )
+OR ( ref_0.id_col IS NOT NULL ) );
+COUNT(ref_1.int_col)
+2
+SELECT COUNT(ref_1.int_col)
+FROM   t1 AS ref_0
+LEFT JOIN t2 AS ref_1
+ON ( ( ref_0.smallint_col IS NULL )
+AND ( ref_0.id_col IS NOT NULL ) );
+COUNT(ref_1.int_col)
+1
+DROP TABLE t1, t2;
+#
+# Bug#38867038	Assertion `nullptr != dynamic_cast<Target>(arg)' failed.
+#
+CREATE TABLE A(col_int INT);
+INSERT INTO A VALUES (1), (2), (3), (4), (5);
+SELECT  /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
+FROM A;
+PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
+0
+0
+0
+0
+0
+DROP TABLE A;
+#
+# Bug#38473156: hypergraph optimizer errors out on an
+#               otherwise valid query the mysql optimizer
+#               executes just fine.
+#
+CREATE TABLE t1 (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+col1 INT UNSIGNED NOT NULL,
+col2 INT UNSIGNED NOT NULL,
+data JSON DEFAULT NULL,
+PRIMARY KEY (id),
+KEY idx_col1 (col1),
+KEY idx_col2 (col2)
+);
+INSERT INTO t1 (col1, col2, data)
+VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY id;
+EXPLAIN
+-> Index scan on t1 using PRIMARY  (rows=1)
+
+set optimizer_trace="enabled=on";
+SELECT * FROM t1 ORDER BY id;
+WITH trace_vals AS (
+SELECT REGEXP_SUBSTR(trace, 'INDEX_SCAN, cost=[0-9.]+', 1, 1) AS idx_line,
+REGEXP_SUBSTR(trace, 'TABLE_SCAN, cost=[0-9.]+', 1, 1) AS tbl_line
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+) SELECT (tbl_line IS NULL OR
+(CAST(SUBSTRING_INDEX(idx_line, 'cost=', -1) AS DECIMAL(20,10)) =
+CAST(SUBSTRING_INDEX(tbl_line, 'cost=', -1) AS DECIMAL(20,10))))
+AS costs_equal
+FROM trace_vals;
+costs_equal
+1
+set optimizer_trace="enabled=off";
+DROP TABLE t1;
+#
+# Bug#38389762: Hypergraph: Should not propose both table
+#              scan and primary index scan
+#
+CREATE TABLE t1 ( f1 INT PRIMARY KEY, f2 CHAR(5));
+INSERT INTO t1 VALUES (1,'aaaaa'), (2,'bbbbb'), (3,'ccccc'), (4,'ddddd');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Clustered primary key should avoid proposing table scan.
+SET optimizer_trace='enabled=on';
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Index scan on t1 using PRIMARY  (rows=4)
+
+SELECT LOCATE('{TABLE_SCAN, cost=', trace) = 0 AS no_table_scan
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_table_scan
+1
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1,f2));
+INSERT INTO t1 VALUES (1,2,1), (1,3,1), (3,1,2), (3,2,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Index lookup on clustered primary key should avoid proposing table scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = 3;
+EXPLAIN
+-> Index lookup on t1 using PRIMARY (f1 = 3)  (rows=2)
+
+SELECT LOCATE('{TABLE_SCAN, cost=', trace) = 0 AS no_table_scan
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_table_scan
+1
+SET optimizer_trace='enabled=off';
+DROP TABLE t1;
+#
+# Bug#35368475: FilterIterator should short-circuit on constant-false
+#               conditions
+#
+# When the filter condition is const_for_execution() and evaluates to
+# false, FilterIterator should return EOF immediately without scanning
+# the source iterator.
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Test 1: Constant-false uncorrelated subquery.
+# "never executed" on table scan proves DoInit() short-circuited.
+EXPLAIN ANALYZE SELECT 1 FROM t t1 WHERE 100 = (SELECT COUNT(*) FROM t t2);
+EXPLAIN
+-> Filter: <cache>((100 = (select #2)))  (cost=N rows=10) (actual time=N rows=0 loops=1)
+    -> Table scan on t1  (cost=N rows=10) (never executed)
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: count(0)  (cost=N rows=1) (actual time=N rows=1 loops=1)
+            -> Table scan on t2  (cost=N rows=10) (actual time=N rows=10 loops=1)
+
+SELECT 1 FROM t t1 WHERE 100 = (SELECT COUNT(*) FROM t t2);
+1
+# Test 2: Constant-true subquery -- all 10 rows returned normally.
+SELECT 1 FROM t t1 WHERE 10 = (SELECT COUNT(*) FROM t t2);
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+# Test 3: NULL subquery condition -- 0 rows (NULL is not true).
+SELECT 1 FROM t t1 WHERE NULL = (SELECT COUNT(*) FROM t t2);
+1
+# Test 4: Mixed conjunction -- constant-false subquery short-circuits.
+# "never executed" proves source was never initialized.
+EXPLAIN ANALYZE SELECT 1 FROM t t1
+WHERE 0 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+EXPLAIN
+-> Filter: ((t1.x is null) and <cache>((0 = (select #2))))  (cost=N rows=1) (actual time=N rows=0 loops=1)
+    -> Table scan on t1  (cost=N rows=10) (never executed)
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: count(0)  (cost=N rows=1) (actual time=N rows=1 loops=1)
+            -> Table scan on t2  (cost=N rows=10) (actual time=N rows=10 loops=1)
+
+SELECT 1 FROM t t1
+WHERE 0 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+1
+# Test 5: Mixed conjunction, constant-true -- no short-circuit.
+SELECT 1 FROM t t1
+WHERE 10 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+# Test 6: Constant-false as the second AND-term.
+EXPLAIN ANALYZE SELECT 1 FROM t t1
+WHERE t1.x IS NULL AND 0 = (SELECT COUNT(*) FROM t t2);
+EXPLAIN
+-> Filter: ((t1.x is null) and <cache>((0 = (select #2))))  (cost=N rows=1) (actual time=N rows=0 loops=1)
+    -> Table scan on t1  (cost=N rows=10) (never executed)
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: count(0)  (cost=N rows=1) (actual time=N rows=1 loops=1)
+            -> Table scan on t2  (cost=N rows=10) (actual time=N rows=10 loops=1)
+
+# Test 7: NULL conjunct in mixed AND -- short-circuits.
+SELECT 1 FROM t t1
+WHERE NULL = (SELECT COUNT(*) FROM t t2) AND t1.x IS NULL;
+1
+# Test 8: Three-way AND with one constant-false term.
+SELECT 1 FROM t t1
+WHERE t1.x IS NULL AND 0 = (SELECT COUNT(*) FROM t t2) AND t1.x IS NOT NULL;
+1
+# Test 9: Three-way AND, all constant-true -- returns rows normally.
+SELECT 1 FROM t t1
+WHERE 10 = (SELECT COUNT(*) FROM t t2) AND 1 = 1 AND t1.x IS NULL;
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+DROP TABLE t;
+#
+# Bug#37173479: Hypergraph doesn't elide sort on effectively constant
+#               expressions
+#
+# When WHERE pins all PK columns to constant values, all columns FD on
+# the PK are also constant. ORDER BY on such columns should not require
+# a sort.
+#
+CREATE TABLE t(id INT PRIMARY KEY, a INT);
+INSERT INTO t VALUES (1, 10), (2, 20), (3, 30);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Test 1: Single PK constant => ORDER BY dependent column elides sort
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE id = 1 ORDER BY a;
+EXPLAIN
+-> Single-row index lookup on t using PRIMARY (id = 1)  (cost=1.98..1.98 rows=1)
+
+SELECT * FROM t WHERE id = 1 ORDER BY a;
+id	a
+1	10
+# Control: Without WHERE, sort IS needed
+EXPLAIN FORMAT=TREE SELECT * FROM t ORDER BY a;
+EXPLAIN
+-> Sort: t.a  (cost=2.27..2.27 rows=3)
+    -> Index scan on t using PRIMARY  (cost=0.359..1.08 rows=3)
+
+DROP TABLE t;
+# Test 2: Multi-column PK, all constant => sort elided
+CREATE TABLE t2(id1 INT, id2 INT, a INT, PRIMARY KEY(id1, id2));
+INSERT INTO t2 VALUES (1, 1, 100), (1, 2, 200), (2, 1, 300);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t2 WHERE id1 = 1 AND id2 = 2 ORDER BY a;
+EXPLAIN
+-> Single-row index lookup on t2 using PRIMARY (id1 = 1, id2 = 2)  (cost=1.91..1.91 rows=0.707)
+
+SELECT * FROM t2 WHERE id1 = 1 AND id2 = 2 ORDER BY a;
+id1	id2	a
+1	2	200
+DROP TABLE t2;
+# Test 3: Multiple ORDER BY columns, all FD-dependent on constant PK
+CREATE TABLE t3(id INT PRIMARY KEY, a INT, b INT);
+INSERT INTO t3 VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE id = 1 ORDER BY a, b;
+EXPLAIN
+-> Single-row index lookup on t3 using PRIMARY (id = 1)  (cost=2.03..2.03 rows=1)
+
+SELECT * FROM t3 WHERE id = 1 ORDER BY a, b;
+id	a	b
+1	10	100
+DROP TABLE t3;
+# Test 4: Partial PK constant - sort must NOT be elided (negative test)
+CREATE TABLE t4(id1 INT, id2 INT, a INT, PRIMARY KEY(id1, id2));
+INSERT INTO t4 VALUES (1, 1, 100), (1, 2, 200), (2, 1, 300);
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t4 WHERE id1 = 1 ORDER BY a;
+EXPLAIN
+-> Sort: t4.a  (cost=2.98..2.98 rows=2)
+    -> Index lookup on t4 using PRIMARY (id1 = 1)  (cost=1.11..2.22 rows=2)
+
+SELECT * FROM t4 WHERE id1 = 1 ORDER BY a;
+id1	id2	a
+1	1	100
+1	2	200
+DROP TABLE t4;
+# Test 5: NOT NULL unique key constant => sort elided
+CREATE TABLE t5(id INT PRIMARY KEY, a INT NOT NULL, b INT, UNIQUE KEY uk_a(a));
+INSERT INTO t5 VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+ANALYZE TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t5 WHERE a = 10 ORDER BY b;
+EXPLAIN
+-> Single-row index lookup on t5 using uk_a (a = 10)  (cost=3.99..3.99 rows=1)
+
+SELECT * FROM t5 WHERE a = 10 ORDER BY b;
+id	a	b
+1	10	100
+DROP TABLE t5;
+#
+# Bug#39062785: Assertion `tl->join_cond_optim() != nullptr'
+#               failed.
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f2));
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1
+WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
+WHERE t2.f1 = t1.f1 AND
+NOT EXISTS (SELECT t2.f1
+FROM t1 AS t3 )));
+EXPLAIN
+-> Filter: <nop>(<in_optimizer>(t1.f2,<exists>(select #2)))  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Hash antijoin (no condition), extra conditions: true  (rows=0.00333)
+            -> Filter: ((t2.f1 = t1.f1) and (<cache>(t1.f2) < t2.f1))  (rows=0.0333)
+                -> Table scan on t2  (rows=1)
+            -> Hash
+                -> Covering index scan on t3 using f2  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.f1' of SELECT #3 was resolved in SELECT #2
+SELECT 1 FROM t1
+WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
+WHERE t2.f1 = t1.f1 AND
+NOT EXISTS (SELECT t2.f1
+FROM t1 AS t3 )));
+1
+DROP TABLE t1;

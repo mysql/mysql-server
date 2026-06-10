@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,10 +37,6 @@ namespace mysqlrouter {
 using mysql_harness::RegexMatcher;
 
 const char LogFilter::kFillCharacter = '*';
-
-LogFilter::LogFilter() { impl_ = std::make_unique<Impl>(); }
-
-LogFilter::~LogFilter() = default;
 
 struct LogFilter::Impl {
   void add_pattern(const std::string &pattern, const std::string &replacement) {
@@ -96,5 +92,9 @@ void SQLLogFilter::add_default_sql_patterns() {
   add_pattern("(IDENTIFIED\\s+(WITH\\s+[a-z0-9_`]+\\s+)?(BY|AS))\\s+'[^']*'",
               "$1 ***");
 }
+
+LogFilter::LogFilter() { impl_ = std::make_unique<Impl>(); }
+
+LogFilter::~LogFilter() = default;
 
 }  // namespace mysqlrouter

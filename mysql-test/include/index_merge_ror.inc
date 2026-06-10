@@ -336,8 +336,8 @@ drop table t0,t1;
 --echo # 'Partially' covered fields test
 
 create table t2 (
-  a char(10) collate utf8mb4_0900_bin,
-  b char(10) collate utf8mb4_0900_bin,
+  a char(10),
+  b char(10),
   filler1 char(255),
   filler2 char(255),
   key(a(5)),
@@ -367,6 +367,7 @@ analyze table t2;
 
 --echo # BUG#1:
 --replace_regex /\b[ab]\b/a_or_b/ / *\(cost=.*//
+--replace_regex $elide_costs_and_rows
 explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';

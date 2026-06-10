@@ -1,3 +1,6 @@
+# Hypergraph prouces different plan and therefore different locks.
+# So disabling the test for now.
+--source include/not_hypergraph.inc
 --source include/count_sessions.inc
 
 # This is the essense of the scenario from the report in Bug#33724166.

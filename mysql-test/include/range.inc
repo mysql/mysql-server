@@ -3859,3 +3859,73 @@ let query = SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#37849917: SELECT query on primary key column deteriorates to full
+--echo #               table scan when filter involves too longstring
+--echo #
+
+CREATE TABLE t1 (f1 VARCHAR(16) NOT NULL, PRIMARY KEY (f1));
+INSERT INTO t1(f1) VALUES ('a'),('b'),('c'), ('d'), ('e'), ('f'), ('g');
+ANALYZE TABLE t1;
+
+let query = SELECT * FROM t1 WHERE f1 IN ('012345678901234567');
+--replace_regex $elide_costs
+--skip_if_hypergraph # Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+let query = SELECT * FROM t1 WHERE f1 IN ('012345678901234567', 'a');
+--replace_regex $elide_costs
+--skip_if_hypergraph # Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #119770: MySQL 8.4 optimizer uses full table scan for
+--echo #              IN (...) on prefix index, but works in 8.0
+--echo #
+
+CREATE TABLE t1 (f1 VARCHAR(16) NOT NULL, f2 VARCHAR(20), KEY k1 (f1(4)));
+INSERT INTO t1 (f1, f2) VALUES ('abcd1', 'x'), ('bcde2', 'x'), ('cdef3', 'x'),
+('defg4', 'x'), ('efgh5', 'x'), ('fghi6', 'x'), ('ghij7', 'x'), ('hijk8', 'x'),
+('ijkl9', 'x'), ('jklm0', 'x');
+
+ANALYZE TABLE t1;
+
+let query = SELECT f1, f2 FROM t1 WHERE f1 IN ('defg4', 'efgh5');
+--replace_regex $elide_costs
+--skip_if_hypergraph # Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+let query = SELECT f1, f2 FROM t1 FORCE INDEX(k1) WHERE f1 IN ('defg4', 'efgh5');
+--replace_regex $elide_costs
+--skip_if_hypergraph # Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#35912840: Conditions refering to const table were not added to
+--echo #               RANGE SCAN.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER, PRIMARY KEY (f1,f2));
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (2, 1), (2, 2), (2, 3), (2, 4);
+ANALYZE TABLE t1, t2;
+
+let $query=
+SELECT t2.f2 FROM t1 JOIN t2
+WHERE t2.f1 = 2 AND t2.f2 <= t1.f2 + 2
+      AND t2.f1 = t1.f1 AND t2.f2 >= t1.f2;
+--skip_if_hypergraph # Different plan
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2;

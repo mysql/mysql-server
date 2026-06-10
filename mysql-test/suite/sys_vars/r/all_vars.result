@@ -30,6 +30,8 @@ default_collation_for_utf8mb4
 default_collation_for_utf8mb4
 disabled_storage_engines
 disabled_storage_engines
+enable_cascade_triggers
+enable_cascade_triggers
 explain_format
 explain_format
 external_table_secondary_storage_engine
@@ -83,6 +85,8 @@ regexp_time_limit
 regexp_time_limit
 replica_allow_batching
 replica_allow_batching
+replica_allow_higher_version_source
+replica_allow_higher_version_source
 replica_checkpoint_group
 replica_checkpoint_group
 replica_checkpoint_period

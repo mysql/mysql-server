@@ -1,0 +1,41 @@
+--source include/no_sp_protocol.inc
+
+# Demonstrate us of non-ascii characters in JSON and JDV
+
+CREATE TABLE jt(j JSON);
+SET NAMES 'latin1';
+INSERT INTO jt VALUES ('{ "_id": 102, "name": "å", "name_u8": "å"}');
+INSERT INTO jt VALUES (_utf8mb4'{ "_id": 103, "name": "å", "name_u8": "å"}');
+SET NAMES 'utf8mb4';
+SELECT * FROM jt;
+
+CREATE TABLE p_student(
+  suid INT PRIMARY KEY,
+  sname VARCHAR(100) CHARSET latin1,
+  sname_u8 VARCHAR(100) CHARSET utf8mb4);
+
+SHOW CREATE TABLE p_student;
+
+INSERT INTO p_student VALUES (101, 0xE5, 'å');
+SELECT suid, sname, HEX(sname), HEX(sname_u8) FROM p_student;
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       '_id' : suid,
+       'name' : sname,
+       'name_u8': sname_u8
+     ) FROM p_student;
+SELECT * FROM p_dv1;
+SELECT suid, sname, HEX(sname), HEX(sname_u8) FROM p_student;
+
+SET NAMES 'latin1';
+INSERT INTO p_dv1 VALUES ('{ "_id": 102, "name": "å", "name_u8": "å"}');
+INSERT INTO p_dv1 VALUES (_utf8mb4'{ "_id": 103, "name": "å", "name_u8": "å"}');
+
+SET NAMES 'utf8mb4';
+SELECT * FROM p_dv1;
+SELECT suid, sname, HEX(sname), HEX(sname_u8) FROM p_student;
+
+DROP VIEW p_dv1;
+DROP TABLE p_student;
+DROP TABLE jt;

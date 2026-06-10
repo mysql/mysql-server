@@ -361,8 +361,8 @@ is_mrs_schema_v4.inc
 is_mrs_schema_v2_or_v3.inc
 is_mrs_schema_v3_or_v4.inc
 
-# 43. Skip tests which expect DML support on JSON duality view.
-have_jdv_dml.inc
-
-# 44. CREATE EXTERNAL TABLE tests
+# 43. CREATE EXTERNAL TABLE tests
 external_table.test
+
+# 45. These tests require a server with non LTS version
+have_mysql_version_maturity_non_lts.inc

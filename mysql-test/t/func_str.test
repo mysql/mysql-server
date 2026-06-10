@@ -3016,3 +3016,113 @@ DROP TABLE t1, t2;
 select CHARSET(vector_to_string(string_to_vector('[1,2]')));
 select COLLATION(vector_to_string(string_to_vector('[1,2]')));
 select JSON_OBJECT('a', vector_to_string(string_to_vector('[1,2]')));
+
+--echo #
+--echo # Bug#39053808: failing in Item_func_conv::val_str
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT SUBSTRING(BIN(EXP(UUID_SHORT())), 13, 3);
+--error ER_DATA_OUT_OF_RANGE
+SELECT UNCOMPRESS(BIN(POW(-9223372036854775807, 0xa5)));
+--error ER_DATA_OUT_OF_RANGE
+SELECT JSON_TYPE(BIN(EXP(0x5f022b6c81)));
+--error ER_DATA_OUT_OF_RANGE
+SELECT BIN(EXP(55415508248253877499791772201022128128.000000));
+
+--echo #
+--echo # Bug#39053812: failing in Item_func_soundex::val_str
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_X(35) SOUNDS LIKE 0x35;
+
+--echo #
+--echo # Bug#39083924: failure in function left()
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT LEFT((9223372036854775807 * 10129) - SYSDATE(1), 97);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT RIGHT((9223372036854775807 * 10129) - SYSDATE(1), 97);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT REPEAT((9223372036854775807 * 10129) - SYSDATE(1), 10);
+
+--echo #
+--echo # Bug#39083976: failing in remove_leading_zeroes
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_INTERSECTION(MBRDISJOINT(1, POINT(8156,-19591)),
+                       (SELECT INTERVAL((-28347), (SELECT 1)))
+                       );
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT INTERVAL(BIT_XOR(ST_NUMPOINTS(ST_GEOMCOLLFROMWKB(ST_ASWKB(POINT(186,57)),
+                0))) OVER(), NOW(2), DENSE_RANK() OVER());
+
+
+--echo #
+--echo # Bug#39083984: soundex fails in Item_func_soundex::val_str
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT SOUNDEX(ABS(COALESCE(ST_DIMENSION(1), NULL, 18446744073709551616)));
+
+--echo #
+--echo # Bug#39084121: failing in Item_func_conv::val_str
+--echo #
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT BIN(IFNULL(JSON_LENGTH('ba' ,'{"aabbc":"abbab","bbccb":"a","cbacb":2}'),
+                  BIT_OR(ANY_VALUE(MINUTE('2537-01-12 00:52:47') AND TRUE))
+                  )
+           );
+
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT BIN(IFNULL(JSON_LENGTH(5), RELEASE_ALL_LOCKS()));
+
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT OCT(IFNULL(uuid_to_bin(sin(0x69)), (-23447) DIV 14115145681444956431));
+
+--echo #
+--echo # Bug#39084126: failure in String::set_charset with substring_index()
+--echo #
+
+--error ER_INCORRECT_TYPE
+SELECT SUBSTRING_INDEX(IFNULL(SIGN(0xab) AND
+                       JSON_QUOTE(ABS(9223372036854775806)), UUID_SHORT()),
+                                  4595, 45);
+
+--echo #
+--echo # Bug#39084205: failure in Item_func_str_to_temporal::resolve_type
+--echo #
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT CONVERT(STR_TO_DATE(CURRENT_TIMESTAMP,
+                           COALESCE(INET_ATON(32767), LOCATE(0xc4, 20, 27),
+                                    JSON_STORAGE_SIZE('a'))) USING EUCKR);
+--echo #
+--echo # Bug#39085310: failing in Item_func_aswkb::val_str
+--echo #
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_POINTATDISTANCE(ST_GEOMCOLLFROMWKB(ST_ASWKB(POINT(4389, -24885)), 0,
+                                             'axis-order=srid-defined'
+                                            ),
+                          ST_ASBINARY(- ROW_COUNT(), 'axis-order=srid-defined')
+                         );
+
+--echo #
+--echo # Bug39056621: Function find_in_set returns wrong result
+--echo #
+
+SET collation_connection = 'utf8mb4_0900_ai_ci';
+
+SELECT FIND_IN_SET('ắ', 'a');
+
+SELECT FIND_IN_SET('ắ', 'a,b,c');
+
+SET collation_connection = default;

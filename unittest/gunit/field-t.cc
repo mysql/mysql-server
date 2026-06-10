@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,13 +82,13 @@ class Mock_protocol : public Protocol {
  public:
   Mock_protocol(THD *) {}
 
-  bool store_time(const Time_val &time, uint precision) override {
+  bool store_time(const Time_val time, uint precision) override {
     t = time;
     p = precision;
     return false;
   }
 
-  void verify_time(const Time_val &time, uint precision) {
+  void verify_time(const Time_val time, uint precision) {
     compareMysqlTime(time, t);
     EXPECT_EQ(precision, p);
   }
@@ -143,7 +143,7 @@ class Mock_protocol : public Protocol {
   bool store_float(float, uint32, uint32) override { return false; }
   bool store_double(double, uint32, uint32) override { return false; }
   bool store_datetime(const MYSQL_TIME &, uint) override { return false; }
-  bool store_date(const MYSQL_TIME &) override { return false; }
+  bool store_date(const Date_val) override { return false; }
   bool store_field(const Field *) override { return false; }
   enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
   enum enum_vio_type connection_type() const override { return NO_VIO_TYPE; }
@@ -734,6 +734,37 @@ static void BM_val_time(size_t iters) {
   my_free(field);
 }
 BENCHMARK(BM_val_time)
+
+static void BM_val_date(size_t iters) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  uchar field_buffer[7];
+  Field_date *field = pointer_cast<Field_date *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, sizeof(Field_date), MYF(0)));
+  new (field) Field_date(field_buffer + 1, field_buffer, 0, Field::NONE, "tm");
+  Date_val date = Date_val(2025, 12, 13);
+  (void)field->store_date(date);
+
+  StartBenchmarkTiming();
+
+  Date_val dv;
+  int dummy = 0;
+  for (size_t i = 0; i < iters; ++i) {
+    (void)field->val_date(&dv, TIME_ONLY_VALID_DATES);
+    dummy += dv.day();
+  }
+
+  ASSERT_NE(0, dummy);  // To keep the optimizer from removing the loop.
+  MysqlTime timex;
+  *implicit_cast<MYSQL_TIME *>(&timex) = MYSQL_TIME(dv);
+  my_free(field);
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_val_date)
 
 }  // namespace field_unittests
 

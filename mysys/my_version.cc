@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,69 +33,74 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cctype>
 #include <cstddef>
+#include <sstream>
 #include <string>
 
 /* Clone-related macros to parse version strings and determine if clone
 should be allowed */
-/** Size of the parsed version strings array */
-constexpr unsigned int CLONE_PARSE_ARRAY_SIZE = 4;
-/** Parsed version strings array type */
-typedef std::array<std::string, CLONE_PARSE_ARRAY_SIZE> ParseArray;
+/** Type to hold different parts of a version */
+struct version_t {
+  size_t major;
+  size_t minor;
+  size_t patch;
+  std::string build;
 
-/** Index of the array correpsonding to parts of version */
-constexpr unsigned int MAJOR = 0;
-constexpr unsigned int MINOR = 1;
-constexpr unsigned int PATCH = 2;
-constexpr unsigned int BUILD = 3;
+  bool operator<(const version_t &rhs) const {
+    if (major != rhs.major) {
+      return major < rhs.major;
+    }
+    if (minor != rhs.minor) {
+      return minor < rhs.minor;
+    }
+    if (patch != rhs.patch) {
+      return patch < rhs.patch;
+    }
+    return false;
+  }
+};
 
 /* Patch version in 8.0.37 where wl15989 is backported */
 constexpr unsigned long CLONE_BACKPORT_VERSION = 37;
 
-/** Helper function to determine if version string is made up of digits only
-@param[in] version version string being validated
-@return true if the non-empty string only contains digits */
-static inline bool is_valid_version(const std::string &version) {
-  return !version.empty() &&
-         std::find_if(version.begin(), version.end(), [](unsigned char c) {
-           return !std::isdigit(c);
-         }) == version.end();
-}
+/* Encoded version before which clone to next LTS is not supported */
+const version_t CLONE_TO_NEXT_LTS_SUPPORT{9, 7, 0, ""};
 
-/** Parse a version string into an array of strings corresponding to the MAJOR,
-MINOR, PATCH and BUILD versions. A string of length 0 is filled in case a
-particular version string could not be parsed. For example,
-  "Major.Minor.Patch-Build" yields ["Major", "Minor", "Patch", "Build"],
-  "8.0.23-SR1"              yields ["8", "0", "23", "SR1"],
+/** Parse a version string and extract the major, minor, patch and build from
+the version. A string of length 0 is filled in case a particular version string
+could not be parsed.
 @param[in]     version   input version string
 @param[in,out] is_valid  true if version string is valid
-@return an array of strings containing the parsed components of the version
-string.
+@return parsed components of the version string.
 */
-static ParseArray parse_version_string(std::string version, bool &is_valid) {
-  ParseArray parsed;
+static version_t parse_version_string(std::string version, bool &is_valid) {
+  version_t parsed;
   is_valid = true;
-  auto parse_next_part{
-      [&parsed, &version, &is_valid](size_t index, char delimiter) {
-        const auto pos = version.find(delimiter);
-        if (pos != std::string::npos) {
-          /* pos + 1 to skip the delimiter*/
-          parsed[index] = version.substr(0, pos);
-          version.erase(0, pos + 1);
-        } else {
-          /* unable to parse, store rest of the string and make it empty */
-          parsed[index] = version.substr(0, version.length());
-          version.erase(0, version.length());
-        }
-        /* retain invalidity if any of the version strings were invalid */
-        is_valid = is_valid && is_valid_version(parsed[index]);
-      }};
+  auto parse_next_part{[&version, &is_valid](char delimiter) -> size_t {
+    size_t version_part = 0;
+    const auto pos = version.find(delimiter);
+    try {
+      if (pos != std::string::npos) {
+        /* pos + 1 to skip the delimiter*/
+        version_part = std::stoul(version.substr(0, pos));
+        version.erase(0, pos + 1);
+      } else {
+        /* store rest of the string and make it empty */
+        version_part = std::stoul(version.substr(0, version.length()));
+        version.erase(0, version.length());
+      }
+    } catch (...) {
+      is_valid = false;
+    }
+    return version_part;
+  }};
 
-  parse_next_part(MAJOR, '.');
-  parse_next_part(MINOR, '.');
-  parse_next_part(PATCH, '-');
-  parsed[BUILD] = version;
+  parsed.major = parse_next_part('.');
+  parsed.minor = parse_next_part('.');
+  parsed.patch = parse_next_part('-');
+  parsed.build = version;
   return parsed;
 }
 
@@ -105,36 +110,59 @@ static ParseArray parse_version_string(std::string version, bool &is_valid) {
  and above, cloning is allowed if Major and Minor versions match. In 8.0 series,
  clone is allowed if patch version is above clone backport version. In this
  comparison, suffixes are ignored: i.e. 8.0.25 should be the same as
- 8.0.25-debug, but 8.0.25 isn't the same as 8.0.251
- @param ver1 version1 string
- @param ver2 version2 string
- @return true if cloning is allowed between ver1 and ver2, false otherwise
+ 8.0.25-debug, but 8.0.25 isn't the same as 8.0.251.
+ Beyond version 9.7, Cloning is also allowed from a Donor in one LTS to a
+ recipient in the next LTS. For example, Cloning from 9.7.x to 10.7.y is allowed
+ but not from 10.7.y to 9.7.x
+ @param[in] recipient        Recipient's version string
+ @param[in] donor            Donor's version string
+ @param[in] is_recipient_lts true if recipient is LTS
+ @param[in] is_donor_lts     true if donor is LTS
+ @return true if cloning is allowed between recipient and donor, false otherwise
  */
-bool are_versions_clone_compatible(const std::string &ver1,
-                                   const std::string &ver2) {
-  if (ver1 == ver2) {
+bool are_versions_clone_compatible(const std::string &recipient,
+                                   const std::string &donor,
+                                   const bool is_recipient_lts = false,
+                                   const bool is_donor_lts = false) {
+  if (recipient == donor) {
     return true;
   }
 
   bool is_valid_v1, is_valid_v2;
-  const auto parse_v1 = parse_version_string(ver1, is_valid_v1);
-  const auto parse_v2 = parse_version_string(ver2, is_valid_v2);
+  const auto recipient_version = parse_version_string(recipient, is_valid_v1);
+  const auto donor_version = parse_version_string(donor, is_valid_v2);
 
   if (!is_valid_v1 || !is_valid_v2) {
     return false;
   }
 
-  if ((parse_v1[MAJOR] != parse_v2[MAJOR]) ||
-      (parse_v1[MINOR] != parse_v2[MINOR])) {
+  if (recipient_version.major != donor_version.major) {
+    if (!is_recipient_lts || !is_donor_lts) {
+      return false;
+    }
+
+    if ((recipient_version.major < donor_version.major) ||
+        (recipient_version < CLONE_TO_NEXT_LTS_SUPPORT) ||
+        (donor_version < CLONE_TO_NEXT_LTS_SUPPORT)) {
+      return false;
+    }
+
+    if (recipient_version.major == donor_version.major + 1) {
+      return true;
+    }
     return false;
   }
 
-  if ((parse_v1[MAJOR] == "8") && (parse_v1[MINOR] == "0")) {
+  if (recipient_version.minor != donor_version.minor) {
+    return false;
+  }
+
+  if ((recipient_version.major == 8) && (recipient_version.minor == 0)) {
     /* Specific checks for clone across 8.0 series */
     try {
-      return ((parse_v1[PATCH] == parse_v2[PATCH]) ||
-              (std::stoul(parse_v1[PATCH]) >= CLONE_BACKPORT_VERSION &&
-               std::stoul(parse_v2[PATCH]) >= CLONE_BACKPORT_VERSION));
+      return ((recipient_version.patch == donor_version.patch) ||
+              (recipient_version.patch >= CLONE_BACKPORT_VERSION &&
+               donor_version.patch >= CLONE_BACKPORT_VERSION));
     } catch (...) {
       return false;
     }

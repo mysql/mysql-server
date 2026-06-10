@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -483,7 +483,7 @@ static int runtime_argument_datetime_get(
   auto item = get_item(sp_runtime_context, index);
   if (item == nullptr) return MYSQL_FAILURE;
   auto dt = Datetime_val{};
-  item->val_datetime(&dt, TIME_FUZZY_DATE);
+  item->val_datetime(&dt, 0);
   *is_null = item->is_null();
   if (*is_null) return MYSQL_SUCCESS;
   *year = dt.year;
@@ -609,7 +609,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_time_imp::set,
                           static_cast<uint32_t>(micro), &time)) {
     return MYSQL_FAILURE;
   }
-  auto item = new Item_time_literal(&time, decimals);
+  auto item = new Item_time_literal(time, decimals);
   if (item == nullptr) return MYSQL_FAILURE;
   return set_variable(sp_runtime_context, item, index);
 }
@@ -638,10 +638,10 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_date_imp::get,
   *is_null = item->is_null();
   if (*is_null) return MYSQL_SUCCESS;
   auto date = Date_val{};
-  item->val_date(&date, TIME_FUZZY_DATE);
-  *year = date.year;
-  *month = date.month;
-  *day = date.day;
+  item->val_date(&date, 0);
+  *year = date.year();
+  *month = date.month();
+  *day = date.day();
   return MYSQL_SUCCESS;
 }
 
@@ -663,10 +663,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_date_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, uint32_t year, uint32_t month,
                     uint32_t day)) {
-  auto time = MYSQL_TIME{
-      year, month, day, {}, {}, {}, {}, {}, MYSQL_TIMESTAMP_DATE, {}};
-  if (check_datetime_range(time)) return MYSQL_FAILURE;
-  auto item = new Item_date_literal(&time);
+  Date_val date;
+  if (Date_val::make_date(year, month, day, 0, &date)) return MYSQL_FAILURE;
+  auto item = new Item_date_literal(date);
   return set_variable(sp_runtime_context, item, index);
 }
 
@@ -1064,7 +1063,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_time_imp::set,
                     uint64_t micro, bool negative, uint8_t decimals)) {
   auto time =
       Time_val(negative, hour, minute, second, static_cast<uint32_t>(micro));
-  auto item = new Item_time_literal(&time, decimals);
+  auto item = new Item_time_literal(time, decimals);
   if (item == nullptr) return MYSQL_FAILURE;
   return set_return_value(sp_runtime_context, item);
 }
@@ -1085,10 +1084,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_time_imp::set,
 DEFINE_BOOL_METHOD(mysql_stored_program_return_value_date_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint32_t year, uint32_t month, uint32_t day)) {
-  auto time = MYSQL_TIME{
-      year, month, day, {}, {}, {}, {}, {}, MYSQL_TIMESTAMP_DATE, {}};
-  if (check_datetime_range(time)) return MYSQL_FAILURE;
-  auto item = new Item_date_literal(&time);
+  Date_val date;
+  if (Date_val::make_date(year, month, day, 0, &date)) return MYSQL_FAILURE;
+  auto item = new Item_date_literal(date);
   return set_return_value(sp_runtime_context, item);
 }
 

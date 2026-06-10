@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,15 @@ class injector {
     Delete the singleton instance (if allocated). Used during server shutdown.
   */
   static void free_instance();
+
+  /*
+    Return current binlog filename into provided buffer.
+
+    Writes an empty string if no binlog file is active.
+
+    Only buffers of size FN_REFLEN are supported (compile-time enforced).
+  */
+  static void get_current_binlog_filename(char (&filename)[FN_REFLEN]);
 
   /*
     A transaction where rows can be added.

@@ -268,8 +268,8 @@ drop table test.t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
---echo # restore data : should warn since indexes aren't disabled in the previous step
---exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+--echo # restore data : should warn since indexes aren't disabled in the previous step (sprinkle with node id)
+--exec $NDB_RESTORE --show-node-id -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --remove_file $dump_file

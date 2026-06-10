@@ -12,11 +12,11 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
 -> Filter: (x1.b = (select #2))  (rows=10)
-    -> Table scan on x1  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; dependent)
         -> Aggregate: max(x2.b)  (rows=1)
             -> Filter: (x2.a > x1.a)  (rows=3.33)
-                -> Table scan on x2  (rows=10)
+                -> Index scan on x2 using PRIMARY  (rows=10)
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -24,12 +24,12 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
 -> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (rows=10)
-    -> Table scan on x1  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; dependent)
         -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (rows=1)
             -> Aggregate: max(x2.b)  (rows=1)
                 -> Filter: (x2.a > x1.a)  (rows=3.33)
-                    -> Table scan on x2  (rows=10)
+                    -> Index scan on x2 using PRIMARY  (rows=10)
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -37,7 +37,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
 -> Filter: (x1.b = (select #2))  (rows=1)
-    -> Table scan on x1  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.b)  (rows=1)
             -> Index range scan on x2 using PRIMARY over (5 < a)  (rows=4)
@@ -46,7 +46,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
 -> Filter: <in_optimizer>(x1.b,x1.b in (select #2))  (rows=10)
-    -> Table scan on x1  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Filter: ((x1.b = `<materialized_subquery>`.`MAX(b)`))  (rows=1)
             -> Limit: 1 row(s)  (rows=1)
@@ -59,22 +59,22 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
 -> Filter: (x1.b = (select #2))  (rows=10)
-    -> Table scan on x1  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; uncacheable)
         -> Aggregate: max(x2.b)  (rows=1)
             -> Filter: (x2.a > (10 * rand(0)))  (rows=3.33)
-                -> Table scan on x2  (rows=10)
+                -> Index scan on x2 using PRIMARY  (rows=10)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
 -> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (rows=10)
-    -> Table scan on x1  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; dependent)
         -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (rows=1)
             -> Aggregate: max(x2.b)  (rows=1)
                 -> Filter: (x2.a > (10 * rand(0)))  (rows=3.33)
-                    -> Table scan on x2  (rows=10)
+                    -> Index scan on x2 using PRIMARY  (rows=10)
 
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
@@ -82,10 +82,10 @@ EXPLAIN
 -> Filter: (s > (select #2))  (rows=3.16)
     -> Group aggregate: sum(x1.a)  (rows=3.16)
         -> Sort: x1.b  (rows=10)
-            -> Table scan on x1  (rows=10)
+            -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.a)  (rows=1)
-            -> Table scan on x2  (rows=10)
+            -> Covering index scan on x2 using PRIMARY  (rows=10)
 
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
@@ -93,10 +93,10 @@ EXPLAIN
 -> Filter: (s > (select #2))  (rows=3.16)
     -> Group aggregate: sum(x1.a)  (rows=3.16)
         -> Sort: x1.b  (rows=10)
-            -> Table scan on x1  (rows=10)
+            -> Index scan on x1 using PRIMARY  (rows=10)
     -> Select #2 (subquery in condition; uncacheable)
         -> Aggregate: max((x2.a + rand(0)))  (rows=1)
-            -> Table scan on x2  (rows=10)
+            -> Covering index scan on x2 using PRIMARY  (rows=10)
 
 DROP TABLE num,t1;
 #

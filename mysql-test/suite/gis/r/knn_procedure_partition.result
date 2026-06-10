@@ -39,7 +39,7 @@ SET debug = '-d,handlerton_supports_distance_scan';
 call proc_gis();
 EXPLAIN
 -> Sort: d  (rows=14)
-    -> Table scan on cafe  (rows=14)
+    -> Index scan on cafe using PRIMARY  (rows=14)
 
 ## Test partition tables are not supported in GIS
 CREATE TABLE tab(

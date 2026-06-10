@@ -45,7 +45,7 @@ INSERT INTO `basic_schema`.`table4` (`id`, `first_name`, `last_name`)
 
 --let $mrs_add_db_object=table1
 --let $mrs_add_db_object_path=/t1
---let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}, "result":{"cacheTimeToLive":5}}'
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}, "result":{"cacheTimeToLive":80}}'
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=table1
@@ -62,7 +62,7 @@ INSERT INTO `basic_schema`.`table4` (`id`, `first_name`, `last_name`)
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/t2auth
 --let $mrs_add_db_object_auth=1
---let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":5}}'
+--let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":80}}'
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=table4
@@ -82,21 +82,21 @@ INSERT INTO `basic_schema`.`table4` (`id`, `first_name`, `last_name`)
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc
 --let $mrs_add_db_object_path=/proc
---let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":5}}'
+--let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":80}}'
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=FUNCTION
 --let $mrs_add_db_object=func
 --let $mrs_add_db_object_path=/func
 --let $mrs_add_db_object_format=ITEM
---let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":5}}'
+--let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":80}}'
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc
 --let $mrs_add_db_object_path=/procauth
 --let $mrs_add_db_object_auth=1
---let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":5}}'
+--let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":80}}'
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=FUNCTION
@@ -104,7 +104,7 @@ INSERT INTO `basic_schema`.`table4` (`id`, `first_name`, `last_name`)
 --let $mrs_add_db_object_path=/funcauth
 --let $mrs_add_db_object_auth=1
 --let $mrs_add_db_object_format=ITEM
---let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":5}}'
+--let $mrs_add_db_object_options='{"result":{"cacheTimeToLive":80}}'
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_content_set_enabled=1

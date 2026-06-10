@@ -47,7 +47,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 106 variables in the table.]
+include/assert.inc [Expect 107 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -140,6 +140,7 @@ SET PERSIST_ONLY relay_log_purge = @@GLOBAL.relay_log_purge;
 SET PERSIST_ONLY relay_log_recovery = @@GLOBAL.relay_log_recovery;
 SET PERSIST_ONLY relay_log_space_limit = @@GLOBAL.relay_log_space_limit;
 SET PERSIST_ONLY replica_allow_batching = @@GLOBAL.replica_allow_batching;
+SET PERSIST_ONLY replica_allow_higher_version_source = @@GLOBAL.replica_allow_higher_version_source;
 SET PERSIST_ONLY replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
 SET PERSIST_ONLY replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
 SET PERSIST_ONLY replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
@@ -253,16 +254,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 95 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 96 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 95 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 95 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 95 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 96 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 96 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 96 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -325,6 +326,7 @@ RESET PERSIST relay_log_purge;
 RESET PERSIST relay_log_recovery;
 RESET PERSIST relay_log_space_limit;
 RESET PERSIST replica_allow_batching;
+RESET PERSIST replica_allow_higher_version_source;
 RESET PERSIST replica_checkpoint_group;
 RESET PERSIST replica_checkpoint_period;
 RESET PERSIST replica_compressed_protocol;

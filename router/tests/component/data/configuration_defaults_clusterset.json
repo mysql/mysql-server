@@ -202,6 +202,13 @@
             "wait_for_my_writes_timeout": 2
         }
     },
+    "host_cache": {
+        "enabled": true,
+        "max_entries": 250,
+        "ttl_jitter_ratio": 0.2,
+        "ttl_negative_seconds": 10,
+        "ttl_success_seconds": 60
+    },
     "http_authentication_backends": {
         "default_auth_backend": {
             "backend": "metadata_cache",

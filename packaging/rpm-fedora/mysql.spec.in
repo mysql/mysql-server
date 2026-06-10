@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@
 %global with_meb    1
 %global with_router 1
 %endif
+
+# PGO option
+%{?with_pgo:   %global pgo 1}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
@@ -432,6 +435,10 @@ This package contains the client-plugins libraries used by MySQL client applicat
 Summary:       MySQL Router
 Requires:      shadow-utils
 Provides:      mysql-router = %{version}-%{release}
+%if 0%{?fedora} >= 43
+Provides:      user(mysqlrouter)
+Provides:      group(mysqlrouter)
+%endif
 Obsoletes:     mysql-router < %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:     mysql-router-community < %{version}-%{release}
@@ -602,6 +609,7 @@ mkdir release
 (
   cd release
   cmake ../%{src_dir} \
+           %{?pgo:-DFPROFILE_GENERATE=1} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -630,6 +638,51 @@ mkdir release
   echo BEGIN_NORMAL_CONFIG ; grep -E '^#define' include/my_config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
+
+%if 0%{?pgo}
+(
+  # Run some MTR load to generate profile data
+  pushd release
+  make run-profile-suite
+  rm -r $(readlink mysql-test/var)
+  popd
+
+  # Build again with profile data present
+  rm -rf release
+  mkdir release && pushd release
+  cmake ../%{src_dir} \
+           -DFPROFILE_USE=1 \
+           -DBUILD_CONFIG=mysql_release \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DTMPDIR=/var/tmp \
+           -DWITH_CURL=system \
+           -DWITH_FIDO=system \
+           -DWITH_MECAB=system \
+           -DWITH_ZLIB=system \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=ON \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  make %{?_smp_mflags} VERBOSE=1
+)
+%endif # pgo
 
 %install
 
@@ -778,9 +831,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libicuuc.so.77.1
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_any_cast_impl.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_optional_access.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_variant_access.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_base.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_city.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_civil_time.so
@@ -795,7 +845,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_cpu_detect.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_debugging_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_decode_rust_punycode.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_rust.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_die_if_null.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_examine_stack.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_exponential_biased.so
@@ -809,11 +861,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_private_handle_accessor.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_program_name.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_reflection.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_graphcycles_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_hash.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtable_profiler.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtablez_sampler.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_int128.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_kernel_timeout_internal.so
@@ -824,21 +876,24 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_initialize.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_check_op.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_conditions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_fnmatch.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_format.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_globals.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_log_sink_set.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_message.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_nullguard.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_proto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_structured_proto.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_severity.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_sink.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_low_level_hash.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_malloc_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_periodic_sampler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_poison.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_profile_builder.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_distributions.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_distribution_test_util.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_entropy_pool.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_platform.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_pool_urbg.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes_impl.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_slow.so
@@ -863,6 +918,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_tracing_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_utf8_for_code_point.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_vlog_config_internal.so
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -877,6 +935,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
@@ -892,8 +951,13 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
 
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
@@ -924,6 +988,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
@@ -939,8 +1004,13 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
 
 %files common
 %doc %{?license_files_server}
@@ -1147,10 +1217,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_table_access.so
-%if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_telemetry_resource_provider.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_telemetry_secret_provider.so
-%endif # commercial
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit_no_deadlock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_fail.so
@@ -1263,10 +1331,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_aggregate.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
-%if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_telemetry_resource_provider.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_telemetry_secret_provider.so
-%endif # commercial
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit_no_deadlock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_fail.so
@@ -1436,6 +1502,13 @@ fi
 %endif # with_router
 
 %changelog
+* Mon Feb  2 2026 Marc Alff <marc.alff@oracle.com> - 9.7.0
+- Added component_telemetry to community
+
+* Wed Jan 28 2026 Marc Alff <marc.alff@oracle.com> - 9.7.0
+- Moved component_test_telemetry_resource_provider to community
+- Moved component_test_telemetry_secret_provider to community
+
 * Thu Oct 14 2025 Marek Szymczak <marek.szymczak@oracle.com> - 9.6.0-1
 - Added component_test_mysql_file_service
 

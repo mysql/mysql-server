@@ -10,13 +10,31 @@ lower_case_table_names	2
 CREATE SCHEMA MixedCaseSchema;
 CREATE TABLE MixedCaseSchema.MixedCaseTable (MixedCaseColumn INT);
 INSERT INTO MixedCaseSchema.MixedCaseTable (MixedCaseColumn) VALUES (1), (2);
+CREATE TABLE MixedCaseSchema.MixedCaseSubParititionedTable (col1 INT, col2 DATE)
+PARTITION BY RANGE(YEAR(col2))
+SUBPARTITION BY HASH(col1) (
+PARTITION MixedCaseParititionName0 VALUES LESS THAN (2000) (
+SUBPARTITION MixedCaseSubParititionName0,
+SUBPARTITION MixedCaseSubParititionName1
+),
+PARTITION MixedCaseParititionName1 VALUES LESS THAN MAXVALUE (
+SUBPARTITION MixedCaseSubParititionName2,
+SUBPARTITION MixedCaseSubParititionName3
+)
+);
+INSERT INTO MixedCaseSchema.MixedCaseSubParititionedTable VALUES (1, '2025-12-15'), (2001, '2025-12-15');
 SELECT * FROM MixedCaseSchema.MixedCaseTable;
 MixedCaseColumn
 1
 2
+SELECT * FROM MixedCaseSchema.MixedCaseSubParititionedTable;
+col1	col2
+1	2025-12-15
+2001	2025-12-15
 USE MixedCaseSchema;
 SHOW TABLES;
 Tables_in_mixedcaseschema
+MixedCaseSubParititionedTable
 MixedCaseTable
 USE test;
 SHOW CREATE TABLE MixedCaseSchema.MixedCaseTable;
@@ -26,27 +44,48 @@ MixedCaseTable	CREATE TABLE `MixedCaseTable` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT TABLE_NAME, TABLE_SCHEMA, TABLE_TYPE, ENGINE FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%ixed%';
 TABLE_NAME	TABLE_SCHEMA	TABLE_TYPE	ENGINE
+MixedCaseSubParititionedTable	MixedCaseSchema	BASE TABLE	InnoDB
 MixedCaseTable	MixedCaseSchema	BASE TABLE	InnoDB
 SELECT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.FILES WHERE FILE_NAME LIKE '%ixed%';
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME	TABLE_SCHEMA	TABLE_NAME
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0	NULL	NULL
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1	NULL	NULL
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2	NULL	NULL
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3	NULL	NULL
 ./mixedcaseschema/mixedcasetable.ibd	TABLESPACE	mixedcaseschema/mixedcasetable	NULL	NULL
 SELECT NAME, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%ixed%';
 NAME	SPACE_TYPE
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3	Single
 mixedcaseschema/mixedcasetable	Single
 SELECT NAME, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME LIKE '%ixed%';
 NAME	SPACE_TYPE
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3	Single
 mixedcaseschema/mixedcasetable	Single
 # restart
 INSERT INTO MixedCaseSchema.MixedCaseTable (MixedCaseColumn) VALUES (3), (4);
+INSERT INTO MixedCaseSchema.MixedCaseSubParititionedTable VALUES (2, '2025-12-16'), (2002, '2025-12-16');
 SELECT * FROM MixedCaseSchema.MixedCaseTable;
 MixedCaseColumn
 1
 2
 3
 4
+SELECT * FROM MixedCaseSchema.MixedCaseSubParititionedTable;
+col1	col2
+2	2025-12-16
+2002	2025-12-16
+1	2025-12-15
+2001	2025-12-15
 USE MixedCaseSchema;
 SHOW TABLES;
 Tables_in_mixedcaseschema
+MixedCaseSubParititionedTable
 MixedCaseTable
 USE test;
 SHOW CREATE TABLE MixedCaseSchema.MixedCaseTable;
@@ -56,15 +95,29 @@ MixedCaseTable	CREATE TABLE `MixedCaseTable` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT TABLE_NAME, TABLE_SCHEMA, TABLE_TYPE, ENGINE FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%ixed%';
 TABLE_NAME	TABLE_SCHEMA	TABLE_TYPE	ENGINE
+MixedCaseSubParititionedTable	MixedCaseSchema	BASE TABLE	InnoDB
 MixedCaseTable	MixedCaseSchema	BASE TABLE	InnoDB
 SELECT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.FILES WHERE FILE_NAME LIKE '%ixed%';
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME	TABLE_SCHEMA	TABLE_NAME
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0	NULL	NULL
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1	NULL	NULL
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2	NULL	NULL
+./mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3.ibd	TABLESPACE	mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3	NULL	NULL
 ./mixedcaseschema/mixedcasetable.ibd	TABLESPACE	mixedcaseschema/mixedcasetable	NULL	NULL
 SELECT NAME, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%ixed%';
 NAME	SPACE_TYPE
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3	Single
 mixedcaseschema/mixedcasetable	Single
 SELECT NAME, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME LIKE '%ixed%';
 NAME	SPACE_TYPE
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname0	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname0#sp#mixedcasesubparititionname1	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname2	Single
+mixedcaseschema/mixedcasesubparititionedtable#p#mixedcaseparititionname1#sp#mixedcasesubparititionname3	Single
 mixedcaseschema/mixedcasetable	Single
 DROP TABLE MixedCaseSchema.MixedCaseTable;
+DROP TABLE MixedCaseSchema.MixedCaseSubParititionedTable;
 DROP SCHEMA MixedCaseSchema;

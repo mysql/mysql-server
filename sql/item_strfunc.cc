@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>  // vector
 
@@ -107,6 +108,7 @@
 #include "sql/events.h"          // Events::reconstruct_interval_expression
 #include "sql/filesort.h"
 #include "sql/handler.h"
+#include "sql/item_func.h"
 #include "sql/json_duality_view/i_s.h"  // get_json_duality_view_property
 #include "sql/mysqld.h"
 #include "sql/parse_tree_node_base.h"               // Parse_context
@@ -114,7 +116,8 @@
 #include "sql/rpl_gtid.h"
 #include "sql/sort_param.h"
 #include "sql/sql_base.h"
-#include "sql/sql_class.h"          // THD
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
 #include "sql/sql_digest.h"         // get_max_digest_length
 #include "sql/sql_digest_stream.h"  // sql_digest_state
 #include "sql/sql_error.h"
@@ -184,8 +187,8 @@ bool Item_str_func::fix_fields(THD *thd, Item **ref) {
 my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   assert(fixed);
   char buff[64];
-  String *res, tmp(buff, sizeof(buff), &my_charset_bin);
-  res = val_str(&tmp);
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+  String *res = val_str(&tmp);
   if (res == nullptr) return nullptr;
   (void)str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                        res->charset(), decimal_value);
@@ -1519,9 +1522,12 @@ bool Item_func_upper::resolve_type(THD *thd) {
 
 String *Item_func_left::val_str(String *str) {
   assert(fixed);
+  null_value = false;
   String *res = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return error_str();
-
+  if (res == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   /* must be longlong to avoid truncation */
   const longlong length = args[1]->val_int();
   if ((null_value = args[1]->null_value)) return error_str();
@@ -1576,9 +1582,12 @@ bool Item_func_left::resolve_type(THD *thd) {
 
 String *Item_func_right::val_str(String *str) {
   assert(fixed);
+  null_value = false;
   String *res = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return error_str();
-
+  if (res == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   /* must be longlong to avoid truncation */
   const longlong length = args[1]->val_int();
   if ((null_value = args[1]->null_value)) return error_str();
@@ -1708,10 +1717,12 @@ bool Item_func_substr_index::resolve_type(THD *thd) {
 
 String *Item_func_substr_index::val_str(String *str) {
   assert(fixed);
-
+  null_value = false;
   String *res = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return error_str();
-
+  if (res == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   const longlong count = args[2]->val_int();
   if ((null_value = args[2]->null_value)) return error_str();
 
@@ -2162,15 +2173,17 @@ static bool my_uni_isalpha(int wc) {
 
 String *Item_func_soundex::val_str(String *str) {
   assert(fixed);
+  null_value = false;
   String *res = args[0]->val_str(str);
+  if (res == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   char last_ch, ch;
   const CHARSET_INFO *cs = collation.collation;
   my_wc_t wc;
   uint nchars;
   int rc;
-
-  if ((null_value = args[0]->null_value))
-    return nullptr; /* purecov: inspected */
 
   if (tmp_value.alloc(
           max(res->length(), static_cast<size_t>(4 * cs->mbminlen))))
@@ -2304,31 +2317,31 @@ bool Item_func_format::resolve_type(THD *thd) {
 
 String *Item_func_format::val_str_ascii(String *str) {
   size_t str_length;
-  /* Number of decimal digits */
-  int dec;
-  /* Number of characters used to represent the decimals, including '.' */
-  uint32 dec_length;
-  MY_LOCALE *lc;
   assert(fixed);
 
-  dec = (int)args[1]->val_int();
+  null_value = false;
+
+  // Number of decimal digits
+  int dec = (int)args[1]->val_int();
   if (args[1]->null_value) {
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
-  lc = locale ? locale : get_locale(args[2]);
+  MY_LOCALE *lc = locale ? locale : get_locale(args[2]);
 
   dec = set_zone(dec, 0, FORMAT_MAX_DECIMALS);
-  dec_length = dec ? dec + 1 : 0;
+
+  // Number of characters used to represent the decimals, including '.'
+  uint32 dec_length = dec != 0 ? dec + 1 : 0;
   null_value = false;
 
   if (args[0]->result_type() == DECIMAL_RESULT ||
       args[0]->result_type() == INT_RESULT) {
-    my_decimal dec_val, rnd_dec, *res;
-    res = args[0]->val_decimal(&dec_val);
-    if ((null_value = args[0]->null_value))
-      return nullptr; /* purecov: inspected */
+    my_decimal dec_val, rnd_dec;
+    my_decimal *res = args[0]->val_decimal(&dec_val);
+    if (res == nullptr) {
+      return error_str();
+    }
     my_decimal_round(E_DEC_FATAL_ERROR, res, dec, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, str);
     str_length = str->length();
@@ -2625,14 +2638,16 @@ end:
 String *Item_func_repeat::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
+  String *res = args[0]->val_str(str);
+  if (res == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   /* must be longlong to avoid truncation */
   longlong count = args[1]->val_int();
   if (args[1]->null_value) return error_str();
-
-  String *res = args[0]->val_str(str);
-  if (args[0]->null_value) return error_str();
-
-  null_value = false;
 
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
@@ -3041,9 +3056,12 @@ bool Item_func_conv::resolve_type(THD *thd) {
 
 String *Item_func_conv::val_str(String *str) {
   assert(fixed);
+  null_value = false;
   String *res = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return error_str();
-
+  if (res == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   const int from_base = args[1]->val_int();
   if ((null_value = args[1]->null_value)) return error_str();
 
@@ -4121,7 +4139,7 @@ String *Item_func_compress::val_str(String *str) {
 
   if (!(res = args[0]->val_str(str))) {
     null_value = true;
-    return nullptr;
+    return error_str();
   }
   null_value = false;
   if (res->is_empty()) return res;
@@ -4299,7 +4317,7 @@ String *Item_func_uncompress::val_str(String *str) {
 
 err:
   null_value = true;
-  return nullptr;
+  return error_str();
 }
 
 /*
@@ -5692,7 +5710,7 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
     oss << (is_virtual ? "VIRTUAL GENERATED" : "STORED GENERATED");
   }
 
-  // Print the column property 'NOT SECONDARY'.
+  // Print column properties from COLUMNS.OPTIONS.
   if (properties_ptr != nullptr) {
     // Read required values from properties
     std::unique_ptr<dd::Properties> p(
@@ -5704,6 +5722,11 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
              properties_ptr->c_ptr_safe());
       str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
       return str;
+    }
+
+    if (p->exists("masking_policy")) {
+      if (oss.str().length()) oss << " ";
+      oss << "MASKING POLICY";
     }
 
     if (p->exists("not_secondary")) {
@@ -5725,4 +5748,54 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   return str;
+}
+
+bool Item_func_current_auth_id_type_in::do_itemize(Parse_context *pc,
+                                                   Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::do_itemize(pc, res)) return true;
+
+  m_name_resolution_ctx = pc->thd->lex->current_context();
+  return false;
+}
+
+longlong Item_func_current_auth_id_type_in::val_int() {
+  assert(fixed);
+  assert(arg_count == 1);
+
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF("current_auth_id_in_cached", {
+    if (m_called) {
+      my_error(ER_INTERNAL_ERROR, MYF(0), "called more than once");
+      return error_int();
+    }
+  });
+  m_called = true;
+#endif
+
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+  String *arg_str = eval_string_arg(system_charset_info, args[0], &buffer);
+  if (arg_str == nullptr) {
+    return error_int();
+  }
+  null_value = false;
+
+  const Security_context *sctx =
+      (m_name_resolution_ctx->security_ctx != nullptr)
+          ? m_name_resolution_ctx->security_ctx
+          : current_thd->security_context();
+
+  return auth_id_in(*sctx, to_string_view(*arg_str)) ? 1 : 0;
+}
+
+bool Item_func_current_user_in::auth_id_in(
+    const Security_context &sctx,
+    std::string_view comma_separated_auth_id_list) const {
+  return sctx.is_current_user_part_of(comma_separated_auth_id_list);
+}
+
+bool Item_func_current_role_in::auth_id_in(
+    const Security_context &sctx,
+    std::string_view comma_separated_auth_id_list) const {
+  return sctx.is_current_role_part_of(comma_separated_auth_id_list);
 }

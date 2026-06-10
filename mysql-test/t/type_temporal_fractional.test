@@ -6585,6 +6585,8 @@ CREATE TABLE t1
   KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
   KEY col_timestamp_5_not_null_key (col_timestamp_5_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+
+--disable_warnings
 SELECT
   LEAST('2008-05-18', LOCALTIMESTAMP(), col_timestamp_5_not_null_key ) AS c1
 FROM t1
@@ -6600,6 +6602,7 @@ AND
   AND STR_TO_DATE(DATE_FORMAT(col_datetime_6_not_null,
                               CONCAT_WS('-', '%I', '%S', '%v' )),
                   CONCAT_WS('-', '%V', '%H' ));
+--enable_warnings
 DROP TABLE t1;
 SET @@timestamp=DEFAULT;
 

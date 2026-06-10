@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,19 @@
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
-  class LogEntry const *le;
+  class LogEntry le;
   class NdbTransaction *connection;
+  bool logRestore;
   int retries;
   int error_code;
   Uint32 fragId;
   Uint32 n_bytes;
+  /* LogEntry row hash */
+  Uint32 leKeyHash;
+  /* LogEntry dependency tracking for transaction ordering */
+  restore_callback_t *next_waiter;
+  restore_callback_t *last_waiter;
+
   restore_callback_t *next;
 };
 
@@ -76,7 +83,8 @@ class BackupRestore : public BackupConsumer {
         m_fatal_error(false)
 #ifdef ERROR_INSERT
         ,
-        m_error_insert(0)
+        m_error_insert(0),
+        m_log_prepare_count(0)
 #endif
   {
     m_n_tablespace = 0;
@@ -118,7 +126,7 @@ class BackupRestore : public BackupConsumer {
   bool endOfTables() override;
   bool endOfTablesFK() override;
   bool tuple(const TupleS &, Uint32 fragId) override;
-  void tuple_free() override;
+  void data_free() override;
   virtual void tuple_a(restore_callback_t *cb);
   virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
   virtual void cback(int result, restore_callback_t *cb);
@@ -126,7 +134,8 @@ class BackupRestore : public BackupConsumer {
   virtual bool errorHandler(restore_callback_t *cb);
   bool endOfTuples() override;
   bool logEntry(const LogEntry &) override;
-  void logEntry_a(restore_callback_t *cb);
+  void logEntry_a(restore_callback_t *cb, bool retry);
+  void logEntry_b(restore_callback_t *cb);
   bool endOfLogEntrys() override;
   bool prepare_staging(const TableS &) override;
   bool finalize_staging(const TableS &) override;
@@ -294,6 +303,7 @@ class BackupRestore : public BackupConsumer {
   Vector<const NdbDictionary::ForeignKey *> m_fks;
 #ifdef ERROR_INSERT
   uint m_error_insert;
+  Uint64 m_log_prepare_count;
   void error_insert(unsigned int code) override { m_error_insert = code; }
 #endif
   static const PromotionRules m_allowed_promotion_attrs[];
@@ -305,6 +315,134 @@ class BackupRestore : public BackupConsumer {
   };
 
   Vector<struct TempErrorStat> m_tempErrors;
+
+  /**
+   * TransScheduler
+   *
+   * This class is used during log apply to order the
+   * application of log events to each row, so that
+   * events can be applied concurrently, but
+   * are serialised per row.
+   *
+   * Transactions for applying events are defined in
+   * the order that events are read from the log file.
+   *
+   * The scheduler is then consulted with the transaction's
+   * row identity to determine whether there is already an
+   * active transaction executing an event on that row.
+   *
+   * If there is then the new transaction must wait for
+   * the active transaction to complete - it will be queued
+   * by the scheduler.
+   * If not, then the new transaction can be executed
+   * immediately.
+   *
+   * When an active transaction completes, the scheduler
+   * checks whether there is a waiting transaction
+   * (for the same row) which can now be executed.
+   *
+   * Implementation
+   *
+   *   - Active Transactions set is a chained hashtable
+   *     of transactions (restore_callback_t), keyed by
+   *     row identity (hash of table id, primary key cols)
+   *   - Each transaction can have zero or more waiting
+   *     transactions (accessing the same row identity)
+   *     linked from it.
+   *
+   *     Active transactions   Waiters (accessing same row)
+   *     (Transactions on
+   *      different rows)
+   *      Tx455                -
+   *      Tx456                -
+   *      Tx457                Tx460
+   *      Tx458                Tx461 Tx462 Tx465
+   *      Tx459                Tx464
+   *      Tx463                -
+   *      Tx466
+   *
+   *      All Active Transactions can execute concurrently
+   *
+   *      Once Tx457 completes, Tx460 can start
+   *      Once Tx458 completes, Tx461 can start, Tx462 + Tx465 continue to wait
+   *
+   *     As transactions complete, their 'callback' objects are freed and
+   *     new log events can be read and scheduled.
+   *
+   * Behaviour
+   *
+   *   - Log events can be restored concurrently except where they
+   *     access the same row
+   *   - Where log events access the same row they will be processed
+   *     serially
+   *   - Serialisation on one (or more) rows does not serialise event
+   *     application on other rows
+   *   - Hash of table id, primary key columns used as a 'row identity'
+   *     Hash collisions may result in extra serialisation, no functional
+   *     problem.
+   *
+   */
+  class TransScheduler {
+   public:
+    TransScheduler();
+
+    /**
+     * init
+     *
+     * Specify max number of transactions
+     */
+    void init(Uint32 maxTransactions);
+
+    /**
+     * requestRowAccess
+     *
+     * Request permission to execute a transaction against
+     * a row
+     *
+     * Returns
+     *   true if it is immediately executable.
+     *   false if it is queued for execution later
+     */
+    bool requestRowAccess(restore_callback_t *newTrans);
+
+    /**
+     * notifyRowAccessComplete
+     *
+     * Notifies that a transaction has completed work
+     * on a row.
+     *
+     * Returns
+     *   Pointer to a defined transaction on the row that
+     *   should now be executed
+     *
+     *   nullptr if there is no defined transaction
+     *   that depended on the completed transaction.
+     */
+    restore_callback_t *notifyRowAccessComplete(
+        restore_callback_t *completedTrans);
+
+   private:
+    /* Manage hash table of Active Transactions */
+    restore_callback_t *findActiveTransForRow(restore_callback_t *trans);
+    void insertActiveTrans(restore_callback_t *trans);
+    void removeActiveTrans(restore_callback_t *trans);
+
+    /* Add and remove waiting transaction(s) */
+    void linkWaitingTrans(restore_callback_t *activeTrans,
+                          restore_callback_t *waitingTrans);
+    restore_callback_t *unlinkAllWaitingTrans(
+        restore_callback_t *completedTrans);
+
+    /**
+     * Set of Active Transactions keyed by row identity
+     * Max one Active Transaction per row identity, other
+     * transactions waiting for access are linked as
+     * waiters
+     */
+    Vector<restore_callback_t *> hashTable;
+  };
+
+  TransScheduler m_transScheduler;
 };
 
 #endif

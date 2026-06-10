@@ -1,0 +1,106 @@
+###############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that replication does not enter a
+# deadlock state when the relay log exceeds `relay_log_space_limit` while
+# `LOCK INSTANCE FOR BACKUP` is held on the replica.
+#
+# ==== Requirement ====
+# Replication shall resume normal operation and make forward progress after the
+# backup lock is released when the relay log exceeds `relay_log_space_limit`
+# while `LOCK INSTANCE FOR BACKUP` is held on the replica.
+#
+# ==== Implementation ====
+# 1. Create a source-replica topology.
+# 2. Prepare initial test data and ensure it is replicated.
+# 3. Take backup lock on the replica.
+# 4. Generate a transaction that exceeds the relay log space limit.
+# 5. Verify that the receiver thread is waiting for applier thread to free relay
+#    log space.
+# 6. Unlock the replica instance.
+# 7. Verify that the receiver thread is waiting for the source to send events.
+# 8. Verify that the files slave-relay-bin.000001 and slave-relay-bin.000002
+#    have been deleted (purged) to free relay log space.
+# 9. Synchronize the source and replica servers.
+# 10. Clean up.
+#
+# ==== References ====
+# Bug#38775593:channel does not resume after reaching relay_log_space_limit
+#              when locked for backup
+################################################################################
+
+--source include/have_binlog_format_row.inc
+
+# This test case requires a deterministic relay log size.
+# Therefore, cannot run with compression on.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 1. Create a source-replica topology.
+--echo
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 2. Prepare initial test data and ensure it is replicated.
+--echo
+--source include/rpl/connection_source.inc
+CREATE TABLE t (a LONGBLOB) ENGINE = InnoDB;
+INSERT INTO t VALUES (REPEAT('a', 1000));
+--source include/rpl/sync_to_replica.inc
+
+call mtr.add_suppression("Could not purge binary logs since an.*");
+
+--echo
+--echo # 3. Take backup lock on the replica.
+--echo
+--source include/rpl/connection_replica.inc
+LOCK INSTANCE FOR BACKUP;
+
+--echo
+--echo # 4. Generate a transaction that exceeds the relay log space limit.
+--echo
+--source include/rpl/connection_source.inc
+INSERT INTO t VALUES (REPEAT('a', 10000));
+
+--echo
+--echo # 5. Verify that the receiver thread is waiting for applier thread to
+--echo #    free relay log space.
+--echo
+--source include/rpl/connection_replica.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/replica_io' AND processlist_state= 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+
+--echo
+--echo # 6. Unlock the replica instance.
+--echo
+UNLOCK INSTANCE;
+
+--echo
+--echo # 7. Verify that the receiver thread is waiting for the source to send
+--echo #    events.
+--echo
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/replica_io' AND processlist_state= 'Waiting for source to send event'
+--source include/wait_condition.inc
+
+--echo
+--echo # 8. Verify that the files slave-relay-bin.000001 and
+--echo #    slave-relay-bin.000002 have been deleted (purged) to free relay
+--echo #    log space.
+--echo
+--let $DATADIR= `SELECT @@datadir`
+--error 1
+--file_exists $DATADIR/slave-relay-bin.000001
+--error 1
+--file_exists $DATADIR/slave-relay-bin.000002
+
+--echo
+--echo # 9. Synchronize the source and replica servers.
+--echo
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 10. Clean up.
+--echo
+--source include/rpl/connection_source.inc
+DROP TABLE t;
+--source include/rpl/deinit.inc

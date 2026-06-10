@@ -453,8 +453,8 @@ ETAG(float_col)
 SELECT ETAG(tinytext_col) FROM t1 WHERE ETAG(character_length(tinytext_col)) > date_col order by 1 limit 5;
 ETAG(tinytext_col)
 Warnings:
-Warning	1292	Incorrect datetime value: '7c6bdb19ba3f158928353a066812b268'
-Warning	1292	Incorrect datetime value: '7c6bdb19ba3f158928353a066812b268'
+Warning	1292	Truncated incorrect date value: '7c6bdb19ba3f158928353a066812b268'
+Warning	1292	Truncated incorrect date value: '7c6bdb19ba3f158928353a066812b268'
 SELECT ETAG(multipolygon_col) FROM t1;
 ERROR HY000: ETAG is not supported with Vector/ Geometry types.
 CREATE TABLE CTAS_t1 as SELECT ETAG(tinyint_col),

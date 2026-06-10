@@ -1,0 +1,24 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+# Default client
+msg
+With default
+# Client with telemetry plugin
+msg
+With telemetry_client
+# Client with telemetry plugin unknown options
+# Client without telemetry plugin
+msg
+Without telemetry_client (off)
+msg
+Without telemetry_client (skip)
+# Client without telemetry plugin, with unknown options
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# No client, no server telemetry
+msg
+Without any telemetry
+# Client telemetry alone, no server telemetry installed
+msg
+With telemetry_client alone

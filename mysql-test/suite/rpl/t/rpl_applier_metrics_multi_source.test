@@ -1,0 +1,192 @@
+# ==== Purpose ====
+#
+# This file checks that applier metrics works with multiple replication channels
+#
+# ==== Requirements ====
+#
+# R1. When installed, the table exposes time-related performance metrics for
+#     all channels present that were started after install.
+# R2. The table only contains channels that are configured.
+#
+# ==== Implementation ====
+#
+# 1. Install the plugin in the replica server
+#    Create a table on each channel source
+# 2. Block one of the tables
+#    Check metrics are correct for both channels
+# 3. Cleanup
+#
+# ==== References ====
+#
+# WL#15620:  MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test is agnostic to binlog_format.
+--source include/have_binlog_format_row.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--let $rpl_topology = 1->2,3->2
+--let $rpl_multi_source = 1
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Install the plugin in the replica server
+--echo #    Create a table on each channel source
+
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+
+CREATE TABLE t1(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+--let $rpl_channel_name = 'channel_1'
+--let $sync_slave_connection = server_2
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_connection_name = server_3
+--source include/connection.inc
+
+CREATE TABLE t3(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+--let $rpl_channel_name = 'channel_3'
+--let $sync_slave_connection = server_2
+--source include/rpl/sync_to_replica.inc
+
+
+--let $from_ch1 = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = 'channel_1'
+--let $from_ch3 = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = 'channel_3'
+--let $count_ch1 = SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker WHERE CHANNEL_NAME = 'channel_1' AND
+--let $count_ch3 = SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker WHERE CHANNEL_NAME = 'channel_3' AND
+
+--let $assert_text = Eventually, worker on channel 1 increments TRANSACTIONS_COMMITTED_COUNT to 1
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch1] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 1 decreases TRANSACTIONS_ONGOING_COUNT to 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch1] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 3 increments TRANSACTIONS_COMMITTED_COUNT to 1
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch3] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 3 decreases TRANSACTIONS_ONGOING_COUNT to 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch3] = 0
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Block one of the tables
+--echo #    Check metrics are correct for both channels
+
+--let $rpl_connection_name = server_2_1
+--source include/connection.inc
+
+LOCK TABLE t1 WRITE;
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+
+INSERT INTO t1 VALUES (1, REPEAT('a', 100));
+
+--let $rpl_connection_name = server_3
+--source include/connection.inc
+
+INSERT INTO t3 VALUES (1, REPEAT('a', 100));
+
+--let $rpl_channel_name = 'channel_3'
+--let $sync_slave_connection = server_2
+--source include/rpl/sync_to_replica.inc
+
+# Channel 1
+
+--let $assert_text = Worker on channel 1 leaves TRANSACTIONS_COMMITTED_COUNT as 1
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch1] = 1
+--source include/assert.inc
+
+--let $assert_text = Eventually, worker on channel 1 increments TRANSACTIONS_ONGOING_COUNT to 1
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch1] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 1 increments TRANSACTIONS_PENDING_COUNT to 1
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch1] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 1 sets ONGOING_TRANSACTION_TYPE = 'DML'
+--let $assert_cond = [$count_ch1 ONGOING_TRANSACTION_TYPE = 'DML'] = 1
+--source include/assert_eventually.inc
+
+# Channel 3
+
+--let $assert_text = Eventually, worker on channel 3 increments TRANSACTIONS_COMMITTED_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch3] = 2
+--source include/assert.inc
+
+--let $assert_text = Eventually, worker on channel 3 decreases TRANSACTIONS_ONGOING_COUNT to 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch3] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 3 decreases TRANSACTIONS_PENDING_COUNT to 0
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch3] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker on channel 3 sets ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'
+--let $assert_cond = [$count_ch3 ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'] = 4
+--source include/assert_eventually.inc
+
+# row counts
+
+--let $assert_text = replication_applier_metrics contains 2 rows, one per channel
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_metrics] = 2
+--source include/assert.inc
+
+--let $assert_text = replication_applier_progress_by_worker contains 8 rows, 4 per channel
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker] = 8
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Cleanup
+
+--let $rpl_connection_name = server_2_1
+--source include/connection.inc
+
+UNLOCK TABLES;
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_channel_name = 'channel_1'
+--let $sync_slave_connection = server_2
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_connection_name = server_3
+--source include/connection.inc
+DROP TABLE t3;
+
+--let $rpl_channel_name = 'channel_3'
+--let $sync_slave_connection = server_2
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_skip_sync = 1
+--source include/rpl/deinit.inc

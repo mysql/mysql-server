@@ -802,6 +802,7 @@ select from_days(s) as date,t
 from (select 1 as s,'t' as t union select null, null ) as sub1;
 select group_concat(t) from t1 group by week(date)/10;
 group_concat(t)
+NULL
 t
 drop table t1;
 CREATE TABLE t1 (
@@ -1052,3 +1053,19 @@ x	y	CAST(y AS DOUBLE)	y = 0
 4	0.0000	0	1
 5	0.0001	0.0001	0
 6	0.0001	0.0001	0
+#
+# Bug#38831745: IN operator returns unexpected result when one of
+#                values in the list is NULL
+#
+CREATE TABLE t1(c0 DECIMAL);
+INSERT INTO t1(c0) VALUES(123);
+SELECT c0 IN (1, - (NULL > CAST(-1147964344 AS DECIMAL))) FROM t1;
+c0 IN (1, - (NULL > CAST(-1147964344 AS DECIMAL)))
+NULL
+SELECT c0 IN (1, - (NULL > -1147964344)) FROM t1;
+c0 IN (1, - (NULL > -1147964344))
+NULL
+SELECT c0 IN (1, - (NULL > 1.0E0)) FROM t1;
+c0 IN (1, - (NULL > 1.0E0))
+NULL
+DROP TABLE t1;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,15 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_TEXT_TO_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_TEXT_TO_H_
 
+#include <optional>
 #include <type_traits>
 
 #include <my_rapidjson_size_t.h>
 #include <rapidjson/document.h>
 #include <rapidjson/memorystream.h>
 #include <rapidjson/reader.h>
+
+#include "mysql/harness/stdx/expected.h"
 
 namespace helper {
 namespace json {
@@ -52,18 +55,18 @@ namespace json {
  *      };
  */
 template <typename Handler, typename Container>
-bool text_to(Handler *handler, const Container &c) {
+rapidjson::ParseResult parse(Handler *handler, const Container &c) {
   static_assert(
       std::is_same<typename Container::value_type, char>::value ||
       std::is_same<typename Container::value_type, unsigned char>::value);
   if (c.size() == 0) {
-    return false;
+    return {rapidjson::kParseErrorDocumentEmpty, 0};
   }
   rapidjson::MemoryStream memory_stream{
       reinterpret_cast<const char *>(&*c.begin()), c.size()};
   rapidjson::Reader read;
 
-  return !read.Parse<Handler::k_parse_flags>(memory_stream, *handler).IsError();
+  return read.Parse<Handler::k_parse_flags>(memory_stream, *handler);
 }
 
 template <typename Container>
@@ -126,11 +129,13 @@ inline bool text_to(rapidjson::Value *val, const std::string &str) {
  *      };
  */
 template <typename Handler, typename Container, typename... HandlerArgs>
-typename Handler::Result text_to_handler(const Container &c,
-                                         HandlerArgs &&...args) {
+stdx::expected<typename Handler::Result, rapidjson::ParseErrorCode>
+text_to_handler(const Container &c, HandlerArgs &&...args) {
   Handler handler(std::forward<HandlerArgs>(args)...);
 
-  text_to<Handler, Container>(&handler, c);
+  if (const auto parse_result = parse<Handler, Container>(&handler, c);
+      parse_result.IsError())
+    return stdx::unexpected(parse_result.Code());
 
   return handler.get_result();
 }

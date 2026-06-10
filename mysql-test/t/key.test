@@ -680,6 +680,8 @@ DROP TABLE t1, t2;
 --echo #               (different number of rows)
 --echo #
 
+# Since the patch that fixed this issue is rolled back, the below
+# queries do not behave as expected
 CREATE TABLE t (x VARCHAR(1), KEY (x));
 INSERT INTO t VALUES ('a'), ('b'), ('æ'), ('ß'), ('s');
 INSERT INTO t SELECT 'x' FROM t;
@@ -726,4 +728,20 @@ SET @soft_hyphen = CAST(_utf16 x'00AD' AS CHAR CHARSET utf8mb4);
 --replace_regex $elide_metrics
 --eval EXPLAIN FORMAT=TREE $q
 
+# The following queries demonstrate we see the issue when a range scan is
+# picked and not so when it is not used.
+--let $q = SELECT * FROM t WHERE x IN ('a', 's', 'ae', 'ss');
+--skip_if_hypergraph
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $q
+--sorted_result
+--eval $q
+# Shows that we are getting different results when an index is not used
+# for the same query
+--let $q = SELECT /*+ NO_INDEX(t) */ * FROM t WHERE x IN ('a', 's', 'ae', 'ss');
+--skip_if_hypergraph  # Picks table scan instead of covering index scan.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $q
+--sorted_result
+--eval $q
 DROP TABLE t;

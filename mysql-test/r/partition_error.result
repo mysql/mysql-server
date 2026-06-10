@@ -1925,12 +1925,18 @@ PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
 SET sql_mode='';
 SELECT FROM_DAYS(3652499), FROM_DAYS(3652500), FROM_DAYS(3652501);
 FROM_DAYS(3652499)	FROM_DAYS(3652500)	FROM_DAYS(3652501)
-NULL	0000-00-00	0000-00-00
+NULL	NULL	NULL
 Warnings:
 Warning	6527	DATE value is out of range in 'from_days(3652499)'
+Warning	6527	DATE value is out of range in 'from_days(3652500)'
+Warning	6527	DATE value is out of range in 'from_days(3652501)'
 SELECT FROM_DAYS(4294967660), FROM_DAYS(4294967661), FROM_DAYS(4294967663);
 FROM_DAYS(4294967660)	FROM_DAYS(4294967661)	FROM_DAYS(4294967663)
-0000-00-00	0000-00-00	0000-00-00
+NULL	NULL	NULL
+Warnings:
+Warning	6527	DATE value is out of range in 'from_days(4294967660)'
+Warning	6527	DATE value is out of range in 'from_days(4294967661)'
+Warning	6527	DATE value is out of range in 'from_days(4294967663)'
 INSERT t1 VALUES(ADDTIME(0,0)), (FROM_DAYS(3652499));
 Warnings:
 Warning	4095	Delimiter ':' in position 2 in datetime value '00:00:00' at row 1 is deprecated. Prefer the standard '-'.

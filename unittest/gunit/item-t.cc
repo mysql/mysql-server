@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1170,22 +1170,19 @@ TEST_F(ItemTest, ItemJson) {
   EXPECT_EQ(0, wr.compare(Json_wrapper(&jstr, true)));
   EXPECT_EQ(123, clone->val_int());
 
-  const MysqlTime date(2020, 1, 2);
-  EXPECT_EQ(MYSQL_TIMESTAMP_DATE, date.time_type);
-  item = new Item_json(
-      make_unique_destroy_only<Json_wrapper>(
-          mem_root, std::unique_ptr<Json_dom>(new (std::nothrow) Json_datetime(
-                        date, MYSQL_TYPE_DATE))),
-      name);
+  const Date_val date{2020, 1, 2};
+  item = new Item_json(make_unique_destroy_only<Json_wrapper>(
+                           mem_root, std::unique_ptr<Json_dom>(
+                                         new (std::nothrow) Json_date(date))),
+                       name);
   Time_val time_result;
   Date_val date_result;
   EXPECT_FALSE(item->val_date(&date_result, 0));
-  EXPECT_EQ(date.time_type, date_result.time_type);
-  EXPECT_EQ(date.year, date_result.year);
-  EXPECT_EQ(date.month, date_result.month);
-  EXPECT_EQ(date.day, date_result.day);
+  EXPECT_EQ(date.year(), date_result.year());
+  EXPECT_EQ(date.month(), date_result.month());
+  EXPECT_EQ(date.day(), date_result.day());
 
-  const Time_val time(false, 10, 20, 30, 40);
+  const Time_val time{false, 10, 20, 30, 40};
   item = new Item_json(make_unique_destroy_only<Json_wrapper>(
                            mem_root, std::unique_ptr<Json_dom>(
                                          new (std::nothrow) Json_time(time))),
@@ -1210,7 +1207,7 @@ static void BM_store_time(size_t iters) {
   new (field)
       Field_time(field_buffer + 1, field_buffer, 0, Field::NONE, "tm", 6);
   Time_val time = Time_val(false, 12, 23, 45, 123456);
-  Item *literal = new Item_time_literal(&time, 6);
+  Item *literal = new Item_time_literal(time, 6);
   (void)field->store_time(time, 6);
 
   StartBenchmarkTiming();
@@ -1230,5 +1227,37 @@ static void BM_store_time(size_t iters) {
   initializer.TearDown();
 }
 BENCHMARK(BM_store_time)
+
+static void BM_store_date(size_t iters) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  uchar field_buffer[7];
+  Field_date *field = pointer_cast<Field_date *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, sizeof(Field_date), MYF(0)));
+  new (field) Field_date(field_buffer + 1, field_buffer, 0, Field::NONE, "tm");
+  Date_val date = Date_val(2025, 12, 13);
+  Item *literal = new Item_date_literal(date);
+  (void)field->store_date(date);
+
+  StartBenchmarkTiming();
+
+  Date_val dv;
+  int dummy = 0;
+  for (size_t i = 0; i < iters; ++i) {
+    (void)literal->save_in_field(field, true);
+    dummy += dv.day();
+  }
+
+  ASSERT_NE(0, dummy);  // To keep the optimizer from removing the loop.
+  MysqlTime timex;
+  *implicit_cast<MYSQL_TIME *>(&timex) = MYSQL_TIME(dv);
+  my_free(field);
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_store_date)
 
 }  // namespace item_unittest

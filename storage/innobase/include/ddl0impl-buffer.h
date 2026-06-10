@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -104,13 +104,22 @@ struct Key_sort_buffer : private ut::Non_copyable {
     return static_cast<dfield_t *>(mem_heap_alloc(m_heap, sz));
   }
 
-  /** Check if n bytes will fit in the buffer.
+  /** Pops the unfinished tuple which was allocated with alloc(), but
+  deep_copy() wasn't called yet for it yet. */
+  void pop_unfinished_tuple() noexcept {
+    ut_a(m_n_tuples + 1 == m_dtuples.size());
+    m_dtuples.pop_back();
+  }
+
+  /** Check if n bytes will fit in the buffer, or it is the first tuple,
+  in which case we ignore the limit to ensure forward progress.
   @param[in] n                  Number of bytes to check.
-  @return true if n bytes will fit in the buffer. */
+  @return true if n bytes can be added to the buffer. */
   bool will_fit(size_t n) const noexcept {
     /* Reserve one byte for the end marker and adjust for meta-data overhead. */
-    return m_total_size + m_dtuples.size() * 2 * sizeof(m_dtuples[0]) + n <=
-           m_buffer_size - 1;
+    return m_n_tuples == 0 ||
+           m_total_size + m_dtuples.size() * 2 * sizeof(m_dtuples[0]) + n <=
+               m_buffer_size - 1;
   }
 
   /** Deep copy the field data starting from the back.

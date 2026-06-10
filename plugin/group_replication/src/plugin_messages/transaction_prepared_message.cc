@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,23 +91,37 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    DBUG_EXECUTE_IF("gr_invalid_sid_length", {
+      if (payload_item_type == PIT_TRANSACTION_PREPARED_SID) {
+        payload_item_length *= 2;
+      }
+    };);
+
+    if (slider + payload_item_length > end) {
+      m_error = std::make_unique<mysql::utils::Error>(
+          "gr::Transaction_prepared_message", __FILE__, __LINE__,
+          "Malformed payload length");
+      return;
+    }
 
     switch (payload_item_type) {
       case PIT_TRANSACTION_PREPARED_SID:
-        if (slider + payload_item_length <= end) {
-          memcpy(sid.bytes.data(), slider, payload_item_length);
-          m_tsid_specified = true;
+        if (payload_item_length != mysql::gtid::Uuid::BYTE_LENGTH) {
+          m_error = std::make_unique<mysql::utils::Error>(
+              "gr::Transaction_prepared_message", __FILE__, __LINE__,
+              "Invalid SID length in transaction prepared message");
+          return;  // reject invalid message
         }
+        memcpy(sid.bytes.data(), slider, payload_item_length);
+        m_tsid_specified = true;
         break;
       case PIT_TRANSACTION_PREPARED_TAG:
-        if (slider + payload_item_length <= end) {
-          auto bytes_read = tag.decode_tag(slider, payload_item_length,
-                                           gr::Gtid_format::tagged);
-          if (bytes_read != payload_item_length) {
-            m_error = std::make_unique<mysql::utils::Error>(
-                "gr::Transaction_prepared_message", __FILE__, __LINE__,
-                "Failed to decode a tag, wrong format");
-          }
+        auto bytes_read = tag.decode_tag(slider, payload_item_length,
+                                         gr::Gtid_format::tagged);
+        if (bytes_read != payload_item_length) {
+          m_error = std::make_unique<mysql::utils::Error>(
+              "gr::Transaction_prepared_message", __FILE__, __LINE__,
+              "Failed to decode a tag, wrong format");
         }
         break;
     }

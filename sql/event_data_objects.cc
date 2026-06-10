@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -536,7 +536,6 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
 
   Interval interval;
-  memset(&interval, 0, sizeof(interval));
   my_time_t next_time = 0;
 
   if (seconds) {

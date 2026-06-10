@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2025, Oracle and/or its affiliates.
+Copyright (c) 1996, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3576,9 +3576,6 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
           row_discard_tablespace
             (there is some long explanation starting with "How do we prevent
             crashes caused by ongoing operations...")
-    lock_remove_recovered_trx_record_locks
-      (this seems to be used to remove locks of recovered transactions from
-      table being dropped, and recovered transactions shouldn't call lock_table)
   */
 
   if (lock_table_has(trx, table, mode)) {
@@ -4213,68 +4210,6 @@ static void lock_remove_all_on_table_for_trx(
   trx_mutex_exit(trx);
 }
 
-/** Remove any explicit record locks held by recovering transactions on
- the table.
- @return number of recovered transactions examined */
-static ulint lock_remove_recovered_trx_record_locks(
-    dict_table_t *table) /*!< in: check if there are any locks
-                         held on records in this table or on the
-                         table itself */
-{
-  ut_a(table != nullptr);
-  /* We need exclusive lock_sys latch, as we are about to iterate over locks
-  held by multiple transactions while they might be operating. */
-  ut_ad(locksys::owns_exclusive_global_latch());
-
-  ulint n_recovered_trx = 0;
-
-  mutex_enter(&trx_sys->mutex);
-
-  for (trx_t *trx : trx_sys->rw_trx_list) {
-    assert_trx_in_rw_list(trx);
-
-    if (!trx->is_recovered) {
-      continue;
-    }
-    /* We need trx->mutex to iterate over trx->lock.trx_lock and it is needed by
-    lock_table_remove_low() but we haven't acquired it yet. */
-    ut_ad(!trx_mutex_own(trx));
-    trx_mutex_enter(trx);
-    /* Because we are holding the exclusive global lock_sys latch,
-    implicit locks cannot be converted to explicit ones
-    while we are scanning the explicit locks. */
-
-    for (auto lock : trx->lock.trx_locks.removable()) {
-      ut_a(lock->trx == trx);
-
-      /* Recovered transactions can't wait on a lock. */
-
-      ut_a(!lock_get_wait(lock));
-
-      switch (lock_get_type_low(lock)) {
-        default:
-          ut_error;
-        case LOCK_TABLE:
-          if (lock->tab_lock.table == table) {
-            lock_table_remove_low(lock);
-          }
-          break;
-        case LOCK_REC:
-          if (lock->index->table == table) {
-            lock_rec_discard(lock);
-          }
-      }
-    }
-
-    trx_mutex_exit(trx);
-    ++n_recovered_trx;
-  }
-
-  mutex_exit(&trx_sys->mutex);
-
-  return (n_recovered_trx);
-}
-
 /** Removes locks on a table to be dropped.
  If remove_also_table_sx_locks is true then table-level S and X locks are
  also removed in addition to other table-level and record-level locks.
@@ -4299,16 +4234,6 @@ void lock_remove_all_on_table(
 
     lock_remove_all_on_table_for_trx(table, lock->trx,
                                      remove_also_table_sx_locks);
-  }
-
-  /* Note: Recovered transactions don't have table level IX or IS locks
-  but can have implicit record locks that have been converted to explicit
-  record locks. Such record locks cannot be freed by traversing the
-  transaction lock list in dict_table_t (as above). */
-
-  if (!lock_sys->rollback_complete &&
-      lock_remove_recovered_trx_record_locks(table) == 0) {
-    lock_sys->rollback_complete = true;
   }
 }
 

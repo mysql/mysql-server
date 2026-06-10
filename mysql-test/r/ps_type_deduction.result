@@ -135,7 +135,7 @@ execute s using @a;
 date(?)
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '11.1garbage'
+Warning	1292	Truncated incorrect date value: '11.1garbage'
 show status like 'com_stmt_reprepare';
 Variable_name	Value
 Com_stmt_reprepare	0

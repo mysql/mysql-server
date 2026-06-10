@@ -127,9 +127,10 @@ EXPLAIN
     -> Sort: t1.x
         -> Stream results
             -> Group (no aggregates)
-                -> Nested loop inner join
-                    -> Sort: t1.pk
-                        -> Table scan on t1
-                    -> Single-row covering index lookup on t2 using PRIMARY (pk = t1.x)
+                -> Sort: t1.pk
+                    -> Inner hash join (t1.x = t2.pk)
+                        -> Covering index scan on t2 using PRIMARY
+                        -> Hash
+                            -> Index scan on t1 using PRIMARY
 
 DROP TABLE t1, t2;

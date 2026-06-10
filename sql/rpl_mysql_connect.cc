@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,11 @@ bool Mysql_connection::reconnect() {
     m_connected = !safe_reconnect(m_thd, m_mi, true, m_host, m_port);
 
   return m_connected;
+}
+
+bool Mysql_connection::version_compatible() const {
+  if (!m_init || !m_connected || !m_conn) return false;
+  return is_version_compatible(m_conn->server_version, server_version);
 }
 
 MYSQL_RES_TUPLE

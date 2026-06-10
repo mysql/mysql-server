@@ -549,7 +549,7 @@ EXPLAIN
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 A' at line 1
-# Check illegal syntax
+# Bug#37053765 Uniform syntax of join order and table hints
 EXPLAIN SELECT * FROM
 (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
 EXPLAIN
@@ -561,8 +561,17 @@ EXPLAIN
             -> Hash
                 -> Table scan on t1  (rows=3)
 
-Warnings:
-Warning	1064	Optimizer hint syntax error near 'qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt' at line 2
+EXPLAIN SELECT * FROM
+(SELECT /*+ QB_NAME(qb1) NO_BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
+EXPLAIN
+-> Inner hash join (no condition)  (rows=4704)
+    -> Covering index scan on t3 using f2_idx  (rows=56)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=84)
+            -> Table scan on t2  (rows=28)
+            -> Hash
+                -> Table scan on t1  (rows=3)
+
 # Check '@qb_name table_name' syntax. BKA should be used for t2.
 EXPLAIN SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,7 +161,7 @@ void TransporterFacade::reportDisconnect(NodeId nodeId,
   reportDisconnected(nodeId);
 }
 
-void TransporterFacade::transporter_recv_from(NodeId nodeId) {
+void TransporterFacade::transporter_recv_from(NodeId nodeId, TrpId) {
   hb_received(nodeId);
 }
 
@@ -1780,7 +1780,7 @@ int TransporterFacade::close_clnt(trp_client *clnt) {
   NdbApiSignal signal(numberToRef(clnt->m_blockNo, theOwnId));
   signal.theVerId_signalNumber = GSN_CLOSE_COMREQ;
   signal.theTrace = 0;
-  signal.theLength = 1;
+  signal.theLength = CloseComReqConf::SignalLengthAPI;
   auto *req = CAST_PTR(CloseComReqConf, signal.getDataPtrSend());
   req->xxxBlockRef = numberToRef(clnt->m_blockNo, theOwnId);
 

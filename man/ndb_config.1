@@ -2,12 +2,12 @@
 .\"     Title: ndb_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/12/2025
+.\"      Date: 03/25/2026
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 9.6
+.\"    Source: MySQL 9.7
 .\"  Language: English
 .\"
-.TH "NDB_CONFIG" "1" "12/12/2025" "MySQL 9\&.6" "MySQL Database System"
+.TH "NDB_CONFIG" "1" "03/25/2026" "MySQL 9\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -278,20 +278,20 @@ $> \fBndb_config \-\-config\-binary\-file=\&.\&./mysql\-cluster/ndb_50_config\&.
 config of [DB] node id 5 that is different from default 
 CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
 NodeId,5,(mandatory) 
-BackupDataDir,/local/data/9\&.6,(null) 
-DataDir,/local/data/9\&.6,\&. 
+BackupDataDir,/local/data/9\&.7,(null) 
+DataDir,/local/data/9\&.7,\&. 
 DataMemory,2G,98M 
-FileSystemPath,/local/data/9\&.6,(null) 
+FileSystemPath,/local/data/9\&.7,(null) 
 HostName,127\&.0\&.0\&.1,localhost 
 Nodegroup,0,(null) 
 ThreadConfig,,(null) 
 config of [DB] node id 6 that is different from default 
 CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
 NodeId,6,(mandatory) 
-BackupDataDir,/local/data/9\&.6,(null) 
-DataDir,/local/data/9\&.6\&. 
+BackupDataDir,/local/data/9\&.7,(null) 
+DataDir,/local/data/9\&.7\&. 
 DataMemory,2G,98M 
-FileSystemPath,/local/data/9\&.6,(null) 
+FileSystemPath,/local/data/9\&.7,(null) 
 HostName,127\&.0\&.0\&.1,localhost 
 Nodegroup,0,(null) 
 ThreadConfig,,(null)
@@ -323,11 +323,11 @@ HostName= 127\&.0\&.0\&.1
 [ndbd]
 NodeId= 5
 HostName= 127\&.0\&.0\&.1
-DataDir= /local/data/9\&.6
+DataDir= /local/data/9\&.7
 [ndbd]
 NodeId= 6
 HostName= 127\&.0\&.0\&.1
-DataDir= /local/data/9\&.6
+DataDir= /local/data/9\&.7
 .fi
 .if n \{\
 .RE
@@ -1953,7 +1953,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2025, Oracle and/or its affiliates.
+Copyright \(co 1997, 2026, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

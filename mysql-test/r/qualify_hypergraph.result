@@ -8,6 +8,14 @@ INSERT INTO t1 VALUES (1,1,5),(1,1,2),(1,2,5),(2,1,4),(2,1,1),(2,2,2),(2,2,3),
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, b, c, ROW_NUMBER() OVER (PARTITION BY a ORDER BY a,b,c) AS rnk
+FROM t1 QUALIFY rnk>1;
+EXPLAIN
+-> Filter: (rnk > 1)  (rows=15)
+    -> Window aggregate: row_number() OVER (PARTITION BY t1.a ORDER BY t1.a,t1.b,t1.c )   (rows=15)
+        -> Sort: t1.a, t1.b, t1.c  (rows=15)
+            -> Table scan on t1  (rows=15)
+
 SELECT a, b, c, ROW_NUMBER() OVER (PARTITION BY a ORDER BY a,b,c) AS rnk
 FROM t1 QUALIFY rnk>1;
 a	b	c	rnk

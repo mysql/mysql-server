@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@ Clone Plugin: Server implementation
 */
 
 #include "plugin/clone/include/clone_server.h"
+#include "plugin/clone/include/clone_json.h" /* to_json_string */
 #include "plugin/clone/include/clone_status.h"
 
 #include "my_byteorder.h"
@@ -404,7 +405,7 @@ int Server::send_key_value(Command_Response rcmd, String_Key &key_str,
 
   const bool send_value =
       (rcmd == COM_RES_CONFIG || rcmd == COM_RES_PLUGIN_V2 ||
-       rcmd == COM_RES_CONFIG_V3);
+       rcmd == COM_RES_CONFIG_V3 || rcmd == COM_RES_CONFIG_V4);
 
   /** Add length for value. */
   if (send_value) {
@@ -510,6 +511,36 @@ int Server::send_params() {
 
   /* Send other configurations required by recipient. */
   err = send_configs(COM_RES_CONFIG_V3);
+
+  if (err != 0 || skip_upgrade_configs()) {
+    return err;
+  }
+
+  /* Send configurations required for upgrade check by recipient. */
+  err = send_upgrade_configs(COM_RES_CONFIG_V4);
+
+  return err;
+}
+
+int Server::send_upgrade_configs([[maybe_unused]] Command_Response rcmd) {
+  Key_Values configs = {{"version", ""}};
+  auto err =
+      mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);
+
+  if (err != 0) {
+    return err;
+  }
+
+  configs.push_back({"maturity", MYSQL_VERSION_MATURITY});
+
+  Key_Values json_pack = {{"json_configs", to_json_string(configs)}};
+
+  for (auto &key_val : json_pack) {
+    err = send_key_value(rcmd, key_val.first, key_val.second);
+    if (err != 0) {
+      break;
+    }
+  }
 
   return err;
 }

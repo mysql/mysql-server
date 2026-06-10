@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -685,9 +685,14 @@ void Parallel_reader::Scan_ctx::copy_row(const rec_t *rec, Iter *iter) const {
 
   auto copy_rec = static_cast<rec_t *>(mem_heap_alloc(iter->m_heap, rec_len));
 
-  memcpy(copy_rec, rec, rec_len);
+  /* In InnoDB rec_t points after the extra bytes. */
+  const auto extra = rec_offs_extra_size(iter->m_offsets);
+  ut_ad_le(extra, rec_len);
 
-  iter->m_rec = copy_rec;
+  memcpy(copy_rec, rec - extra, rec_len);
+  /* Even though we (by convention) point after extra bytes, all of them
+  will be freed, as instead of free(iter->m_rec) we use mem_heap_empty(). */
+  iter->m_rec = copy_rec + extra;
 
   auto tuple = row_rec_to_index_entry_low(iter->m_rec, m_config.m_index,
                                           iter->m_offsets, iter->m_heap);

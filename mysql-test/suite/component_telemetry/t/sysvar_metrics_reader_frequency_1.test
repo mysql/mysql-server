@@ -1,0 +1,73 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_metrics.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+#
+# Only global
+#
+
+SELECT @@global.telemetry.metrics_reader_frequency_1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.telemetry.metrics_reader_frequency_1;
+
+SHOW GLOBAL VARIABLES LIKE 'telemetry.metrics_reader_frequency_1';
+
+SHOW SESSION VARIABLES LIKE 'telemetry.metrics_reader_frequency_1';
+
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name='telemetry.metrics_reader_frequency_1';
+
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name='telemetry.metrics_reader_frequency_1';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL telemetry.metrics_reader_frequency_1
+  ='123';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION telemetry.metrics_reader_frequency_1
+  ='123';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_reader_frequency_1
+    = 123;
+
+SELECT @@global.telemetry.metrics_reader_frequency_1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST telemetry.metrics_reader_frequency_1
+  = 456;
+
+SET PERSIST_ONLY telemetry.metrics_reader_frequency_1
+  = 456;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT @@global.telemetry.metrics_reader_frequency_1;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--echo # Cleanup
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

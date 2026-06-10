@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2025, Oracle and/or its affiliates.
+  Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,12 @@
 
 #include "mysqld_error.h"
 
-#include "helper/container/generic.h"
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/router_observation_entities.h"
+
 #include "mysql/harness/logging/logger.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/container/generic.h"
 #include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/log_filter.h"
 
@@ -346,7 +347,15 @@ void RestRequestHandler::trace_http(const char *type,
     });
   }
 
+  // The length header is not available at this point because it is added
+  // just before sending the payload to the client.
   if (auto in_len = buffer.length()) {
+    logger_.info([&]() {
+      return std::string("HTTP ")
+          .append(type)
+          .append(" body-length: ")
+          .append(std::to_string(in_len));
+    });
     const bool has_token =
         buffer.get().find("accessToken") != std::string::npos ||
         buffer.get().find("password") != std::string::npos;
@@ -434,7 +443,7 @@ Handler::HttpResult RestRequestHandler::handle_request_impl(
         oh.add("Access-Control-Allow-Origin", origin);
         break;
       case AO::AllowSpecified:
-        if (helper::container::has(ao.allowed_origins, origin))
+        if (mysql_harness::utility::container::has(ao.allowed_origins, origin))
           oh.add("Access-Control-Allow-Origin", origin);
         break;
       case AO::AllowNone:
@@ -536,6 +545,7 @@ Handler::HttpResult RestRequestHandler::handle_request_impl(
   logger_.debug([&]() {
     return std::string("RestRequestHandler(service_id:")
         .append(service_id.to_string())
+        .append(")::")
         .append("dispatch(method:")
         .append(get_http_method_name(ctxt.request->get_method()))
         .append(", path:")

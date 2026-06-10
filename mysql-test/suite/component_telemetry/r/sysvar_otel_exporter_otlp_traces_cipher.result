@@ -1,0 +1,97 @@
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("Failed to start.");
+call mtr.add_suppression("Illegal TLS 1.2 cipher found");
+call mtr.add_suppression("Failed to check system variable");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_cipher;
+@@global.telemetry.otel_exporter_otlp_traces_cipher
+ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+SELECT @@session.telemetry.otel_exporter_otlp_traces_cipher;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_cipher' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_cipher';
+Variable_name	Value
+telemetry.otel_exporter_otlp_traces_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_cipher';
+Variable_name	Value
+telemetry.otel_exporter_otlp_traces_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_traces_cipher';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_traces_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_traces_cipher';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_traces_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+SET GLOBAL telemetry.otel_exporter_otlp_traces_cipher
+='SOME-CIPHER';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_cipher' is a read only variable
+SET SESSION telemetry.otel_exporter_otlp_traces_cipher
+='SOME-CIPHER';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_cipher' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+=':';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='::';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='ALONE-ILLEGAL';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='BEGIN-ILLEGAL:ECDHE-RSA-CHACHA20-POLY1305';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='ECDHE-RSA-CHACHA20-POLY1305:END-ILLEGAL';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='ECDHE-RSA-CHACHA20-POLY1305:MIDDLE-ILLEGAL:ECDHE-RSA-AES128-GCM-SHA256';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='ECDHE-RSA-CHACHA20-POLY1305:MANY-ILLEGAL-A:MANY-ILLEGAL-B:ECDHE-RSA-AES128-GCM-SHA256';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+='ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_cipher;
+@@global.telemetry.otel_exporter_otlp_traces_cipher
+ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256
+SET PERSIST telemetry.otel_exporter_otlp_traces_cipher
+='ULTIMATE-CIPHER';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_cipher' is a read only variable
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_traces_cipher
+='ULTIMATE-CIPHER';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component (invalid)
+INSTALL COMPONENT 'file://component_telemetry';
+ERROR HY000: Initialization method provided by component 'mysql::component_telemetry' failed.
+RESET PERSIST;
+INSTALL COMPONENT 'file://component_telemetry';
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_traces_cipher
+='ECDHE-RSA-CHACHA20-POLY1305';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component (valid)
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_cipher;
+@@global.telemetry.otel_exporter_otlp_traces_cipher
+ECDHE-RSA-CHACHA20-POLY1305
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

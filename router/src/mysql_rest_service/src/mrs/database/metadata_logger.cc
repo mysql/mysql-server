@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -256,7 +256,16 @@ class ParseMetadataLoggerOptions
 };
 
 auto parse_json_options(const std::string &options) {
-  return helper::json::text_to_handler<ParseMetadataLoggerOptions>(options);
+  auto result =
+      helper::json::text_to_handler<ParseMetadataLoggerOptions>(options);
+
+  if (!result) {
+    log_error(
+        "Failed to parse 'MetadataLogger' options from global JSON "
+        "configuration");
+  }
+
+  return result.value_or(ParseMetadataLoggerOptions::Result{});
 }
 
 }  // namespace

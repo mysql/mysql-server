@@ -393,7 +393,7 @@ t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 EXPLAIN
 -> Delete from t3 (immediate)  (rows=6.22)
     -> Filter: ((t3.f1 > 30) and (t3.f1 < 33) and <in_optimizer>((t3.f1,t3.f2,t3.f3),<exists>(select #2)))  (rows=6.22)
-        -> Table scan on t3  (rows=56)
+        -> Index scan on t3 using PRIMARY  (rows=56)
         -> Select #2 (subquery in condition; dependent)
             -> Inner hash join (t1.f1 = t2.f1), extra conditions: (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1))  (rows=0.00833)
                 -> Table scan on t1  (rows=3)
@@ -558,7 +558,7 @@ EXPLAIN
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 A' at line 1
-# Check illegal syntax
+# Bug#37053765 Uniform syntax of join order and table hints
 EXPLAIN SELECT * FROM
 (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
 EXPLAIN
@@ -570,8 +570,17 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t3 using f2_idx  (rows=56)
 
-Warnings:
-Warning	1064	Optimizer hint syntax error near 'qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt' at line 2
+EXPLAIN SELECT * FROM
+(SELECT /*+ QB_NAME(qb1) NO_BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
+EXPLAIN
+-> Inner hash join (no condition)  (rows=4704)
+    -> Inner hash join (no condition)  (rows=84)
+        -> Table scan on t2  (rows=28)
+        -> Hash
+            -> Table scan on t1  (rows=3)
+    -> Hash
+        -> Covering index scan on t3 using f2_idx  (rows=56)
+
 # Check '@qb_name table_name' syntax. BKA should be used for t2.
 EXPLAIN SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;
@@ -817,10 +826,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -830,10 +839,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -843,10 +852,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -856,10 +865,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -869,10 +878,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -882,10 +891,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -895,10 +904,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -908,10 +917,10 @@ t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
     -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (rows=1.73)
-        -> Table scan on t1  (rows=4)
+        -> Index scan on t1 using PRIMARY  (rows=4)
         -> Hash
             -> Inner hash join (t3.b = t4.b)  (rows=3)
-                -> Table scan on t4  (rows=4)
+                -> Index scan on t4 using PRIMARY  (rows=4)
                 -> Hash
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
@@ -1044,76 +1053,76 @@ INSERT INTO t VALUES (1);
 SET optimizer_switch='block_nested_loop=on';
 EXPLAIN SELECT 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
-    -> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
+    -> Left hash join (no condition), extra conditions: true  (rows=1)
         -> Table scan on t1  (rows=1)
         -> Hash
             -> Table scan on t2  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
             -> Table scan on t3  (rows=1)
             -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t1) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
-    -> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
+    -> Left hash join (no condition), extra conditions: true  (rows=1)
         -> Table scan on t1  (rows=1)
         -> Hash
             -> Table scan on t2  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
             -> Table scan on t3  (rows=1)
             -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t2) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
-    -> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
+    -> Left hash join (no condition), extra conditions: true  (rows=1)
         -> Table scan on t1  (rows=1)
         -> Hash
             -> Table scan on t2  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
             -> Table scan on t3  (rows=1)
             -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
-    -> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
+    -> Left hash join (no condition), extra conditions: true  (rows=1)
         -> Table scan on t1  (rows=1)
         -> Hash
             -> Table scan on t2  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
             -> Table scan on t3  (rows=1)
             -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
-    -> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
+    -> Left hash join (no condition), extra conditions: true  (rows=1)
         -> Table scan on t1  (rows=1)
         -> Hash
             -> Table scan on t2  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
             -> Table scan on t3  (rows=1)
             -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
-        -> Left hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
+        -> Left hash join (no condition), extra conditions: true  (rows=1)
+            -> Left hash join (no condition), extra conditions: true  (rows=1)
                 -> Table scan on t2  (rows=1)
                 -> Hash
                     -> Table scan on t3  (rows=1)
@@ -1129,104 +1138,104 @@ SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JO
 SET optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Left hash join (no condition)  (rows=1)
+-> Left hash join (no condition), extra conditions: true  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t4  (rows=1)
             -> Hash
-                -> Left hash join (no condition)  (rows=1)
+                -> Left hash join (no condition), extra conditions: true  (rows=1)
                     -> Table scan on t2  (rows=1)
                     -> Hash
                         -> Table scan on t3  (rows=1)
@@ -2720,7 +2729,8 @@ EXPLAIN
 -> Group aggregate: avg(t2.f1)  (rows=1)
     -> Sort: t1.f1  (rows=1)
         -> Inner hash join (no condition)  (rows=1)
-            -> Covering index range scan on t2 using k1 over (f2 = 'SIR')  (rows=1)
+            -> Filter: (t2.f2 = 'SIR')  (rows=1)
+                -> Index scan on t2 using PRIMARY  (rows=2)
             -> Hash
                 -> Covering index scan on t1 using PRIMARY  (rows=1)
 
@@ -2732,7 +2742,8 @@ EXPLAIN
         -> Group aggregate: avg(t2.f1)  (rows=1)
             -> Sort: t1.f1  (rows=1)
                 -> Inner hash join (no condition)  (rows=1)
-                    -> Covering index range scan on t2 using k1 over (f2 = 'SIR')  (rows=1)
+                    -> Filter: (t2.f2 = 'SIR')  (rows=1)
+                        -> Index scan on t2 using PRIMARY  (rows=2)
                     -> Hash
                         -> Covering index scan on t1 using PRIMARY  (rows=1)
 
@@ -2742,7 +2753,8 @@ EXPLAIN
 -> Group aggregate: avg(t2.f1)  (rows=1)
     -> Sort: t1.f1  (rows=1)
         -> Inner hash join (no condition)  (rows=1)
-            -> Covering index range scan on t2 using k1 over (f2 = 'SIR')  (rows=1)
+            -> Filter: (t2.f2 = 'SIR')  (rows=1)
+                -> Index scan on t2 using PRIMARY  (rows=2)
             -> Hash
                 -> Covering index scan on t1 using PRIMARY  (rows=1)
 
@@ -2786,7 +2798,7 @@ WHERE c1=1 and c2=9;
 EXPLAIN
 -> Append  (rows=2)
     -> Stream results  (rows=1)
-        -> Covering index scan on t1 using c1  (rows=1)
+        -> Index scan on t1 using PRIMARY  (rows=1)
     -> Stream results  (rows=1)
         -> Filter: (t3.c1 = 1)  (rows=1)
             -> Index lookup on t3 using c2 (c2 = 9)  (rows=1)
@@ -2804,7 +2816,7 @@ EXPLAIN
         -> Covering index scan on t1 using c1  (rows=1)
     -> Stream results  (rows=1)
         -> Filter: ((t3.c1 = 1) and (t3.c2 = 9))  (rows=1)
-            -> Table scan on t3  (rows=1)
+            -> Index scan on t3 using PRIMARY  (rows=1)
 
 Warnings:
 Warning	3127	Query block name `qb2` is not found for INDEX hint

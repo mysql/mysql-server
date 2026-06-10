@@ -278,6 +278,37 @@ Show create table child;
 --echo # Cleanup
 drop table child, parent;
 
+-- echo #
+-- echo # Bug#35073937 ALTER table rename column incorrectly rejected due to foreign key
+-- echo #
+create table b35_parent (parent_pk int,
+                         b int,
+                         primary key(parent_pk)) engine=ndb;
+
+create table b35_child (child_pk int,
+                        child_ord int,
+                        primary key(child_pk),
+                        constraint pk_ord
+                         foreign key (child_ord) references b35_parent (parent_pk)
+                        ) engine=ndb;
+
+alter table b35_parent rename column b to bee;
+
+create table b35_self_ref(parent int primary key,
+                          child int,
+                          foreign key (child) references b35_self_ref(parent)
+                         ) engine=ndb;
+
+--error 1846
+alter table b35_self_ref rename column child to adult;
+
+# Check that the error message is the one that comes from NDB:
+let $text= `show warnings`;
+eval select LOCATE("Try dropping foreign key", "$text");
+
+# Cleanup
+drop table b35_child, b35_parent, b35_self_ref;
+
 #Added Test code coverage for WL#15699 to cover NDB alter drop key
 CREATE TABLE t1(a INT, UNIQUE KEY a(a), KEY b(a)) ENGINE=NDBCLUSTER;
 ALTER TABLE t1 ADD CONSTRAINT c FOREIGN KEY(a) REFERENCES t1(a);

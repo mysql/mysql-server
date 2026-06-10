@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -133,10 +133,18 @@ SaslData SaslHandler::get_authorize_data(RequestContext &ctxt) {
   if (ctxt.request->get_method() == HttpMethod::Post) {
     auto &ib = ctxt.request->get_input_buffer();
     const auto ib_len = ib.length();
+
     if (0 == ib_len) return {AuthenticationStateInvalid, "", false};
+
     const std::string data = as_string(ib.copy(ib_len));
-    const auto [state_name, has_other_data] =
-        helper::json::text_to_handler<JsonGetState>(data);
+
+    auto result = helper::json::text_to_handler<JsonGetState>(data);
+
+    if (!result) {
+      return {AuthenticationStateInvalid, "", false};
+    }
+
+    const auto [state_name, has_other_data] = *result;
     auto state = get_authentication_state_impl(state_name);
 
     if (state == AuthenticationStateExchange && has_other_data) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -640,7 +640,7 @@ class NdbForeignKeyImpl : public NdbDictionary::ForeignKey,
     BaseString m_name;
     Uint32 m_objectId;
     Uint32 m_objectVersion;
-  } m_references[4];  //
+  } m_references[4];  // parent table, child table, parent index, child index
   Vector<Uint32> m_parent_columns;
   Vector<Uint32> m_child_columns;
   NdbDictionary::ForeignKey::FkAction m_on_update_action;

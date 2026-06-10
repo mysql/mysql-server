@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,15 @@ struct PSI_statement_service_v4 {
   @since PSI_STATEMENT_VERSION_5
 */
 struct PSI_statement_service_v5 {
+  /* No binary compatibility with old PLUGIN */
+  void *this_interface_is_obsolete;
+};
+
+/**
+  Performance Schema Statement Interface, version 6.
+  @since PSI_STATEMENT_VERSION_6
+*/
+struct PSI_statement_service_v6 {
   /** @sa register_statement_v1_t. */
   register_statement_v1_t register_statement;
   /** @sa get_thread_statement_locker_v5_t. */
@@ -181,9 +190,12 @@ struct PSI_statement_service_v5 {
 
   notify_statement_query_attributes_v5_t notify_statement_query_attributes;
   statement_abort_telemetry_v5_t statement_abort_telemetry;
+
+  /** @sa digest_set_v6_t. */
+  digest_set_v6_t digest_set;
 };
 
-typedef struct PSI_statement_service_v5 PSI_statement_service_t;
+typedef struct PSI_statement_service_v6 PSI_statement_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
 

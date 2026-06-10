@@ -1,0 +1,238 @@
+CREATE TABLE t1(f1 INT KEY, f2 INT);
+CREATE TABLE t2(f11 INT KEY, f12 INT);
+#
+# Verify affected_rows state for duality view with only root object.
+#
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f1,
+"f2"  : f2
+) FROM t1;
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1}');
+affected rows: 1
+info: Rows affected: 1  Warnings: 0.
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "_metadata": {"etag": "fc3fdd8d9eaced542d9a5fcc7f9f57bc"}}
+affected rows: 1
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 2}';
+affected rows: 1
+info: Rows affected: 1  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 2, "_id": 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"}}
+affected rows: 1
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 1;
+affected rows: 1
+SELECT * FROM dv1;
+data
+affected rows: 0
+#
+# Verify affected_rows state for duality view with read-only singleton
+# sub-object.
+#
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f1,
+"f2"  : f2,
+"child" : (SELECT JSON_DUALITY_OBJECT(
+"f11" : f11,
+"f12" : f12
+) FROM t2 WHERE t2.f11 = t1.f2)
+) FROM t1;
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1}');
+affected rows: 1
+info: Rows affected: 1  Warnings: 0.
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "child": {"f11": 1, "f12": 1}, "_metadata": {"etag": "ce94b3f099f080a70c39a795cf3b9786"}}
+affected rows: 1
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 2, "child" : {"f11": 2, "f12" : 2}}';
+affected rows: 1
+info: Rows affected: 1  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 2, "_id": 1, "child": {"f11": 2, "f12": 2}, "_metadata": {"etag": "581aa410ac150e9f343999bbdcbd428c"}}
+affected rows: 1
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 1;
+affected rows: 1
+SELECT * FROM dv1;
+data
+affected rows: 0
+SELECT * FROM t2;
+f11	f12
+1	1
+2	2
+affected rows: 2
+TRUNCATE TABLE t2;
+#
+# Verify affected_rows state for duality view with singleton
+# sub-object.
+#
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f1,
+"f2"  : f2,
+"child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"f11" : f11,
+"f12" : f12
+) FROM t2 WHERE t2.f11 = t1.f1)
+) FROM t1;
+# Inserting rows into root object's table and sub-object's table.
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1, "child" : { "f11" : 1, "f12" : 1 }}');
+affected rows: 2
+info: Rows affected: 2  Warnings: 0.
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "child": {"f11": 1, "f12": 1}, "_metadata": {"etag": "ce94b3f099f080a70c39a795cf3b9786"}}
+affected rows: 1
+# Updating row of root object's table only.
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 2, "child" : {"f11": 1, "f12" : 1}}';
+affected rows: 1
+info: Rows affected: 1  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 2, "_id": 1, "child": {"f11": 1, "f12": 1}, "_metadata": {"etag": "a40530d5ed70dfd7c8424d55d15896c8"}}
+affected rows: 1
+# Updating rows of root object's table and sub-object's table.
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 3, "child" : {"f11": 1, "f12" : 2}}';
+affected rows: 2
+info: Rows affected: 2  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 3, "_id": 1, "child": {"f11": 1, "f12": 2}, "_metadata": {"etag": "a8c913b067a98140096c3ff58f8e46e7"}}
+affected rows: 1
+# Updating row of sub-object's table only.
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 3, "child" : {"f11": 1, "f12" : 3}}';
+affected rows: 1
+info: Rows affected: 1  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 3, "_id": 1, "child": {"f11": 1, "f12": 3}, "_metadata": {"etag": "dab9929dc2d567c796ac13b89aa360c0"}}
+affected rows: 1
+# Deleting rows from root object's table and sub-object's table.
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 1;
+affected rows: 1
+SELECT * FROM dv1;
+data
+affected rows: 0
+TRUNCATE TABLE t2;
+#
+# Verify affected_rows state for duality view with nested
+# sub-object.
+#
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f1,
+"f2"  : f2,
+"child" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"f11" : f11,
+"f12" : f12
+) ABSENT ON NULL) FROM t2 WHERE t2.f12 = t1.f1)
+) FROM t1;
+# Inserting row into root object's table only.
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1, "child" : []}');
+affected rows: 1
+info: Rows affected: 1  Warnings: 0.
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "child": [], "_metadata": {"etag": "a893f17ffa25031f818de340a02a0227"}}
+affected rows: 1
+# Inserting rows into root object's table and sub-object's table.
+INSERT INTO dv1 VALUES('{"_id" : 2, "f2" : 2, "child" : [{"f11" : 2, "f12" : 2}]}');
+affected rows: 2
+info: Rows affected: 2  Warnings: 0.
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "child": [], "_metadata": {"etag": "a893f17ffa25031f818de340a02a0227"}}
+{"f2": 2, "_id": 2, "child": [{"f11": 2, "f12": 2}], "_metadata": {"etag": "c303cce9e09a3794d17cafa04db2a84d"}}
+affected rows: 2
+# Inserting row into root object's table and multiple rows into sub-object's table.
+INSERT INTO dv1 VALUES('{"_id" : 3, "f2" : 3, "child" : [{"f11" : 3, "f12" : 3}, {"f11" : 4, "f12" : 3}]}');
+affected rows: 3
+info: Rows affected: 3  Warnings: 0.
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "child": [], "_metadata": {"etag": "a893f17ffa25031f818de340a02a0227"}}
+{"f2": 2, "_id": 2, "child": [{"f11": 2, "f12": 2}], "_metadata": {"etag": "c303cce9e09a3794d17cafa04db2a84d"}}
+{"f2": 3, "_id": 3, "child": [{"f11": 3, "f12": 3}, {"f11": 4, "f12": 3}], "_metadata": {"etag": "51e27537416d7874904055db74c00a79"}}
+affected rows: 3
+# Inserting row into only sub-object's table only.
+UPDATE dv1 set data = '{"_id" : 1, "f2" : 1, "child" : [{"f11" : 1, "f12" : 1}]}' WHERE JSON_VALUE(data, '$._id') = 1;
+affected rows: 1
+info: Rows affected: 1  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 1, "_id": 1, "child": [{"f11": 1, "f12": 1}], "_metadata": {"etag": "c64ea60326b0e4df288239973d2980dc"}}
+{"f2": 2, "_id": 2, "child": [{"f11": 2, "f12": 2}], "_metadata": {"etag": "c303cce9e09a3794d17cafa04db2a84d"}}
+{"f2": 3, "_id": 3, "child": [{"f11": 3, "f12": 3}, {"f11": 4, "f12": 3}], "_metadata": {"etag": "51e27537416d7874904055db74c00a79"}}
+affected rows: 3
+# Updating row of only root object.
+UPDATE dv1 SET data = '{ "_id" : 1, "f2" : 3, "child" : [ {"f11" : 1, "f12" : 1} ] }' WHERE JSON_VALUE(data, '$._id') = 1;
+affected rows: 1
+info: Rows affected: 1  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 3, "_id": 1, "child": [{"f11": 1, "f12": 1}], "_metadata": {"etag": "a392c304f10fb997ad807162f4379b39"}}
+{"f2": 2, "_id": 2, "child": [{"f11": 2, "f12": 2}], "_metadata": {"etag": "c303cce9e09a3794d17cafa04db2a84d"}}
+{"f2": 3, "_id": 3, "child": [{"f11": 3, "f12": 3}, {"f11": 4, "f12": 3}], "_metadata": {"etag": "51e27537416d7874904055db74c00a79"}}
+affected rows: 3
+# Updating only child. Deleting existing sub-object and inserting new sub-object.
+SELECT * FROM t2 WHERE f12 = 1;
+f11	f12
+1	1
+affected rows: 1
+UPDATE dv1 SET data = '{ "_id" : 1, "f2" : 3, "child" : [ {"f11" : 5, "f12" : 1} ] }' WHERE JSON_VALUE(data, '$._id') = 1;
+affected rows: 2
+info: Rows affected: 2  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 3, "_id": 1, "child": [{"f11": 5, "f12": 1}], "_metadata": {"etag": "3e5f9af42898a424e0606a81e307bfdb"}}
+{"f2": 2, "_id": 2, "child": [{"f11": 2, "f12": 2}], "_metadata": {"etag": "c303cce9e09a3794d17cafa04db2a84d"}}
+{"f2": 3, "_id": 3, "child": [{"f11": 3, "f12": 3}, {"f11": 4, "f12": 3}], "_metadata": {"etag": "51e27537416d7874904055db74c00a79"}}
+affected rows: 3
+SELECT * FROM t2 WHERE f12 = 1;
+f11	f12
+5	1
+affected rows: 1
+# Deleting 2 sub-objects as part of UPDATE operation.
+UPDATE dv1 SET data = '{ "_id" : 3, "f2" : 3, "child" : [] }' WHERE JSON_VALUE(data, '$._id') = 3;
+affected rows: 2
+info: Rows affected: 2  Warnings: 1.
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"f2": 3, "_id": 1, "child": [{"f11": 5, "f12": 1}], "_metadata": {"etag": "3e5f9af42898a424e0606a81e307bfdb"}}
+{"f2": 2, "_id": 2, "child": [{"f11": 2, "f12": 2}], "_metadata": {"etag": "c303cce9e09a3794d17cafa04db2a84d"}}
+{"f2": 3, "_id": 3, "child": [], "_metadata": {"etag": "bfbfab430cc806ded18184dd0f52f57c"}}
+affected rows: 3
+# Deleting rows from root object's table and sub-object's table.
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 2;
+affected rows: 2
+SELECT * FROM dv1;
+data
+{"f2": 3, "_id": 1, "child": [{"f11": 5, "f12": 1}], "_metadata": {"etag": "3e5f9af42898a424e0606a81e307bfdb"}}
+{"f2": 3, "_id": 3, "child": [], "_metadata": {"etag": "bfbfab430cc806ded18184dd0f52f57c"}}
+affected rows: 2
+DROP VIEW dv1;
+DROP TABLE t2;
+DROP TABLE t1;

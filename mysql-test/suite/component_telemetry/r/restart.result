@@ -1,0 +1,104 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.trace_enabled = 'ON', telemetry.metrics_enabled = 'ON', telemetry.log_enabled = 'ON';
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	READY
+# Telemetry system variables
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'telemetry%'
+  ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.log_enabled	ON
+telemetry.metrics_enabled	ON
+telemetry.metrics_reader_frequency_1	10
+telemetry.metrics_reader_frequency_2	60
+telemetry.metrics_reader_frequency_3	0
+telemetry.otel_blrp_max_export_batch_size	512
+telemetry.otel_blrp_max_queue_size	2048
+telemetry.otel_blrp_schedule_delay	5000
+telemetry.otel_bsp_max_export_batch_size	512
+telemetry.otel_bsp_max_queue_size	2048
+telemetry.otel_bsp_schedule_delay	5000
+telemetry.otel_exporter_otlp_logs_certificates	
+telemetry.otel_exporter_otlp_logs_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+telemetry.otel_exporter_otlp_logs_cipher_suite	TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA256
+telemetry.otel_exporter_otlp_logs_client_certificates	
+telemetry.otel_exporter_otlp_logs_client_key	
+telemetry.otel_exporter_otlp_logs_compression	none
+telemetry.otel_exporter_otlp_logs_endpoint	
+telemetry.otel_exporter_otlp_logs_headers	
+telemetry.otel_exporter_otlp_logs_max_tls	default
+telemetry.otel_exporter_otlp_logs_min_tls	default
+telemetry.otel_exporter_otlp_logs_network_namespace	
+telemetry.otel_exporter_otlp_logs_protocol	http/protobuf
+telemetry.otel_exporter_otlp_logs_secret_headers	
+telemetry.otel_exporter_otlp_logs_timeout	10000
+telemetry.otel_exporter_otlp_metrics_certificates	
+telemetry.otel_exporter_otlp_metrics_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+telemetry.otel_exporter_otlp_metrics_cipher_suite	TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA256
+telemetry.otel_exporter_otlp_metrics_client_certificates	
+telemetry.otel_exporter_otlp_metrics_client_key	
+telemetry.otel_exporter_otlp_metrics_compression	none
+telemetry.otel_exporter_otlp_metrics_endpoint	
+telemetry.otel_exporter_otlp_metrics_headers	
+telemetry.otel_exporter_otlp_metrics_max_tls	default
+telemetry.otel_exporter_otlp_metrics_min_tls	default
+telemetry.otel_exporter_otlp_metrics_network_namespace	
+telemetry.otel_exporter_otlp_metrics_protocol	http/protobuf
+telemetry.otel_exporter_otlp_metrics_secret_headers	
+telemetry.otel_exporter_otlp_metrics_timeout	10000
+telemetry.otel_exporter_otlp_traces_certificates	
+telemetry.otel_exporter_otlp_traces_cipher	ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+telemetry.otel_exporter_otlp_traces_cipher_suite	TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA256
+telemetry.otel_exporter_otlp_traces_client_certificates	
+telemetry.otel_exporter_otlp_traces_client_key	
+telemetry.otel_exporter_otlp_traces_compression	none
+telemetry.otel_exporter_otlp_traces_endpoint	
+telemetry.otel_exporter_otlp_traces_headers	
+telemetry.otel_exporter_otlp_traces_max_tls	default
+telemetry.otel_exporter_otlp_traces_min_tls	default
+telemetry.otel_exporter_otlp_traces_network_namespace	
+telemetry.otel_exporter_otlp_traces_protocol	http/protobuf
+telemetry.otel_exporter_otlp_traces_secret_headers	
+telemetry.otel_exporter_otlp_traces_timeout	10000
+telemetry.otel_log_level	info
+telemetry.otel_resource_attributes	
+telemetry.query_text_enabled	ON
+telemetry.resource_provider	
+telemetry.secret_provider	
+telemetry.trace_enabled	ON
+# Connection con1
+SELECT "In connection con1";
+In connection con1
+In connection con1
+# Connection con2
+SELECT "In connection con2";
+In connection con2
+In connection con2
+SELECT NAME, TYPE, PROCESSLIST_USER
+FROM performance_schema.threads where TELEMETRY_ACTIVE='YES'
+  ORDER BY NAME, TYPE, PROCESSLIST_USER;
+NAME	TYPE	PROCESSLIST_USER
+thread/sql/one_connection	FOREGROUND	root
+thread/sql/one_connection	FOREGROUND	root
+thread/sql/one_connection	FOREGROUND	root
+"BEFORE RESTART"
+# restart:
+"AFTER RESTART"
+SELECT component_urn FROM mysql.component
+WHERE component_urn = "file://component_telemetry";
+component_urn
+file://component_telemetry
+SHOW STATUS LIKE "telemetry.run_level";
+Variable_name	Value
+telemetry.run_level	READY
+SELECT NAME, TYPE, PROCESSLIST_USER
+FROM performance_schema.threads where TELEMETRY_ACTIVE='YES'
+  ORDER BY NAME, TYPE, PROCESSLIST_USER;
+NAME	TYPE	PROCESSLIST_USER
+thread/sql/one_connection	FOREGROUND	root
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';

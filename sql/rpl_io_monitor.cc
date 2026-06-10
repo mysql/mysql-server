@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -602,6 +602,17 @@ bool Source_IO_monitor::check_connection_and_run_query(
         ER_RPL_ASYNC_CHECK_CONNECTION_ERROR, conn_single_server->get_mysql(),
         mi);
   }
+
+  /*
+    After successfully establishing a connection to the source and executing
+    a test query, verify version compatibility between the replica and the
+    source. Fail if higher-version sources are not allowed and the source
+    version is higher than the replica’s.
+  */
+  if (!opt_replica_allow_higher_version_source && !query_failed &&
+      !conn_single_server->version_compatible())
+    query_failed = 1;
+
   delete conn_single_server;
   conn_single_server = nullptr;
   return !query_failed;

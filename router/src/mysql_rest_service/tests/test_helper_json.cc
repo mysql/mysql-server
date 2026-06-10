@@ -1,4 +1,4 @@
-/*  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ static std::string get_json_value(const int allowed_levels,
                                   const std::string key_name) {
   using namespace helper::json;
   helper::json::RapidReaderHandlerToMapOfSimpleValues extractor{allowed_levels};
-  if (!helper::json::text_to(&extractor, txt)) {
+  if (!helper::json::parse(&extractor, txt)) {
     ADD_FAILURE() << "Testcase input data are invalid (JSON).";
     return {};
   }
@@ -305,7 +305,7 @@ static auto get_json_array_int_value(const std::string &txt,
                                      const std::string key_name) {
   using namespace helper::json;
   Extractor extractor{key_name};
-  if (!helper::json::text_to(&extractor, txt)) {
+  if (!helper::json::parse(&extractor, txt)) {
     ADD_FAILURE() << "Testcase input data are invalid (JSON).";
     return typename Extractor::Result();
   }

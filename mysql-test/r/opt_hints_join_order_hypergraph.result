@@ -554,7 +554,7 @@ JOIN t10 AS alias10 JOIN t11 AS alias11 ON alias10.f1 = alias11.f1
 ON alias4.f2 = alias11.f2;
 SELECT join_order(@expl) join_order;
 join_order
-"alias10", "alias11", "alias8", "alias7", "alias5", "alias6", "alias4"
+"alias8", "alias7", "alias5", "alias6", "alias4", "alias11", "alias10"
 DROP TABLES t2, t4, t5, t6, t7, t10, t11;
 DROP FUNCTION join_order;
 DROP PROCEDURE build_join_order;

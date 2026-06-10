@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -39,8 +39,6 @@
     exit(1);                                                               \
   }
 
-static const ConfigInfo *g_info = nullptr;
-
 /*
   Create a small config.ini with the given parameter and run
   it through InitConfigFileParser
@@ -49,7 +47,7 @@ bool check_param(const ConfigInfo::ParamInfo &param) {
   FILE *config_file = tmpfile();
   CHECK(config_file);
 
-  const char *section = g_info->nameToAlias(param._section);
+  const char *section = ConfigInfo::nameToAlias(param._section);
   if (section == NULL) section = param._section;
 
   if (param._type == ConfigInfo::CI_SECTION) {
@@ -92,8 +90,8 @@ bool check_param(const ConfigInfo::ParamInfo &param) {
 
 bool check_params(void) {
   bool ok [[maybe_unused]] = true;
-  for (int j = 0; j < g_info->m_NoOfParams; j++) {
-    const ConfigInfo::ParamInfo &param = g_info->m_ParamInfo[j];
+  for (int j = 0; j < ConfigInfo::m_NoOfParams; j++) {
+    const ConfigInfo::ParamInfo &param = ConfigInfo::m_ParamInfo[j];
     printf("Checking %s...\n", param._fname);
     if (!check_param(param)) {
       ok = false;
@@ -257,8 +255,8 @@ static void print_restart_info(void) {
   Vector<const char *> system;
   Vector<const char *> initial_system;
 
-  for (int i = 0; i < g_info->m_NoOfParams; i++) {
-    const ConfigInfo::ParamInfo &param = g_info->m_ParamInfo[i];
+  for (int i = 0; i < ConfigInfo::m_NoOfParams; i++) {
+    const ConfigInfo::ParamInfo &param = ConfigInfo::m_ParamInfo[i];
     if ((param._flags & ConfigInfo::CI_RESTART_INITIAL) &&
         (param._flags & ConfigInfo::CI_RESTART_SYSTEM))
       initial_system.push_back(param._fname);
@@ -431,8 +429,6 @@ static void test_hostname_mycnf(void) {
 #include <EventLogger.hpp>
 
 TAPTEST(MgmConfig) {
-  auto config = std::make_unique<ConfigInfo>();
-  g_info = config.get();
   ndb_init();
   g_eventLogger->createConsoleHandler();
   diff_config();

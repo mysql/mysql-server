@@ -1,0 +1,29 @@
+select count(*) into @nodecnt from ndbinfo.nodes;
+# Check that there is agreement on left data nodes on a fresh cluster
+select count(*) into @leftcnt
+from ndbinfo.transporter_details td join ndbinfo.membership ms
+on td.node_id = ms.node_id
+where td.heartbeat_interval is not null and td.remote_node_id = ms.left_node;
+Agreement on left nodes between transporter_details and membership tables for fresh cluster.
+
+# Check that there is agreement on left data nodes with one node down
+Node 2 is being restarted
+
+Node 2: NOT_STARTED
+select count(*) into @leftcnt
+from ndbinfo.transporter_details td join ndbinfo.membership ms
+on td.node_id = ms.node_id
+where td.heartbeat_interval is not null and td.remote_node_id = ms.left_node;
+Agreement on left nodes between transporter_details and membership tables with one node down
+
+# Check that there is agreement on left data nodes after one node restarted
+Database node 2 is being started.
+
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+select count(*) into @leftcnt
+from ndbinfo.transporter_details td join ndbinfo.membership ms
+on td.node_id = ms.node_id
+where td.heartbeat_interval is not null and td.remote_node_id = ms.left_node;
+Agreement on left nodes between transporter_details and membership tables after one node restarted

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -422,6 +422,12 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message.assign("The column '");
         message.append(pair.first);
         message.append("' has an unsupported data type.");
+        break;
+      case histograms::Message::HAS_MASKING_POLICY:
+        message_type.assign("Error");
+        message.assign("The column '");
+        message.append(pair.first);
+        message.append("' has a MASKING POLICY.");
         break;
       case histograms::Message::TEMPORARY_TABLE:
         message_type.assign("Error");

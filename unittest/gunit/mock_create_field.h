@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include <optional>
 
+#include "lex_string.h"
 #include "sql/create_field.h"
 #include "sql/dd/types/column.h"
 
@@ -64,6 +65,7 @@ class Mock_create_field : public Create_field {
          0,              // uint fld_geom_type
          nullptr,        // gcol info
          nullptr,        // gen default val
+         EMPTY_CSTR,     // policy name
          {},             // std::optional<gis::srid_t> srid
          dd::Column::enum_hidden_type::HT_VISIBLE);  // Visible
   }

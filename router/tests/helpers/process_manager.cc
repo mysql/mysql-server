@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -578,7 +578,16 @@ std::string ProcessManager::create_config_file(
   ofs_config << make_DEFAULT_section(default_section);
   // overwrite the default behavior (which is a warning) to make the Router
   // fail if unknown option is used
-  ofs_config << "unknown_config_option=error" << std::endl;
+  std::string unknown_config_option_value = "error";
+
+  if (default_section) {
+    auto it = default_section->find("unknown_config_option");
+    if (default_section->end() != it) {
+      unknown_config_option_value = it->second;
+    }
+  }
+  ofs_config << "unknown_config_option=" << unknown_config_option_value
+             << std::endl;
   ofs_config << extra_defaults << std::endl;
   ofs_config << sections << std::endl;
   if (enable_debug_logging) {

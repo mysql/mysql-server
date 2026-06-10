@@ -98,8 +98,8 @@ ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-015015	Server
 System	MY-010116	Server
-System	MY-015590	Server
-System	MY-015590	Server
+System	MY-015603	Server
+System	MY-015603	Server
 Warning	MY-010075	Server
 System	MY-013576	InnoDB
 Note	MY-012944	InnoDB
@@ -163,7 +163,7 @@ AND prio!="Note"
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
 "MY-010108", "MY-012363", "MY-013711", "MY-013908",
 "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-"MY-010099", "MY-011070", "MY-015590")
+"MY-010099", "MY-011070", "MY-015603")
 ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.

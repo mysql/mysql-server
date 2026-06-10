@@ -1,0 +1,30 @@
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+SET @saved_applier_channel_lag= @@global.group_replication_resource_manager.applier_channel_lag;
+SET @saved_memory_used_limit= @@global.group_replication_resource_manager.memory_used_limit;
+SET @saved_quarantine_time= @@global.group_replication_resource_manager.quarantine_time;
+SET @saved_recovery_channel_lag= @@global.group_replication_resource_manager.recovery_channel_lag;
+#
+# Set global/session variables to default.
+# Curently there are 4 variables.
+#
+include/assert.inc [There are 4 GR variables at present.]
+SET @@GLOBAL.group_replication_resource_manager.applier_channel_lag= default;
+SET @@GLOBAL.group_replication_resource_manager.memory_used_limit= default;
+SET @@GLOBAL.group_replication_resource_manager.quarantine_time= default;
+SET @@GLOBAL.group_replication_resource_manager.recovery_channel_lag= default;
+#
+# Verify default values of the variables.
+#
+include/assert.inc [Default applier_channel_lag is 3600]
+include/assert.inc [Default memory_used_limit is 100]
+include/assert.inc [Default quarantine_time is 3600]
+include/assert.inc [Default recovery_channel_lag is 3600]
+#
+# Clean up
+#
+SET @@global.group_replication_resource_manager.applier_channel_lag= @saved_applier_channel_lag;
+SET @@global.group_replication_resource_manager.memory_used_limit= @saved_memory_used_limit;
+SET @@global.group_replication_resource_manager.quarantine_time= @saved_quarantine_time;
+SET @@global.group_replication_resource_manager.recovery_channel_lag= @saved_recovery_channel_lag;
+SET @saved_recovery_channel_lag= @@global.group_replication_resource_manager.recovery_channel_lag;
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';

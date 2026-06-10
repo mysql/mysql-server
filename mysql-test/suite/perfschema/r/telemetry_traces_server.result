@@ -788,6 +788,8 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT @@GLOBAL.GTID_EXECUTED')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT policy_name FROM performance_schema.column_masking_policy')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'ndbinfo\_version'')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -934,9 +934,14 @@ sub main {
     }
     mtr_report();
     if(int(@$completed)) {
-      mtr_report_stats("In completed tests", $completed);
+      # Workaround: ignore possible MTR bug missing some tests,
+      # if run with --accept-test-fail for PGO
+      my $ignore_fail = $opt_accept_fail &&
+        ($opt_max_test_fail==0 || (int(@not_completed) < $opt_max_test_fail));
+      mtr_report_stats("In completed tests", $completed, $ignore_fail);
+    } else {
+      mtr_error("No test(s) completed");
     }
-    mtr_error("No test(s) completed");
   }
 
   mark_time_used('init');

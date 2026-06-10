@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2858,16 +2858,19 @@ uint sp_get_flags_for_command(LEX *lex) {
 
 bool sp_check_name(LEX_STRING *ident) {
   assert(ident != nullptr && ident->str != nullptr);
+  return sp_check_name(to_lex_cstring(*ident));
+}
 
-  if (!ident->str[0] || ident->str[ident->length - 1] == ' ') {
-    my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
+bool sp_check_name(LEX_CSTRING ident) {
+  assert(ident.str != nullptr);
+  if (ident.str[0] == 0 || ident.str[ident.length - 1] == ' ') {
+    my_error(ER_SP_WRONG_NAME, MYF(0), ident.str);
     return true;
   }
 
-  const LEX_CSTRING ident_cstr = {ident->str, ident->length};
-  if (check_string_char_length(ident_cstr, "", NAME_CHAR_LEN,
-                               system_charset_info, true)) {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
+  if (check_string_char_length(ident, "", NAME_CHAR_LEN, system_charset_info,
+                               true)) {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), ident.str);
     return true;
   }
 

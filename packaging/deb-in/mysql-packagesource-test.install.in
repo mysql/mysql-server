@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -132,6 +132,8 @@ usr/lib/mysql/plugin/component_test_server_telemetry_logs_client.so
 usr/lib/mysql/plugin/component_test_server_telemetry_logs_export.so
 usr/lib/mysql/plugin/component_test_server_telemetry_metrics.so
 usr/lib/mysql/plugin/component_test_server_telemetry_traces.so
+usr/lib/mysql/plugin/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/component_test_telemetry_secret_provider.so
 usr/lib/mysql/plugin/component_test_mysql_thd_store_service.so
 usr/lib/mysql/plugin/component_test_event_tracking_consumer.so
 usr/lib/mysql/plugin/component_test_event_tracking_producer_a.so

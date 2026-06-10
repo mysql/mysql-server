@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -32,11 +32,14 @@ template <std::size_t Extent = ndb::dynamic_extent>
 int f(ndb::span<char, Extent> buf) noexcept {
   return buf.size();
 }
+int g(ndb::span<char> buf) noexcept { return buf.size(); }
 
 int main() {
   char buf[100];
   ndb::span sp(buf);
   f(sp);
+  g(buf);
+  g({buf});
 
   std::array<char, 20> arr;
   f(ndb::span(arr));

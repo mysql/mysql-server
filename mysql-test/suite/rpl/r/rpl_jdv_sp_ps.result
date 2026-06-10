@@ -1,0 +1,286 @@
+################################################
+# Initialize the Replication setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+################################################
+################################################
+# PART 1: Test with stored procedure, stored function and a
+# trigger that will be replicated.
+################################################
+#
+# Create some tables on the source
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f11 INT PRIMARY KEY, f12 INT);
+CREATE TABLE t3 (f1 INT);
+CREATE TABLE t4 (f1 JSON);
+#
+# Create a JSON duality view on the source and wait for it to be
+# replicated.
+#
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f11,
+"f12" : f12,
+"child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+) FROM t1 WHERE t1.f1 = t2.f11))
+FROM t2;
+# Waiting for events to sync to replica
+include/rpl/sync_to_replica.inc
+[connection master]
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+SELECT * FROM dv1;
+UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+SELECT * FROM dv1;
+DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+END;
+$
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+RETURN 1;
+END;
+$
+CREATE TRIGGER t3_trigger BEFORE INSERT ON t3
+FOR EACH ROW
+BEGIN
+INSERT INTO dv1 VALUES (' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} ');
+UPDATE dv1 SET data = ' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } ';
+INSERT INTO t4 SELECT * FROM dv1;
+DELETE FROM dv1 WHERE JSON_VALUE(data, '$._id') = 1;
+END;
+$
+# Waiting for events to sync to replica
+include/rpl/sync_to_replica.inc
+[connection master]
+CALL p1();
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+SELECT f1();
+f1()
+1
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+INSERT INTO t3 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+TRUNCATE TABLE t4;
+DROP VIEW dv1;
+DROP PROCEDURE p1;
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+################################################
+# PART 2: Test case to verify duality view DDL statements with
+# prepared statement.
+################################################
+PREPARE create_dv_stmt FROM 'CREATE JSON DUALITY VIEW dv1 AS SELECT
+                             JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                               "_id" : f1,
+                                               "f2" : f2) FROM t1';
+PREPARE replace_dv_stmt FROM 'CREATE OR REPLACE JSON DUALITY VIEW dv1 AS SELECT
+                              JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                "_id" : f11,
+                                                "f12" : f12,
+                                                "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                                                      "f1" : f1,
+                                                                                      "f2" : f2
+                                                                                     ) FROM t1 WHERE t1.f1 = t2.f11))
+                                                FROM t2';
+PREPARE drop_dv_stmt FROM 'DROP VIEW dv1';
+EXECUTE create_dv_stmt;
+EXECUTE drop_dv_stmt;
+EXECUTE create_dv_stmt;
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+EXECUTE replace_dv_stmt;
+EXECUTE drop_dv_stmt;
+EXECUTE replace_dv_stmt;
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+################################################
+# PART 3: Test case to verify duality view DML statements with
+# prepared statement.
+################################################
+#
+# 3.1 Test case to verify duality view DML statements with
+# prepared statement.
+#
+PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (\' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} \')';
+EXECUTE insert_stmt;
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt;
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+PREPARE update_stmt FROM 'UPDATE dv1 SET data = \' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } \'';
+EXECUTE update_stmt;
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt;
+EXECUTE update_stmt;
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = 1';
+EXECUTE delete_stmt;
+SELECT * FROM dv1;
+data
+EXECUTE insert_stmt;
+EXECUTE delete_stmt;
+SELECT * FROM dv1;
+data
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+DROP PREPARE insert_stmt;
+DROP PREPARE update_stmt;
+DROP PREPARE delete_stmt;
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+#
+# 3.2 Test case to verify duality view DML statements with
+# prepared statement using parameters.
+#
+SET @json_object1 = '{ "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}}';
+PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (?)';
+EXECUTE insert_stmt USING @json_object1;
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt USING @json_object1;
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 1, "child": {"f1": 1, "f2": 1}, "_metadata": {"etag": "c6f09ae7f2564bad1b337bee934c6b27"}}
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+SET @json_object2 = '{ "_id" : 1, "f12" : 2, "child" : {"f1" : 1, "f2" : 2}}';
+PREPARE update_stmt FROM 'UPDATE dv1 SET data = ?';
+EXECUTE update_stmt USING @json_object2;
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+delete from t2;
+delete from t1;
+EXECUTE insert_stmt USING @json_object1;
+EXECUTE update_stmt USING @json_object2;
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM dv1;
+data
+{"_id": 1, "f12": 2, "child": {"f1": 1, "f2": 2}, "_metadata": {"etag": "342c2b19b4a29b2d14ecdf8644aaa45f"}}
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+SET @id = 1;
+PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = ?';
+EXECUTE delete_stmt USING @id;
+SELECT * FROM dv1;
+data
+EXECUTE insert_stmt USING @json_object1;
+EXECUTE delete_stmt USING @id;
+SELECT * FROM dv1;
+data
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+DROP PREPARE insert_stmt;
+DROP PREPARE update_stmt;
+DROP PREPARE delete_stmt;
+################################################
+# PART 4: Test case to verify duality view DDL and DML statements
+# with prepared statements in stored programs.
+################################################
+CREATE PROCEDURE p1()
+BEGIN
+PREPARE create_dv_stmt FROM 'CREATE OR REPLACE JSON DUALITY VIEW dv1 AS SELECT
+                               JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                "_id" : f11,
+                                                "f12" : f12,
+                                                "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                                                      "f1" : f1,
+                                                                                      "f2" : f2
+                                                                                     ) FROM t1 WHERE t1.f1 = t2.f11))
+                                                FROM t2';
+PREPARE drop_dv_stmt FROM 'DROP VIEW dv1';
+EXECUTE create_dv_stmt;
+EXECUTE drop_dv_stmt;
+EXECUTE create_dv_stmt;
+PREPARE insert_stmt FROM 'INSERT INTO dv1 VALUES (\' { "_id" : 1, "f12" : 1, "child" : {"f1" : 1, "f2" : 1}} \')';
+PREPARE update_stmt FROM 'UPDATE dv1 SET data = \' { "_id" : 1, "f12" : 2, "child" : { "f1" : 1, "f2" : 2} } \'';
+PREPARE delete_stmt FROM 'DELETE FROM dv1 WHERE JSON_VALUE(data, \'$._id\') = 1';
+EXECUTE insert_stmt;
+EXECUTE delete_stmt;
+EXECUTE insert_stmt;
+EXECUTE update_stmt;
+EXECUTE delete_stmt;
+EXECUTE insert_stmt;
+EXECUTE update_stmt;
+EXECUTE delete_stmt;
+EXECUTE drop_dv_stmt;
+DROP PREPARE create_dv_stmt;
+DROP PREPARE drop_dv_stmt;
+DROP PREPARE insert_stmt;
+DROP PREPARE update_stmt;
+DROP PREPARE delete_stmt;
+END;
+$
+CALL p1();
+CALL p1();
+include/rpl/sync_to_replica.inc
+include/diff_servers.inc [servers=1 2]
+[connection master]
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1, t2, t3, t4;
+# No I_S views contents on the source
+# Switch to replica
+include/rpl/sync_to_replica.inc
+# No I_S views contents on the replica
+# Switch back to source
+[connection master]
+include/rpl/deinit.inc

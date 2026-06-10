@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 
 #include <assert.h>
 #include <cmath>
+#include <memory>
+#include <mutex>
 
 #include <stddef.h>
 
@@ -47,30 +49,41 @@
 #include "thr_lock.h"
 
 struct st_binary_log_transaction_compression_stats {
-  std::vector<binlog::monitoring::Compression_stats *> stats;
-
-  void clear() {
-    for (const auto *x : stats) delete x;
-    stats.clear();
-  }
+  using Statistics =
+      std::vector<std::unique_ptr<binlog::monitoring::Compression_stats>>;
+  using Statistics_sptr = std::shared_ptr<Statistics>;
+  Statistics_sptr stats;
+  std::mutex stats_mutex;
 
   void update() {
-    clear();
-
+    std::lock_guard<std::mutex> lock(stats_mutex);
+    Statistics_sptr new_stats = std::make_shared<Statistics>();
     // refresh
     binlog::global_context.monitoring_context()
         .transaction_compression()
-        .get_stats(stats);
+        .get_stats(*new_stats);
+    stats = new_stats;
   }
 
   void reset() {
-    clear();
+    std::lock_guard<std::mutex> lock(stats_mutex);
+    stats = std::make_shared<Statistics>();
 
     binlog::global_context.monitoring_context()
         .transaction_compression()
         .reset();
   }
-  ~st_binary_log_transaction_compression_stats() { clear(); }
+
+  Statistics_sptr get_snapshot() {
+    std::lock_guard<std::mutex> lock(stats_mutex);
+    return stats;
+  }
+
+  st_binary_log_transaction_compression_stats() {
+    stats = std::make_shared<Statistics>();
+  }
+
+  ~st_binary_log_transaction_compression_stats() = default;
 };
 
 struct st_binary_log_transaction_compression_stats m_rows;
@@ -164,7 +177,11 @@ void table_binary_log_transaction_compression_stats::reset_position() {
 }
 
 ha_rows table_binary_log_transaction_compression_stats::get_row_count() {
-  return m_rows.stats.size();
+  auto data_snapshot_ptr = m_rows.get_snapshot();
+  if (!data_snapshot_ptr) {
+    return 0;
+  }
+  return data_snapshot_ptr->size();
 }
 
 int table_binary_log_transaction_compression_stats::delete_all_rows() {
@@ -197,7 +214,11 @@ int table_binary_log_transaction_compression_stats::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   Field *f;
   buf[0] = 0;
-  const auto &row = m_rows.stats[m_pos.m_index];
+  auto data_snapshot_ptr = m_rows.get_snapshot();
+  if (!data_snapshot_ptr || data_snapshot_ptr->size() <= m_pos.m_index) {
+    return 0;
+  }
+  const auto &row = data_snapshot_ptr->operator[](m_pos.m_index);
 
   std::string first_trx_id, last_trx_id;
   uint64_t first_trx_compressed_bytes{0}, last_trx_compressed_bytes{0};

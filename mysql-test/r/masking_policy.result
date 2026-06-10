@@ -1,0 +1,329 @@
+#
+# WL#16525: Dynamic Datamasking Support in MySQL
+#
+# Test cases for CREATE/DROP/SHOW MASKING POLICY.
+CREATE MASKING POLICY mak_pol(i)
+CASE WHEN CURRENT_ROLE_IN('admin') THEN sha2('abc', 224) ELSE i END;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+CREATE MASKING POLICY IF NOT EXISTS pol_if_not_exists(i)
+CASE WHEN CURRENT_ROLE_IN('admin') THEN sha2('abc', 224) ELSE i END;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+CREATE MASKING POLICY p1(i)
+CASE WHEN CURRENT_USER_IN ('admin, app') THEN sha2('abc', i) ELSE i END;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SHOW CREATE MASKING POLICY p1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+CREATE MASKING POLICY p1_1(i)
+CASE WHEN CURRENT_USER_IN('admin, app') THEN sha2('abc', 224) ELSE i END;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SHOW CREATE MASKING POLICY p1_1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+CREATE MASKING POLICY p2(i)
+CASE WHEN CURRENT_USER_IN('admin, app') THEN i ELSE sha2('abc', i) END;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SHOW CREATE MASKING POLICY p2;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+CREATE MASKING POLICY p2_2(i)
+CASE WHEN CURRENT_USER_IN('admin, app') THEN i ELSE sha2('abc', 224) END;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SHOW CREATE MASKING POLICY p2_2;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+DROP MASKING POLICY pol_does_not_exist;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+DROP MASKING POLICY IF EXISTS pol_does_not_exist;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SHOW CREATE MASKING POLICY pol_does_not_exist;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+# Test cases for assigning/unassigning masking policies on columns
+# with CREATE TABLE and ALTER TABLE.
+CREATE TABLE t1(i VARCHAR(256) MASKING POLICY p1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` varchar(256) MASKING POLICY `p1` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t2(i VARCHAR(256));
+ALTER TABLE t2 ALTER COLUMN i DROP MASKING POLICY;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(256) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 ALTER COLUMN i SET MASKING POLICY p2;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(256) MASKING POLICY `p2` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+CREATE TABLE t1(i VARCHAR(256));
+ALTER TABLE t1 ADD COLUMN j VARCHAR(256) MASKING POLICY p1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` varchar(256) DEFAULT NULL,
+  `j` varchar(256) MASKING POLICY `p1` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(i VARCHAR(256) MASKING POLICY p1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` varchar(256) MASKING POLICY `p1` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t2(i VARCHAR(256) MASKING POLICY p3);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(256) MASKING POLICY `p3` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 ALTER COLUMN i DROP MASKING POLICY;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(256) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 ALTER COLUMN i SET MASKING POLICY p2;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(256) MASKING POLICY `p2` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+CREATE TABLE t1(i VARCHAR(256) MASKING POLICY p1);
+ALTER TABLE t1 ADD COLUMN j VARCHAR(256) MASKING POLICY p1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` varchar(256) MASKING POLICY `p1` DEFAULT NULL,
+  `j` varchar(256) MASKING POLICY `p1` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN j;
+DROP TABLE t1;
+CREATE TABLE t3(i INT);
+ALTER TABLE t3 MODIFY COLUMN i INT MASKING POLICY p1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int MASKING POLICY `p1` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t3 MODIFY COLUMN i INT MASKING POLICY p2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int MASKING POLICY `p2` DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t3 MODIFY COLUMN i INT;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+# Tests for I_S.COLUMNS.EXTRA marker on masked columns.
+CREATE TABLE t4(i INT MASKING POLICY p1, j INT);
+CREATE TABLE t5(k INT);
+SELECT column_name, extra
+FROM information_schema.columns
+WHERE table_schema = database() AND table_name = 't4'
+ORDER BY column_name;
+COLUMN_NAME	EXTRA
+i	MASKING POLICY
+j	
+SELECT DISTINCT table_name
+FROM information_schema.columns
+WHERE table_schema = database()
+AND table_name IN ('t4', 't5')
+AND extra LIKE '%MASKING POLICY%'
+ORDER BY table_name;
+TABLE_NAME
+t4
+ALTER TABLE t4 ALTER COLUMN i DROP MASKING POLICY;
+SELECT column_name, extra
+FROM information_schema.columns
+WHERE table_schema = database() AND table_name = 't4'
+ORDER BY column_name;
+COLUMN_NAME	EXTRA
+i	
+j	
+SELECT DISTINCT table_name
+FROM information_schema.columns
+WHERE table_schema = database()
+AND table_name IN ('t4', 't5')
+AND extra LIKE '%MASKING POLICY%'
+ORDER BY table_name;
+TABLE_NAME
+ALTER TABLE t4 ALTER COLUMN i SET MASKING POLICY p1;
+ALTER TABLE t4 MODIFY COLUMN i INT MASKING POLICY p1 INVISIBLE;
+SELECT column_name, extra
+FROM information_schema.columns
+WHERE table_schema = database() AND table_name = 't4'
+ORDER BY column_name;
+COLUMN_NAME	EXTRA
+i	MASKING POLICY INVISIBLE
+j	
+DROP TABLE t4, t5;
+CREATE TABLE t(col INT MASKING POLICY ``);
+ERROR 42000: Incorrect routine name ''
+CREATE TABLE t(col INT MASKING POLICY ` `);
+ERROR 42000: Incorrect routine name ' '
+CREATE TABLE t(col INT MASKING POLICY `x `);
+ERROR 42000: Incorrect routine name 'x '
+CREATE TABLE t(col INT
+MASKING POLICY aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+);
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+CREATE TABLE t(i INT);
+ALTER TABLE t ALTER COLUMN i SET MASKING POLICY ``;
+ERROR 42000: Incorrect routine name ''
+ALTER TABLE t ALTER COLUMN i SET MASKING POLICY ` `;
+ERROR 42000: Incorrect routine name ' '
+ALTER TABLE t ALTER COLUMN i SET MASKING POLICY `x `;
+ERROR 42000: Incorrect routine name 'x '
+ALTER TABLE t ALTER COLUMN i SET MASKING POLICY
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+ALTER TABLE t MODIFY COLUMN i INT MASKING POLICY ``;
+ERROR 42000: Incorrect routine name ''
+ALTER TABLE t MODIFY COLUMN i INT MASKING POLICY ` `;
+ERROR 42000: Incorrect routine name ' '
+ALTER TABLE t MODIFY COLUMN i INT MASKING POLICY `x `;
+ERROR 42000: Incorrect routine name 'x '
+ALTER TABLE t MODIFY COLUMN i INT MASKING POLICY
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+ALTER TABLE t ADD COLUMN j INT MASKING POLICY ``;
+ERROR 42000: Incorrect routine name ''
+ALTER TABLE t ADD COLUMN k INT MASKING POLICY ` `;
+ERROR 42000: Incorrect routine name ' '
+ALTER TABLE t ADD COLUMN l INT MASKING POLICY `x `;
+ERROR 42000: Incorrect routine name 'x '
+ALTER TABLE t ADD COLUMN l INT MASKING POLICY
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+DROP TABLE t;
+# Tests for DML statements on a table with a masked column. Since the
+# needed component is not installed, attempts to read the masked
+# column should fail. Statements that don't attempt to read the masked
+# column should succeed, even those that write to the masked columns.
+CREATE TABLE t1 (i INT MASKING POLICY p1, j INT);
+SELECT j FROM t1;
+j
+SELECT * FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT i FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT j FROM t1 WHERE i < 10;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT j FROM t1 ORDER BY i;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT SUM(i) FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT SUM(j) FROM t1 GROUP BY i;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT FIRST_VALUE(i) OVER () FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT ROW_NUMBER() OVER (ORDER BY i) FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT 1 FROM t1 JOIN t1 AS t2 USING (i);
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+SELECT 1 FROM t1 NATURAL JOIN t1 AS t2;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+INSERT INTO t1 VALUES (), ();
+INSERT INTO t1 VALUES (1, 2), (2, 3);
+INSERT INTO t1(i) VALUES (3);
+INSERT INTO t1(j) VALUES (4);
+INSERT INTO t1 SELECT * FROM t1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+INSERT INTO t1(j) SELECT j FROM t1 WHERE i <> 0;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+INSERT INTO t1 SELECT j, j FROM t1 WHERE j <> 0;
+ALTER TABLE t1 ALTER COLUMN i DROP MASKING POLICY;
+SELECT * FROM t1;
+i	j
+1	2
+2	2
+2	3
+3	3
+3	NULL
+4	4
+NULL	4
+NULL	NULL
+NULL	NULL
+ALTER TABLE t1 ALTER COLUMN i SET MASKING POLICY p1;
+UPDATE t1 SET j = i;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1, t1 AS t2 SET t1.j = t2.i;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1 SET i = i + 1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1, t1 AS t2 SET t1.i = t2.i + 1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1 SET j = i + 1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1 SET j = i + 2;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1 SET j = j + 1 WHERE i < 10;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+UPDATE t1 SET i = j + 1;
+ALTER TABLE t1 ALTER COLUMN i DROP MASKING POLICY;
+SELECT * FROM t1;
+i	j
+3	2
+3	2
+4	3
+4	3
+5	4
+5	4
+NULL	NULL
+NULL	NULL
+NULL	NULL
+ALTER TABLE t1 ALTER COLUMN i SET MASKING POLICY p1;
+UPDATE t1, t1 AS t2 SET t1.i = t2.j + 2 WHERE t1.j = t2.j;
+ALTER TABLE t1 ALTER COLUMN i DROP MASKING POLICY;
+SELECT * FROM t1;
+i	j
+4	2
+4	2
+5	3
+5	3
+6	4
+6	4
+NULL	NULL
+NULL	NULL
+NULL	NULL
+ALTER TABLE t1 ALTER COLUMN i SET MASKING POLICY p1;
+DELETE FROM t1 WHERE i < j;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+DELETE t1 FROM t1, t1 AS t2 WHERE t1.i < t2.j;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+DELETE t2 FROM t1, t1 AS t2 WHERE t1.i < t2.j;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+DELETE FROM t1 WHERE t1.j > 3;
+DELETE t1 FROM t1, t1 AS t2 WHERE t1.j = t2.j AND t2.j < 3;
+ALTER TABLE t1 ALTER COLUMN i DROP MASKING POLICY;
+SELECT * FROM t1;
+i	j
+5	3
+5	3
+NULL	NULL
+NULL	NULL
+NULL	NULL
+ALTER TABLE t1 ALTER COLUMN i SET MASKING POLICY p1;
+DROP TABLE t1;
+CREATE TABLE t2(id INT PRIMARY KEY, a INT MASKING POLICY p1, b INT);
+INSERT INTO t2 VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+INSERT INTO t2 (id) VALUES (1) ON DUPLICATE KEY UPDATE b = a + 1;
+ERROR HY000: MASKING POLICY component error: component is unavailable.
+INSERT INTO t2 (id) VALUES (2) ON DUPLICATE KEY UPDATE a = b + 1;
+ALTER TABLE t2 ALTER COLUMN a DROP MASKING POLICY;
+SELECT * FROM t2 ORDER BY id;
+id	a	b
+1	1	1
+2	3	2
+3	3	3
+DROP TABLE t2;

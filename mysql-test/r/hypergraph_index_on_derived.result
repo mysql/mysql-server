@@ -22,10 +22,10 @@ SELECT 1 FROM t1 y1, t1 y2 WHERE y1.b=y2.b and y2.c >
 (SELECT AVG(v1) FROM cte1 WHERE y2.d=v2);
 EXPLAIN
 -> Inner hash join (y1.b = y2.b)  (rows=927)
-    -> Table scan on y1  (rows=101)
+    -> Index scan on y1 using PRIMARY  (rows=101)
     -> Hash
         -> Filter: (y2.c > (select #2))  (rows=101)
-            -> Table scan on y2  (rows=101)
+            -> Index scan on y2 using PRIMARY  (rows=101)
             -> Select #2 (subquery in condition; dependent)
                 -> Aggregate: avg(cte1.v1)  (rows=1)
                     -> Index lookup on cte1 using <auto_key0> (v2 = y2.d)  (rows=1)
@@ -33,9 +33,9 @@ EXPLAIN
                             -> Table scan on <temporary>  (rows=17)
                                 -> Aggregate using temporary table  (rows=17)
                                     -> Inner hash join (x1.c = x2.c)  (rows=785)
-                                        -> Table scan on x2  (rows=101)
+                                        -> Index scan on x2 using PRIMARY  (rows=101)
                                         -> Hash
-                                            -> Table scan on x1  (rows=101)
+                                            -> Index scan on x1 using PRIMARY  (rows=101)
 
 Warnings:
 Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
@@ -56,10 +56,10 @@ SELECT 1 FROM t1 y1, t1 y2 WHERE y1.b=y2.b AND y2.c >
 (SELECT AVG(d2.v2) FROM cte1 d2 WHERE d1.v3=d2.v1));
 EXPLAIN
 -> Inner hash join (y1.b = y2.b)  (rows=927)
-    -> Table scan on y1  (rows=101)
+    -> Index scan on y1 using PRIMARY  (rows=101)
     -> Hash
         -> Filter: (y2.c > (select #2))  (rows=101)
-            -> Table scan on y2  (rows=101)
+            -> Index scan on y2 using PRIMARY  (rows=101)
             -> Select #2 (subquery in condition; dependent)
                 -> Aggregate: avg(d1.v1)  (rows=1)
                     -> Filter: (d1.v1 > (select #4))  (rows=1)
@@ -68,9 +68,9 @@ EXPLAIN
                                 -> Table scan on <temporary>  (rows=17)
                                     -> Aggregate using temporary table  (rows=17)
                                         -> Inner hash join (x1.c = x2.c)  (rows=785)
-                                            -> Table scan on x2  (rows=101)
+                                            -> Index scan on x2 using PRIMARY  (rows=101)
                                             -> Hash
-                                                -> Table scan on x1  (rows=101)
+                                                -> Index scan on x1 using PRIMARY  (rows=101)
                         -> Select #4 (subquery in condition; dependent)
                             -> Aggregate: avg(d2.v2)  (rows=1)
                                 -> Filter: (d1.v3 = d2.v1)  (rows=1.7)
@@ -104,9 +104,9 @@ EXPLAIN
                 -> Table scan on <temporary>  (rows=17)
                     -> Aggregate using temporary table  (rows=17)
                         -> Inner hash join (x1.c = x2.c)  (rows=785)
-                            -> Table scan on x2  (rows=101)
+                            -> Index scan on x2 using PRIMARY  (rows=101)
                             -> Hash
-                                -> Table scan on x1  (rows=101)
+                                -> Index scan on x1 using PRIMARY  (rows=101)
         -> Index lookup on d2 using <auto_key1> (v2 = 3)  (rows=1.7)
             -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
 

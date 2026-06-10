@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -815,6 +815,7 @@ template class Equi_height<String>;
 template class Equi_height<ulonglong>;
 template class Equi_height<longlong>;
 template class Equi_height<Time_val>;
+template class Equi_height<Date_val>;
 template class Equi_height<Datetime_val>;
 template class Equi_height<my_decimal>;
 

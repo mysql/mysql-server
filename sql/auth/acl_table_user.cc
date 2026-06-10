@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/plugin.h" /* st_mysql_plugin, MYSQL_AUTHENTICATION_PLUGIN */
 #include "mysql/plugin_auth.h"      /* st_mysql_auth */
 #include "mysql/strings/m_ctype.h"  /* my_charset_* */
-#include "mysql_time.h"             /* MYSQL_TIME, MYSQL_TIMESTAMP_ERROR */
+#include "mysql_time.h"             /* MYSQL_TIMESTAMP_ERROR */
 #include "mysqld_error.h"           /* ER_* */
 #include "prealloced_array.h"       /* Prealloced_array */
 #include "sql/auth/auth_acls.h"     /* ACLs */
@@ -2118,9 +2118,9 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     /*
       Convert the time when the password was changed from timeval
-      structure to MYSQL_TIME format, to store it in cache.
+      structure to datetime format, to store it in cache.
     */
-    MYSQL_TIME password_change_time;
+    Datetime_val password_change_time;
 
     if (builtin_plugin && (update_password || !old_row_exists))
       thd->variables.time_zone->gmt_sec_to_TIME(

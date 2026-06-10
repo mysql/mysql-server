@@ -243,7 +243,6 @@ from( make_set( ('>>'), ('`'))))
 ;
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '>>'
-Warning	1292	Incorrect datetime value: '1'
 do quote(make_set((''), (cast(('-2147483649.1') as binary(513)))));
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''

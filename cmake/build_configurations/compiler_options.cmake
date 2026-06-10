@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2012, 2026, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ IF(UNIX)
       STRING_APPEND(COMMON_C_FLAGS   " -ffp-contract=off")
     ENDIF()
 
-    SET(COMMON_CXX_FLAGS             "-std=c++20 -fno-omit-frame-pointer")
+    SET(COMMON_CXX_FLAGS             "-fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_CXX_FLAGS  "-fno-inline ")
@@ -62,7 +62,7 @@ IF(UNIX)
   # Default Clang flags
   IF(MY_COMPILER_IS_CLANG)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
-    SET(COMMON_CXX_FLAGS             "-std=c++20 -fno-omit-frame-pointer")
+    SET(COMMON_CXX_FLAGS             "-fno-omit-frame-pointer")
   ENDIF()
 
   # Faster TLS model

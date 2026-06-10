@@ -682,3 +682,20 @@ let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "da
 --source include/store_histogram_and_check.inc
 
 DROP TABLE tbl_int;
+
+--echo #
+--echo # Bug#37269033: user defined histogram import error for bigint data
+--echo #
+
+--let $tbl_name= tbl_bigint
+--let $col_name= col1
+--let $buckets= 4
+--let $comparison_value= 20
+--let $update = MANUAL
+
+CREATE TABLE tbl_bigint(col1 BIGINT);
+INSERT INTO tbl_bigint VALUES (100000000000);
+let $json_data= {"buckets": [[100000000000, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+--source include/store_histogram_and_check.inc
+
+DROP TABLE tbl_bigint;

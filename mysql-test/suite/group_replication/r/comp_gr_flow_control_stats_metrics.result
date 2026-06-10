@@ -1,0 +1,111 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+############################################################
+# 1. Configure flow control to throttle transactions
+SET @group_replication_flow_control_certifier_threshold_save= @@GLOBAL.group_replication_flow_control_certifier_threshold;
+SET @group_replication_flow_control_applier_threshold_save= @@GLOBAL.group_replication_flow_control_applier_threshold;
+SET @group_replication_flow_control_max_quota_save= @@GLOBAL.group_replication_flow_control_max_quota;
+SET GLOBAL group_replication_flow_control_certifier_threshold= 1;
+SET GLOBAL group_replication_flow_control_applier_threshold= 1;
+SET GLOBAL group_replication_flow_control_max_quota= 3;
+
+############################################################
+# 2. Verify that metrics are 0.
+[connection server1]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_flow\_control%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_flow_control_throttle_active_count	0
+Gr_flow_control_throttle_count	0
+Gr_flow_control_throttle_last_throttle_timestamp	
+Gr_flow_control_throttle_time_sum	0
+SHOW GLOBAL STATUS LIKE 'Gr\_flow\_control%';
+Variable_name	Value
+Gr_flow_control_throttle_active_count	0
+Gr_flow_control_throttle_count	0
+Gr_flow_control_throttle_last_throttle_timestamp	
+Gr_flow_control_throttle_time_sum	0
+
+############################################################
+# 3. Start Group Replication
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 4. Join server2 to the group.
+[connection server2]
+include/start_group_replication.inc
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+############################################################
+# 5. Execute transactions on server1 and validate data metrics
+#    on both servers.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (9);
+include/assert.inc ['At least one transaction was throttled']
+include/assert.inc ['The time sum of transactions that were throttled shall be more than zero']
+include/assert.inc ['Time of last transaction throttled is not empty']
+[connection server2]
+include/assert.inc ['The number of transactions currently being throttled shall be zero']
+include/assert.inc ['The number of transactions throttled shall be zero']
+include/assert.inc ['The time sum of transactions that were throttled shall be zero']
+include/assert.inc ['Time of last transaction throttled is empty']
+
+############################################################
+# 6. Stop Group Replication and validate that metrics are
+#    available.
+[connection server1]
+include/stop_group_replication.inc
+include/assert.inc ['At least one transaction was throttled']
+include/assert.inc ['The time sum of transactions that were throttled shall be more than zero']
+include/assert.inc ['Time of last transaction throttled is not empty']
+[connection server2]
+include/stop_group_replication.inc
+include/assert.inc ['The number of transactions currently being throttled shall be zero']
+include/assert.inc ['The number of transactions throttled shall be zero']
+include/assert.inc ['The time sum of transactions that were throttled shall be zero']
+include/assert.inc ['Time of last transaction throttled is empty']
+
+#################################################################
+# 7. Restart Stop Group Replication and validate that metrics were
+#    reset.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_flow\_control%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_flow_control_throttle_active_count	0
+Gr_flow_control_throttle_count	0
+Gr_flow_control_throttle_last_throttle_timestamp	
+Gr_flow_control_throttle_time_sum	0
+[connection server2]
+include/start_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_flow\_control%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_flow_control_throttle_active_count	0
+Gr_flow_control_throttle_count	0
+Gr_flow_control_throttle_last_throttle_timestamp	
+Gr_flow_control_throttle_time_sum	0
+
+#################################################################
+# 8. Cleanup
+[connection server1]
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+DROP TABLE t1;
+SET GLOBAL group_replication_flow_control_certifier_threshold= @group_replication_flow_control_certifier_threshold_save;
+SET GLOBAL group_replication_flow_control_applier_threshold= @group_replication_flow_control_applier_threshold_save;
+SET GLOBAL group_replication_flow_control_max_quota=@group_replication_flow_control_max_quota_save;
+[connection server2]
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+include/group_replication_end.inc

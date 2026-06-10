@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -372,7 +372,7 @@ class Parallel_reader {
 
   // Disable copying.
   Parallel_reader(const Parallel_reader &) = delete;
-  Parallel_reader(const Parallel_reader &&) = delete;
+  Parallel_reader(Parallel_reader &&) = delete;
   Parallel_reader &operator=(Parallel_reader &&) = delete;
   Parallel_reader &operator=(const Parallel_reader &) = delete;
 

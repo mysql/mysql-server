@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -145,3 +145,8 @@ MYSQL_ADD_EXECUTABLE(ndb_print_file
   ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ext::zlib
   )
+
+NDB_ADD_TEST(ndb_trpman-t trpman-t.cpp
+  LIBS ndbblocks ndberror ndbgeneral ndbsched ndbtest ndbtransport ndbkernel
+)
+

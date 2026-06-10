@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,6 +122,8 @@ class NdbRestarter {
   int getNodeTypeVersionRange(ndb_mgm_node_type type, int &minVer, int &maxVer);
 
   int getNodeStatus(int nodeId);  // return NDB_MGM_NODE_STATUS_*
+
+  int getUndefinedNodeId();
 
   /**
    * return 2 vectors with nodeId's (partitions)

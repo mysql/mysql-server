@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include "mysql/harness/destination_endpoint.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/resolver/resolver.h"
 #include "mysql/harness/stdx/expected.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -385,11 +386,13 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
 
 stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
     Unreachable_destination_candidate::resolve() {
+  using namespace mysql_harness::resolver;
+
   if (dest_.is_tcp()) {
     const auto &tcp_dest = dest_.as_tcp();
-    net::ip::tcp::resolver resolver(*io_ctx_);
+
     const auto resolve_res =
-        resolver.resolve(tcp_dest.hostname(), std::to_string(tcp_dest.port()));
+        resolve_host(tcp_dest.hostname(), CachePolicy::FillOnSuccess);
 
     if (!resolve_res) {
       return stdx::unexpected(resolve_res.error());
@@ -397,8 +400,10 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
 
     endpoints_.clear();
 
-    for (const auto &ep : *resolve_res) {
-      endpoints_.emplace_back(ep.endpoint());
+    for (const auto &addr : (*resolve_res).addresses) {
+      mysql_harness::DestinationEndpoint::TcpType endpoint{addr,
+                                                           tcp_dest.port()};
+      endpoints_.emplace_back(std::move(endpoint));
     }
 
   } else {

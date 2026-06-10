@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2654,11 +2654,6 @@ const handlerton *SecondaryEngineHandlerton(const THD *thd);
 const handlerton *EligibleSecondaryEngineHandlerton(
     THD *thd, const LEX_CSTRING *secondary_engine_in_name);
 
-// Returns the secondary_engine_nrows hook from plugin, if plugin is install and
-// the hook is installed.
-std::optional<secondary_engine_nrows_t> RetrieveSecondaryEngineNrowsHook(
-    THD *thd);
-
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
 using se_before_commit_t = void (*)(void *arg);
@@ -3720,6 +3715,9 @@ class Alter_inplace_info {
 
   // Alter column visibility.
   static const HA_ALTER_FLAGS ALTER_COLUMN_VISIBILITY = 1ULL << 49;
+
+  // Set or remove column's MASKING POLICY name
+  static const HA_ALTER_FLAGS ALTER_COLUMN_MASKING = 1ULL << 50;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -5121,6 +5119,7 @@ class handler {
   int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
   /** to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
+  int ha_check_foreign_constraints(THD *thd, size_t n_threads);
   int ha_repair(THD *thd, HA_CHECK_OPT *check_opt);
   void ha_start_bulk_insert(ha_rows rows);
   int ha_end_bulk_insert();
@@ -5245,6 +5244,17 @@ class handler {
   @param[in] thd user session
   @return true iff bulk load can be done on the table. */
   virtual bool bulk_load_check(THD *thd [[maybe_unused]]) const {
+    return false;
+  }
+
+  /** Check whether all records in the child table satisfy the foreign key
+  constraints.
+  @param[in]  thd  user session.
+  @param[in]  n_threads  number of threads to use.
+  @return true iff foreign key constraints are satisfied. */
+  virtual int check_foreign_constraints(THD *thd [[maybe_unused]],
+                                        size_t n_threads
+                                        [[maybe_unused]]) const {
     return false;
   }
 

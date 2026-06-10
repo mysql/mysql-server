@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,8 +85,17 @@ class ParseResponseCacheOptions
 
 auto parse_json_options(const std::string &config_key,
                         const std::string &options) {
-  return helper::json::text_to_handler<ParseResponseCacheOptions>(options,
-                                                                  config_key);
+  auto result = helper::json::text_to_handler<ParseResponseCacheOptions>(
+      options, config_key);
+
+  if (!result) {
+    log_error(
+        "Failed to parse 'ResponseCache/%s' options from global JSON "
+        "configuration",
+        config_key.c_str());
+  }
+
+  return result.value_or(ParseResponseCacheOptions::Result{});
 }
 
 }  // namespace

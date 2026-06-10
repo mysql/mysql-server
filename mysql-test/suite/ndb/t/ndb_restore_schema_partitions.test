@@ -351,9 +351,11 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 
 # Masking timestamp from the restore output with 'X' to avoid tests
 # running on different dates give 'Result content mismatch'.
+# Sprinkle with log level, not relevant for this tests but shows that
+# --show-log-level works.
 --replace_regex /[0-9]*-[0-9]*-[0-9]*[ T][0-9]*:[0-9]*:[0-9]*[.0-9Z:+-]*/XXXX-XX-XX XX:XX:XX/
 --error 1
---exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-log-level -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 >> $NDB_TOOLS_OUTPUT
 
 drop table t2_c;
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;

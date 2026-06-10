@@ -1,0 +1,134 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_logs.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("Failed to start.");
+call mtr.add_suppression("Illegal TLS 1.3 cipher found");
+call mtr.add_suppression("Failed to check system variable");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+#
+# Only global
+#
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_cipher_suite;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.telemetry.otel_exporter_otlp_logs_cipher_suite;
+
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_logs_cipher_suite';
+
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_logs_cipher_suite';
+
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name='telemetry.otel_exporter_otlp_logs_cipher_suite';
+
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name='telemetry.otel_exporter_otlp_logs_cipher_suite';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL telemetry.otel_exporter_otlp_logs_cipher_suite
+  ='SOME-CIPHER-SUITE';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION telemetry.otel_exporter_otlp_logs_cipher_suite
+  ='SOME-CIPHER-SUITE';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component with set var
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    =':';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='::';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='ALONE-ILLEGAL';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='BEGIN-ILLEGAL:TLS_AES_256_GCM_SHA384';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='TLS_AES_128_CCM_SHA256:END-ILLEGAL';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='TLS_AES_128_CCM_SHA256:MIDDLE-ILLEGAL:TLS_AES_256_GCM_SHA384';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='TLS_AES_128_CCM_SHA256:MANY-ILLEGAL-A:MANY-ILLEGAL-B:TLS_AES_256_GCM_SHA384';
+
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_cipher_suite
+    ='TLS_AES_128_CCM_SHA256:TLS_AES_256_GCM_SHA384';
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_cipher_suite;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST telemetry.otel_exporter_otlp_logs_cipher_suite
+  ='ULTIMATE-CIPHER-SUITE';
+
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_logs_cipher_suite
+  ='ULTIMATE-CIPHER-SUITE';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component (invalid)
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry';
+
+RESET PERSIST;
+
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_cipher_suite;
+
+# Valid value in PERSIST_ONLY
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_logs_cipher_suite
+  ='TLS_AES_256_GCM_SHA384';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component (valid)
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_cipher_suite;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--echo # Cleanup
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

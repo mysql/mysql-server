@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2025, Oracle and/or its affiliates.
+Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -134,7 +134,7 @@ struct Buffer {
 
   // Disable copying
   Buffer(const Buffer &) = delete;
-  Buffer(const Buffer &&) = delete;
+  Buffer(Buffer &&) = delete;
   Buffer &operator=(Buffer &&) = delete;
   Buffer &operator=(const Buffer &) = delete;
 };
@@ -533,7 +533,7 @@ class DBLWR {
 
   /** Disably copying. */
   DBLWR(const DBLWR &) = delete;
-  DBLWR(const DBLWR &&) = delete;
+  DBLWR(DBLWR &&) = delete;
   DBLWR &operator=(DBLWR &&) = delete;
   DBLWR &operator=(const DBLWR &) = delete;
 

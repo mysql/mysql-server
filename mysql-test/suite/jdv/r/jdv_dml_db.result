@@ -1,0 +1,202 @@
+CREATE TABLE departments (name VARCHAR(32) PRIMARY KEY, building VARCHAR(32));
+INSERT INTO departments VALUES
+('Mathematics', 'Matrix Mansion'),
+('Computer Science', 'Compiler Complex'),
+('Physics', 'Proton Palace'),
+('Economics', 'Ebitda Emporium'),
+('History', 'Humaities Hall');
+CREATE TABLE faculty (name VARCHAR(32) PRIMARY KEY, department VARCHAR(32),
+office INT, FOREIGN KEY (department) REFERENCES departments(name));
+INSERT INTO faculty VALUES
+('Abel', 'Mathematics', 101),
+('Von Neuman', 'Computer Science', 201),
+('Heisenberg', 'Physics', 301),
+('Greenspan', 'Economics', 401),
+('Harari','History', 501);
+CREATE TABLE courses (name VARCHAR(32) PRIMARY KEY, lecturer VARCHAR(32), level VARCHAR(32), FOREIGN KEY (lecturer) REFERENCES faculty(name));
+INSERT INTO courses VALUES ('Abstract Algebra', 'Abel', 'PhD'),
+('Operating Systems', 'Von Neuman', 'Master'),
+('Quantum Mechanics', 'Heisenberg', 'PhD'),
+('Macroeconomics', 'Greenspan', 'Bachelor'),
+('Ancient Civilizations','Harari', 'Master');
+CREATE TABLE students (name VARCHAR(32) PRIMARY KEY, phone INT, major VARCHAR(32),
+FOREIGN KEY (major) REFERENCES departments(name));
+INSERT INTO students VALUES
+('John', 12345678, 'Mathematics'),
+('Melissa', 87654321, 'Computer Science'),
+('Peter', NULL, 'Economics'),
+('Karen', 56761234, 'Physics');
+CREATE TABLE registrations (student VARCHAR(32), course VARCHAR(32),
+PRIMARY KEY (student, course), FOREIGN KEY (student) REFERENCES
+students(name), FOREIGN KEY (course) REFERENCES courses(name));
+INSERT INTO registrations VALUES
+('John', 'Abstract Algebra'), ('John', 'Macroeconomics'),
+('Melissa', 'Macroeconomics'), ('Melissa', 'Operating Systems'),
+('Peter', 'Quantum Mechanics'), ('Peter', 'Ancient Civilizations'),
+('Karen', 'Ancient Civilizations'), ('Karen', 'Abstract Algebra');
+SELECT * FROM departments ORDER BY name;
+name	building
+Computer Science	Compiler Complex
+Economics	Ebitda Emporium
+History	Humaities Hall
+Mathematics	Matrix Mansion
+Physics	Proton Palace
+CREATE JSON DUALITY VIEW dv_departments AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : departments.name,
+'blding' : departments.building)
+FROM departments;
+SELECT data FROM dv_departments;
+data
+{"_id": "Computer Science", "blding": "Compiler Complex", "_metadata": {"etag": "3687c9f11af3444b310dfdcfeaeb30b9"}}
+{"_id": "Economics", "blding": "Ebitda Emporium", "_metadata": {"etag": "f78d15d50b007600ab06e0d3aea172f9"}}
+{"_id": "History", "blding": "Humaities Hall", "_metadata": {"etag": "6f475f0bb953fb33d05df15a2548e32c"}}
+{"_id": "Mathematics", "blding": "Matrix Mansion", "_metadata": {"etag": "0362b1f3bd30ebd87b2828e42eb84df9"}}
+{"_id": "Physics", "blding": "Proton Palace", "_metadata": {"etag": "c56c4ea9aabbf3448ace9945afd6bc6b"}}
+UPDATE dv_departments SET data = JSON_REPLACE(data, '$.blding', 'Compiler Cathedral')
+WHERE JSON_EXTRACT(data, '$._id') = 'Computer Science';
+SELECT data FROM dv_departments WHERE JSON_EXTRACT(data, '$._id') = 'Computer Science';
+data
+{"_id": "Computer Science", "blding": "Compiler Cathedral", "_metadata": {"etag": "591a3a4d18e89c49fd4ee9a28c8526f4"}}
+INSERT INTO dv_departments VALUES ('{"_id": "Philosophy", "blding": "Pantheon Place" }');
+SELECT data FROM dv_departments;
+data
+{"_id": "Computer Science", "blding": "Compiler Cathedral", "_metadata": {"etag": "591a3a4d18e89c49fd4ee9a28c8526f4"}}
+{"_id": "Economics", "blding": "Ebitda Emporium", "_metadata": {"etag": "f78d15d50b007600ab06e0d3aea172f9"}}
+{"_id": "History", "blding": "Humaities Hall", "_metadata": {"etag": "6f475f0bb953fb33d05df15a2548e32c"}}
+{"_id": "Mathematics", "blding": "Matrix Mansion", "_metadata": {"etag": "0362b1f3bd30ebd87b2828e42eb84df9"}}
+{"_id": "Philosophy", "blding": "Pantheon Place", "_metadata": {"etag": "e6ffbf92fc1cd6a0d3830258aebcba58"}}
+{"_id": "Physics", "blding": "Proton Palace", "_metadata": {"etag": "c56c4ea9aabbf3448ace9945afd6bc6b"}}
+SELECT * FROM departments WHERE name = 'Philosophy';
+name	building
+Philosophy	Pantheon Place
+UPDATE dv_departments SET data = '{"_id": "Philosophy", "blding": "Pantheon Plaza", "_metadata": {"etag": "e6ffbf92fc1cd6a0d3830258aebcba58"}}'
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+SELECT data FROM dv_departments;
+data
+{"_id": "Computer Science", "blding": "Compiler Cathedral", "_metadata": {"etag": "591a3a4d18e89c49fd4ee9a28c8526f4"}}
+{"_id": "Economics", "blding": "Ebitda Emporium", "_metadata": {"etag": "f78d15d50b007600ab06e0d3aea172f9"}}
+{"_id": "History", "blding": "Humaities Hall", "_metadata": {"etag": "6f475f0bb953fb33d05df15a2548e32c"}}
+{"_id": "Mathematics", "blding": "Matrix Mansion", "_metadata": {"etag": "0362b1f3bd30ebd87b2828e42eb84df9"}}
+{"_id": "Philosophy", "blding": "Pantheon Plaza", "_metadata": {"etag": "c7ebebe24958a5cdc44e8d5c299b6c55"}}
+{"_id": "Physics", "blding": "Proton Palace", "_metadata": {"etag": "c56c4ea9aabbf3448ace9945afd6bc6b"}}
+SELECT * FROM departments WHERE name = 'Philosophy';
+name	building
+Philosophy	Pantheon Plaza
+CREATE JSON DUALITY VIEW dv_faculty AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': faculty.name,
+'dn' : faculty.department,
+'dept' : ( SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+'nam' : departments.name,
+'blding' : departments.building
+) FROM departments WHERE departments.name = faculty.department),
+'office' : faculty.office
+) FROM faculty;
+SELECT data FROM dv_faculty;
+data
+{"dn": "Mathematics", "_id": "Abel", "dept": {"nam": "Mathematics", "blding": "Matrix Mansion"}, "office": 101, "_metadata": {"etag": "cbf0c2077ebd3eaf28e62f4a46b80784"}}
+{"dn": "Economics", "_id": "Greenspan", "dept": {"nam": "Economics", "blding": "Ebitda Emporium"}, "office": 401, "_metadata": {"etag": "c8a3a0cf9ba565b485d4e885a4f9936b"}}
+{"dn": "History", "_id": "Harari", "dept": {"nam": "History", "blding": "Humaities Hall"}, "office": 501, "_metadata": {"etag": "20999ff3dd4b2c722e4ae2e7dee7a359"}}
+{"dn": "Physics", "_id": "Heisenberg", "dept": {"nam": "Physics", "blding": "Proton Palace"}, "office": 301, "_metadata": {"etag": "5c598222f259a62c051171f1fc64405c"}}
+{"dn": "Computer Science", "_id": "Von Neuman", "dept": {"nam": "Computer Science", "blding": "Compiler Cathedral"}, "office": 201, "_metadata": {"etag": "9a1f59c1845187fa0de0c8a6bc05ccf5"}}
+INSERT INTO dv_faculty VALUES ('{"_id": "Kant", "dept": {"nam": "Philosophy"}, "office": 601 }');
+SELECT data FROM dv_faculty;
+data
+{"dn": "Mathematics", "_id": "Abel", "dept": {"nam": "Mathematics", "blding": "Matrix Mansion"}, "office": 101, "_metadata": {"etag": "cbf0c2077ebd3eaf28e62f4a46b80784"}}
+{"dn": "Economics", "_id": "Greenspan", "dept": {"nam": "Economics", "blding": "Ebitda Emporium"}, "office": 401, "_metadata": {"etag": "c8a3a0cf9ba565b485d4e885a4f9936b"}}
+{"dn": "History", "_id": "Harari", "dept": {"nam": "History", "blding": "Humaities Hall"}, "office": 501, "_metadata": {"etag": "20999ff3dd4b2c722e4ae2e7dee7a359"}}
+{"dn": "Physics", "_id": "Heisenberg", "dept": {"nam": "Physics", "blding": "Proton Palace"}, "office": 301, "_metadata": {"etag": "5c598222f259a62c051171f1fc64405c"}}
+{"dn": "Philosophy", "_id": "Kant", "dept": {"nam": "Philosophy", "blding": "Pantheon Plaza"}, "office": 601, "_metadata": {"etag": "39a507309342c9bfc18211fc49b184b2"}}
+{"dn": "Computer Science", "_id": "Von Neuman", "dept": {"nam": "Computer Science", "blding": "Compiler Cathedral"}, "office": 201, "_metadata": {"etag": "9a1f59c1845187fa0de0c8a6bc05ccf5"}}
+SELECT * FROM faculty WHERE name = 'Kant';
+name	department	office
+Kant	Philosophy	601
+CREATE JSON DUALITY VIEW dv_deparment_agg_faculty AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : departments.name,
+'faculty members' : ( SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'nam' : faculty.name,   # Included due to requirement. Not required by Oracle 23ai
+'office' : faculty.office,
+'dep' : faculty.department
+)) FROM faculty WHERE faculty.department = departments.name),
+'building' : departments.building
+) FROM departments;
+SELECT data FROM dv_deparment_agg_faculty;
+data
+{"_id": "Computer Science", "building": "Compiler Cathedral", "_metadata": {"etag": "9d6b443724b80c0fb993876ff9e6070d"}, "faculty members": [{"dep": "Computer Science", "nam": "Von Neuman", "office": 201}]}
+{"_id": "Economics", "building": "Ebitda Emporium", "_metadata": {"etag": "ea5be2c2afa2d4af5b98707eac346e81"}, "faculty members": [{"dep": "Economics", "nam": "Greenspan", "office": 401}]}
+{"_id": "History", "building": "Humaities Hall", "_metadata": {"etag": "97ab767d9b6290048a1c1382686f15a1"}, "faculty members": [{"dep": "History", "nam": "Harari", "office": 501}]}
+{"_id": "Mathematics", "building": "Matrix Mansion", "_metadata": {"etag": "99e1153678ebc826d0314f6bf79fda37"}, "faculty members": [{"dep": "Mathematics", "nam": "Abel", "office": 101}]}
+{"_id": "Philosophy", "building": "Pantheon Plaza", "_metadata": {"etag": "b8a195461f6ab80c0d1c3a564b376d6d"}, "faculty members": [{"dep": "Philosophy", "nam": "Kant", "office": 601}]}
+{"_id": "Physics", "building": "Proton Palace", "_metadata": {"etag": "1ec6591d3dac4978112f58c2de5431eb"}, "faculty members": [{"dep": "Physics", "nam": "Heisenberg", "office": 301}]}
+INSERT INTO dv_deparment_agg_faculty VALUES ('{
+    "_id": "Chemistry",
+    "faculty members": [
+        { "nam": "Curie", "office": 1001, "dep": "Chemistry" },
+        { "nam": "Avogadro", "office": 1101, "dep": "Chemistry" }
+        ],
+    "building": "Chemnitz Castle"
+}');
+SELECT * FROM faculty f, departments d WHERE f.department = d.name ORDER BY
+d.name, f.name;
+name	department	office	name	building
+Avogadro	Chemistry	1101	Chemistry	Chemnitz Castle
+Curie	Chemistry	1001	Chemistry	Chemnitz Castle
+Von Neuman	Computer Science	201	Computer Science	Compiler Cathedral
+Greenspan	Economics	401	Economics	Ebitda Emporium
+Harari	History	501	History	Humaities Hall
+Abel	Mathematics	101	Mathematics	Matrix Mansion
+Kant	Philosophy	601	Philosophy	Pantheon Plaza
+Heisenberg	Physics	301	Physics	Proton Palace
+SELECT * FROM dv_deparment_agg_faculty;
+data
+{"_id": "Chemistry", "building": "Chemnitz Castle", "_metadata": {"etag": "f9e2317317dd0ec85b1afc0e4218a854"}, "faculty members": [{"dep": "Chemistry", "nam": "Avogadro", "office": 1101}, {"dep": "Chemistry", "nam": "Curie", "office": 1001}]}
+{"_id": "Computer Science", "building": "Compiler Cathedral", "_metadata": {"etag": "9d6b443724b80c0fb993876ff9e6070d"}, "faculty members": [{"dep": "Computer Science", "nam": "Von Neuman", "office": 201}]}
+{"_id": "Economics", "building": "Ebitda Emporium", "_metadata": {"etag": "ea5be2c2afa2d4af5b98707eac346e81"}, "faculty members": [{"dep": "Economics", "nam": "Greenspan", "office": 401}]}
+{"_id": "History", "building": "Humaities Hall", "_metadata": {"etag": "97ab767d9b6290048a1c1382686f15a1"}, "faculty members": [{"dep": "History", "nam": "Harari", "office": 501}]}
+{"_id": "Mathematics", "building": "Matrix Mansion", "_metadata": {"etag": "99e1153678ebc826d0314f6bf79fda37"}, "faculty members": [{"dep": "Mathematics", "nam": "Abel", "office": 101}]}
+{"_id": "Philosophy", "building": "Pantheon Plaza", "_metadata": {"etag": "b8a195461f6ab80c0d1c3a564b376d6d"}, "faculty members": [{"dep": "Philosophy", "nam": "Kant", "office": 601}]}
+{"_id": "Physics", "building": "Proton Palace", "_metadata": {"etag": "1ec6591d3dac4978112f58c2de5431eb"}, "faculty members": [{"dep": "Physics", "nam": "Heisenberg", "office": 301}]}
+UPDATE dv_deparment_agg_faculty SET data = '{
+    "_id": "Philosophy",
+    "faculty members": [
+        {"nam":"Kant", "office": 1201,"dep": "Philosophy"},
+        {"nam":"Hegel", "office": 1301, "dep": "Philosophy"}],
+    "building": "Pantheon Plaza", "_metadata": {"etag": "b8a195461f6ab80c0d1c3a564b376d6d"}
+}' WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+SELECT * FROM faculty f, departments d WHERE f.department = d.name ORDER BY
+d.name, f.name;
+name	department	office	name	building
+Avogadro	Chemistry	1101	Chemistry	Chemnitz Castle
+Curie	Chemistry	1001	Chemistry	Chemnitz Castle
+Von Neuman	Computer Science	201	Computer Science	Compiler Cathedral
+Greenspan	Economics	401	Economics	Ebitda Emporium
+Harari	History	501	History	Humaities Hall
+Abel	Mathematics	101	Mathematics	Matrix Mansion
+Hegel	Philosophy	1301	Philosophy	Pantheon Plaza
+Kant	Philosophy	1201	Philosophy	Pantheon Plaza
+Heisenberg	Physics	301	Physics	Proton Palace
+SELECT data FROM dv_deparment_agg_faculty
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+data
+{"_id": "Philosophy", "building": "Pantheon Plaza", "_metadata": {"etag": "dc30bd31fcb05394996438b8663a2eab"}, "faculty members": [{"dep": "Philosophy", "nam": "Hegel", "office": 1301}, {"dep": "Philosophy", "nam": "Kant", "office": 1201}]}
+UPDATE dv_deparment_agg_faculty SET data = JSON_REPLACE(data,
+'$."faculty members"[0].office',
+10000)
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+SELECT * FROM faculty WHERE office = 10000;
+name	department	office
+Hegel	Philosophy	10000
+SELECT data FROM dv_deparment_agg_faculty
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+data
+{"_id": "Philosophy", "building": "Pantheon Plaza", "_metadata": {"etag": "d56c5277449134c8e0d1ac7511aa01d3"}, "faculty members": [{"dep": "Philosophy", "nam": "Hegel", "office": 10000}, {"dep": "Philosophy", "nam": "Kant", "office": 1201}]}
+DROP VIEW dv_deparment_agg_faculty;
+DROP VIEW dv_faculty;
+DROP VIEW dv_departments;
+DROP TABLE registrations;
+DROP TABLE students;
+DROP TABLE courses;
+DROP TABLE faculty;
+DROP TABLE departments;

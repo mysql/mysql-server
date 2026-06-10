@@ -36,11 +36,11 @@
 --echo ############################################################
 --echo #  1. Bootstrap the group with server1 that is one patch version
 --echo #     higher than the current version.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# | server1 | ONLINE  | 9.7.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
 --source include/connection.inc
@@ -56,12 +56,12 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 --echo ############################################################
 --echo #  2. Join server2 that is one patch version
 --echo #     higher than the current version.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
-# | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
+# | server1 | ONLINE  | 9.7.1   | Primary   | LTS        |
+# | server2 | ONLINE  | 9.7.1   | Secondary | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server2
 --source include/connection.inc
@@ -78,13 +78,13 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 --echo
 --echo ############################################################
 --echo #  3. Join server3 that is one patch lower than the group version.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
-# | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
-# | server3 | ONLINE  | 8.4.0   | Secondary | LTS        |
+# | server1 | ONLINE  | 9.7.1   | Primary   | LTS        |
+# | server2 | ONLINE  | 9.7.1   | Secondary | LTS        |
+# | server3 | ONLINE  | 9.7.0   | Secondary | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server3
 --source include/connection.inc
@@ -139,12 +139,12 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo #  6. After the primary, server1, leaves, server3 is the new
 --echo #     primary.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
-# | server3 | ONLINE  | 8.4.0   | Primary   | LTS        |
+# | server2 | ONLINE  | 9.7.1   | Secondary | LTS        |
+# | server3 | ONLINE  | 9.7.0   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
 --source include/connection.inc
@@ -166,11 +166,11 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo #  7. server3 leaves the group.
 --echo #     server2 becomes the primary.
-# Group status assuming 8.4.0 as the current version
+# Group status assuming 9.7.0 as the current version
 # +---------+---------+---------+-----------+------------+
 # | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
 # +---------+---------+---------+-----------+------------+
-# | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# | server2 | ONLINE  | 9.7.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server3
 --source include/connection.inc
@@ -187,13 +187,13 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo ############################################################
 --echo #  8. server1 joins the group as a higher major version.
-# Group status assuming 8.4.0 as the current version
-# +---------+---------+---------+-----------+------------+
-# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
-# +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 9.4.0   | Secondary | INNOVATION |
-# | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
-# +---------+---------+---------+-----------+------------+
+# Group status assuming 9.7.0 as the current version
+# +---------+---------+----------+-----------+------------+
+# | MEMBER  | STATE   | VERSION  | ROLE      | MATURITY   |
+# +---------+---------+----------+-----------+------------+
+# | server1 | ONLINE  | 10.7.0   | Secondary | LTS        |
+# | server2 | ONLINE  |  9.7.1   | Primary   | LTS        |
+# +---------+---------+----------+-----------+------------+
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
@@ -214,15 +214,15 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo #  9. Try to add server3 that is from a lower LTS patch version.
 --echo #     It will not be allowed to join because not all group members
---echo #     are LTS version.
-# Group status assuming 8.4.0 as the current version
-# +---------+---------+---------+-----------+------------+
-# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
-# +---------+---------+---------+-----------+------------+
-# | server1 | ONLINE  | 9.4.0   | Secondary | INNOVATION |
-# | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
-# | server3 | OFFLINE | 8.4.0   |           | LTS        |
-# +---------+---------+---------+-----------+------------+
+--echo #     are of the same LTS version.
+# Group status assuming 9.7.0 as the current version
+# +---------+---------+----------+-----------+------------+
+# | MEMBER  | STATE   | VERSION  | ROLE      | MATURITY   |
+# +---------+---------+----------+-----------+------------+
+# | server1 | ONLINE  | 10.7.0   | Secondary | LTS        |
+# | server2 | ONLINE  |  9.7.1   | Primary   | LTS        |
+# | server3 | OFFLINE |  9.7.0   |           | LTS        |
+# +---------+---------+----------+-----------+------------+
 --let $rpl_connection_name= server3
 --source include/connection.inc
 

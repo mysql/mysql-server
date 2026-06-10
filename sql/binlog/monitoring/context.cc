@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -297,11 +297,12 @@ void Transaction_compression::update(
                                       comp_bytes, uncomp_bytes);
 }
 
-void Transaction_compression::get_stats(std::vector<Compression_stats *> &v) {
+void Transaction_compression::get_stats(
+    std::vector<std::unique_ptr<Compression_stats>> &v) {
   for (auto const &entry : m_stats) {
     // if first seen transaction is set
     if (std::get<3>(entry.second->get_first_transaction_stats()) != 0) {
-      v.push_back(new Compression_stats(*entry.second));
+      v.push_back(std::make_unique<Compression_stats>(*entry.second));
     }
   }
 }

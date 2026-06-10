@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,12 +36,13 @@ class EnableComReq {
   friend class TrpmanProxy;
 
  public:
-  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 SignalLength = 4;
 
  private:
   Uint32 m_senderRef;
   Uint32 m_senderData;
   Uint32 m_enableNodeId;
+  Uint32 m_dbHbSender;    // Qmgr::cneighbourl
   NodeBitmask m_nodeIds;  // Not part of signal, but first section
 };
 
@@ -52,12 +53,13 @@ class EnableComConf {
   friend class Cmvmi;
 
  public:
-  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 SignalLength = 4;
 
  private:
   Uint32 m_senderRef;
   Uint32 m_senderData;
   Uint32 m_enableNodeId;
+  Uint32 m_dbHbSender;  // Qmgr::cneighbourl, not used only for TrpmanProxy
 };
 
 #undef JAM_FILE_ID

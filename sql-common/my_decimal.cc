@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,38 +303,56 @@ static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
 }
 
 /**
-  Convert datetime value to my_decimal in format YYYYMMDDhhmmss.ffffff
-  @param ltime  Date value to convert from.
-  @param dec    Decimal value to convert to.
+  Convert date value to my_decimal in format YYYYMMDD
+
+  @param      date  Date value to convert from.
+  @param[out] dec   Decimal value to convert to.
+
+  @returns pointer to decimal value
 */
-my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
+my_decimal *date_to_decimal(const Date_val date, my_decimal *dec) {
   lldiv_t lld;
-  lld.quot = ltime->time_type > MYSQL_TIMESTAMP_DATE
-                 ? TIME_to_ulonglong_datetime(*ltime)
-                 : TIME_to_ulonglong_date(*ltime);
-  lld.rem = (longlong)ltime->second_part * 1000;
-  return lldiv_t2my_decimal(&lld, ltime->neg, dec);
+  lld.quot = date.to_int();
+  lld.rem = 0;
+  return lldiv_t2my_decimal(&lld, false, dec);
+}
+
+/**
+  Convert datetime value to my_decimal in format YYYYMMDDhhmmss.ffffff
+
+  @param      dt  Datetime value to convert from.
+  @param[out] dec Decimal value to convert to.
+
+  @returns pointer to decimal value
+*/
+my_decimal *datetime_to_decimal(const Datetime_val *dt, my_decimal *dec) {
+  lldiv_t lld;
+  assert(dt->time_type == MYSQL_TIMESTAMP_DATETIME ||
+         dt->time_type == MYSQL_TIMESTAMP_DATETIME_TZ);
+  lld.quot = TIME_to_ulonglong_datetime(*dt);
+  lld.rem = (longlong)dt->second_part * 1000;
+  return lldiv_t2my_decimal(&lld, dt->neg, dec);
 }
 
 /**
   Convert time value to my_decimal in format hhmmss.ffffff
-  @param time   Date value to convert from.
+  @param time   Time value to convert from.
   @param dec    Decimal value to convert to.
 */
-my_decimal *time2my_decimal(const Time_val *time, my_decimal *dec) {
+my_decimal *time_to_decimal(const Time_val time, my_decimal *dec) {
   lldiv_t lld;
-  lld.quot = time->to_int_truncated();
-  if (time->is_negative()) {
+  lld.quot = time.to_int_truncated();
+  if (time.is_negative()) {
     lld.quot = -lld.quot;
   }
-  lld.rem = (longlong)time->microsecond() * 1000;
-  return lldiv_t2my_decimal(&lld, time->is_negative(), dec);
+  lld.rem = static_cast<longlong>(time.microsecond() * 1000);
+  return lldiv_t2my_decimal(&lld, time.is_negative(), dec);
 }
 
 /**
   Convert timeval value to my_decimal.
 */
-my_decimal *timeval2my_decimal(const my_timeval *tm, my_decimal *dec) {
+my_decimal *timeval_to_decimal(const my_timeval *tm, my_decimal *dec) {
   lldiv_t lld;
   lld.quot = tm->m_tv_sec;
   lld.rem = tm->m_tv_usec * 1000;

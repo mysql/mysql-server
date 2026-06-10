@@ -821,7 +821,6 @@ regexp_like( repeat(@v1, 'abc'), 'abc' )
 NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
-Warning	1292	Truncated incorrect INTEGER value: 'abc'
 #
 # Bug#27597980: ADD ERROR MESSAGE FOR INVALID CAPTURE GROUP NAME
 #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,8 +215,13 @@ bool check_constraint_expr_refers_to_only_column(Item *check_expr,
                                                  const char *column_name);
 
 /**
-  Helper class to check if column being dropped or removed in ALTER statement
-  is in use by Check constraints.
+   Helper class to check if an ALTER statement performs a disallowed
+   modification on a column depended on by a Check constraint. Disallowed
+   modifications include:
+
+   - DROP COLUMN
+   - RENAME COLUMN
+   - SET MASKING POLICY
 */
 class Check_constraint_column_dependency_checker {
  public:
@@ -235,8 +240,9 @@ class Check_constraint_column_dependency_checker {
   bool operator()(const Alter_drop *drop);
 
   /**
-    Method to check if column being renamed using RENAME COLUMN clause of the
-    ALTER TABLE statement is in use by check constraints.
+    Method to check if a column being altered with the RENAME COLUMN or SET
+    MASKING POLICY clause of the ALTER TABLE statement is in use by check
+    constraints.
 
     @param   alter_column   Instance of Alter_column.
 
@@ -246,8 +252,9 @@ class Check_constraint_column_dependency_checker {
   bool operator()(const Alter_column *alter_column);
 
   /**
-    Method to check if column being renamed using CHANGE [COLUMN] clause of the
-    ALTER TABLE statement is in use by check constraints.
+    Method to check if the CHANGE COLUMN or MODIFY COLUMN clause of the ALTER
+    TABLE statement renames a column or assigns a masking policy to a column
+    which is in use by check constraints.
 
     @param   fld     Instance of Create_field.
 
@@ -257,17 +264,20 @@ class Check_constraint_column_dependency_checker {
   bool operator()(const Create_field &fld);
 
  private:
+  enum class Operation { kDropColumn, kRenameColumn, kSetMaskingPolicy };
+
   /**
     Check if any check constraint uses "column_name".
 
     @param   column_name  Column name.
+    @param   operation    Which operation is performed on the column.
 
     @retval  true         If column is used by the check constraint.
     @retval  false        Otherwise.
   */
-  bool any_check_constraint_uses_column(const char *column_name);
+  bool any_check_constraint_uses_column(const char *column_name,
+                                        Operation operation);
 
- private:
   /// Check constraint specification list.
   const Sql_check_constraint_spec_list &m_check_constraint_list;
 };

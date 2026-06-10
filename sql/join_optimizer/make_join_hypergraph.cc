@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -369,7 +369,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
   RelationalExpression *ret = nullptr;
   for (auto it = join_list->rbegin(); it != join_list->rend();
        ++it) {  // The list goes backwards.
-    const Table_ref *tl = *it;
+    Table_ref *tl = *it;
     if (ret == nullptr) {
       // The first table in the list.
       ret = MakeRelationalExpression(thd, query_block, tl);
@@ -425,6 +425,14 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
       EarlyNormalizeConditions(thd, join, &join->join_conditions,
                                &always_false);
       ReorderConditions(&join->join_conditions);
+      // Rebuild join_cond_optim to reflect the post-folding conditions,
+      // since EarlyNormalizeConditions may have mutated the original
+      // Item tree in-place via remove_eq_conds().
+      List<Item> conditions;
+      for (Item *cond : join->join_conditions) {
+        conditions.push_back(cond);
+      }
+      tl->set_join_cond_optim(CreateConjunction(&conditions));
     }
     ret = join;
   }
@@ -1936,6 +1944,17 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // Condition refers to tables outside this subtree, so it can not be
       // pushed (this can only happen with semijoins).
       remaining_parts.push_back(item);
+    } else if (!is_join_condition_for_expr && item->is_non_deterministic()) {
+      // Non-deterministic WHERE predicates that reference multiple tables
+      // must not be pushed down into join conditions, as that would turn
+      // them into hypergraph join edges. Since RAND predicates are excluded
+      // from delayed_predicates (Bug#36032958), using one as a join edge
+      // creates an asymmetry: paths where it is the edge include its
+      // selectivity, while paths where it is not defer it as a final
+      // predicate, leading to inconsistent row count estimates. Keep these
+      // predicates in the WHERE clause so they are uniformly applied as
+      // final predicates after all tables have been joined.
+      remaining_parts.push_back(item);
     } else {
       PushDownCondition(thd, item, expr, is_join_condition_for_expr,
                         companion_collection, table_filters,
@@ -2473,8 +2492,14 @@ bool EarlyNormalizeConditions(THD *thd, const RelationalExpression *join,
     }
 
     if (res == Item::COND_TRUE) {
-      // Remove always true conditions from the conjunction.
-      it = conditions->erase(it);
+      // If this is the last remaining condition, keep an explicit TRUE
+      // to satisfy downstream checks that the condition list is non-empty.
+      auto next_it = conditions->erase(it);
+      if (conditions->empty()) {
+        conditions->push_back(new Item_func_true());
+        return false;
+      }
+      it = next_it;
     } else if (res == Item::COND_FALSE) {
       // One always false condition makes the entire conjunction always false.
       conditions->clear();
@@ -3714,7 +3739,7 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
       AddPredicate(thd, item, /*was_join_condition_for=*/nullptr,
                    /*source_multiple_equality_idx=*/-1, root, graph);
     }
-    graph->num_where_predicates = graph->predicates.size();
+    graph->num_filter_predicates = graph->predicates.size();
 
     SortPredicates(graph->predicates.begin(), graph->predicates.end());
   }
@@ -4049,7 +4074,7 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
     graph->predicates.push_back(std::move(pred));
   }
 
-  graph->num_where_predicates = graph->predicates.size();
+  graph->num_filter_predicates = graph->predicates.size();
 
   SecondaryEngineCardinalityHook(thd, graph);
 

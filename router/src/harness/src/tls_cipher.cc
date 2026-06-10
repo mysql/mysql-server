@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include "mysql/harness/tls_cipher.h"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <system_error>
