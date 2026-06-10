@@ -1430,6 +1430,7 @@ SET optimizer_switch=@saved_opt_switch;
 let $query = SELECT /*+NO_INDEX(t1) */ f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2);
 --let $elide_differences = $elide_costs /t1\.f2/f2/
 --replace_regex $elide_differences
+--skip_if_hypergraph
 --eval EXPLAIN FORMAT=tree $query
 --eval $query
 

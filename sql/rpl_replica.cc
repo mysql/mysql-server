@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -406,6 +406,40 @@ static void set_replica_max_allowed_packet(THD *thd, MYSQL *mysql) {
   */
   mysql->options.max_allowed_packet =
       replica_max_allowed_packet + MAX_LOG_EVENT_HEADER;
+}
+
+bool is_version_compatible(const char *source_ver_str,
+                           const char *replica_ver_str) {
+  int smaj = 0, smin = 0, spat = 0;
+  int rmaj = 0, rmin = 0, rpat = 0;
+
+  if (sscanf(source_ver_str, "%d.%d.%d", &smaj, &smin, &spat) != 3 ||
+      sscanf(replica_ver_str, "%d.%d.%d", &rmaj, &rmin, &rpat) != 3)
+    return false;
+
+  /*
+    LTS rule:
+    If the replica server is running an LTS major.minor version
+    (e.g., 9.7), then all patch versions within the same
+    major.minor series (9.7.x) are treated as compatible,
+    even if the source patch is greater.
+  */
+  if (rmaj == smaj && rmin == smin && MYSQL_VERSION_MATURITY_IS_LTS) {
+    return true;
+  }
+
+  /*
+    Strict Numeric Encoded Compare:
+    For non-LTS versions, a strict numeric major.minor.patch
+    comparison is applied. Versions are encoded into a
+    24-bit integer:
+         encoded = (major << 16) | (minor << 8) | patch
+    Replication is allowed only if:
+         source_version <= local_version
+  */
+  unsigned int src = (smaj << 16) | (smin << 8) | spat;
+  unsigned int rep = (rmaj << 16) | (rmin << 8) | rpat;
+  return src <= rep;
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -2677,6 +2711,26 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     err_code = ER_REPLICA_FATAL_ERROR;
     sprintf(err_buff, ER_THD_NONCONST(current_thd, err_code), errmsg);
     goto err;
+  }
+
+  mi->reset_compatibility_error();
+  if (!opt_replica_allow_higher_version_source) {
+    bool simulate_incompat_err [[maybe_unused]] = false;
+
+    DBUG_EXECUTE_IF("simulate_source_version_mismatch", {
+      DBUG_SET("-d,simulate_source_version_mismatch");
+      simulate_incompat_err = true;
+    });
+
+    if (!is_version_compatible(mysql->server_version, server_version) ||
+        simulate_incompat_err) {
+      mi->set_compatibility_error();
+      mi->report(
+          ERROR_LEVEL, ER_RPL_REPLICA_VERSION_INCOMPATIBLE,
+          ER_THD_NONCONST(current_thd, ER_RPL_REPLICA_VERSION_INCOMPATIBLE),
+          mysql->server_version, server_version);
+      return 1;
+    }
   }
 
   mysql_mutex_lock(mi->rli->relay_log.get_log_lock());
@@ -5193,6 +5247,80 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info) {
   return false;
 }
 
+#ifndef NDEBUG
+/**
+  @brief Debug-only helper to tweak version strings.
+
+  Adjusts the major/minor/patch component of a version string
+  ("X.Y.Z[-suffix]") while preserving zero-padding and any suffix.
+  Increment or decrement is controlled by @p action.
+
+  @param  version_str   Input version string.
+  @param  version_type  0=major, 1=minor, 2=patch.
+  @param  action        true=increment, false=decrement.
+
+  @retval Updated version string.
+*/
+std::string debug_util_adjust_version(const char *version_str, int version_type,
+                                      bool action) {
+  assert(version_type >= 0 && version_type <= 2);
+
+  std::string version(version_str);
+  std::string core = version;
+  std::string suffix;
+
+  // Split suffix: "9.6.01-asan"
+  size_t pos = version.find('-');
+  if (pos != std::string::npos) {
+    core = version.substr(0, pos);
+    suffix = version.substr(pos);
+  }
+
+  // Parse major.minor.patch
+  size_t p1 = core.find('.');
+  size_t p2 = core.find('.', p1 + 1);
+
+  // Basic validation
+  if (p1 == std::string::npos || p2 == std::string::npos) {
+    // Unexpected format — return unchanged
+    return version;
+  }
+
+  std::string major_str = core.substr(0, p1);
+  std::string minor_str = core.substr(p1 + 1, p2 - p1 - 1);
+  std::string patch_str = core.substr(p2 + 1);
+
+  // Preserve widths for leading zeros
+  size_t w_major = major_str.size();
+  size_t w_minor = minor_str.size();
+  size_t w_patch = patch_str.size();
+
+  int major = std::stoi(major_str);
+  int minor = std::stoi(minor_str);
+  int patch = std::stoi(patch_str);
+
+  auto adjust = [&](int &v) {
+    if (action)
+      v++;
+    else
+      v = std::max(0, v - 1);
+  };
+
+  if (version_type == 0) adjust(major);
+  if (version_type == 1) adjust(minor);
+  if (version_type == 2) adjust(patch);
+
+  // Rebuild version string with preserved zero padding
+  std::ostringstream out;
+  out << std::setw(w_major) << std::setfill('0') << major << "."
+      << std::setw(w_minor) << std::setfill('0') << minor << "."
+      << std::setw(w_patch) << std::setfill('0') << patch << suffix;
+
+  return out.str();
+}
+
+#endif /* NDEBUG */
+
 /**
   @brief Try to reconnect slave IO thread.
 
@@ -5381,6 +5509,37 @@ extern "C" void *handle_slave_io(void *arg) {
 
     mi->reset_network_error();
 
+    DBUG_EXECUTE_IF("increment_source_major_version", {
+      /* Fake source major version bump */
+      std::string updated_version = debug_util_adjust_version(
+          mysql->server_version, 0 /*major*/, 1 /*increment*/);
+      strmake(mysql->server_version, updated_version.c_str(),
+              SERVER_VERSION_LENGTH);
+    });
+
+    DBUG_EXECUTE_IF("increment_source_minor_version", {
+      /* Fake source minor version bump */
+      std::string updated_version = debug_util_adjust_version(
+          mysql->server_version, 1 /*minor*/, 1 /*increment*/);
+      strmake(mysql->server_version, updated_version.c_str(),
+              SERVER_VERSION_LENGTH);
+    });
+
+    DBUG_EXECUTE_IF("increment_source_patch_version", {
+      /* Fake source patch version bump */
+      std::string updated_version = debug_util_adjust_version(
+          mysql->server_version, 2 /*patch*/, 1 /*increment*/);
+      strmake(mysql->server_version, updated_version.c_str(),
+              SERVER_VERSION_LENGTH);
+    });
+
+    DBUG_EXECUTE_IF("increment_replica_patch_version", {
+      /* Fake replica patch version bump */
+      std::string updated_version = debug_util_adjust_version(
+          server_version, 2 /*patch*/, 1 /*increment*/);
+      strmake(server_version, updated_version.c_str(), SERVER_VERSION_LENGTH);
+    });
+
     DBUG_EXECUTE_IF("dbug.before_get_running_status_yes", {
       rpl_replica_debug_point(DBUG_RPL_S_BEFORE_RUNNING_STATUS, thd);
     };);
@@ -5398,6 +5557,15 @@ extern "C" void *handle_slave_io(void *arg) {
 
     THD_STAGE_INFO(thd, stage_checking_source_version);
     ret = get_master_version_and_clock(mysql, mi);
+
+    DBUG_EXECUTE_IF("decrement_replica_patch_version", {
+      /* Fake replica patch version decrement */
+      std::string updated_version = debug_util_adjust_version(
+          server_version, 2 /*patch*/, 0 /*decrement*/);
+      strmake(server_version, updated_version.c_str(), SERVER_VERSION_LENGTH);
+      DBUG_SET("-d,decrement_replica_patch_version");
+    });
+
     if (!ret) {
       ret = get_master_uuid(mysql, mi);
     }
@@ -5730,12 +5898,12 @@ extern "C" void *handle_slave_io(void *arg) {
     /*
       If source_connection_auto_failover (async connection failover) is
       enabled, this server is not a Group Replication SECONDARY and
-      Replica IO thread is not killed but failed due to network error, a
-      connection to another source is attempted.
+      Replica IO thread is not killed but failed due to network error, or a
+      compatibility error, a connection to another source is attempted.
     */
     if (mi->is_source_connection_auto_failover() &&
         !is_group_replication_member_secondary() && !io_slave_killed(thd, mi) &&
-        (mi->is_network_error() ||
+        (mi->is_network_error() || mi->is_compatibility_error() ||
          quorum_status !=
              Async_conn_failover_manager::SourceQuorumStatus::no_error)) {
       DBUG_EXECUTE_IF("async_conn_failover_crash", DBUG_SUICIDE(););
@@ -5782,9 +5950,10 @@ extern "C" void *handle_slave_io(void *arg) {
           /* Reconnect. */
           if (mysql) {
             LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_NEXT_FAILOVER_CHANNEL_SELECTED,
-                   mi->retry_count, old_user.c_str(), old_host.c_str(),
-                   old_port, mi->get_for_channel_str(), mi->get_user(),
-                   mi->host, mi->port);
+                   mi->is_compatibility_error() ? 0 : mi->retry_count,
+                   old_user.c_str(), old_host.c_str(), old_port,
+                   mi->get_for_channel_str(), mi->get_user(), mi->host,
+                   mi->port);
             thd->clear_active_vio();
             mysql_close(mysql);
             mi->mysql = nullptr;
@@ -6026,6 +6195,7 @@ static void *handle_slave_worker(void *arg) {
   }
 
   thd->variables.restrict_fk_on_non_standard_key = false;
+  thd->variables.enable_cascade_triggers = false;
 
   thd_manager->add_thd(thd);
   thd_added = true;
@@ -7029,6 +7199,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       }
 
       thd->variables.restrict_fk_on_non_standard_key = false;
+      thd->variables.enable_cascade_triggers = false;
 
       rli->transaction_parser.reset();
 

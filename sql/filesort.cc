@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1331,8 +1331,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     }
     case DECIMAL_RESULT: {
       assert(!is_varlen);
-      my_decimal dec_buf, *dec_val = item->val_decimal(&dec_buf);
-      if (current_thd->is_error()) {
+      my_decimal dec_buf;
+      my_decimal *dec_val = item->val_decimal(&dec_buf);
+      if (dec_val == nullptr && current_thd->is_error()) {
         return UINT_MAX;
       }
       /*

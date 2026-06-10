@@ -1,4 +1,4 @@
-/*  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "helper/container/generic.h"
 #include "mrs/database/helper/gtid.h"
+
+#include "mysql/harness/utility/container/generic.h"
 
 using Gtid = mrs::database::Gtid;
 using GtidSet = mrs::database::GtidSet;
@@ -151,7 +152,8 @@ TEST(GTID, gtidset_contsains_point) {
 
   std::vector<uint64_t> non_acceptable;
   for (int i = 1; i <= 50; ++i) {
-    if (!helper::container::has(k_start_values, i)) non_acceptable.push_back(i);
+    if (!mysql_harness::utility::container::has(k_start_values, i))
+      non_acceptable.push_back(i);
   }
 
   for (auto v : non_acceptable) {

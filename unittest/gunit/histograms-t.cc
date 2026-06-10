@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class HistogramsTest : public ::testing::Test {
   Value_map<longlong> int_values;
   Value_map<my_decimal> decimal_values;
   Value_map<Datetime_val> datetime_values;
-  Value_map<Datetime_val> date_values;
+  Value_map<Date_val> date_values;
   Value_map<Time_val> time_values;
   Value_map<String> blob_values;
 
@@ -167,35 +167,20 @@ class HistogramsTest : public ::testing::Test {
 
     /*
       Date values.
-
-      Do not test negative values, since negative DATETIME is not supported by
-      MySQL. We also call "set_zero_time", to initialize the entire MYSQL_TIME
-      structure. If we don't, valgrind will complain on uninitialised values.
     */
-    Date_val date1;
-    set_zero_time(&date1, MYSQL_TIMESTAMP_DATE);
-    set_max_hhmmss(&date1);
+    Date_val date1{0, 0, 0};
     date_values.add_values(date1, 10);
 
-    Date_val date2;
-    set_zero_time(&date2, MYSQL_TIMESTAMP_DATE);
-    TIME_from_longlong_date_packed(&date2, 10000);
+    Date_val date2{0, 0, 0};
     date_values.add_values(date2, 10);
 
-    Date_val date3;
-    set_zero_time(&date3, MYSQL_TIMESTAMP_DATE);
-    TIME_from_longlong_date_packed(&date3, 0);
+    Date_val date3{0, 0, 0};
     date_values.add_values(date3, 10);
 
-    Date_val date4;
-    set_zero_time(&date4, MYSQL_TIMESTAMP_DATE);
-    TIME_from_longlong_date_packed(&date4, 100);
+    Date_val date4{0, 0, 0};
     date_values.add_values(date4, 10);
 
-    Date_val date5;
-    set_zero_time(&date5, MYSQL_TIMESTAMP_DATE);
-    TIME_from_longlong_date_packed(&date5, 100000);
-    date_values.add_values(date5, 10);
+    Date_val date5{0, 0, 0};
 
     /*
       Time values.
@@ -483,7 +468,38 @@ void VerifySingletonBucketConstraintsTime(Histogram *histogram) {
   }
 }
 
-void VerifySingletonBucketConstraintsTemporal(Histogram *histogram) {
+void VerifySingletonBucketConstraintsDate(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
+  Json_object json_object;
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
+
+  Json_dom *buckets_dom = json_object.get("buckets");
+  auto *buckets = down_cast<Json_array *>(buckets_dom);
+
+  Date_val previous_value;
+  double previous_cumulative_frequency = 0.0;
+  for (size_t i = 0; i < buckets->size(); ++i) {
+    Json_dom *bucket_dom = (*buckets)[i];
+    auto *bucket = static_cast<Json_array *>(bucket_dom);
+
+    auto *json_frequency = down_cast<Json_double *>((*bucket)[1]);
+    double const current_cumulative_frequency = json_frequency->value();
+    EXPECT_GT(current_cumulative_frequency, 0.0);
+    EXPECT_LE(current_cumulative_frequency, 1.0);
+
+    auto *json_date = down_cast<Json_date *>((*bucket)[0]);
+    const Date_val current_value = json_date->value();
+    if (i > 0) {
+      EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
+      EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
+    }
+    previous_value = current_value;
+    previous_cumulative_frequency = current_cumulative_frequency;
+  }
+}
+
+void VerifySingletonBucketConstraintsDatetime(Histogram *histogram) {
   ASSERT_TRUE(histogram != nullptr);
 
   Json_object json_object;
@@ -811,7 +827,54 @@ void VerifyEquiHeightBucketConstraintsTime(Histogram *histogram) {
   }
 }
 
-void VerifyEquiHeightBucketConstraintsTemporal(Histogram *histogram) {
+void VerifyEquiHeightBucketConstraintsDate(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
+  Json_object json_object;
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
+
+  Json_dom *buckets_dom = json_object.get("buckets");
+  auto *buckets = down_cast<Json_array *>(buckets_dom);
+
+  Date_val previous_upper_value;
+  double previous_cumulative_frequency = 0.0;
+  for (size_t i = 0; i < buckets->size(); ++i) {
+    Json_dom *bucket_dom = (*buckets)[i];
+    auto *bucket = static_cast<Json_array *>(bucket_dom);
+
+    auto *json_frequency = down_cast<Json_double *>((*bucket)[2]);
+    double const current_cumulative_frequency = json_frequency->value();
+    EXPECT_GT(current_cumulative_frequency, 0.0);
+    EXPECT_LE(current_cumulative_frequency, 1.0);
+
+    auto *json_num_distinct = down_cast<Json_uint *>((*bucket)[3]);
+    EXPECT_GE(json_num_distinct->value(), 1ULL);
+
+    /*
+      Index 1 should be lower inclusive value, and index 2 should be upper
+      inclusive value.
+    */
+    auto *json_date_lower = down_cast<Json_date *>((*bucket)[0]);
+    auto *json_date_upper = down_cast<Json_date *>((*bucket)[1]);
+
+    const Date_val current_lower_value(json_date_lower->value());
+    const Date_val current_upper_value(json_date_upper->value());
+
+    if (i > 0) {
+      EXPECT_TRUE(
+          Histogram_comparator()(previous_upper_value, current_lower_value));
+      EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
+    }
+
+    EXPECT_FALSE(
+        Histogram_comparator()(current_upper_value, current_lower_value));
+
+    previous_upper_value = current_upper_value;
+    previous_cumulative_frequency = current_cumulative_frequency;
+  }
+}
+
+void VerifyEquiHeightBucketConstraintsDatetime(Histogram *histogram) {
   ASSERT_TRUE(histogram != nullptr);
 
   Json_object json_object;
@@ -1035,11 +1098,11 @@ TEST_F(HistogramsTest, DatetimeSingletonToJSON) {
   EXPECT_EQ(datetime_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DATETIME);
-  VerifySingletonBucketConstraintsTemporal(histogram);
+  VerifySingletonBucketConstraintsDatetime(histogram);
 }
 
 TEST_F(HistogramsTest, DateSingletonToJSON) {
-  Singleton<Datetime_val> *histogram = Singleton<Datetime_val>::create(
+  Singleton<Date_val> *histogram = Singleton<Date_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1048,7 +1111,7 @@ TEST_F(HistogramsTest, DateSingletonToJSON) {
   EXPECT_EQ(date_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DATE);
-  VerifySingletonBucketConstraintsTemporal(histogram);
+  VerifySingletonBucketConstraintsDate(histogram);
 }
 
 TEST_F(HistogramsTest, TimeSingletonToJSON) {
@@ -1162,11 +1225,11 @@ TEST_F(HistogramsTest, DatetimeEquiHeightToJSON) {
   EXPECT_EQ(datetime_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
-  VerifyEquiHeightBucketConstraintsTemporal(histogram);
+  VerifyEquiHeightBucketConstraintsDatetime(histogram);
 }
 
 TEST_F(HistogramsTest, DateEquiHeightToJSON) {
-  Equi_height<Datetime_val> *histogram = Equi_height<Datetime_val>::create(
+  Equi_height<Date_val> *histogram = Equi_height<Date_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1175,7 +1238,7 @@ TEST_F(HistogramsTest, DateEquiHeightToJSON) {
   EXPECT_EQ(date_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATE);
-  VerifyEquiHeightBucketConstraintsTemporal(histogram);
+  VerifyEquiHeightBucketConstraintsDate(histogram);
 }
 
 TEST_F(HistogramsTest, TimeEquiHeightToJSON) {
@@ -1256,17 +1319,17 @@ TEST_F(HistogramsTest, DatetimeEquiHeightFewBuckets) {
 
   EXPECT_FALSE(histogram->build_histogram(datetime_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
-  VerifyEquiHeightBucketConstraintsTemporal(histogram);
+  VerifyEquiHeightBucketConstraintsDatetime(histogram);
 }
 
 TEST_F(HistogramsTest, DateEquiHeightFewBuckets) {
-  Equi_height<Datetime_val> *histogram = Equi_height<Datetime_val>::create(
+  Equi_height<Date_val> *histogram = Equi_height<Date_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
   ASSERT_TRUE(histogram != nullptr);
 
   EXPECT_FALSE(histogram->build_histogram(date_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATE);
-  VerifyEquiHeightBucketConstraintsTemporal(histogram);
+  VerifyEquiHeightBucketConstraintsDate(histogram);
 }
 
 TEST_F(HistogramsTest, TimeEquiHeightFewBuckets) {

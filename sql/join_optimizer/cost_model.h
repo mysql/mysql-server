@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -716,6 +716,10 @@ double EstimateIndexRangeScanCost(const TABLE *table, unsigned key_idx,
    @returns The estimated cost of the index scan.
 */
 inline double EstimateIndexScanCost(const TABLE *table, unsigned key_idx) {
+  if (IsClusteredPrimaryKey(table, key_idx)) {
+    return EstimateTableScanCost(table);
+  }
+
   return EstimateIndexRangeScanCost(table, key_idx, RangeScanType::kSingleRange,
                                     1.0, table->file->stats.records);
 }

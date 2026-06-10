@@ -369,6 +369,29 @@ child	CREATE TABLE `child` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup
 drop table child, parent;
+#
+# Bug#35073937 ALTER table rename column incorrectly rejected due to foreign key
+#
+create table b35_parent (parent_pk int,
+b int,
+primary key(parent_pk)) engine=ndb;
+create table b35_child (child_pk int,
+child_ord int,
+primary key(child_pk),
+constraint pk_ord
+foreign key (child_ord) references b35_parent (parent_pk)
+) engine=ndb;
+alter table b35_parent rename column b to bee;
+create table b35_self_ref(parent int primary key,
+child int,
+foreign key (child) references b35_self_ref(parent)
+) engine=ndb;
+alter table b35_self_ref rename column child to adult;
+ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
+select LOCATE("Try dropping foreign key", "Error	1846	ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.");
+LOCATE("Try dropping foreign key", "Error	1846	ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.")
+129
+drop table b35_child, b35_parent, b35_self_ref;
 CREATE TABLE t1(a INT, UNIQUE KEY a(a), KEY b(a)) ENGINE=NDBCLUSTER;
 ALTER TABLE t1 ADD CONSTRAINT c FOREIGN KEY(a) REFERENCES t1(a);
 ALTER TABLE t1 DROP KEY a, DROP KEY b;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "mysql_time.h" /* MYSQL_TIME */
+#include "my_temporal.h" /* Datetime_val */
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/partitioned_rwlock.h"
@@ -135,7 +135,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      Access_bitmask privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
-                     const MYSQL_TIME &password_change_time,
+                     const Datetime_val &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
                      acl_table::Pod_user_what_to_update &what_to_update,
                      uint failed_login_attempts, int password_lock_time,
@@ -146,7 +146,7 @@ void acl_users_add_one(const char *user, const char *host,
                        USER_RESOURCES *mqh, Access_bitmask privileges,
                        const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
                        const LEX_CSTRING &second_auth,
-                       const MYSQL_TIME &password_change_time,
+                       const Datetime_val &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
                        Restrictions &restrictions, uint failed_login_attempts,
                        int password_lock_time, const I_multi_factor_auth *mfa,
@@ -156,7 +156,7 @@ void acl_insert_user(THD *thd, const char *user, const char *host,
                      const char *x509_issuer, const char *x509_subject,
                      USER_RESOURCES *mqh, Access_bitmask privileges,
                      const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
-                     const MYSQL_TIME &password_change_time,
+                     const Datetime_val &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
                      uint failed_login_attempts, int password_lock_time,
                      const I_multi_factor_auth *mfa);
@@ -262,7 +262,6 @@ bool operator==(const Role_id &a, const Auth_id_ref &b);
 bool operator==(const Auth_id_ref &a, const Role_id &b);
 bool operator==(const std::pair<const Role_id, Role_id> &a,
                 const Auth_id_ref &b);
-bool operator==(const Role_id &a, const Role_id &b);
 bool operator==(std::pair<const Role_id, std::pair<std::string, bool>> &a,
                 const std::string &b);
 typedef std::vector<std::pair<Role_id, bool>> List_of_granted_roles;
@@ -302,7 +301,6 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
                                 const Auth_id_ref &from_user,
                                 const Auth_id_ref &to_user,
                                 bool with_admin_option, bool delete_option);
-Auth_id_ref create_authid_from(const Role_id &user);
 Auth_id_ref create_authid_from(const LEX_CSTRING &user,
                                const LEX_CSTRING &host);
 bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,

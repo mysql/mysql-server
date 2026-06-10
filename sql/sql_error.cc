@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -910,6 +910,10 @@ ErrConvString::ErrConvString(const Time_val time, uint dec) {
   err_buffer[buf_length] = 0;
 }
 
+ErrConvString::ErrConvString(const Date_val date) {
+  buf_length = date.to_string(err_buffer);
+  err_buffer[buf_length] = 0;
+}
 /**
    Convert value for dispatch to error message(see WL#751).
 

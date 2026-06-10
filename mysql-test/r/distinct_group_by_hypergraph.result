@@ -385,7 +385,7 @@ EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT id2 FROM tb2 GROUP BY id;
 EXPLAIN
 -> Table scan on <temporary>  (rows=12)
     -> Temporary table with deduplication  (rows=12)
-        -> Table scan on tb2  (rows=12)
+        -> Index scan on tb2 using PRIMARY  (rows=12)
 
 SELECT SQL_SMALL_RESULT DISTINCT avg(id), JSON_ARRAYAGG(id) FROM tb1 t1
 GROUP BY id2, id WITH ROLLUP ORDER BY 1, 2;

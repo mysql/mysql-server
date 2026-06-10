@@ -41,6 +41,7 @@ ENDIF()
 # when assigning integers from 64 bits to 32 bits, so silence:
 IF(APPLE)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-deprecated-declarations")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-implicit-function-declaration")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
 ENDIF()
 

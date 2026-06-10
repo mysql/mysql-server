@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,9 +88,8 @@ inline bool is_persistent_statistics_expired(
     return true;
 
   // Convert longlong time to MYSQL_TIME format
-  MYSQL_TIME cached_mysql_time;
-  my_longlong_to_datetime_with_warn(cached_timestamp, &cached_mysql_time,
-                                    MYF(0));
+  Datetime_val cached_mysql_time;
+  int_to_datetime_with_warn(cached_timestamp, &cached_mysql_time, MYF(0));
 
   /*
     Convert MYSQL_TIME to epoc second according to local time_zone as

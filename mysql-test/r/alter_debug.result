@@ -17,3 +17,67 @@ ALTER TABLE t ADD COLUMN y INT;
 ERROR HY000: Unknown error
 SET debug = '-d,bug38625494';
 DROP TABLE t;
+#
+# Bug#36574259: MySQL converts collection of date data type in ibd
+# but data dictionary
+#
+# Verify collation information in DD.
+SET SESSION debug= '+d,skip_dd_table_access_check';
+CREATE TABLE t1 (
+a datetime
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci;
+# Show DD info on newly created table
+SELECT CHARACTER_SET_NAME,COLLATION_NAME from information_schema.columns where
+TABLE_NAME = 't1';
+CHARACTER_SET_NAME	COLLATION_NAME
+NULL	NULL
+SELECT t.name, c.name, c.collation_id, co.name FROM mysql.tables t,
+mysql.columns c, mysql.collations co
+WHERE c.table_id = t.id AND t.name = 't1' AND c.name = 'a' AND c.collation_id
+= co.id;
+name	name	collation_id	name
+t1	a	8	latin1_swedish_ci
+SELECT co.name = 'latin1_swedish_ci' AS EXPECTED_RESULT
+FROM mysql.tables t, mysql.columns c, mysql.collations co
+WHERE c.table_id = t.id AND t.name = 't1' AND
+c.name = 'a' AND c.collation_id = co.id;
+EXPECTED_RESULT
+1
+# Alter collation
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4 collate utf8mb4_unicode_ci;
+# Verify that collation info in DD
+SELECT CHARACTER_SET_NAME,COLLATION_NAME from information_schema.columns where
+TABLE_NAME = 't1';
+CHARACTER_SET_NAME	COLLATION_NAME
+NULL	NULL
+SELECT t.name, c.name, c.collation_id, co.name FROM mysql.tables t,
+mysql.columns c, mysql.collations co
+WHERE c.table_id = t.id AND t.name = 't1' AND c.name = 'a' AND c.collation_id =
+co.id;
+name	name	collation_id	name
+t1	a	8	latin1_swedish_ci
+SELECT co.name = 'latin1_swedish_ci' AS EXPECTED_RESULT
+FROM mysql.tables t, mysql.columns c, mysql.collations co
+WHERE c.table_id = t.id AND t.name = 't1' AND
+c.name = 'a' AND c.collation_id = co.id;
+EXPECTED_RESULT
+1
+# Alter engine
+ALTER TABLE t1 ENGINE = INNODB;
+# Verfy that collation info in DD
+SELECT CHARACTER_SET_NAME,COLLATION_NAME from information_schema.columns where TABLE_NAME = 'a';
+CHARACTER_SET_NAME	COLLATION_NAME
+SELECT t.name, c.name, c.collation_id, co.name FROM mysql.tables t,
+mysql.columns c, mysql.collations co
+WHERE c.table_id = t.id AND t.name = 't1' AND c.name = 'a' AND c.collation_id =
+co.id;
+name	name	collation_id	name
+t1	a	8	latin1_swedish_ci
+SELECT co.name = 'latin1_swedish_ci' AS EXPECTED_RESULT
+FROM mysql.tables t, mysql.columns c, mysql.collations co
+WHERE c.table_id = t.id AND t.name = 't1' AND
+c.name = 'a' AND c.collation_id = co.id;
+EXPECTED_RESULT
+1
+SET SESSION debug= '-d,skip_dd_table_access_check';
+DROP TABLE t1;

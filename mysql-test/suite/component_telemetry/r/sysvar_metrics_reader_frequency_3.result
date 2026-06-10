@@ -1,0 +1,53 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.metrics_reader_frequency_3;
+@@global.telemetry.metrics_reader_frequency_3
+0
+SELECT @@session.telemetry.metrics_reader_frequency_3;
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_3' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.metrics_reader_frequency_3';
+Variable_name	Value
+telemetry.metrics_reader_frequency_3	0
+SHOW SESSION VARIABLES LIKE 'telemetry.metrics_reader_frequency_3';
+Variable_name	Value
+telemetry.metrics_reader_frequency_3	0
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.metrics_reader_frequency_3';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.metrics_reader_frequency_3	0
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.metrics_reader_frequency_3';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.metrics_reader_frequency_3	0
+SET GLOBAL telemetry.metrics_reader_frequency_3
+='123';
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_3' is a read only variable
+SET SESSION telemetry.metrics_reader_frequency_3
+='123';
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_3' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_reader_frequency_3
+= 123;
+SELECT @@global.telemetry.metrics_reader_frequency_3;
+@@global.telemetry.metrics_reader_frequency_3
+123
+SET PERSIST telemetry.metrics_reader_frequency_3
+= 456;
+ERROR HY000: Variable 'telemetry.metrics_reader_frequency_3' is a read only variable
+SET PERSIST_ONLY telemetry.metrics_reader_frequency_3
+= 456;
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.metrics_reader_frequency_3;
+@@global.telemetry.metrics_reader_frequency_3
+456
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

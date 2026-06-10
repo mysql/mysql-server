@@ -9,5 +9,4 @@ SET GLOBAL DEBUG="+d,simulate_dirty_page_at_shutdown";
 Pattern "Page still fixed or dirty at shutdown" found
 # Start the server
 # restart
-SET GLOBAL DEBUG="-d,simulate_dirty_page_at_shutdown";
 DROP TABLE t1;

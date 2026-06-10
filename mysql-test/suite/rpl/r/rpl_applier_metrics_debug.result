@@ -1,0 +1,45 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+##############################################################
+# 1. Install the plugin on the replica, replicate one statement
+[connection slave]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t (a INT);
+include/rpl/sync_to_replica.inc
+
+##############################################################
+# 2. Cover table handler interface
+# Adding debug point 'filesort_force_sort_row_ids' to @@GLOBAL.debug
+# Expect one row.
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_metrics ORDER BY CHANNEL_NAME;
+CHANNEL_NAME
+
+# Expect four rows.
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_progress_by_worker ORDER BY CHANNEL_NAME;
+CHANNEL_NAME
+
+
+
+
+# Removing debug point 'filesort_force_sort_row_ids' from @@GLOBAL.debug
+
+##############################################################
+# 3. Truncated packet
+include/assert_eventually.inc [Eventually, the worker increases EVENTS_COMMITTED_COUNT to nonzero.]
+include/assert_eventually.inc [Eventually, the worker sets TRANSACTIONS_PENDING_COUNT to zero.]
+# Adding debug point 'replication_applier_metrics_truncate_packet' to @@GLOBAL.debug
+include/assert.inc [When a field is omitted from a service API packet, the value should display as 0]
+include/assert_eventually.inc [When a nullness field is omitted from a service API packet, the value should display as not NULL.]
+# Removing debug point 'replication_applier_metrics_truncate_packet' from @@GLOBAL.debug
+
+##############################################################
+# 4. Cleanup
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection master]
+DROP TABLE t;
+include/rpl/deinit.inc

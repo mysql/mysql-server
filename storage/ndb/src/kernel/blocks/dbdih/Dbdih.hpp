@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1664,7 +1664,7 @@ class Dbdih : public SimulatedBlock {
   void searchStoredReplicas(FragmentstorePtr regFragptr);
   bool setup_create_replica(FragmentstorePtr, CreateReplicaRecord *,
                             Ptr<ReplicaRecord>);
-  void updateNodeInfo(FragmentstorePtr regFragptr);
+  void updateNodeInfo(TabRecordPtr regTabPtr, FragmentstorePtr regFragptr);
 
   //------------------------------------
   // Fragment allocation, deallocation and

@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,8 +231,8 @@ class Protocol_text : public Protocol_classic {
   bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
   bool store_double(double from, uint32 decimals, uint32 zerofill) override;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
-  bool store_date(const MYSQL_TIME &time) override;
-  bool store_time(const Time_val &time, uint precision) override;
+  bool store_date(const Date_val date) override;
+  bool store_time(const Time_val time, uint precision) override;
   void start_row() override;
   bool send_parameters(List<Item_param> *parameters, bool) override;
 
@@ -256,8 +256,8 @@ class Protocol_binary final : public Protocol_text {
   // Decimals are sent as text, also over the binary protocol.
   using Protocol_text::store_decimal;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
-  bool store_date(const MYSQL_TIME &time) override;
-  bool store_time(const Time_val &time, uint precision) override;
+  bool store_date(const Date_val date) override;
+  bool store_time(const Time_val time, uint precision) override;
   bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
   bool store_double(double from, uint32 decimals, uint32 zerofill) override;
 

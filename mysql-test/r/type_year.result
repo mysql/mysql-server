@@ -394,14 +394,10 @@ v VARCHAR(10));
 INSERT INTO t1 VALUES(1901, DATE'1901-01-01', 1, 'one');
 SELECT LEAST(d, y) FROM t1;
 LEAST(d, y)
-1901
-Warnings:
-Warning	1292	Incorrect date value: '1901' for column 'd' at row 1
+1901-01-01
 SELECT LEAST(y, d) FROM t1;
 LEAST(y, d)
-1901
-Warnings:
-Warning	1292	Incorrect date value: '1901' for column 'd' at row 1
+1901-01-01
 SELECT LEAST(i, y, v) FROM t1;
 LEAST(i, y, v)
 1
@@ -501,3 +497,19 @@ DESCRIBE t3;
 Field	Type	Null	Key	Default	Extra
 c2	smallint	YES		NULL	
 DROP TABLE t1, t2, t3;
+#
+# Bug#29616536: Cast of YEAR column returns wrong result
+#
+CREATE TABLE t1 (a YEAR);
+INSERT INTO t1 VALUES (98);
+INSERT INTO t1 VALUES (2010);
+SELECT CAST(a AS DATE) AS d, CAST(a AS DATETIME) AS dt FROM t1;
+d	dt
+1998-01-01	1998-01-01 00:00:00
+2010-01-01	2010-01-01 00:00:00
+SELECT LEAST(a, DATE'2000-01-01') AS l, GREATEST(a, DATE'2000-01-01') AS g
+FROM t1;
+l	g
+1998-01-01	2000-01-01
+2000-01-01	2010-01-01
+DROP TABLE t1;

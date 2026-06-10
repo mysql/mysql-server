@@ -3768,3 +3768,194 @@ ALTER TABLE t3 MODIFY c2 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#24962142: CAN'T USE LOCK=NONE TO DROP
+--echo # COLUMNS IN TABLE WITH VIRTUAL COLUMNS
+--echo #
+
+--echo # Before patch - ALTER_VIRTUAL_COLUMN_ORDER flag is being set whenever
+--echo # virtual column indexes shifted even due to ADD/DROP of stored columns.
+--echo # The storage engine interprets this as virtual column reordering.
+--echo #
+--echo # After patch - ALTER_VIRTUAL_COLUMN_ORDER flag is only set when
+--echo # order among virtual columns changes.
+
+--echo # Note - When performing ADD/DROP virtual column or ALTER VIRTUAL COLUMN ORDER,
+--echo # other alter operations are not supported.
+
+--echo #
+--echo # CASE : Add stored columns to a table that already
+--echo # contains a VIRTUAL generated column.
+--echo # Expected: Supported for both ALGORITHM=INPLACE and LOCK=NONE because we
+--echo # are only adding stored columns; we are not modifying/reordering an
+--echo # existing generated column.
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  c INT
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 ADD COLUMN x INT FIRST, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN y INT AFTER a, ALGORITHM=INPLACE;
+
+ALTER TABLE t1 ADD COLUMN x2 INT FIRST,LOCK=NONE;
+ALTER TABLE t1 ADD COLUMN y2 INT AFTER a,LOCK=NONE;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # CASE : Drop stored columns from a table that contains a VIRTUAL column
+--echo # with LOCK=NONE or ALGORITHM=INPLACE.
+--echo # Expected: Supported as we are not reordering the columns.
+--echo #
+
+--echo # ALGORITHM=INPLACE
+CREATE TABLE t2 (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS (b + 1) VIRTUAL,
+  d INT
+) ENGINE=InnoDB;
+ALTER TABLE t2 DROP COLUMN a, ALGORITHM=INPLACE;
+DROP TABLE t2;
+
+--echo # LOCK=NONE
+CREATE TABLE t2 (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS (b + 1) VIRTUAL,
+  d INT
+) ENGINE=InnoDB;
+ALTER TABLE t2 DROP COLUMN a,LOCK=NONE;
+DROP TABLE t2;
+
+
+--echo #
+--echo # CASE : Drop virtual columns from a table that contains existing VIRTUAL column
+--echo # with LOCK=NONE or ALGORITHM=INPLACE.
+--echo # Expected: Supported as we are not reordering the columns.
+--echo #
+
+--echo # ALGORITHM=INPLACE
+CREATE TABLE t3 (a INT, v INT GENERATED ALWAYS AS (a+1) VIRTUAL, b INT, v2 INT GENERATED ALWAYS AS (b+1) VIRTUAL) ENGINE=InnoDB;
+ALTER TABLE t3 DROP COLUMN v, ALGORITHM=INPLACE;
+DROP TABLE t3;
+
+--echo # LOCK=NONE
+CREATE TABLE t3 (a INT, v INT GENERATED ALWAYS AS (a+1) VIRTUAL, b INT, v2 INT GENERATED ALWAYS AS (b+1) VIRTUAL) ENGINE=InnoDB;
+ALTER TABLE t3 DROP COLUMN v, LOCK=NONE;
+DROP TABLE t3;
+
+
+--echo #
+--echo # CASE : Modify stored columns in a table that has a VIRTUAL column
+--echo # Expectation: With LOCK=NONE or ALGORITHM=INPLACE, it should
+--echo # work as long as virtual column order does not change.
+--echo #
+
+--echo # ALGORITHM=INPLACE
+CREATE TABLE t5 (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  c INT,
+  d INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+  e INT
+) ENGINE=InnoDB;
+ALTER TABLE t5 MODIFY COLUMN e INT AFTER a, ALGORITHM=INPLACE;
+DROP TABLE t5;
+
+--echo # LOCK=NONE
+CREATE TABLE t5 (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  c INT,
+  d INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+  e INT
+) ENGINE=InnoDB;
+ALTER TABLE t5 MODIFY COLUMN e INT AFTER a, LOCK=NONE;
+DROP TABLE t5;
+
+
+--echo #
+--echo # CASE : Change stored columns with a VIRTUAL column present
+--echo # Expectation: CHANGE ... AFTER ... is supported with INPLACE/LOCK=NONE
+--echo # if relative order of virtual columns doesn't changes.
+--echo #
+
+--echo # ALGORITHM=INPLACE
+CREATE TABLE t6 (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  c INT,
+  d INT GENERATED ALWAYS AS (a + 2) VIRTUAL,
+  e INT
+) ENGINE=InnoDB;
+ALTER TABLE t6 CHANGE COLUMN c c_new INT AFTER a, ALGORITHM=INPLACE;
+DROP TABLE t6;
+
+--echo # LOCK=NONE
+CREATE TABLE t6 (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  c INT,
+  d INT GENERATED ALWAYS AS (a + 2) VIRTUAL,
+  e INT
+) ENGINE=InnoDB;
+ALTER TABLE t6 CHANGE COLUMN c c_new INT AFTER a, LOCK=NONE;
+DROP TABLE t6;
+
+
+--echo #
+--echo # CASE : Modify a VIRTUAL column
+--echo # Expectation: MODIFY virtual column sets ALTER_VIRTUAL_COLUMN_ORDER
+--echo # if it changes order within virtual columns. Error is reported if there are
+--echo # any other ALTER operations.
+--echo #
+
+CREATE TABLE t7 (a INT, b INT, v1 INT GENERATED ALWAYS AS (a + b) VIRTUAL, v2 INT GENERATED ALWAYS AS (a + b + 2) VIRTUAL) ENGINE=InnoDB;
+ALTER TABLE t7
+  MODIFY COLUMN v1 INT GENERATED ALWAYS AS (a + b) VIRTUAL AFTER a,
+  ALGORITHM=INPLACE;
+
+--echo # Virtual columns relative order has changed.
+--echo # Along with ALTER_VIRTUAL_COLUMN_ORDER, ALTER_COLUMN_DEFAULT
+--echo # flag is also set, hence causing error.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t7
+  MODIFY COLUMN v2 INT GENERATED ALWAYS AS (a + b + 2) VIRTUAL AFTER a,
+  LOCK=NONE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t7
+  MODIFY COLUMN v2 INT GENERATED ALWAYS AS (a + b + 2) VIRTUAL FIRST,
+  LOCK=NONE;
+
+DROP TABLE t7;
+
+
+--echo #
+--echo # CASE : Change a VIRTUAL column
+--echo # Expectation: CHANGE virtual column order sets ALTER_VIRTUAL_COLUMN_ORDER
+--echo # if it changes order within virtual columns. Error is reported if there are
+--echo # any other ALTER operations.
+--echo #
+
+CREATE TABLE t8 (a INT, b INT, v1 INT GENERATED ALWAYS AS (a + b) VIRTUAL, v2 INT GENERATED ALWAYS AS (a + b + 2) VIRTUAL) ENGINE=InnoDB;
+ALTER TABLE t8
+  CHANGE COLUMN v1 v1_new INT GENERATED ALWAYS AS (a + b) VIRTUAL AFTER a,
+  ALGORITHM=INPLACE;
+
+--echo # Virtual columns relative order has changed.
+--echo # Hence error is reported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t8
+  CHANGE COLUMN v2 v2_new INT GENERATED ALWAYS AS (a + b + 2) VIRTUAL AFTER a,
+  LOCK=NONE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t8
+  MODIFY COLUMN v2 INT GENERATED ALWAYS AS (a + b + 2) VIRTUAL FIRST,
+  LOCK=NONE;
+DROP TABLE t8;

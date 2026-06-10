@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -326,6 +326,9 @@ bool Histogram_comparator::operator()(const String &, const String &) const;
 
 template <>
 bool Histogram_comparator::operator()(const Time_val &, const Time_val &) const;
+
+template <>
+bool Histogram_comparator::operator()(const Date_val &, const Date_val &) const;
 
 template <>
 bool Histogram_comparator::operator()(const Datetime_val &,

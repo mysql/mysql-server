@@ -76,9 +76,10 @@ End of 6.0 tests
 #               status variables
 #
 CREATE TABLE t(
-id INT PRIMARY KEY,
+id INT,
 x INT NOT NULL DEFAULT (id % 5),
 y INT NOT NULL DEFAULT (id % 2),
+KEY (id),
 KEY (x));
 INSERT INTO t(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 ANALYZE TABLE t;
@@ -140,9 +141,8 @@ Select_scan	0
 EXPLAIN FORMAT=TREE SELECT /*+ INDEX_MERGE(t) */ 1 FROM t WHERE x < 0 OR id > 100;
 EXPLAIN
 -> Sort-deduplicate by row ID
--> Covering index range scan on t using x over (x < 0)
--> Clustered primary key (scanned separately)
--> Index range scan on t using PRIMARY over (100 < id)
+-> Index range scan on t using x over (x < 0)
+-> Index range scan on t using id over (100 < id)
 
 FLUSH STATUS;
 SELECT /*+ INDEX_MERGE(t) */ 1 FROM t WHERE x < 0 OR id > 100;
@@ -211,7 +211,7 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Nested loop inner join  (rows=10)
         -> Table scan on t1  (rows=10)
-        -> Single-row index lookup on t2 using PRIMARY (id = t1.y)  (rows=1)
+        -> Index lookup on t2 using id (id = t1.y)  (rows=1)
 
 FLUSH STATUS;
 SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id LIMIT 1;

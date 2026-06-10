@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,12 @@
   authentication with very limited operations ALTER USER to do registration.
 */
 #define CR_OK_AUTH_IN_SANDBOX_MODE -3
+/**
+  Authentication was successful with limited operations.
+  User should change the password.
+*/
+#define CR_OK_FORCE_PASSWORD_CHANGE -4
+
 /**
 Flag to be passed back to server from authentication plugins via
 authenticated_as when proxy mapping should be done by the server.

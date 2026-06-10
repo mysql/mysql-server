@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -77,9 +77,9 @@ MACRO(COULD_NOT_FIND_PROTOBUF)
 ENDMACRO()
 
 SET(BUNDLED_GRPC_SRCDIR
-  "${CMAKE_SOURCE_DIR}/internal/extra/grpc/grpc-1.60.0")
+  "${CMAKE_SOURCE_DIR}/internal/extra/grpc/grpc-1.76.0")
 SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-24.4/src)
-SET(BUNDLED_ABSEIL_SRCDIR ${CMAKE_SOURCE_DIR}/extra/abseil/abseil-cpp-20230802.1)
+SET(BUNDLED_ABSEIL_SRCDIR ${CMAKE_SOURCE_DIR}/extra/abseil/abseil-cpp-20250814.1)
 
 MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
   SET(WITH_PROTOBUF "bundled" CACHE STRING

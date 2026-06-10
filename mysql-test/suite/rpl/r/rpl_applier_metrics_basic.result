@@ -1,0 +1,92 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Test the plugin in a source that has no active channels
+[connection master]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/assert.inc [The default channel is hidden in replication_applier_metrics because it is not configured]
+include/assert.inc [The default channel is hidden in replication_applier_progress_by_worker because it is not configured]
+##############################################################
+# 2. Install the plugin in the replica when replica is running
+#    No metrics are present before start
+[connection slave]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/assert.inc [Initial value for TOTAL_ACTIVE_TIME_DURATION is 0]
+include/assert.inc [Initial value for TRANSACTIONS_COMMITTED_COUNT is 0]
+include/assert.inc [There are 4 workers with ONGOING_TRANSACTION_TYPE = 'UNASSIGNED']
+
+##############################################################
+# 3. Restart replication on the server
+#    Execute some transactions in the source
+#    Check basic metrics in the replica
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+[connection master]
+INSERT INTO t1 (a) VALUES(1);
+include/rpl/sync_to_replica.inc
+include/assert_eventually.inc [Eventually, TOTAL_ACTIVE_TIME_DURATION > 0]
+include/assert.inc [LAST_APPLIER_START is less than 2 minutes ago]
+include/assert_eventually.inc [Eventually, LAST_APPLIER_START is at least 1 second ago]
+include/assert_eventually.inc [Eventually, workers increment TRANSACTIONS_COMMITTED_COUNT to 2]
+include/assert_eventually.inc [Eventually, workers decrease TRANSACTIONS_ONGOING_COUNT to 0]
+include/assert_eventually.inc [Eventually, workers decrease TRANSACTIONS_PENDING_COUNT to 0]
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM to nonzero.]
+include/assert_eventually.inc [Eventually, workers decrease TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM to 0]
+include/assert_eventually.inc [Eventually, workers decrease TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM to 0]
+include/assert_eventually.inc [Eventually, workers decrease TRANSACTIONS_PENDING_SIZE_BYTES_SUM to 0]
+include/assert_eventually.inc [Eventually, workers increase EVENTS_COMMITTED_COUNT to either 4 (compressed) or 7 (non-compressed)]
+include/assert_eventually.inc [Eventually, coordinator increases WAITS_FOR_WORK_FROM_SOURCE_COUNT (possibly multiple times)]
+include/assert_eventually.inc [Eventually, coordinator increaess WAITS_FOR_WORK_FROM_SOURCE_SUM_TIME]
+include/assert.inc [WAITS_FOR_AVAILABLE_WORKER_COUNT should remain 0 (because there are more workers than transactions)]
+include/assert.inc [WAITS_FOR_AVAILABLE_WORKER_SUM_TIME should remain 0 (because there are more workers than transactions)]
+include/assert.inc [There were no "real" waits on dependencies, so WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT is 1]
+# Nothing to assert for WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME: there was a wait, so it is likely nonzero, but there is no guarantee
+include/assert.inc [There are no waits for memory on worker queues]
+include/assert.inc [There are no waits on full queues]
+include/assert.inc [There are no waits on waits on commit order]
+# Nothing to assert for TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME: there was a read, so it is likely nonzero, but there is no guarantee
+
+##############################################################
+# 4. Stop the applier and then block some transactions
+#    Check ongoing and pending transactions
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 (a) VALUES(2);
+include/rpl/sync_to_replica_received.inc
+include/assert.inc [TRANSACTIONS_ONGOING_COUNT remains 0]
+include/assert.inc [TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM and TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM are both 0]
+include/assert_eventually.inc [Eventually, receiver increments TRANSACTIONS_PENDING_COUNT]
+include/assert_eventually.inc [Eventually, receiver increments TRANSACTIONS_PENDING_SIZE_BYTES_SUM]
+[connection slave1]
+LOCK TABLE t1 WRITE;
+[connection slave]
+include/rpl/start_applier.inc
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM]
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_ONGOING_COUNT]
+include/assert.inc [ONGOING_PROGRESS_SIZE < ONGOING_FULL_SIZE]
+include/assert.inc [TRANSACTIONS_PENDING_COUNT remains 1]
+include/assert.inc [EVENTS_COMMITTED_COUNT is not incremented for ongoing transactions]
+[connection slave1]
+UNLOCK TABLES;
+[connection slave]
+include/assert_eventually.inc [Eventually, worker decreases TRANSACTIONS_PENDING_COUNT]
+include/assert_eventually.inc [Eventually, worker decreases TRANSACTIONS_PENDING_SIZE_BYTES_SUM]
+include/assert_eventually.inc [Eventually, worker decreases TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM]
+include/assert_eventually.inc [Eventually, worker decreases TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM]
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_COMMITTED_COUNT]
+include/assert_eventually.inc [Eventually, worker increases TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM]
+
+##############################################################
+# 5. Cleanup
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection master]
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+DROP TABLE t1;
+include/rpl/deinit.inc

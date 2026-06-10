@@ -1,0 +1,117 @@
+#######################################################################################
+# Validate requirements between component and Group Replication plugin when
+# executing INSTALL/UNINSTALL commands.
+#
+# Test :
+# 0. This test requires 1 server
+# 1. Component isn't installed so there shall not exist any
+#    Gr_flow_control* global status
+# 2. After component is installed four global status variables should be
+#    available
+# 3. Uninstall Group Replication plugin to fail when the component
+#    component_group_replication_flow_control_stats is installed.
+# 4. To uninstall Group Replication, component shall be
+#    uninstalled first
+# 5. Install component without Group Replication shall fail
+# 6. Install plugin and start Group Replication
+# 7. Cleanup
+#######################################################################################
+
+--source include/have_gr_replication_flow_control_stats.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--source include/force_restart.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failure when unregistering service 'group_replication_flow_control_service'");
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Component isn't installed so there shall not exist any
+--echo #    Gr_flow_control* global status
+
+--let $assert_text= 'Without component no Gr_flow_control* global status variables are available'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "Gr_flow_control%"] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. After component is installed four global status variables should be
+--echo #    available
+
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+--let $assert_text= 'With component installed Gr_flow_control* global status variables are available'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "Gr_flow_control%"] = 4
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Uninstall Group Replication plugin to fail when the component
+--echo #    component_group_replication_flow_control_stats is installed.
+
+--error ER_PLUGIN_CANNOT_BE_UNINSTALLED
+UNINSTALL PLUGIN group_replication;
+
+--let $assert_text= 'Uninstall Group Replication failed plugin still installed'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.plugins WHERE PLUGIN_NAME="group_replication" AND PLUGIN_STATUS="ACTIVE", count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. To uninstall Group Replication, component shall be
+--echo #    uninstalled first
+
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+--source include/stop_group_replication.inc
+--source include/uninstall_group_replication_plugin.inc
+
+--let $assert_text= 'With component installed Gr_flow_control* global status variables are available'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "Gr_flow_control%"] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Install component without Group Replication shall fail
+
+--error ER_COMPONENTS_CANT_SATISFY_DEPENDENCY
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+--let $assert_text= 'Component Group Replication flow control status is not installed'
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.component WHERE component_urn LIKE "file://component_group_replication_flow_control_stats"] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Install plugin and start Group Replication
+
+--source include/install_group_replication_plugin.inc
+SET GLOBAL group_replication_local_address= @local_address;
+--source include/start_and_bootstrap_group_replication.inc
+
+INSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+--let $assert_text= 'With component Gr_flow_control* global status variables are available'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "Gr_flow_control%"] = 4
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Cleanup
+
+UNINSTALL COMPONENT 'file://component_group_replication_flow_control_stats';
+
+--source include/group_replication_end.inc

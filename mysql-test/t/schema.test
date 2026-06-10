@@ -346,13 +346,8 @@ ALTER SCHEMA s DEFAULT COLLATE= utf8mb3_general_ci;
 # SHOW CREATE SCHEMA accesses meta data only, and succeeds.
 SHOW CREATE SCHEMA s;
 
-# DROP SCHEMA verifies directory existence, and fails.
---replace_result $MYSQLD_DATADIR ./ \\ /
---error ER_SCHEMA_DIR_MISSING
-DROP SCHEMA s;
-
-# Re-create the directory, then DROP will work.
---mkdir $SCHEMA_DIR
+# DROP SCHEMA verifies directory existence and reports a warnings for the
+# missing directory.
 DROP SCHEMA s;
 
 # 2. Create schema, remove directory, then try CREATE VIEW.
@@ -680,12 +675,7 @@ CREATE SCHEMA broken;
 --echo # Remove the schema directory for an existing schema
 --rmdir $MYSQLD_DATADIR/broken
 
---echo # Drop then fails with new error message
---replace_result $MYSQLD_DATADIR ./ \\ /
---error ER_SCHEMA_DIR_MISSING
-DROP SCHEMA broken;
-
---echo # but drop succeeds (with warning) when adding IF EXISTS
+--echo # Drop succeeds with warning.
 --echo # Suppress output since it is not stable across platforms
 --disable_warnings ER_SCHEMA_DIR_MISSING,ER_DB_DROP_RMDIR2 ONCE
 DROP SCHEMA IF EXISTS broken;

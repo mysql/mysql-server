@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,4 +261,10 @@ void injector::free_instance() {
 
 int injector::record_incident(THD *thd, std::string_view message) {
   return mysql_bin_log.write_incident_commit(thd, message);
+}
+
+void injector::get_current_binlog_filename(char (&filename)[FN_REFLEN]) {
+  Log_info log_info;
+  mysql_bin_log.get_current_log(&log_info);
+  strmake(filename, log_info.log_file_name, FN_REFLEN - 1);
 }

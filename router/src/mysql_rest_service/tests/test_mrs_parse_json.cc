@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,9 @@ class ParseFileSharingOptsTests : public testing::TestWithParam<ParseParam> {};
 TEST_P(ParseFileSharingOptsTests, parse_file_sharing_opts_empty) {
   const auto &p = GetParam();
   auto result =
-      helper::json::text_to_handler<ParseFileSharingOptions>(p.json_input);
+      helper::json::text_to_handler<ParseFileSharingOptions>(p.json_input)
+          .value_or(ParseFileSharingOptions::Result{});
+
   ASSERT_EQ(p.no_of_contents, result.default_static_content_.size());
   if (p.no_of_idexes > 0) {
     ASSERT_EQ(p.no_of_idexes, result.directory_index_directive_.value().size());
@@ -89,35 +91,37 @@ TEST(ParseFileSharingOptsTest, validate_resulting_values) {
       "\"second\": \"other\", \"third\":\"?\", \"fourth\":\"last one\"}, "
       "\"directoryIndexDirective\":[\"value1\", \"value2\", \"3\"], "
       "\"defaultRedirects\":{\"R1\":\"f1\", \"R2\":\"f2\"}}";
-  auto result =
+  auto json =
       helper::json::text_to_handler<ParseFileSharingOptions>(k_input_document);
 
+  ASSERT_TRUE(json.has_value());
+
   // Check sizes
-  ASSERT_EQ(4, result.default_static_content_.size());
-  ASSERT_EQ(3, result.directory_index_directive_.value().size());
-  ASSERT_EQ(2, result.default_redirects_.size());
+  ASSERT_EQ(4, json->default_static_content_.size());
+  ASSERT_EQ(3, json->directory_index_directive_.value().size());
+  ASSERT_EQ(2, json->default_redirects_.size());
 
   // Check keys
-  ASSERT_EQ(1, result.default_static_content_.count("first"));
-  ASSERT_EQ(1, result.default_static_content_.count("second"));
-  ASSERT_EQ(1, result.default_static_content_.count("third"));
-  ASSERT_EQ(1, result.default_static_content_.count("fourth"));
+  ASSERT_EQ(1, json->default_static_content_.count("first"));
+  ASSERT_EQ(1, json->default_static_content_.count("second"));
+  ASSERT_EQ(1, json->default_static_content_.count("third"));
+  ASSERT_EQ(1, json->default_static_content_.count("fourth"));
 
-  ASSERT_EQ(1, result.default_redirects_.count("R1"));
-  ASSERT_EQ(1, result.default_redirects_.count("R2"));
+  ASSERT_EQ(1, json->default_redirects_.count("R1"));
+  ASSERT_EQ(1, json->default_redirects_.count("R2"));
 
   // Check values
-  ASSERT_EQ("some string", result.default_static_content_["first"]);
-  ASSERT_EQ("other", result.default_static_content_["second"]);
-  ASSERT_EQ("?", result.default_static_content_["third"]);
-  ASSERT_EQ("last one", result.default_static_content_["fourth"]);
+  ASSERT_EQ("some string", json->default_static_content_["first"]);
+  ASSERT_EQ("other", json->default_static_content_["second"]);
+  ASSERT_EQ("?", json->default_static_content_["third"]);
+  ASSERT_EQ("last one", json->default_static_content_["fourth"]);
 
-  ASSERT_EQ("f1", result.default_redirects_["R1"]);
-  ASSERT_EQ("f2", result.default_redirects_["R2"]);
+  ASSERT_EQ("f1", json->default_redirects_["R1"]);
+  ASSERT_EQ("f2", json->default_redirects_["R2"]);
 
-  ASSERT_EQ("value1", result.directory_index_directive_.value()[0]);
-  ASSERT_EQ("value2", result.directory_index_directive_.value()[1]);
-  ASSERT_EQ("3", result.directory_index_directive_.value()[2]);
+  ASSERT_EQ("value1", json->directory_index_directive_.value()[0]);
+  ASSERT_EQ("value2", json->directory_index_directive_.value()[1]);
+  ASSERT_EQ("3", json->directory_index_directive_.value()[2]);
 }
 
 TEST(ParseFileSharingOptsTest, validate_resulting_values_base64) {
@@ -127,33 +131,34 @@ TEST(ParseFileSharingOptsTest, validate_resulting_values_base64) {
       "\"fourth\":\"bGFzdCBvbmU=\"}, "
       "\"directoryIndexDirective\":[\"dmFsdWUx\", \"dmFsdWUy\", \"Mw==\"], "
       "\"defaultRedirects\":{\"R1\":\"ZjE=\", \"R2\":\"ZjI=\"}}";
-  auto result =
+  auto json =
       helper::json::text_to_handler<ParseFileSharingOptions>(k_input_document);
+  ASSERT_TRUE(json.has_value());
 
   // Check sizes
-  ASSERT_EQ(4, result.default_static_content_.size());
-  ASSERT_EQ(3, result.directory_index_directive_.value().size());
-  ASSERT_EQ(2, result.default_redirects_.size());
+  ASSERT_EQ(4, json->default_static_content_.size());
+  ASSERT_EQ(3, json->directory_index_directive_.value().size());
+  ASSERT_EQ(2, json->default_redirects_.size());
 
   // Check keys
-  ASSERT_EQ(1, result.default_static_content_.count("first"));
-  ASSERT_EQ(1, result.default_static_content_.count("second"));
-  ASSERT_EQ(1, result.default_static_content_.count("third"));
-  ASSERT_EQ(1, result.default_static_content_.count("fourth"));
+  ASSERT_EQ(1, json->default_static_content_.count("first"));
+  ASSERT_EQ(1, json->default_static_content_.count("second"));
+  ASSERT_EQ(1, json->default_static_content_.count("third"));
+  ASSERT_EQ(1, json->default_static_content_.count("fourth"));
 
-  ASSERT_EQ(1, result.default_redirects_.count("R1"));
-  ASSERT_EQ(1, result.default_redirects_.count("R2"));
+  ASSERT_EQ(1, json->default_redirects_.count("R1"));
+  ASSERT_EQ(1, json->default_redirects_.count("R2"));
 
   // Check values
-  ASSERT_EQ("some string", result.default_static_content_["first"]);
-  ASSERT_EQ("other", result.default_static_content_["second"]);
-  ASSERT_EQ("?", result.default_static_content_["third"]);
-  ASSERT_EQ("last one", result.default_static_content_["fourth"]);
+  ASSERT_EQ("some string", json->default_static_content_["first"]);
+  ASSERT_EQ("other", json->default_static_content_["second"]);
+  ASSERT_EQ("?", json->default_static_content_["third"]);
+  ASSERT_EQ("last one", json->default_static_content_["fourth"]);
 
-  ASSERT_EQ("f1", result.default_redirects_["R1"]);
-  ASSERT_EQ("f2", result.default_redirects_["R2"]);
+  ASSERT_EQ("f1", json->default_redirects_["R1"]);
+  ASSERT_EQ("f2", json->default_redirects_["R2"]);
 
-  ASSERT_EQ("value1", result.directory_index_directive_.value()[0]);
-  ASSERT_EQ("value2", result.directory_index_directive_.value()[1]);
-  ASSERT_EQ("3", result.directory_index_directive_.value()[2]);
+  ASSERT_EQ("value1", json->directory_index_directive_.value()[0]);
+  ASSERT_EQ("value2", json->directory_index_directive_.value()[1]);
+  ASSERT_EQ("3", json->directory_index_directive_.value()[2]);
 }

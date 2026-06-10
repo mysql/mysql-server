@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@ ADD_SUBDIRECTORY(json_schema_embedder)
 ADD_SUBDIRECTORY(keepalive)
 ADD_SUBDIRECTORY(metadata_cache)
 ADD_SUBDIRECTORY(mock_server)
+ADD_SUBDIRECTORY(mock_host_resolver)
 ADD_SUBDIRECTORY(mysql_protocol)
 ADD_SUBDIRECTORY(mysqlxmessages)
 ADD_SUBDIRECTORY(openssl)
@@ -39,6 +40,8 @@ ADD_SUBDIRECTORY(protobuf)
 ADD_SUBDIRECTORY(rest_api)
 ADD_SUBDIRECTORY(rest_connection_pool)
 ADD_SUBDIRECTORY(rest_metadata_cache)
+ADD_SUBDIRECTORY(rest_host_cache)
+ADD_SUBDIRECTORY(host_cache)
 IF(MRS_JIT_EXECUTOR_LIB)
   ADD_SUBDIRECTORY(jit_executor)
   ADD_DEFINITIONS(-DHAVE_JIT_EXECUTOR_PLUGIN)

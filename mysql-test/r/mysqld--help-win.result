@@ -243,6 +243,13 @@ The following options may be given as the first argument:
  --caching-sha2-password-digest-rounds=# 
  Number of SHA2 rounds to be done when storing a password
  hash onto disk.
+ --caching-sha2-password-enforce-storage-format 
+ Enforce storage format for credentials. If set to TRUE,
+ then accounts that are using caching_sha2_password and
+ have password transformation stored in format other than
+ what is specified by
+ --caching_sha2_password_storage_format, will be forced to
+ change their password upon login.
  --caching-sha2-password-private-key-path=name 
  A fully qualified path to the private RSA key used for
  authentication.
@@ -256,6 +263,8 @@ The following options may be given as the first argument:
  --caching-sha2-password-public-key-path=name 
  A fully qualified path to the public RSA key used for
  authentication.
+ --caching-sha2-password-storage-format=name 
+ Storage format for credentials.
  --character-set-filesystem=name 
  Set the filesystem character set.
  -C, --character-set-server=name 
@@ -353,6 +362,10 @@ The following options may be given as the first argument:
  before storage engine initialization, where each plugin
  is identified as name=library, where name is the plugin
  name and library is the plugin library in plugin_dir.
+ --enable-cascade-triggers
+ Execute trigger on child tables during foreign key
+ cascade operations for SQL Engine foreign key
+ handling(i.e. innodb_native_foreign_keys = OFF).
  --enable-secondary-engine-statistics 
  When this option is enabled, the hypergraph query
  optimizer may fetchstatistics from the secondary engine,
@@ -1133,6 +1146,11 @@ The following options may be given as the first argument:
  Allow this replica to batch requests when using the NDB
  storage engine.
  (Defaults to on; use --skip-replica-allow-batching to disable.)
+ --replica-allow-higher-version-source
+ If disabled - replica rejects any attempt to connect to a
+ higher-version source server. If enabled - no
+ compatibility check.
+ (Defaults to on; use --skip-replica-allow-higher-version-source to disable.)
  --replica-checkpoint-group=# 
  Applier worker threads progress status is updated
  periodically. This option specifies the maximum number of
@@ -1679,9 +1697,11 @@ binlog-transaction-dependency-history-size 10000000
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 caching-sha2-password-digest-rounds 10000
+caching-sha2-password-enforce-storage-format FALSE
 caching-sha2-password-private-key-path private_key.pem
 caching-sha2-password-proxy-users FALSE
 caching-sha2-password-public-key-path public_key.pem
+caching-sha2-password-storage-format CRYPT5
 character-set-filesystem binary
 character-set-server utf8mb4
 character-sets-dir MYSQL_CHARSETSDIR/
@@ -1712,6 +1732,7 @@ delayed-queue-size 1000
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 div-precision-increment 4
+enable-cascade-triggers FALSE
 enable-secondary-engine-statistics TRUE
 end-markers-in-json FALSE
 enforce-gtid-consistency ON
@@ -1905,7 +1926,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 175
-performance-schema-max-statement-classes 231
+performance-schema-max-statement-classes 234
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1942,6 +1963,7 @@ relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
 replica-allow-batching TRUE
+replica-allow-higher-version-source TRUE
 replica-checkpoint-group 512
 replica-checkpoint-period 300
 replica-compressed-protocol FALSE

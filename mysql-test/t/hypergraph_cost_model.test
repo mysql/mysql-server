@@ -72,10 +72,10 @@ CREATE TABLE t1 (p INT PRIMARY KEY, s0 INT, s1 INT, s2 INT, c INT, KEY(s0), KEY(
 INSERT INTO t1 SELECT x, x, x, x, x FROM thousand;
 ANALYZE TABLE t1;
 
---echo # Table scans should be preferred over index scans if we do not need order.
-EXPLAIN FORMAT=TREE SELECT * FROM t1;
+--echo # Index scans with PRIMARY is picked over a table scan unless we force table scans.
+EXPLAIN FORMAT=TREE SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 
---echo # Scanning along the primary index should be slightly more expensive than a table scan.
+--echo # Scanning along the primary index should be the same cost as table scan.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY p;
 
 --echo # Index scans on non-covering indexes are much more expensive than scans on covering or primary indexes.

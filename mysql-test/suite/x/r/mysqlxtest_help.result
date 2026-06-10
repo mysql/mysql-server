@@ -11,7 +11,7 @@ owners.
 
 mysqlxtest <options> [SCHEMA]
 Options:
--f, --file=<file>     Reads input from file
+-f,-x, --file=<file>  Reads input from file
 -I, --import=<dir>    Reads macro files from dir; required by -->import
 --sql=<SQL>           Use SQL as input and execute it like in -->sql block
 -e=<SQL>, --execute=<SQL> Aliases for "--sql" option
@@ -81,6 +81,7 @@ Options:
 --history-protocol=<0|1|true|false>
                       Enable/disable X Protocol message tracing into
                       history buffer, which is printed at test failure
+--import-env          Import all environment variables as mysqlxtest variables, prefixing each variable name with a dollar sign ('$')
 --verbose             Enable extra verbose messages
 --daemon              Work as a daemon (unix only)
 --help                Show command line help
@@ -197,6 +198,7 @@ The following commands may appear in the input script:
 -->expecterror <errno>[,<errno>[,<errno>...]]
   Expect a specific error for the next command. Fails if error other than specified occurred
   Works for: newsession, closesession, recvresult, recvok, SQL
+  Note: '-->error' is an alias for '-->expecterror' for compatibility with 'mysqltest' and works in the same way.
 -->newsession <name>	<user>	<pass>	<db>
   Create a new connection which is going to be authenticate using sequence of mechanisms (AUTO). Use '-' in place of the user for raw connection.
 -->newsession_mysql41 <name>	<user>	<pass>	<db>
@@ -282,4 +284,7 @@ The following commands may appear in the input script:
   Clear metadata information stored by the recvresult_store_metadata
 -->debug_stmt <STMT>
   Specify MySQLxTEST statement to be executed at failed run
+-->eval SQL
+  Execute an SQL statement with variable substitution applied. Provided for compatibility with mysqltest.
+
 # comment

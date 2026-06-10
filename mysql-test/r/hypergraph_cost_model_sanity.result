@@ -25,22 +25,22 @@ INSERT INTO t3 SELECT a.x, a.x, a.x FROM thousand AS a;
 ANALYZE TABLE t3;
 Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	OK
-# Should use a table scan.
+# Should use index scan on PRIMARY.
 EXPLAIN FORMAT=TREE SELECT * FROM t0;
 EXPLAIN
--> Table scan on t0
+-> Index scan on t0 using PRIMARY
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1;
 EXPLAIN
--> Table scan on t1
+-> Index scan on t1 using PRIMARY
 
 EXPLAIN FORMAT=TREE SELECT * FROM t2;
 EXPLAIN
--> Table scan on t2
+-> Index scan on t2 using PRIMARY
 
 EXPLAIN FORMAT=TREE SELECT * FROM t3;
 EXPLAIN
--> Table scan on t3
+-> Index scan on t3 using PRIMARY
 
 # Should read from the covering index on s instead of reading the entire table.
 EXPLAIN FORMAT=TREE SELECT s FROM t3;
@@ -54,12 +54,12 @@ EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 10;
 EXPLAIN
 -> Index range scan on t3 using s over (NULL < s < 10)
 
-# Should use a full table scan with a filter rather than a non-covering index range scan
+# Should use a index scan on primary with a filter rather than a non-covering index range scan
 # because it is cheaper than performing 500 lookups into the clustered index.
 EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 500;
 EXPLAIN
 -> Filter: (t3.s < 500)
-    -> Table scan on t3
+    -> Index scan on t3 using PRIMARY
 
 # Should use a covering index range scan over an explicit sort (elide the sort).
 EXPLAIN FORMAT=TREE SELECT s FROM t3 ORDER BY s;
@@ -71,7 +71,7 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT * FROM t3 ORDER BY s;
 EXPLAIN
 -> Sort: t3.s
-    -> Table scan on t3
+    -> Index scan on t3 using PRIMARY
 
 # With a small limit we should prefer the non-covering index scan over sorting the entire table.
 EXPLAIN FORMAT=TREE SELECT * FROM t3 ORDER BY s LIMIT 10;
@@ -88,29 +88,29 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t2 WHERE t3.c = t2.c;
 EXPLAIN
 -> Inner hash join (t3.c = t2.c)
-    -> Table scan on t3
+    -> Index scan on t3 using PRIMARY
     -> Hash
-        -> Table scan on t2
+        -> Index scan on t2 using PRIMARY
 
-# Should choose a hash join with table scans.
+# Should choose a hash join with index scans on PRIMARY.
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t0 WHERE t3.c = t0.c;
 EXPLAIN
 -> Inner hash join (t3.c = t0.c)
-    -> Table scan on t3
+    -> Index scan on t3 using PRIMARY
     -> Hash
-        -> Table scan on t0
+        -> Index scan on t0 using PRIMARY
 
 # Should choose a nested loop join with t1 as the outer table and index lookups into t3.
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.p = t1.p;
 EXPLAIN
 -> Nested loop inner join
-    -> Table scan on t1
+    -> Index scan on t1 using PRIMARY
     -> Single-row index lookup on t3 using PRIMARY (p = t1.p)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.s = t1.c;
 EXPLAIN
 -> Nested loop inner join
-    -> Table scan on t1
+    -> Index scan on t1 using PRIMARY
     -> Index lookup on t3 using s (s = t1.c)
 
 # Create a wide table to test effects on table width on plan choices.
@@ -130,11 +130,11 @@ test.t_wide	analyze	status	OK
 # has an effect. As we increase the width of the table (and the number of fields we read)
 # the cost of a filtered table scan will become more expensive relative to a non-covering
 # index range scan with the same number of matching rows.
-# Narrow table: Filtered table scan should be chosen.
+# Narrow table: Filtered index scan should be chosen.
 EXPLAIN FORMAT=TREE SELECT * FROM t2 AS t WHERE t.s < 33;
 EXPLAIN
 -> Filter: (t.s < 33)
-    -> Table scan on t
+    -> Index scan on t using PRIMARY
 
 # Wide table: Non-covering index range scan should be chosen.
 EXPLAIN FORMAT=TREE SELECT * FROM t_wide AS t WHERE t.s < 33;

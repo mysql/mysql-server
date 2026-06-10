@@ -147,6 +147,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 3;
 
+--skip_if_hypergraph  # Different handler calls. Plan chosen is different.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 

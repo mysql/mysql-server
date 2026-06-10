@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2025, Oracle and/or its affiliates.
+Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -225,7 +225,7 @@ struct Page {
 
   // Disable copying
   Page(const Page &) = delete;
-  Page(const Page &&) = delete;
+  Page(Page &&) = delete;
   Page &operator=(Page &&) = delete;
   Page &operator=(const Page &) = delete;
 };
@@ -358,7 +358,7 @@ class Pages {
 
   // Disable copying
   Pages(const Pages &) = delete;
-  Pages(const Pages &&) = delete;
+  Pages(Pages &&) = delete;
   Pages &operator=(Pages &&) = delete;
   Pages &operator=(const Pages &) = delete;
 };
@@ -936,7 +936,7 @@ class Double_write {
 
   // Disable copying
   Double_write(const Double_write &) = delete;
-  Double_write(const Double_write &&) = delete;
+  Double_write(Double_write &&) = delete;
   Double_write &operator=(Double_write &&) = delete;
   Double_write &operator=(const Double_write &) = delete;
 

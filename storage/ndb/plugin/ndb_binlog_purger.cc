@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "nulls.h"          // NullS
 #include "sql/handler.h"    // ISO_READ_COMMITTED
 #include "sql/sql_class.h"  // THD
+#include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -256,6 +257,11 @@ bool Ndb_binlog_purger::process_purge_first_file(Ndb_local_connection &con) {
 
   files_lock.unlock();
 
+  if (!wait_until_not_using(filename)) {
+    log_error("Timed out waiting for binlog to stop using '%s', continuing...",
+              filename.c_str());
+  }
+
   // DELETE using epoch ranges rather than just the filename as it allows a
   // reduced data + lock footprint
   uint64_t min_epoch = 0;
@@ -334,6 +340,43 @@ void Ndb_binlog_purger::process_purge_files_list() {
 
     ndb_milli_sleep(DELETE_SLICE_DELAY_MILLIS);
   }
+}
+
+/**
+ * @brief Wait until the ndb binlog is no longer using the given binlog file.
+ *
+ * Observes the currently published binlog filename and waits until it differs
+ * from the supplied filename, or until a bounded timeout is reached.
+ *
+ * @param filename  The filename which should not be used
+ * @retval true   Ndb binlog moved to a different file within the timeout
+ * @retval false  Timeout elapsed while the ndb binlog still referenced the file
+ */
+bool Ndb_binlog_purger::wait_until_not_using(const std::string &filename) {
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(20);
+
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (is_stop_requested()) {
+      return true;  // Wait "suceeded"
+    }
+    std::string current_file;
+    const bool published =
+        ndbcluster_binlog_wait_for_published_binlog_file(current_file);
+    if (!published) {
+      log_info("Wait for current binlog file publish expired, retrying...");
+      continue;
+    }
+    if (current_file != filename) {
+      // Success, ndb binlog is not using the file
+      return true;
+    }
+
+    log_info("Binlog currently using '%s'; waiting to purge '%s'",
+             current_file.c_str(), filename.c_str());
+    assert(current_file == filename);
+  }
+  return false;
 }
 
 void Ndb_binlog_purger::do_run() {

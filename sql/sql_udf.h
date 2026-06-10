@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ class udf_handler {
   bool get_arguments();
   String *result_string(const char *res, size_t res_length, String *str,
                         String *save_str);
-  void get_string(uint index);
+  bool get_string(uint index);
   bool get_and_convert_string(uint index);
 };
 

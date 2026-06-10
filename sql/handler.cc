@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4853,6 +4853,10 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt) {
   return check(thd, check_opt);
 }
 
+int handler::ha_check_foreign_constraints(THD *thd, size_t n_threads) {
+  return check_foreign_constraints(thd, n_threads);
+}
+
 /**
   A helper function to mark a transaction read-write,
   if it is started.
@@ -9019,22 +9023,6 @@ const handlerton *SecondaryEngineHandlerton(const THD *thd) {
 }
 
 std::atomic<const char *> default_secondary_engine_name;
-
-std::optional<secondary_engine_nrows_t> RetrieveSecondaryEngineNrowsHook(
-    THD *thd) {
-  const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
-  if (secondary_engine == nullptr) {
-    secondary_engine = EligibleSecondaryEngineHandlerton(thd, nullptr);
-  }
-  if (secondary_engine == nullptr) {
-    return {};
-  }
-  if (secondary_engine->secondary_engine_nrows == nullptr) {
-    return {};
-  }
-
-  return secondary_engine->secondary_engine_nrows;
-}
 
 /**
   Retrieves the secondary engine handlerton if possible.

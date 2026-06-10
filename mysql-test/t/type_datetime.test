@@ -893,3 +893,118 @@ INTO @v;
 SELECT CASE WHEN 1 THEN SYSDATE() ELSE dt.n END AS ct
 FROM (SELECT NULL) AS dt(n)
 INTO @v;
+
+--echo #
+--echo # Bug#38585820: Result mismatch with GROUP BY on DATE column
+--echo #
+
+CREATE TABLE t1 (
+    d DATE DEFAULT NULL,
+    t TIME DEFAULT NULL,
+    dt DATETIME DEFAULT NULL,
+    pk INT NOT NULL PRIMARY KEY,
+    ci INT DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES
+  ('1982-07-14','11:12:13','1982-07-14 11:12:13',1,-2086898178),
+  (NULL,NULL,NULL,2,-549278089),
+  ('2035-09-13','12:13:14','2035-09-13 12:13:14',3,1616004595),
+  ('2011-03-24','13:14:15','2011-03-24 13:14:15',4,-1457068597),
+  ('1976-05-25','14:15:16','1976-05-25 14:15:16',5,-726291594),
+  ('1986-12-09','15:16:17','1986-12-09 15:16:17',6,1775995858),
+  ('2017-05-17','16:17:18','2017-05-17 16:17:18',7,-1267712153),
+  ('2034-09-09','17:18:19','2034-09-09 17:18:19',8,514287676),
+  ('2033-06-22','18:19:20','2033-06-22 18:19:20',9,1526531818),
+  (NULL,NULL,NULL,10,-1026887600);
+
+let $date_query=
+SELECT alias2.d AS field1,
+       MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 RIGHT JOIN t1 AS alias3
+       ON alias3.ci = alias2.pk
+     ON alias3.ci = alias2.ci
+GROUP BY field1;
+
+let $time_query=
+SELECT alias2.t AS field1,
+       MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 RIGHT JOIN t1 AS alias3
+       ON alias3.ci = alias2.pk
+     ON alias3.ci = alias2.ci
+GROUP BY field1;
+
+let $datetime_query=
+SELECT alias2.dt AS field1,
+       MIN(alias1.pk) AS field2
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 RIGHT JOIN t1 AS alias3
+       ON alias3.ci = alias2.pk
+     ON alias3.ci = alias2.ci
+GROUP BY field1;
+
+eval $date_query;
+eval $time_query;
+eval $datetime_query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38819341: Incompatible behavior between integer columns when
+--echo #               comparing with datetime
+--echo #
+
+CREATE TABLE t1 (c1 INTEGER, c2 BIGINT);
+INSERT INTO t1 VALUES (1, 1);
+
+SELECT c1 = CAST(0.0 AS DATETIME) FROM t1;
+SELECT c2 = CAST(0.0 AS DATETIME) FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#35093107: virtual bool Item_temporal_with_ref::get_date Assertion
+--echo #
+
+set sql_mode = '';
+
+CREATE TABLE t1(c1 DATETIME DEFAULT NULL, KEY(c1));
+INSERT INTO t1 VALUES('2000-05-24 15:57:23');
+
+SELECT c1
+FROM t1
+GROUP BY (SUBSTR(c1, 2)) WITH ROLLUP
+HAVING - 0;
+
+SELECT DISTINCT NULLIF(c1, FOUND_ROWS())
+FROM t1
+GROUP BY FOUND_ROWS() WITH ROLLUP;
+
+DROP TABLE t1;
+
+set sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug#34889757: Value change caused by DISTINCT and date functions
+--echo #
+
+CREATE TABLE t (c1 int);
+INSERT INTO t VALUES (1);
+
+SELECT 1 % f1
+FROM (SELECT DAYNAME('2010-07-20') AS f1
+      FROM t
+      WHERE DATE_ADD(TIMEDIFF('2000-08-04 02:09:39', '2002-08-11 22:00:35'),
+                              INTERVAL 1 YEAR) NOT IN (1)
+     ) AS t2;
+
+SELECT 1 % f1
+FROM (SELECT DISTINCT DAYNAME('2010-07-20') AS `f1`
+      FROM t
+      WHERE DATE_ADD(TIMEDIFF('2000-08-04 02:09:39', '2002-08-11 22:00:35'),
+                              INTERVAL 1 YEAR) NOT IN (1)
+     ) AS t2;
+
+DROP TABLE t;

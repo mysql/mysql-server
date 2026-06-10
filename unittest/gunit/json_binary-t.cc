@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -357,14 +357,7 @@ TEST_F(JsonBinaryTest, EmptyDocument) {
 
 static Time_val create_time() { return Time_val(false, 13, 14, 15, 654321); }
 
-static Date_val create_date() {
-  const char *dstr = "20140517";
-  Date_val d;
-  MYSQL_TIME_STATUS status;
-  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, dstr, strlen(dstr), &d,
-                               0, &status));
-  return d;
-}
+static Date_val create_date() { return Date_val(2014, 5, 17); }
 
 static Datetime_val create_datetime() {
   const char *dtstr = "2015-01-15 15:16:17.123456";
@@ -382,7 +375,7 @@ TEST_F(JsonBinaryTest, DateAndTimeTest) {
   // Create an array that contains a TIME, a DATE and a DATETIME.
   Json_array array;
   Json_time tt(create_time());
-  Json_datetime td(create_date(), MYSQL_TYPE_DATE);
+  Json_date td(create_date());
   Json_datetime tdt(create_datetime(), MYSQL_TYPE_DATETIME);
   array.append_clone(&tt);
   array.append_clone(&td);
@@ -403,8 +396,8 @@ TEST_F(JsonBinaryTest, DateAndTimeTest) {
   Value t_val = val.element(0);
   EXPECT_EQ(Value::OPAQUE, t_val.type());
   EXPECT_EQ(MYSQL_TYPE_TIME, t_val.field_type());
-  const size_t json_datetime_packed_size = Json_datetime::PACKED_SIZE;
-  EXPECT_EQ(json_datetime_packed_size, t_val.get_data_length());
+  const size_t json_time_packed_size = Json_time::PACKED_SIZE;
+  EXPECT_EQ(json_time_packed_size, t_val.get_data_length());
   Time_val t_out;
   Json_time::from_packed(t_val.get_data(), &t_out);
   EXPECT_EQ(13U, t_out.hour());
@@ -417,19 +410,19 @@ TEST_F(JsonBinaryTest, DateAndTimeTest) {
   Value d_val = val.element(1);
   EXPECT_EQ(Value::OPAQUE, d_val.type());
   EXPECT_EQ(MYSQL_TYPE_DATE, d_val.field_type());
-  EXPECT_EQ(json_datetime_packed_size, d_val.get_data_length());
-  MYSQL_TIME d_out;
-  Json_datetime::from_packed(d_val.get_data(), d_val.field_type(), &d_out);
-  EXPECT_EQ(2014U, d_out.year);
-  EXPECT_EQ(5U, d_out.month);
-  EXPECT_EQ(17U, d_out.day);
-  EXPECT_FALSE(d_out.neg);
-  EXPECT_EQ(MYSQL_TIMESTAMP_DATE, d_out.time_type);
+  const size_t json_date_packed_size = Json_date::PACKED_SIZE;
+  EXPECT_EQ(json_date_packed_size, d_val.get_data_length());
+  Date_val d_out;
+  Json_date::from_packed(d_val.get_data(), &d_out);
+  EXPECT_EQ(2014U, d_out.year());
+  EXPECT_EQ(5U, d_out.month());
+  EXPECT_EQ(17U, d_out.day());
 
   // The third element should be the DATETIME "2015-01-15 15:16:17.123456".
   Value dt_val = val.element(2);
   EXPECT_EQ(Value::OPAQUE, dt_val.type());
   EXPECT_EQ(MYSQL_TYPE_DATETIME, dt_val.field_type());
+  const size_t json_datetime_packed_size = Json_datetime::PACKED_SIZE;
   EXPECT_EQ(json_datetime_packed_size, dt_val.get_data_length());
   MYSQL_TIME dt_out;
   Json_datetime::from_packed(dt_val.get_data(), dt_val.field_type(), &dt_out);
@@ -1102,8 +1095,8 @@ static const SpaceNeededTuple space_needed_tuples[] = {
     {new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, 128, 'a'), false, 131},
     {new (std::nothrow) Json_time(create_time()), false,
      Json_time::PACKED_SIZE + 2},
-    {new (std::nothrow) Json_datetime(create_date(), MYSQL_TYPE_DATE), false,
-     Json_datetime::PACKED_SIZE + 2},
+    {new (std::nothrow) Json_date(create_date()), false,
+     Json_date::PACKED_SIZE + 2},
     {new (std::nothrow) Json_datetime(create_datetime(), MYSQL_TYPE_DATETIME),
      false, Json_datetime::PACKED_SIZE + 2},
     {new (std::nothrow) Json_datetime(create_datetime(), MYSQL_TYPE_TIMESTAMP),

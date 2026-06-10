@@ -874,38 +874,52 @@ test.t	analyze	status	OK
 SELECT * FROM t WHERE x <= 'ae';
 x
 a
-æ
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x <= 'ae';
 EXPLAIN
 -> Filter: (t.x <= 'ae')
-    -> Covering index scan on t using x
+    -> Covering index range scan on t using x over (NULL < x <= 'a')
 
 SELECT * FROM t WHERE x BETWEEN 'r' AND 'ss';
 x
 s
-ß
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x BETWEEN 'r' AND 'ss';
 EXPLAIN
 -> Filter: (t.x between 'r' and 'ss')
-    -> Covering index range scan on t using x over ('r' <= x)
+    -> Covering index range scan on t using x over ('r' <= x <= 's')
 
 SET @soft_hyphen = CAST(_utf16 x'00AD' AS CHAR CHARSET utf8mb4);
 SELECT * FROM t WHERE x <= CONCAT(REPEAT(@soft_hyphen, 100), 'a');
 x
-a
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x <= CONCAT(REPEAT(@soft_hyphen, 100), 'a');
 EXPLAIN
 -> Filter: (t.x <= <cache>(concat(repeat((@soft_hyphen),100),'a')))
-    -> Covering index scan on t using x
+    -> Covering index range scan on t using x over (NULL < x <= '­')
 
 SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
 x
-b
-ß
-æ
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
 EXPLAIN
 -> Filter: (t.x in ('ae','ss',<cache>(concat('­','b'))))
-    -> Covering index scan on t using x
+    -> Covering index range scan on t using x over (x = '­') OR (x = 'a') OR (x = 's')
 
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
+EXPLAIN
+-> Filter: (t.x in ('a','s','ae','ss'))
+    -> Covering index range scan on t using x over (x = 'a') OR (x = 's')
+
+SELECT * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
+x
+a
+s
+EXPLAIN FORMAT=TREE SELECT /*+ NO_INDEX(t) */ * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
+EXPLAIN
+-> Filter: (t.x in ('a','s','ae','ss'))
+    -> Table scan on t
+
+SELECT /*+ NO_INDEX(t) */ * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
+x
+a
+s
+ß
+æ
 DROP TABLE t;

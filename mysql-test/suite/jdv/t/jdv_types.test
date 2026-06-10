@@ -1,0 +1,295 @@
+# Verify that different types are handled as expected in Json Duality Views.
+
+CREATE TABLE all_datatypes_table (
+                    int_f             INT KEY,
+                    bit_f             BIT(8),
+                    tiny_f            TINYINT,
+                    short_f           SMALLINT,
+                    medium_f          MEDIUMINT,
+                    longlong_f        BIGINT,
+                    float_f           FLOAT,
+                    double_f          DOUBLE,
+                    timestamp_f       TIMESTAMP,
+                    date_f            DATE,
+                    time_f            TIME,
+                    datetime_f        DATETIME,
+                    year_f            YEAR,
+                    binary_f          BINARY(250),
+                    varbinary_f       VARBINARY(250),
+                    blob_f            BLOB,
+                    tinyblob_f        TINYBLOB,
+                    mediumblob_f      MEDIUMBLOB,
+                    longblob_f        LONGBLOB,
+                    enum_f            ENUM('one', 'two', 'three'),
+                    set_f             SET('one', 'two', 'three'),
+                    decimal_f         DECIMAL(5,2),
+                    numeric_f         NUMERIC(5,2),
+                    str_f             CHAR(250),
+                    varstr_f          VARCHAR(250),
+                    text_f            TEXT,
+                    tinytext_f        TINYTEXT,
+                    mediumtext_f      MEDIUMTEXT,
+                    longetext_f       LONGTEXT
+                    #,
+                    #geometry_f        GEOMETRY
+                    );
+
+CREATE OR REPLACE JSON DUALITY VIEW all_datatypes_dv AS
+SELECT JSON_DUALITY_OBJECT(
+  WITH(INSERT, UPDATE, DELETE)
+  "_id":  int_f,
+  "bit_f":  bit_f,
+  "tiny_f":  tiny_f,
+  "short_f":  short_f,
+  "medium_f":  medium_f,
+  "longlong_f":  longlong_f,
+  "float_f":  float_f,
+  "double_f":  double_f,
+  "timestamp_f":  timestamp_f,
+  "date_f":  date_f,
+  "time_f":  time_f,
+  "datetime_f":  datetime_f,
+  "year_f":  year_f,
+  "binary_f":  binary_f,
+  "varbinary_f":  varbinary_f,
+  "blob_f":  blob_f,
+  "tinyblob_f":  tinyblob_f,
+  "mediumblob_f":  mediumblob_f,
+  "longblob_f":  longblob_f,
+  "enum_f":  enum_f,
+  "set_f":  set_f,
+  "decimal_f":  decimal_f,
+  "numeric_f":  numeric_f,
+  "str_f":  str_f,
+  "varstr_f":  varstr_f,
+  "text_f":  text_f,
+  "tinytext_f":  tinytext_f,
+  "mediumtext_f":  mediumtext_f,
+  "longtext_f":  longetext_f
+  #,
+  #"geometry_f":  geometry_f
+) FROM all_datatypes_table;
+
+
+INSERT INTO all_datatypes_table VALUES(
+    1, # id_
+    b'10101010', # bit_f
+    127, # tiny_f
+    32767, # short_f
+    8388607, # medium_f
+    9223372036854775807, # longlong_f
+    3.14159,             # float_f
+    3.141592653589793,   # double_f
+    '2024-11-28 10:30:00.499999', # timestamp_f
+    '2024-11-28',                 # date_f
+    '10:30:00',                   # time_f
+    '2024-11-28 10:30:00',        # datetime_f
+    2024,                         # year_f
+    0x414243,                     # binary_f
+    0x444546,                     # varbinary_f
+    # blob_f
+    0xFFD8FFE000104A46494600010100000100010000FFDB004300000102030405060708090A0B0C0D0E0F10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,
+    # tinyblob_f
+    'tiny blob tiny blob tiny blob tiny blob tiny blob tiny blob tiny blob tiny blob ',
+    # mediumblob_f
+    'medium blob medium blob medium blob medium blob medium blob medium blob medium blob medium blob medium blob medium blob medium blob medium blob medium blob ',
+    # longblob_f
+    0xFFD8FFE000104A46494600010100000100010000FFDB004300000102030405060708090A0B0C0D0E0F10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,
+    'one',                        # enum_f
+    'one,two',                    # set_f
+    12.34,                        # decimal_f
+    12.34,                        # numeric_f
+    'some character data',        # str_f
+    # varstr_f
+    'some variable length string',
+    # text_f
+    'some text data some text data some text data some text data some text data some text data some text data some text data some text data',
+    # tinytext_f
+    'tiny text 12345678901234567890',
+    # mediumtext_f
+    'medium text medium text  medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text ',
+    # longtext_f
+    'This is a very long text string.
+     It contains a significant amount of data,
+     potentially exceeding the default maximum packet size for a single SQL statement.
+     This text can include multiple lines, paragraphs,
+     and even special characters like \n (newline) and \t (tab).
+     The exact length of this string can vary depending on
+     your specific requirements and the amount of data you need to store.'
+     #,
+     #ST_GeomFromText('POINT(10 20)')
+);
+
+SELECT * FROM all_datatypes_table;
+
+SELECT * FROM all_datatypes_dv;
+
+--echo # Inserting values for all integer type columns.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     2,
+  "tiny_f" :  127,
+  "short_f" : 32767,
+  "medium_f" :  8388607,
+  "longlong_f": 9223372036854775807
+ }
+'
+);
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 2;
+
+
+--echo # Inserting values for real, decimal type columns.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     3,
+  "float_f" :   3.14159,
+  "double_f" :  3.141592653589793,
+  "decimal_f" : 12.34,
+  "numeric_f" : 12.34
+ }
+'
+);
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 3;
+
+
+--echo # Inserting values for  temporal columns.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     4,
+  "timestamp_f" : "2024-11-28 10:30:00.499999",
+  "date_f" :      "2024-11-28",
+  "time_f" :      "10:30:00",
+  "year_f" :      2024
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 4;
+
+
+--echo # Inserting values for text type columns execept longtext type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     5,
+  "str_f" :     "some character data",
+  "varstr_f" :  "some variable length string",
+  "text_f" :    "some text data some text data some text data some text data some text data some text data some text data some text data some text data",
+  "tinytext_f" : "tiny text 12345678901234567890",
+  "mediumtext_f" : "medium text medium text  medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text",
+  "longtext_f" : "medium text medium text  medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text medium text"
+  }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 5;
+
+--echo # Inserting value for longtext type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     6,
+    "longtext_f" : "This is a very long text string. \\n     It contains a significant amount of data, \\n     potentially exceeding the default maximum packet size for a single SQL statement. \\n     This text can include multiple lines, paragraphs, \\n     and even special characters like \\n (newline) and \\t (tab). But remember to use two backslash characters when escaping sinc the string is both an SQL string literal and JSON \\n     The exact length of this string can vary depending on \\n     your specific requirements and the amount of data you need to store."
+  }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 6;
+
+--echo # Inserting values for blob type columns except longblob type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     7,
+  "tinyblob_f": "base64:type249:dGlueSBibG9iIHRpbnkgYmxvYiB0aW55IGJsb2IgdGlueSBibG9iIHRpbnkgYmxvYiB0aW55IGJs\\nb2IgdGlueSBibG9iIHRpbnkgYmxvYiA="
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 7;
+
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     8,
+  "mediumblob_f": "base64:type250:bWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJs\\nb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVt\\nIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2Ig"
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 8;
+
+--echo # Inserting value for blob type column in text format.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+  "_id" :     9,
+  "tinyblob_f" : "base64:typeX:dGlueSBibG9iIHRpbnkgYmxvYiB0aW55IGJsb2IgdGlueSBibG9iIHRpbnkgYmxvYiB0aW55IGJsb2IgdGlueSBibG9iIHRpbnkgYmxvYiA=",
+  "mediumblob_f" :
+  "base64:typeXX:bWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2IgbWVkaXVtIGJsb2Ig"
+  }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 9;
+
+
+--echo # Inserting value for bit() type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+   "_id" : 10,
+   "bit_f" : "base64:type16:qg=="
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 10;
+
+
+--echo # Inserting value for Binary type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+   "_id" : 11,
+   "binary_f": "base64:type254:QUJDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 8;
+
+
+--echo # Inserting value for Varbinary type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+   "_id" : 12,
+   "varbinary_f": "base64:type15:REVG"
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 8;
+
+
+--echo # Inserting value for enum and set type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+   "_id" : 13,
+   "enum_f" : "one",
+   "set_f" : "one,two"
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 9;
+
+
+--echo # Inserting value for blob type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+   "_id" : 14,
+   "blob_f": "base64:type252:D/2P/gABBKRklGAAEBAAABAAEAAP/bAEMAAAECAwQFBgcICQoLDA0ODxAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 10;
+
+
+--echo # Inserting value for longblob type column.
+INSERT INTO all_datatypes_dv VALUES(
+'
+ {
+   "_id" : 15,
+  "longblob_f": "base64:type251:D/2P/gABBKRklGAAEBAAABAAEAAP/bAEMAAAECAwQFBgcICQoLDA0ODxAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+ }
+');
+SELECT * FROM all_datatypes_dv WHERE JSON_EXTRACT(data, '$._id') = 11;
+
+DROP VIEW all_datatypes_dv;
+DROP TABLE all_datatypes_table;

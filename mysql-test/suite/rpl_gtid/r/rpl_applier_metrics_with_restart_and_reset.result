@@ -1,0 +1,55 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Install the plugin in the replica server
+#    Create 2 tables, add some data and check metrics are correct
+[connection slave]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+INSERT INTO t1 (a) VALUES(1);
+include/rpl/sync_to_replica.inc
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_COMMITTED_COUNT to 3]
+
+##############################################################
+# 2. Restart the replica
+#    Check metrics are working for both tables
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=0]
+include/assert.inc [After server restart, TRANSACTIONS_COMMITTED_COUNT = 0]
+[connection slave1]
+LOCK TABLE t1 WRITE;
+[connection master]
+INSERT INTO t2 (a) VALUES(22);
+INSERT INTO t1 (a) VALUES(11);
+INSERT INTO t2 (a) VALUES(222);
+[connection slave]
+include/assert_eventually.inc [Eventually, a worker commits the first transaction and increments TRANSACTIONS_COMMITTED_COUNT to 1]
+include/assert_eventually.inc [Eventually, 2 workers increase ONGOING_TRANSACTION_FULL_SIZE_BYTES to nonzero]
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_ONGOING_COUNT to 2]
+include/assert_eventually.inc [Eventually, 2 workers set ONGOING_TRANSACTION_TYPE = 'DML']
+[connection slave1]
+UNLOCK TABLES;
+include/assert_eventually.inc [Eventually, workers increase TRANSACTIONS_COMMITTED_COUNT to 3]
+
+##############################################################
+# 3. Test RESET REPLICA
+include/rpl/stop_replica.inc
+RESET REPLICA;
+include/assert.inc [All 4 workers have ONGOING_TRANSACTION_TYPE = 'UNASSIGNED']
+include/assert.inc [TRANSACTIONS_COMMITTED_COUNT = 0]
+include/assert.inc [TOTAL_ACTIVE_TIME_DURATION = 0]
+
+##############################################################
+# 4. Cleanup
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/deinit.inc

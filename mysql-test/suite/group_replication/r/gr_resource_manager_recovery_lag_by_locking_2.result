@@ -1,0 +1,83 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#########################################################
+# 1. Install component group_replication_resource_manager and
+#    start group replication on all members.
+#    server1 will be the primary.
+#    Create the table t1 in the group.
+[connection server1]
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Member threshold exceeded: recovery channel lag.*. However, the group has less than 3 members, the member will not leave the group.");
+SET SESSION sql_log_bin= 1;
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/start_group_replication.inc
+
+#########################################################
+# 2. Assert that there is no lag on server 2.
+[connection server2]
+include/assert.inc ['Eviction timestamp is not set.']
+include/assert.inc ['There are no recovery channel threshold hits.']
+include/assert.inc ['There is no lag.']
+
+#########################################################
+# 3. Remove server2 from the group.
+[connection server2]
+include/stop_group_replication.inc
+
+#########################################################
+# 4. Write a row in table t1 on the primary (server1).
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+#########################################################
+# 5. Lock table t3 to block future writes on it on server2.
+#    Add server2 back to the group.
+[connection server2]
+SET GLOBAL group_replication_resource_manager.recovery_channel_lag = 1;
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection server2]
+SET GLOBAL debug= '+d,group_replication_skip_read_mode';
+include/start_group_replication.inc
+
+#########################################################
+# 6. Since table t1 is locked, the recovery channel will
+#    lag, roughly after 50 seconds server2 will try to be
+#    evicted, which will not happen since the group only
+#    two members.
+[connection server2]
+'There are recovery channel threshold hits.'
+include/assert.inc ['Eviction timestamp is not set.']
+include/assert.inc ['There is lag.']
+
+#########################################################
+# 7. Unlock table t1, recovery will complete.
+#    Assert that lag decreases to 0 on server2.
+[connection server_2]
+UNLOCK TABLES;
+[connection server2]
+include/gr_wait_for_member_state.inc
+'There is no lag.'
+include/assert.inc ['Eviction timestamp is not set.']
+include/assert.inc ['There are recovery channel threshold hits.']
+############################################################
+# 8. Cleanup
+[connection server1]
+DROP TABLE t1;
+include/rpl/sync.inc
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL debug= '-d,group_replication_skip_read_mode';
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+[connection server1]
+include/stop_group_replication.inc
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/group_replication_end.inc

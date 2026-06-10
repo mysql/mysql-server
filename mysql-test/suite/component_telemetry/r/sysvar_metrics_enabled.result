@@ -1,0 +1,48 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.metrics_enabled;
+@@global.telemetry.metrics_enabled
+0
+SELECT @@session.telemetry.metrics_enabled;
+ERROR HY000: Variable 'telemetry.metrics_enabled' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.metrics_enabled';
+Variable_name	Value
+telemetry.metrics_enabled	OFF
+SHOW SESSION VARIABLES LIKE 'telemetry.metrics_enabled';
+Variable_name	Value
+telemetry.metrics_enabled	OFF
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.metrics_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.metrics_enabled	OFF
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.metrics_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.metrics_enabled	OFF
+SET GLOBAL telemetry.metrics_enabled=OFF;
+ERROR HY000: Variable 'telemetry.metrics_enabled' is a read only variable
+SET SESSION telemetry.metrics_enabled=OFF;
+ERROR HY000: Variable 'telemetry.metrics_enabled' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_enabled=OFF;
+SELECT @@global.telemetry.metrics_enabled;
+@@global.telemetry.metrics_enabled
+0
+SET PERSIST telemetry.metrics_enabled=ON;
+ERROR HY000: Variable 'telemetry.metrics_enabled' is a read only variable
+SET PERSIST_ONLY telemetry.metrics_enabled=ON;
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.metrics_enabled;
+@@global.telemetry.metrics_enabled
+1
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

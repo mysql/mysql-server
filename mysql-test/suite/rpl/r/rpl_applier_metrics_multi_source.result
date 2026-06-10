@@ -1,0 +1,60 @@
+include/rpl/init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+
+##############################################################
+# 1. Install the plugin in the replica server
+#    Create a table on each channel source
+[connection server_2]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection server_1]
+CREATE TABLE t1(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+CREATE TABLE t3(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+include/assert_eventually.inc [Eventually, worker on channel 1 increments TRANSACTIONS_COMMITTED_COUNT to 1]
+include/assert_eventually.inc [Eventually, worker on channel 1 decreases TRANSACTIONS_ONGOING_COUNT to 0]
+include/assert_eventually.inc [Eventually, worker on channel 3 increments TRANSACTIONS_COMMITTED_COUNT to 1]
+include/assert_eventually.inc [Eventually, worker on channel 3 decreases TRANSACTIONS_ONGOING_COUNT to 0]
+
+##############################################################
+# 2. Block one of the tables
+#    Check metrics are correct for both channels
+[connection server_2_1]
+LOCK TABLE t1 WRITE;
+[connection server_1]
+INSERT INTO t1 VALUES (1, REPEAT('a', 100));
+[connection server_3]
+INSERT INTO t3 VALUES (1, REPEAT('a', 100));
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Worker on channel 1 leaves TRANSACTIONS_COMMITTED_COUNT as 1]
+include/assert_eventually.inc [Eventually, worker on channel 1 increments TRANSACTIONS_ONGOING_COUNT to 1]
+include/assert_eventually.inc [Eventually, worker on channel 1 increments TRANSACTIONS_PENDING_COUNT to 1]
+include/assert_eventually.inc [Eventually, worker on channel 1 sets ONGOING_TRANSACTION_TYPE = 'DML']
+include/assert.inc [Eventually, worker on channel 3 increments TRANSACTIONS_COMMITTED_COUNT to 2]
+include/assert_eventually.inc [Eventually, worker on channel 3 decreases TRANSACTIONS_ONGOING_COUNT to 0]
+include/assert_eventually.inc [Eventually, worker on channel 3 decreases TRANSACTIONS_PENDING_COUNT to 0]
+include/assert_eventually.inc [Eventually, worker on channel 3 sets ONGOING_TRANSACTION_TYPE = 'UNASSIGNED']
+include/assert.inc [replication_applier_metrics contains 2 rows, one per channel]
+include/assert.inc [replication_applier_progress_by_worker contains 8 rows, 4 per channel]
+
+##############################################################
+# 3. Cleanup
+[connection server_2_1]
+UNLOCK TABLES;
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection server_1]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+DROP TABLE t3;
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+include/rpl/deinit.inc
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

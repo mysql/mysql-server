@@ -1,0 +1,35 @@
+SET SESSION optimizer_switch =
+'engine_condition_pushdown=off,index_condition_pushdown=off,mrr=off,batched_key_access=on';
+SET @@sql_mode='';
+CREATE TABLE t0 (
+a INT
+) ENGINE=InnoDB;
+INSERT INTO t0 VALUES (1);
+CREATE TABLE t1 (
+c0 INT,
+c1 INT,
+KEY i_c0 (c0)
+) ENGINE=InnoDB
+PARTITION BY RANGE (c0) (
+PARTITION p0 VALUES LESS THAN (1000),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+Seed a few rows to exercise ordered/merge scan setup
+INSERT INTO t1 VALUES (0,1),(1,1),(2,0),(1500,1);
+SELECT (drive BKA on inner t1; expect index_init(sorted=1), then range phases with sorted=false)
+EXPLAIN SELECT /*+ BKA(t1) */ 1
+FROM t0 STRAIGHT_JOIN t1 ON (t1.c0 = 0)
+WHERE t1.c1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	DONT_CARE	NULL
+1	SIMPLE	t1	p0	ref	i_c0	i_c0	5	const	1	DONT_CARE	Using where; Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ 1 AS `1` from `test`.`t0` straight_join `test`.`t1` where ((`test`.`t1`.`c0` = 0) and (0 <> `test`.`t1`.`c1`))
+SELECT /*+ BKA(t1) */ 1
+FROM t0 STRAIGHT_JOIN t1 ON (t1.c0 = 0)
+WHERE t1.c1;
+1
+1
+ALTER TABLE t1 ADD PRIMARY KEY (c0);
+DROP TABLE t1;
+DROP TABLE t0;

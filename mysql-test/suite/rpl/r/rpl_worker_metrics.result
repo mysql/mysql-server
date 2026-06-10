@@ -1,0 +1,78 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Install the plugin in the replica server
+#    Create 2 tables
+[connection slave]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+CREATE TABLE t2(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+include/rpl/sync_to_replica.inc
+
+##############################################################
+# 2. Execute 2 queries, one of them locks, the other waiting on commit order
+[connection slave1]
+LOCK TABLE t1 WRITE;
+[connection master]
+INSERT INTO t1 VALUES (1, REPEAT('a', 100));
+INSERT INTO t2 VALUES (1, REPEAT('a', 100));
+[connection slave]
+include/assert_eventually.inc [Eventually, both active workers increment ONGOING_TRANSACTION_APPLIED_SIZE_BYTES]
+include/assert_eventually.inc [Eventually, both active workers increment ONGOING_TRANSACTION_FULL_SIZE_BYTES]
+include/assert_eventually.inc [Eventually, both active workers set ONGOING_TRANSACTION_TYPE = 'DML']
+include/assert.inc [Both inactive workers leave ONGOING_TRANSACTION_TYPE = 'UNASSIGNED']
+[connection slave1]
+UNLOCK TABLES;
+include/assert_eventually.inc [Eventually, workers increment TRANSACTIONS_COMMITTED_COUNT to 4]
+include/assert_eventually.inc [Eventually, all workers set ONGOING_TRANSACTION_TYPE = 'UNASSIGNED']
+include/assert_eventually.inc [Eventually, all workers decrease ONGOING_TRANSACTION_FULL_SIZE_BYTES to 0]
+include/assert_eventually.inc [Eventually, all workers decrease ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to 0]
+
+##############################################################
+# 3. Block an ALTER TABLE (DDL) during execution in the replica
+BEGIN;
+INSERT INTO t1 VALUES (2, REPEAT('a', 1));
+[connection master]
+ALTER TABLE t1 ADD c INT;
+[connection slave]
+include/assert_eventually.inc [Eventually, a worker sets ONGOING_TRANSACTION_TYPE = 'DDL']
+[connection slave1]
+ROLLBACK;
+include/assert_eventually.inc [Eventually, the worker increments TRANSACTIONS_COMMITTED_COUNT to 5]
+include/assert_eventually.inc [Eventually, the worker resets ONGOING_TRANSACTION_TYPE to 'UNASSIGNED']
+
+##############################################################
+# 4. Check transaction progress
+[connection slave1]
+LOCK TABLE t1 WRITE;
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000), 4);
+INSERT INTO t2 VALUES (4, REPEAT('a', 1000));
+COMMIT;
+[connection slave]
+include/assert_eventually.inc [Eventually, the worker increments ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to nonzero]
+include/assert.inc [APPLIED_SIZE < FULL_SIZE]
+[connection slave]
+LOCK TABLE t2 WRITE;
+[connection slave1]
+UNLOCK TABLES;
+[connection slave]
+include/assert_eventually.inc [Eventually, the worker increments ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to a value greater than the previous value]
+include/assert.inc [APPLIED_SIZE < FULL_SIZE]
+UNLOCK TABLES;
+include/assert_eventually.inc [Eventually, the worker increases TRANSACTIONS_COMMITTED_COUNT]
+
+##############################################################
+# 5. Cleanup
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/deinit.inc

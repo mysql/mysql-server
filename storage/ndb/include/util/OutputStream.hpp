@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,16 +67,26 @@ class BufferedOutputStream : public OutputStream {
 
 class FileOutputStream : public OutputStream {
   FILE *f;
+  OutputStream *flush_other;
+  bool flush_on_write;
 
  public:
-  FileOutputStream(FILE *file = stdout);
+  /*
+   * Note, object pointed to by flush_other (if any) must survive the
+   * FileOutputStream object being constructed.
+   */
+  FileOutputStream(FILE *file = stdout, OutputStream *flush_other = nullptr,
+                   bool flush_on_write = false);
   ~FileOutputStream() override {}
   FILE *getFile() { return f; }
 
   int print(const char *fmt, ...) override ATTRIBUTE_FORMAT(printf, 2, 3);
   int println(const char *fmt, ...) override ATTRIBUTE_FORMAT(printf, 2, 3);
   int write(const void *buf, size_t len) override;
-  void flush() override { fflush(f); }
+  void flush() override {
+    if (flush_other) flush_other->flush();
+    fflush(f);
+  }
 };
 
 class SocketOutputStream : public OutputStream {

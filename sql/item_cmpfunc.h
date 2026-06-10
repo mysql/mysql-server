@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,6 +229,7 @@ class Arg_comparator {
   int compare_int_unsigned_signed();
   int compare_int_unsigned();
   int compare_time();
+  int compare_date();
   int compare_row();  // compare args[0] & args[1]
   int compare_real_fixed();
   int compare_datetime();  // compare args[0] & args[1] as DATETIMEs
@@ -341,7 +342,7 @@ class Item_bool_func : public Item_int_func {
   }
   uint decimal_precision() const override { return 1; }
   bool created_by_in2exists() const override { return m_created_by_in2exists; }
-  void set_created_by_in2exists();
+  void set_created_by_in2exists() { m_created_by_in2exists = true; }
 
   virtual Item_bool_func *negate_item() {
     assert(false);
@@ -1386,17 +1387,15 @@ class Item_func_between final : public Item_func_opt_neg {
   Item_result cmp_type;
   String value0, value1, value2;
   /* true <=> arguments will be compared as dates. */
-  bool compare_as_dates_with_strings;
-  bool compare_as_temporal_dates;
-  bool compare_as_temporal_times;
+  bool compare_as_datetimes_with_strings{false};
+  bool compare_as_dates{false};
+  bool compare_as_times{false};
+  bool compare_as_datetimes{false};
 
   /* Comparators used for DATE/DATETIME comparison. */
   Arg_comparator ge_cmp, le_cmp;
   Item_func_between(const POS &pos, Item *a, Item *b, Item *c, bool is_negation)
-      : Item_func_opt_neg(pos, a, b, c, is_negation),
-        compare_as_dates_with_strings(false),
-        compare_as_temporal_dates(false),
-        compare_as_temporal_times(false) {}
+      : Item_func_opt_neg(pos, a, b, c, is_negation) {}
   longlong val_int() override;
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   enum Functype functype() const override { return BETWEEN; }
@@ -1815,18 +1814,6 @@ class In_vector_int : public In_vector {
   virtual bool val_item(Item *item, packed_longlong *result);
 };
 
-class in_datetime_as_longlong final : public In_vector_int {
- public:
-  in_datetime_as_longlong(MEM_ROOT *mem_root, uint elements)
-      : In_vector_int(mem_root, elements) {}
-  Item *create_item(MEM_ROOT *mem_root) const override {
-    return new (mem_root) Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
-  }
-
- private:
-  bool val_item(Item *item, packed_longlong *result) override;
-};
-
 class In_vector_time final : public In_vector {
  public:
   In_vector_time(MEM_ROOT *mem_root, uint elements)
@@ -1847,16 +1834,36 @@ class In_vector_time final : public In_vector {
   void sort_array() override;
 };
 
+class In_vector_date final : public In_vector {
+ public:
+  In_vector_date(MEM_ROOT *mem_root, uint elements)
+      : In_vector(elements), m_base(mem_root, elements) {}
+  Item *create_item(MEM_ROOT *mem_root) const override {
+    return new (mem_root) Item_cache_date();
+  }
+  void value_to_item(uint pos, Item *item) const override {
+    down_cast<Item_cache_date *>(item)->store_value(m_base[pos]);
+  }
+  bool find_item(Item *item) override;
+  bool compare_elems(uint pos1, uint pos2) const override;
+
+ private:
+  Mem_root_array<Date_val> m_base;
+
+  bool set(uint pos, Item *item) override;
+  void sort_array() override;
+};
+
 /*
-  Class to represent a vector of constant DATE/DATETIME values.
+  Class to represent a vector of constant DATETIME/TIMESTAMP values.
   Values are obtained with help of the get_datetime_value() function.
 */
-class in_datetime final : public In_vector_int {
+class In_vector_datetime final : public In_vector_int {
   /// An item used to issue warnings.
   Item *warn_item;
 
  public:
-  in_datetime(MEM_ROOT *mem_root, Item *warn_item_arg, uint elements)
+  In_vector_datetime(MEM_ROOT *mem_root, Item *warn_item_arg, uint elements)
       : In_vector_int(mem_root, elements), warn_item(warn_item_arg) {}
   Item *create_item(MEM_ROOT *mem_root) const override {
     return new (mem_root) Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
@@ -2113,6 +2120,9 @@ class Item_func_case final : public Item_func {
   DTCollation cmp_collation;
   cmp_item *cmp_items[5]; /* For all result types */
   cmp_item *case_item;
+  /// Pointer to the column reference being masked by this CASE statement, if it
+  /// originates from a CREATE MASKING POLICY statement. Otherwise, nullptr.
+  const Item_field *m_masking_expression_for{nullptr};
 
  protected:
   void add_json_info(Json_object *obj) override {
@@ -2170,6 +2180,9 @@ class Item_func_case final : public Item_func {
     return cmp_collation.collation;
   }
   enum Functype functype() const override { return CASE_FUNC; }
+  void set_masking_expression_for(const Item_field *masked_item) final {
+    m_masking_expression_for = masked_item;
+  }
 };
 
 /**
@@ -2936,6 +2949,9 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item ** /* cache_arg */,
                             const Item *warn_item, bool *is_null);
 
 longlong get_time_value(THD *thd, Item ***item_arg, Item ** /* cache_arg */,
+                        const Item *warn_item, bool *is_null);
+
+longlong get_date_value(THD *thd, Item ***item_arg, Item ** /* cache_arg */,
                         const Item *warn_item, bool *is_null);
 
 // TODO: the next two functions should be moved to sql_time.{h,cc}

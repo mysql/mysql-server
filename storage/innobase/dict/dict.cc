@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2025, Oracle and/or its affiliates.
+Copyright (c) 1996, 2026, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -94,6 +94,25 @@ void dict_index_add_col(dict_index_t *index, const dict_table_t *table,
   3) DATA_POINT_LEN, if a POINT col is the PRIMARY KEY, and we are
   adding the PK col to other B-TREE/R-TREE. */
   /* TODO: We suppose the dimension is 2 now. */
+  /* NOTE: This function, for historical reasons, computes field->fixed_len in a
+  slightly suboptimal way. For example:
+
+   - A spatial index always has MTR in the first field, even for
+     DATA_GEOMETRY not just for DATA_POINT, and so always has DATA_MBR_LEN. Yet,
+     we only set it to DATA_MBR_LEN for DATA_POINT, and for DATA_GEOMETRY set it
+     to 0 returned by col->get_fixed_size(..).
+   - We always store the first dict_index_get_n_unique_in_tree() fields
+     inline (see dtuple_convert_big_rec()) to facilitate efficient navigation.
+     Yet, we assume that whenever fixed_len > DICT_MAX_FIXED_COL_LEN we may
+     store it off-page.
+
+  Alas, we can never change how dict_index_add_col() decides if fixed_len should
+  be 0 or not, without corrupting indexes created before upgrade. It is used to
+  determine for which fields the COMPACT format needs to store extra byte(s) for
+  length. Thus changing the logic here, will cause parser to interpret existing
+  index in a wrong way, and produce new records incompatible with the old ones.
+  Instead of modifying this function, consider improving get_field_max_size(..)
+  and dict_index_node_ptr_max_size(..) to provide better estimates. */
   if (dict_index_is_spatial(index) && DATA_POINT_MTYPE(col->mtype) &&
       index->n_def == 1) {
     field->fixed_len = DATA_MBR_LEN;

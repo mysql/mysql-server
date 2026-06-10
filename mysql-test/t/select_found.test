@@ -26,6 +26,7 @@ select found_rows();
 # Demonstrate printing of SQL_CALC_FOUND_ROWS in EXPLAIN.
 ANALYZE TABLE t1;
 --replace_regex $elide_costs
+--skip_if_hypergraph # Different plan
 EXPLAIN FORMAT=tree select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 select found_rows();

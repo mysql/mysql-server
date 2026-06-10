@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -711,6 +711,60 @@ static void debug_check_for_write_sets(
              hash_list[0] == 15162848905666604246ULL ||
              hash_list[0] == 14748473017617591124ULL ||
              hash_list[0] == 14338920484889756510ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_primary_key_generated_update_fk_sql_triggers",
+      assert(key_list_to_hash.size() == 1);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t2" HASH_STRING_SEPARATOR "250" HASH_STRING_SEPARATOR "2" ||
+             key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t2" HASH_STRING_SEPARATOR "220" HASH_STRING_SEPARATOR "2" ||
+             key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR
+                                    "test" HASH_STRING_SEPARATOR
+                                    "4logtable" HASH_STRING_SEPARATOR
+                                    "84" HASH_STRING_SEPARATOR "1" ||
+             key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "250" HASH_STRING_SEPARATOR "2" ||
+             key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "220" HASH_STRING_SEPARATOR "2" ||
+             key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR
+                                    "test" HASH_STRING_SEPARATOR
+                                    "4logtable" HASH_STRING_SEPARATOR
+                                    "83" HASH_STRING_SEPARATOR "1");
+      assert(hash_list.size() == 1);
+      assert(hash_list[0] == 6418948306172450623ULL ||
+             hash_list[0] == 4095169591811485578ULL ||
+             hash_list[0] == 1170882435250004574ULL ||
+             hash_list[0] == 10028646423122624262ULL ||
+             hash_list[0] == 12873958579142614636ULL ||
+             hash_list[0] == 2363781099630741395ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_primary_key_generated_delete_fk_sql_triggers",
+      assert(key_list_to_hash.size() == 1);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t2" HASH_STRING_SEPARATOR "210" HASH_STRING_SEPARATOR "2" ||
+             key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR
+                                    "test" HASH_STRING_SEPARATOR
+                                    "4logtable" HASH_STRING_SEPARATOR
+                                    "82" HASH_STRING_SEPARATOR "1" ||
+             key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "210" HASH_STRING_SEPARATOR "2" ||
+             key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR
+                                    "test" HASH_STRING_SEPARATOR
+                                    "4logtable" HASH_STRING_SEPARATOR
+                                    "81" HASH_STRING_SEPARATOR "1");
+      assert(hash_list.size() == 1);
+      assert(hash_list[0] == 16338251575733756774ULL ||
+             hash_list[0] == 5624094497422207915ULL ||
+             hash_list[0] == 14338920484889756510ULL ||
+             hash_list[0] == 8824347876218701750ULL););
 }
 #endif
 

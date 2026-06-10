@@ -1,0 +1,47 @@
+--source include/have_ndb.inc
+
+# Get total number of data nodes
+select count(*) into @nodecnt from ndbinfo.nodes;
+
+# $get_leftcnt counts the data nodes there ndbinfo.membership and
+# ndbinfo.transporter_details agree on left nodes.
+
+let $get_leftcnt = select count(*) into @leftcnt
+  from ndbinfo.transporter_details td join ndbinfo.membership ms
+    on td.node_id = ms.node_id
+  where td.heartbeat_interval is not null and td.remote_node_id = ms.left_node;
+
+--echo # Check that there is agreement on left data nodes on a fresh cluster
+--eval $get_leftcnt
+if (`select @leftcnt <> @nodecnt`) {
+  select * from ndbinfo.transporter_details;
+  select * from ndbinfo.membership;
+  die Some node had wrong left node in ndbinfo.transporter_details;
+}
+--echo Agreement on left nodes between transporter_details and membership tables for fresh cluster.
+--echo
+
+--echo # Check that there is agreement on left data nodes with one node down
+--exec $NDB_MGM -e"2 RESTART -n"
+--exec $NDB_WAITER --nowait-nodes=1,3 --not-started
+
+--eval $get_leftcnt
+if (`select @leftcnt <> @nodecnt - 1`) {
+  select * from ndbinfo.transporter_details;
+  select * from ndbinfo.membership;
+  die Some node had wrong left node in ndbinfo.transporter_details;
+}
+--echo Agreement on left nodes between transporter_details and membership tables with one node down
+--echo
+
+--echo # Check that there is agreement on left data nodes after one node restarted
+--exec $NDB_MGM -e"2 START"
+--exec $NDB_WAITER
+
+--eval $get_leftcnt
+if (`select @leftcnt <> @nodecnt`) {
+  select * from ndbinfo.transporter_details;
+  select * from ndbinfo.membership;
+  die Some node had wrong left node in ndbinfo.transporter_details;
+}
+--echo Agreement on left nodes between transporter_details and membership tables after one node restarted

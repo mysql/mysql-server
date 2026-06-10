@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -662,7 +662,8 @@ inline std::string Column_meta::to_string() const {
       << ", m_fixed_len=" << m_fixed_len << ", m_null_byte=" << m_null_byte
       << ", m_null_bit=" << m_null_bit << ", m_compare=" << get_compare_string()
       << ", m_is_desc_key=" << m_is_desc_key << ", m_is_key=" << m_is_key
-      << ", m_is_prefix_key=" << m_is_prefix_key << "]";
+      << ", m_max_len=" << m_max_len << ", m_is_prefix_key=" << m_is_prefix_key
+      << "]";
   return out.str();
 }
 

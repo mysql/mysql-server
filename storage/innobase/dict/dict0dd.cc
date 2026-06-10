@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2655,7 +2655,7 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
       dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
                                        table->id);
 
-      /* Write physical post only for tables having row versions */
+      /* Write physical pos only for tables having row versions */
       if (!has_row_versions || dd_column->is_virtual()) {
         continue;
       }
@@ -7774,35 +7774,6 @@ void convert_to_space(std::string &dict_name) {
   build_table(schema, table, partition, is_tmp, false, dict_name);
 
   ut_ad(dict_name.length() < dict_name::MAX_SPACE_NAME_LEN);
-}
-
-void rebuild_space(const std::string &dict_name, std::string &space_name) {
-  std::string schema;
-  std::string table;
-  std::string partition;
-  bool is_tmp = false;
-
-  /* Get all table parts converted to system cs. */
-  get_table_parts(dict_name, schema, table, partition, is_tmp);
-
-  if (is_tmp) {
-    partition.append(TMP_POSTFIX);
-  }
-
-  auto part_len = partition.length();
-  auto space_len = space_name.length();
-
-  ut_ad(space_len > part_len);
-
-  if (space_len > part_len) {
-    auto part_pos = space_len - part_len;
-
-    std::string space_part = space_name.substr(part_pos);
-    if (space_part.compare(partition) == 0) {
-      return;
-    }
-    space_name.replace(part_pos, std::string::npos, partition);
-  }
 }
 
 void rebuild(std::string &dict_name) {

@@ -25,7 +25,7 @@ SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
 Warnings:
-Note	4168	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
+Note	6578	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -135,7 +135,7 @@ SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
 Warnings:
-Note	4168	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
+Note	6578	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))

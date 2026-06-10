@@ -512,8 +512,10 @@ template <typename T>
 absl::Status UntypedMessage::InsertField(const ResolverPool::Field& field,
                                          T value) {
   int32_t number = field.proto().number();
-  auto emplace_result = fields_.try_emplace(number, std::move(value));
+  auto emplace_result = fields_.try_emplace(number);
   if (emplace_result.second) {
+    emplace_result.first->second =
+        std::make_unique<Value>(std::forward<T>(value));
     return absl::OkStatus();
   }
 
@@ -523,7 +525,7 @@ absl::Status UntypedMessage::InsertField(const ResolverPool::Field& field,
         absl::StrCat("repeated entries for singular field number ", number));
   }
 
-  Value& slot = emplace_result.first->second;
+  Value& slot = *emplace_result.first->second;
   if (auto* extant = absl::get_if<T>(&slot)) {
     std::vector<T> repeated;
     repeated.push_back(std::move(*extant));

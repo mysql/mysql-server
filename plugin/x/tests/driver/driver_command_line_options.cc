@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ void Driver_command_line_options::print_help() {
 
   std::cout << "mysqlxtest <options> [SCHEMA]\n";
   std::cout << "Options:\n";
-  std::cout << "-f, --file=<file>     Reads input from file\n";
+  std::cout << "-f,-x, --file=<file>  Reads input from file\n";
   std::cout << "-I, --import=<dir>    "
                "Reads macro files from dir; required by -->import\n";
   std::cout << "--sql=<SQL>           "
@@ -208,6 +208,9 @@ void Driver_command_line_options::print_help() {
                "tracing into\n";
   std::cout << "                      history buffer, which is printed at test "
                "failure\n";
+  std::cout << "--import-env          Import all environment variables as "
+            << "mysqlxtest variables, prefixing each variable name with a "
+               "dollar sign ('$')\n";
   std::cout << "--verbose             Enable extra verbose messages\n";
   std::cout << "--daemon              Work as a daemon (unix only)\n";
   std::cout << "--help                Show command line help\n";
@@ -222,18 +225,18 @@ std::string Driver_command_line_options::get_socket_name() {
 
 Driver_command_line_options::Driver_command_line_options(const int argc,
                                                          char **argv)
-    : Command_line_options(argc, argv),
-      m_run_without_auth(false),
-      m_has_file(false),
-      m_cap_expired_password(false),
-      m_client_interactive(false),
-      m_connect_attrs(true),
-      m_daemon(false) {
+    : Command_line_options(argc, argv) {
   std::string user;
 
   for (int i = 1; i < argc && exit_code == 0; i++) {
     char *value;
-    if (check_arg_with_value(argv, i, "--file", "-f", value)) {
+    if (check_arg(argv, i, "--import-env", nullptr)) {
+      m_import_env = true;
+    } else if (check_arg_with_value(argv, i, "--file", "-f", value)) {
+      m_run_file = value;
+      m_has_file = true;
+    } else if (check_arg_with_value(argv, i, nullptr, "-x", value)) {
+      // 'mysqltest' compatibility case
       m_run_file = value;
       m_has_file = true;
     } else if (check_arg(argv, i, "--no-auth", "-n")) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -598,6 +598,29 @@ class Master_info : public Rpl_info {
   void reset_network_error() { m_network_error = false; }
 
   /**
+    Checks if compatibility error has occurred.
+
+    @returns true   a version-compatibility error was detected during
+                    source replica negotiation.
+             false  otherwise.
+  */
+  [[nodiscard]] bool is_compatibility_error() { return m_compatibility_error; }
+
+  /**
+    Mark that a version-compatibility error has occurred.
+
+    This is used by the asynchronous replication failover logic to determine
+    whether an I/O thread failure was caused by a version mismatch between
+    the source and replica.
+  */
+  void set_compatibility_error() { m_compatibility_error = true; }
+
+  /**
+    Clear the compatibility error flag.
+  */
+  void reset_compatibility_error() { m_compatibility_error = false; }
+
+  /**
     This member function shall return true if there are server
     ids configured to be ignored.
 
@@ -655,6 +678,7 @@ class Master_info : public Rpl_info {
   bool m_source_connection_auto_failover{false};
   uint m_failover_list_position{0};
   bool m_network_error{false};
+  bool m_compatibility_error{false};
 
   Master_info(
 #ifdef HAVE_PSI_INTERFACE

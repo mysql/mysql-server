@@ -1,0 +1,144 @@
+# Setup: clean environment
+DROP USER IF EXISTS cu1@localhost;
+Warnings:
+Note	3162	Authorization ID 'cu1'@'localhost' does not exist.
+DROP ROLE IF EXISTS r1, r2, `Role_Mix`, `space role`;
+Warnings:
+Note	3162	Authorization ID 'r1'@'%' does not exist.
+Note	3162	Authorization ID 'r2'@'%' does not exist.
+Note	3162	Authorization ID 'Role_Mix'@'%' does not exist.
+Note	3162	Authorization ID 'space role'@'%' does not exist.
+# Create roles and user
+CREATE ROLE r1, r2, `Role_Mix`, `space role`, r1@localhost;
+CREATE USER cu1@localhost IDENTIFIED BY 'p';
+GRANT r1, `Role_Mix`, `space role`, r1@localhost TO cu1@localhost;
+GRANT ALL ON test.* TO cu1@localhost;
+# Connect as cu1
+# Sanity: who am I
+SELECT USER() AS login_user, CURRENT_USER() AS `current_user`;
+login_user	current_user
+cu1@localhost	cu1@localhost
+# CURRENT_USER_IN basic matches require full account user@host
+SELECT CURRENT_USER_IN('cu1@localhost') AS should_be_1;
+should_be_1
+1
+SELECT CURRENT_USER_IN('cu1@localhost, someone') AS should_be_1_from_list;
+should_be_1_from_list
+1
+SELECT CURRENT_USER_IN('root@localhost') AS should_be_0_not_root;
+should_be_0_not_root
+0
+# Negative: user name without host must not match
+SELECT CURRENT_USER_IN('cu1') AS missing_host_should_be_0;
+missing_host_should_be_0
+0
+# Case sensitivity for user name (user names are case-sensitive)
+SELECT CURRENT_USER_IN('CU1@localhost') AS should_be_0_case_sensitive_user;
+should_be_0_case_sensitive_user
+0
+# Host handling: case-insensitive; account requires user@host
+SELECT CURRENT_USER_IN('cu1@LOCALHOST') AS host_case_insensitive_should_be_1;
+host_case_insensitive_should_be_1
+1
+SELECT CURRENT_USER_IN('cu1@LoCaLhOsT') AS host_mixed_case_should_be_1;
+host_mixed_case_should_be_1
+1
+SELECT CURRENT_USER_IN('cu1@127.0.0.1') AS host_specific_no_match_should_be_0;
+host_specific_no_match_should_be_0
+0
+# Quoted/unquoted tokens inside the list should be accepted
+SELECT CURRENT_USER_IN('"cu1@localhost"') AS double_quoted_token_should_be_0;
+double_quoted_token_should_be_0
+0
+SELECT CURRENT_USER_IN('`cu1`@`LOCALHOST`') AS backticked_with_host_should_be_1;
+backticked_with_host_should_be_1
+1
+# Whitespace and CSV parsing
+SELECT CURRENT_USER_IN('  cu1@localhost  ,    nobody  ') AS whitespace_csv_should_be_1;
+whitespace_csv_should_be_1
+1
+# NULL argument must return NULL
+SELECT CURRENT_USER_IN(NULL) IS NULL AS null_returns_null;
+null_returns_null
+1
+# Use in queries (WHERE) and const-for-execution behavior
+CREATE TABLE tt(n INT);
+INSERT INTO tt VALUES (1),(2),(3);
+SELECT COUNT(*) AS cnt_all_rows FROM tt;
+cnt_all_rows
+3
+SELECT COUNT(*) AS cnt_when_user_matches FROM tt WHERE CURRENT_USER_IN('cu1@localhost');
+cnt_when_user_matches
+3
+SELECT COUNT(*) AS cnt_when_user_not_matching FROM tt WHERE CURRENT_USER_IN('root@localhost');
+cnt_when_user_not_matching
+0
+# The result should be constant per execution
+SELECT COUNT(DISTINCT CURRENT_USER_IN('cu1@localhost')) AS distinct_values_should_be_1 FROM tt;
+distinct_values_should_be_1
+1
+# CURRENT_ROLE_IN tests
+# Initially, no roles are active by default. Activate roles explicitly.
+SET ROLE r1, `Role_Mix`, r1@localhost;
+SELECT CURRENT_ROLE_IN('r1') AS r1_active_should_be_1;
+r1_active_should_be_1
+1
+SELECT CURRENT_ROLE_IN('r2') AS r2_not_active_should_be_0;
+r2_not_active_should_be_0
+0
+SELECT CURRENT_ROLE_IN('r2, r1') AS list_with_one_match_should_be_1;
+list_with_one_match_should_be_1
+1
+SELECT CURRENT_ROLE_IN('"Role_Mix"') AS double_quoted_role_should_be_1;
+double_quoted_role_should_be_1
+1
+SELECT CURRENT_ROLE_IN('`space role`') AS space_role_not_active_should_be_0;
+space_role_not_active_should_be_0
+0
+# Host handling for roles
+SELECT CURRENT_ROLE_IN('r1@LOCALHOST') AS role_with_host_should_be_1;
+role_with_host_should_be_1
+1
+SELECT CURRENT_ROLE_IN('r1@localhost') AS role_with_host_should_be_1;
+role_with_host_should_be_1
+1
+# Switch active roles
+SET ROLE r1, `space role`;
+SELECT CURRENT_ROLE_IN('`space role`') AS space_role_now_active_should_be_1;
+space_role_now_active_should_be_1
+1
+# Use in WHERE with roles and const-for-execution
+SELECT COUNT(*) AS cnt_when_role_active FROM tt WHERE CURRENT_ROLE_IN('r1');
+cnt_when_role_active
+3
+SET ROLE NONE;
+SELECT CURRENT_ROLE_IN('r1') AS after_set_role_none_should_be_0;
+after_set_role_none_should_be_0
+0
+SELECT COUNT(*) AS cnt_when_role_inactive FROM tt WHERE CURRENT_ROLE_IN('r1');
+cnt_when_role_inactive
+0
+SELECT COUNT(DISTINCT CURRENT_ROLE_IN('r1')) AS distinct_values_should_be_1_or_0 FROM tt;
+distinct_values_should_be_1_or_0
+1
+# Back to root/default connection, verify CURRENT_USER_IN for root
+SELECT USER() AS login_user, CURRENT_USER() AS `current_user`;
+login_user	current_user
+root@localhost	root@localhost
+SELECT CURRENT_USER_IN('root@localhost') AS root_should_be_1;
+root_should_be_1
+1
+SELECT CURRENT_USER_IN('root@LOCALHOST') AS root_with_host_should_be_1;
+root_with_host_should_be_1
+1
+# Negative: user name without host must not match
+SELECT CURRENT_USER_IN('root') AS root_missing_host_should_be_0;
+root_missing_host_should_be_0
+0
+SELECT CURRENT_USER_IN('ROOT@LOCALHOST') AS root_uppercase_should_be_0_case_sensitive_user;
+root_uppercase_should_be_0_case_sensitive_user
+0
+# Cleanup
+DROP TABLE tt;
+DROP USER cu1@localhost;
+DROP ROLE r1, r2, `Role_Mix`, `space role`, r1@localhost;

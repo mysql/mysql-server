@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "ndbapi/NdbInfo.hpp"
 #include "portlib/NdbDir.hpp"
 #include "util/Bitmask.hpp"
+#include "util/ndb_barrier.h"
 #include "util/ndb_opts.h"
 #include "util/ndb_rand.h"
 #include "util/random.h"
@@ -52,6 +53,7 @@ extern "C"
 #endif
         void _ndbclient_exports(void) {
   (void)ndb_init();
+  ndb::barrier barr(5);
   Ndb_cluster_connection cluster_connection;
   NdbScanFilter scan_filter((NdbOperation *)nullptr);
   NdbIndexStat index_stat;

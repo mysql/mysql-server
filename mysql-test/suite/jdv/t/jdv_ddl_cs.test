@@ -1,0 +1,154 @@
+--source include/have_case_sensitive_file_system.inc
+--let $on_case_sensitive_file_system = 1
+--source jdv_ddl_ci.test
+
+--echo #################################################################
+
+--echo # Tests which are specific to case-sensitive systems
+
+CREATE SCHEMA DB;
+CREATE TABLE t(i int primary key);
+CREATE TABLE T(i int primary key);
+
+--echo # Continuation of Requirement-6.2.2.2:
+--echo # Since, Table name comparisons are case sensitive here,
+--echo # There can be two tables named T and t.
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM T
+                WHERE T.i = t.i
+            )
+)
+FROM t;
+
+--echo # Continuation of Requirement-2:
+--echo # Since, TABLE name comparisons are case
+--echo # Sensitive, there can be JDVs named dv1 and DV1.
+CREATE OR REPLACE JSON DUALITY VIEW DV1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM T
+                WHERE T.i = t.i
+            )
+)
+FROM t;
+
+--echo # Continuation of Requirement-2 (Below 2 examples):
+--echo # Since, Field name comparisons are case
+--echo # In-sensitive, same column can be exprssed as both
+--echo # "i" and "I".
+CREATE OR REPLACE JSON DUALITY VIEW DV1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM T
+                WHERE T.i = t.I
+            )
+)
+FROM t;
+
+CREATE OR REPLACE JSON DUALITY VIEW DV1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM T
+                WHERE T.I = t.i
+            )
+)
+FROM t;
+
+--echo # Continuation of Requirement-3 (Below 4 examples):
+--echo # Since, schema name comparisons are case sensitive
+--echo # here, "DB" and "db" are two different schemas.
+
+CREATE TABLE DB.t(i int primary key);
+CREATE TABLE DB.T(i int primary key);
+
+--error ER_BAD_DB_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM DB.T
+                WHERE DB.T.i = DB.t.i
+            )
+)
+FROM db.t;
+
+--error ER_BAD_FIELD_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM DB.T
+                WHERE db.T.i = DB.t.i
+            )
+)
+FROM DB.t;
+
+--error ER_BAD_FIELD_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': db.T.i)
+                FROM DB.T
+                WHERE DB.T.i = DB.t.i
+            )
+)
+FROM DB.t;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': i)
+                FROM DB.T
+                WHERE DB.T.i = DB.t.i
+            )
+)
+FROM DB.t;
+
+--echo # Combination of Requirement-3 & Requirement-6.2.1:
+--echo # Table name comparisons are case sensitive and
+--echo # Field name comparisons are not.
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': DB.t.I,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': DB.T.I)
+                FROM DB.T
+                WHERE DB.T.I = DB.t.I
+            )
+)
+FROM DB.t;
+
+--echo # Continuation of Requirement-6.2.2.1:
+--error ER_BAD_FIELD_ERROR
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+    '_id': T.i,
+    't'  : (
+                SELECT JSON_DUALITY_OBJECT('i': t.i)
+                FROM T
+                WHERE T.i = t.i
+            )
+)
+FROM t;
+
+--echo #################################################################
+
+DROP VIEW dv1, DV1;
+DROP TABLE T, t;
+DROP SCHEMA DB;
+
+--echo #################################################################

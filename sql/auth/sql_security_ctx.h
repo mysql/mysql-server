@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,8 +84,7 @@ class Security_context {
                         bool cumulative = false,
                         bool ignore_if_nonextant = true,
                         bool throw_error = true);
-  int activate_role(LEX_CSTRING user, LEX_CSTRING host,
-                    bool validate_access = false);
+  int activate_role(LEX_CSTRING user, LEX_CSTRING host, bool validate_access);
   void clear_active_roles(void);
   List_of_auth_id_refs *get_active_roles();
   size_t get_num_active_roles() const;
@@ -316,6 +315,12 @@ class Security_context {
   void set_thd(THD *thd);
 
   THD *get_thd();
+
+  bool is_current_user_part_of(
+      std::string_view comma_separated_auth_id_list) const;
+
+  bool is_current_role_part_of(std::string_view comma_separated_auth_id_list,
+                               std::string *first_find = nullptr) const;
 
  private:
   void init();

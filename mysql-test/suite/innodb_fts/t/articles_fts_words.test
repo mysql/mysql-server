@@ -1,0 +1,28 @@
+--let $ROUNDS=20
+CREATE TABLE articles (
+  id INT UNSIGNED NOT NULL PRIMARY KEY,
+  title TEXT
+) ENGINE=InnoDB;
+
+--echo # Seed one row, then double it ROUNDS times.
+INSERT INTO articles(id, title) VALUES (1, 'akuku');
+
+let $i=0;
+while ($i < $ROUNDS)
+{
+  # Duplicate existing rows into the upper id range.
+  # New ids are unique because we offset by current cardinality.
+  INSERT INTO articles(id, title) SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+  inc $i;
+}
+
+--echo # Restart server to isolate allocator high-watermark from prior tests
+--source include/restart_mysqld.inc
+
+ALTER TABLE articles ADD FULLTEXT KEY ft_title(title);
+
+--let $assert_text= Memory used by InnoDB allocator should stay below 5 MiB during FTS index build
+--let $assert_cond= [SELECT high_number_of_bytes_used FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = "memory/innodb/memory"] < 5*1024*1024
+--source include/assert.inc
+
+DROP TABLE articles;

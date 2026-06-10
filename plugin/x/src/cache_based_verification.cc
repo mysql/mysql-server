@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/sha2_plain_verification.h"
 
 namespace xpl {
 
@@ -70,7 +71,8 @@ void Cache_based_verification::hex2octet(uint8_t *to, const char *str,
 bool Cache_based_verification::verify_authentication_string(
     const std::string &user, const std::string &host,
     const std::string &client_string_hex,
-    const std::string & /* unused */) const {
+    [[maybe_unused]] const std::string &authentication_string,
+    [[maybe_unused]] const bool can_update_cache) const {
   if (client_string_hex.empty()) return false;
 
   if (!m_sha256_password_cache) return false;
@@ -88,6 +90,11 @@ bool Cache_based_verification::verify_authentication_string(
       get_salt().length());
 
   return (validate_scramble.validate() == 0);
+}
+
+bool Cache_based_verification::is_cache2_password_compliant(
+    const std::string enforced_format, const std::string &db_string) const {
+  return ::xpl::is_cache2_password_compliant(enforced_format, db_string);
 }
 
 }  // namespace xpl

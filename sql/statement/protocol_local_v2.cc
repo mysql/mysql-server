@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -184,11 +184,12 @@ bool Protocol_local_v2::store_datetime(const MYSQL_TIME &time, uint) {
   return store_temporal(time);
 }
 
-bool Protocol_local_v2::store_date(const MYSQL_TIME &time) {
-  return store_temporal(time);
+bool Protocol_local_v2::store_date(const Date_val date) {
+  MYSQL_TIME tm = MYSQL_TIME(date);
+  return store_temporal(tm);
 }
 
-bool Protocol_local_v2::store_time(const Time_val &time, uint) {
+bool Protocol_local_v2::store_time(const Time_val time, uint) {
   MYSQL_TIME tm = MYSQL_TIME(time);
   return store_temporal(tm);
 }

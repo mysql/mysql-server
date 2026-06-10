@@ -10,12 +10,10 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SET optimizer_trace="enabled=on";
-SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+SELECT MAX(c1) OVER (ORDER BY c2 ROWS CURRENT ROW) AS col FROM t1
 INTERSECT DISTINCT
-SELECT "can't" OR 447938560 FROM t1;
-MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'can't'
+SELECT c2 = '' OR 447938560 FROM t1;
+col
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -471,7 +469,7 @@ NULL	NULL
 3333	164613
 6666	184245
 Warnings:
-Note	4168	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
+Note	6578	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
 DROP VIEW view_t1;
 DROP TABLE t1;
 #
@@ -674,14 +672,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SET set_operations_buffer_size = 16384;
 SET optimizer_trace="enabled=on";
-SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+SELECT MAX(c1) OVER (ORDER BY c2 ROWS CURRENT ROW) AS col FROM t1
 INTERSECT DISTINCT
-SELECT "can't" OR 447938560 FROM t1;
-MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
+SELECT c2 = '' OR 447938560 FROM t1;
+col
 1
 Warnings:
-Note	4168	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
-Warning	1292	Truncated incorrect DOUBLE value: 'can't'
+Note	6578	System variable "set_operations_buffer_size" set too low for hashed set operation. Consult optimizer trace for recommendations.
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -736,7 +733,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
                               "columns": 3,
                               "location": "TempTable",
                               "key_length": 8,
-                              "row_length": 27,
+                              "row_length": 28,
                               "unique_constraint": true,
                               "makes_grouped_rows": false,
                               "in_plan_at_position": 0,
@@ -770,13 +767,11 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
   }
 ]
 SET set_operations_buffer_size= 131072;
-SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+SELECT MAX(c1) OVER (ORDER BY c2 ROWS CURRENT ROW) AS col FROM t1
 INTERSECT DISTINCT
-SELECT "can't" OR 447938560 FROM t1;
-MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
+SELECT c2 = '' OR 447938560 FROM t1;
+col
 1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'can't'
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -844,13 +839,11 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
   }
 ]
 SET set_operations_buffer_size= 131072*32;
-SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+SELECT MAX(c1) OVER (ORDER BY c2 ROWS CURRENT ROW) AS col FROM t1
 INTERSECT DISTINCT
-SELECT "can't" OR 447938560 FROM t1;
-MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
+SELECT c2 = '' OR 447938560 FROM t1;
+col
 1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'can't'
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -918,13 +911,11 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
   }
 ]
 SET set_operations_buffer_size= 131072*64;
-SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+SELECT MAX(c1) OVER (ORDER BY c2 ROWS CURRENT ROW) AS col FROM t1
 INTERSECT DISTINCT
-SELECT "can't" OR 447938560 FROM t1;
-MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
+SELECT c2 = '' OR 447938560 FROM t1;
+col
 1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'can't'
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -986,13 +977,11 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
   }
 ]
 SET set_operations_buffer_size=default;
-SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+SELECT MAX(c1) OVER (ORDER BY c2 ROWS CURRENT ROW) AS col FROM t1
 INTERSECT DISTINCT
-SELECT "can't" OR 447938560 FROM t1;
-MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
+SELECT c2 = '' OR 447938560 FROM t1;
+col
 1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'can't'
 SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 FROM information_schema.optimizer_trace;
 JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
@@ -1061,3 +1050,176 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 ]
 SET optimizer_trace=default;
 DROP TABLE t1;
+#
+# Bug#37804715 INTERSECT operation return wrong result
+#
+# original repro
+CREATE TABLE t0(c0 INT) ;
+CREATE TABLE t1(c1 INT PRIMARY KEY) ;
+INSERT INTO t0(c0) VALUES(NULL);
+INSERT INTO t1(c1) VALUES(1);
+SELECT DISTINCT *
+FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0
+INTERSECT
+SELECT DISTINCT *
+FROM t1 RIGHT JOIN t0 ON t1.c1 = t0.c0;
+c1	c0
+# Were also wrong: not nullable field in first set operand and
+# NULL in next set operand's field.
+SELECT c1 FROM t1 INTERSECT SELECT c0 FROM t0;
+c1
+SELECT c1 FROM t1 EXCEPT SELECT c0 FROM t0;
+c1
+1
+SELECT c1 FROM t1 INTERSECT ALL SELECT c0 FROM t0;
+c1
+SELECT c1 FROM t1 EXCEPT ALL SELECT c0 FROM t0;
+c1
+1
+SELECT DISTINCT COUNT(*) AS c, SUM(t0.c0) AS s
+FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0
+INTERSECT
+SELECT DISTINCT 1, t1.c1 FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0;
+c	s
+SELECT DISTINCT COUNT(*) AS c, SUM(t0.c0) AS s
+FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0
+GROUP BY t1.c1
+INTERSECT
+SELECT DISTINCT 1, t1.c1 FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0;
+c	s
+SELECT DISTINCT SUM(t0.c0) AS s
+FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0
+GROUP BY ROLLUP(t1.c1)
+INTERSECT
+SELECT DISTINCT t1.c1 FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0;
+s
+SELECT SUM(t0.c0) OVER () AS s
+FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0
+INTERSECT
+SELECT DISTINCT t1.c1 FROM t1 LEFT JOIN t0 ON t1.c1 = t0.c0;
+s
+SET optimizer_switch='hash_set_operations=off';
+SELECT c1 FROM t1 INTERSECT SELECT c0 FROM t0;
+c1
+SELECT c1 FROM t1 EXCEPT SELECT c0 FROM t0;
+c1
+1
+SELECT c1 FROM t1 INTERSECT ALL SELECT c0 FROM t0;
+c1
+SELECT c1 FROM t1 EXCEPT ALL SELECT c0 FROM t0;
+c1
+1
+SET optimizer_switch='hash_set_operations=default';
+# For intersect, the first operand's field(s) can also be
+# nullable even if result set's isn't:
+SELECT null AS c1, null AS c2 INTERSECT SELECT 2,2;
+c1	c2
+SELECT c0 FROM t0 INTERSECT SELECT c1 FROM t1;
+c0
+SET optimizer_switch='hash_set_operations=off';
+SELECT null AS c1, null AS c2 INTERSECT SELECT 2,2;
+c1	c2
+SELECT c0 FROM t0 INTERSECT SELECT c1 FROM t1;
+c0
+SET optimizer_switch='hash_set_operations=default';
+# Check nullable field in first or second operand with more
+# values.
+TRUNCATE t0;
+INSERT INTO t0 VALUES (NULL), (1), (1);
+SELECT c0 FROM t0 INTERSECT SELECT c1 FROM t1;
+c0
+1
+SELECT c0 FROM t0 INTERSECT ALL SELECT c1 FROM t1;
+c0
+1
+SELECT c1 FROM t1 INTERSECT SELECT c0 FROM t0;
+c1
+1
+SELECT c1 FROM t1 INTERSECT ALL SELECT c0 FROM t0;
+c1
+1
+SELECT c0 FROM t0 EXCEPT SELECT c1 FROM t1;
+c0
+NULL
+SELECT c0 FROM t0 EXCEPT ALL SELECT c1 FROM t1;
+c0
+NULL
+1
+SELECT c1 FROM t1 EXCEPT SELECT c0 FROM t0;
+c1
+SELECT c1 FROM t1 EXCEPT ALL SELECT c0 FROM t0;
+c1
+SET optimizer_switch='hash_set_operations=off';
+SELECT c0 FROM t0 INTERSECT SELECT c1 FROM t1;
+c0
+1
+SELECT c0 FROM t0 INTERSECT ALL SELECT c1 FROM t1;
+c0
+1
+SELECT c1 FROM t1 INTERSECT SELECT c0 FROM t0;
+c1
+1
+SELECT c1 FROM t1 INTERSECT ALL SELECT c0 FROM t0;
+c1
+1
+SELECT c0 FROM t0 EXCEPT SELECT c1 FROM t1;
+c0
+NULL
+SELECT c0 FROM t0 EXCEPT ALL SELECT c1 FROM t1;
+c0
+NULL
+1
+SELECT c1 FROM t1 EXCEPT SELECT c0 FROM t0;
+c1
+SELECT c1 FROM t1 EXCEPT ALL SELECT c0 FROM t0;
+c1
+SET optimizer_switch='hash_set_operations=default';
+TRUNCATE t0;
+TRUNCATE t1;
+INSERT INTO t0(c0) VALUES(NULL), (NULL), (3), (5);
+INSERT INTO t1(c1) VALUES(1), (3), (4);
+SELECT AVG(c0), c0 FROM t0 GROUP BY c0
+INTERSECT
+SELECT c1, c1 FROM t1;
+AVG(c0)	c0
+3.0000	3
+SELECT AVG(c0) OVER (PARTITION BY c0), c0 FROM t0 GROUP BY c0
+INTERSECT
+SELECT c1, c1 FROM t1;
+AVG(c0) OVER (PARTITION BY c0)	c0
+3.0000	3
+DROP TABLE t0, t1;
+#
+# Bug#38799796: INTERSECT (SELECT NULL) incorrectly returns non-NULL rows
+#
+SELECT 62 INTERSECT SELECT NULL;
+62
+SELECT 62 EXCEPT SELECT NULL;
+62
+62
+#
+# Bug#38735051: Intersection order
+#
+SELECT NULL INTERSECT SELECT 1;
+NULL
+SELECT 1 INTERSECT SELECT NULL;
+1
+#
+# Bug#38713332: INTERSECT bug: Null-handling inconsistency returns
+#               non-intersecting row from outer joins with NULL comp.
+#
+CREATE TABLE t0(c0 FLOAT PRIMARY KEY, c1 FLOAT);
+CREATE TABLE t1(c0 FLOAT, c1 FLOAT);
+INSERT INTO t0(c0) VALUES(0);
+INSERT INTO t1(c0) VALUES(NULL);
+SELECT * FROM t0 LEFT JOIN t1 ON t0.c1 > t1.c1
+INTERSECT
+SELECT * FROM t0 RIGHT JOIN t1 ON t0.c1 > t1.c1;
+c0	c1	c0	c1
+SELECT * FROM t0 LEFT JOIN t1 ON t0.c1 > t1.c1;
+c0	c1	c0	c1
+0	NULL	NULL	NULL
+SELECT * FROM t0 RIGHT JOIN t1 ON t0.c1 > t1.c1;
+c0	c1	c0	c1
+NULL	NULL	NULL	NULL
+DROP TABLE t0, t1;

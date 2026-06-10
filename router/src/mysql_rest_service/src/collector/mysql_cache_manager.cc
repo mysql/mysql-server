@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,8 +94,17 @@ class ParseCacheOptions
 };
 
 CacheOptions parse_json_options(const std::string &options) {
-  return helper::json::text_to_handler<ParseCacheOptions>(options);
+  auto result = helper::json::text_to_handler<ParseCacheOptions>(options);
+
+  if (!result) {
+    log_error(
+        "Failed to parse 'MysqlCacheManager' options from global JSON "
+        "configuration");
+  }
+
+  return result.value_or(ParseCacheOptions::Result{});
 }
+
 }  // namespace
 
 using Object = MysqlCacheManager::Object;

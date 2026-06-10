@@ -1,0 +1,59 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# DB `basic_schema` - created
+CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
+# Registred SERVICE at path: /svc1
+# Registred DB_SCHEMA at path: /svc1/basic1
+# Registred DB_OBJECT at path: /svc1/basic1/o1
+# Registred AUTH APP at path: /svc1
+
+
+## I. Test authentication endpoint with invalid JSON payloads
+#
+# 1. Send a request with an empty JSON object
+# 2. Send a request with a non-JSON payload
+# 3. Send a request with invalid JSON object
+# 4. Send a request with JSON object containing a typo after the username
+#    and password fields (partial valid JSON rejected).
+
+# Shows that authentication with JSON object with valid data works.
+
+# I.1.
+POST /svc1/authentication/login (payload-size:2)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+OK
+
+# I.2.
+POST /svc1/authentication/login (payload-size:8)
+{
+    "message": "Invalid JSON payload",
+    "status": 400
+}
+OK
+
+# I.3.
+POST /svc1/authentication/login (payload-size:40)
+{
+    "message": "Invalid JSON payload",
+    "status": 400
+}
+OK
+
+# I.4.
+POST /svc1/authentication/login (payload-size:68)
+{
+    "message": "Invalid JSON payload",
+    "status": 400
+}
+OK
+DROP USER user_valid@'%';
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

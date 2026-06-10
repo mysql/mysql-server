@@ -1,0 +1,62 @@
+################################################################################
+# This test is to verify that default values of the component variables.
+################################################################################
+
+--source include/have_group_replication_resource_manager.inc
+
+
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+SET @saved_applier_channel_lag= @@global.group_replication_resource_manager.applier_channel_lag;
+SET @saved_memory_used_limit= @@global.group_replication_resource_manager.memory_used_limit;
+SET @saved_quarantine_time= @@global.group_replication_resource_manager.quarantine_time;
+SET @saved_recovery_channel_lag= @@global.group_replication_resource_manager.recovery_channel_lag;
+
+# Total number of GR Resource Manager variables.
+--let $total_component_vars= 4
+
+--echo #
+--echo # Set global/session variables to default.
+--echo # Curently there are $total_component_vars variables.
+--echo #
+
+--let $assert_text= There are $total_component_vars GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication_resource_manager%\']" = $total_component_vars
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_resource_manager.applier_channel_lag= default;
+SET @@GLOBAL.group_replication_resource_manager.memory_used_limit= default;
+SET @@GLOBAL.group_replication_resource_manager.quarantine_time= default;
+SET @@GLOBAL.group_replication_resource_manager.recovery_channel_lag= default;
+
+--echo #
+--echo # Verify default values of the variables.
+--echo #
+
+--let $assert_text= Default applier_channel_lag is 3600
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_resource_manager.applier_channel_lag]" = 3600
+--source include/assert.inc
+
+--let $assert_text= Default memory_used_limit is 100
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_resource_manager.memory_used_limit]" = 100
+--source include/assert.inc
+
+--let $assert_text= Default quarantine_time is 3600
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_resource_manager.quarantine_time]" = 3600
+--source include/assert.inc
+
+--let $assert_text= Default recovery_channel_lag is 3600
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_resource_manager.recovery_channel_lag]" = 3600
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+SET @@global.group_replication_resource_manager.applier_channel_lag= @saved_applier_channel_lag;
+SET @@global.group_replication_resource_manager.memory_used_limit= @saved_memory_used_limit;
+SET @@global.group_replication_resource_manager.quarantine_time= @saved_quarantine_time;
+SET @@global.group_replication_resource_manager.recovery_channel_lag= @saved_recovery_channel_lag;
+SET @saved_recovery_channel_lag= @@global.group_replication_resource_manager.recovery_channel_lag;
+
+--let $total_component_vars=
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';

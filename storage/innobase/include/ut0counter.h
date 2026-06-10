@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2025, Oracle and/or its affiliates.
+Copyright (c) 2012, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -198,7 +198,7 @@ class ib_counter_t {
       total += m_counter[m_policy.offset(i)];
     }
 
-    return (total);
+    return total;
   }
 
   Type operator[](size_t index) const UNIV_NOTHROW {
@@ -206,7 +206,7 @@ class ib_counter_t {
 
     ut_ad(i < UT_ARR_SIZE(m_counter));
 
-    return (m_counter[i]);
+    return m_counter[i];
   }
 
  private:

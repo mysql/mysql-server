@@ -313,10 +313,13 @@ EXPLAIN SELECT /*+ BKA(qb1 t3@qb1) */ f2 FROM
   (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
     WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 
---echo # Check illegal syntax
+--echo # Bug#37053765 Uniform syntax of join order and table hints
 --replace_regex $elide_costs
 EXPLAIN SELECT * FROM
   (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
+--replace_regex $elide_costs
+EXPLAIN SELECT * FROM
+  (SELECT /*+ QB_NAME(qb1) NO_BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
 
 --echo # Check '@qb_name table_name' syntax. BKA should be used for t2.
 --replace_regex $elide_costs

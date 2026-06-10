@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,15 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/memorystream.h>
+#include <rapidjson/pointer.h>
 #include <rapidjson/reader.h>
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
+#include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "my_alloc.h"
@@ -83,8 +87,8 @@ class Json_schema_validator_impl {
   /**
    This object acts as a handler/callback for the JSON schema validator and is
    called whenever a schema reference is encountered in the JSON document. Since
-   MySQL doesn't support schema references, this class is only used to detect
-   whether or not we actually found one in the JSON document.
+   MySQL doesn't support remote schema references, this class is only used to
+   detect whether or not we actually found one in the JSON document.
  */
   class My_remote_schema_document_provider
       : public rapidjson::IRemoteSchemaDocumentProvider {
@@ -106,6 +110,181 @@ class Json_schema_validator_impl {
   My_remote_schema_document_provider m_remote_document_provider;
   rapidjson::SchemaDocument m_cached_schema;
 };
+
+/**
+  Maximum "expansion depth" of a JSON Schema during rapidjson schema
+  compilation.
+
+  rapidjson schema compilation is recursive. The call stack depth is driven by
+  a combination of:
+  - JSON nesting within the schema (object members / array elements), and
+  - local `$ref` expansion (compiling referenced subschemas recursively).
+
+  This cap bounds the maximum number of edges along any path in the schema's
+  "expansion graph", where both JSON-tree edges and local `$ref` edges count
+  as 1.
+
+  Since MySQL rejects JSON documents deeper than 100 levels (see
+  `sql-common/json_syntax_check.cc`), schemas requiring more than 100 levels of
+  expansion cannot describe JSON documents supported by MySQL. We therefore use
+  100 as the single guard limit here as well.
+*/
+static constexpr uint32_t JSON_SCHEMA_MAX_EXPANSION_DEPTH = 100;
+
+/**
+  Check whether a `$ref` value is a *local* JSON Pointer reference.
+
+  We only guard references of the form `"#"` or `"#/..."`.
+
+  @param ref_value The value of the `$ref` member.
+  @retval true The `$ref` is a local JSON pointer reference.
+  @retval false Otherwise.
+*/
+static bool is_local_json_pointer_ref(const rapidjson::Value &ref_value) {
+  if (!ref_value.IsString()) return false;
+  const char *s = ref_value.GetString();
+  const size_t len = ref_value.GetStringLength();
+  return len > 0 && s[0] == '#' && (len == 1 || s[1] == '/');
+}
+
+/**
+  Resolve a local JSON Pointer `$ref` against the schema document.
+
+  @param schema_document The full JSON schema document.
+  @param ref_value The `$ref` member value (must be a local JSON pointer).
+  @returns Pointer to the referenced schema node on success, otherwise nullptr.
+*/
+static const rapidjson::Value *resolve_local_json_pointer_ref(
+    const rapidjson::Document &schema_document,
+    const rapidjson::Value &ref_value) {
+  assert(is_local_json_pointer_ref(ref_value));
+  const rapidjson::Pointer pointer(ref_value.GetString(),
+                                   ref_value.GetStringLength());
+  if (!pointer.IsValid()) return nullptr;
+  return pointer.Get(schema_document);
+}
+
+/**
+  Check whether any path from a schema node exceeds the expansion depth limit.
+
+  The expansion depth is the number of edges along a path in the schema's
+  expansion graph:
+  - JSON-tree edges (object members / array elements), and
+  - local `$ref` edges (local JSON Pointer references).
+
+  `visiting` is used to break `$ref` cycles (cycles are treated as
+  non-contributing; rapidjson will report cyclic references separately).
+
+  @param schema_document Parsed JSON schema document (used for resolving
+  `$ref`).
+  @param node The node to start the search from.
+  @param depth_so_far Current depth from the schema root.
+  @param limit Maximum allowed expansion depth.
+  @param[in,out] visiting Visitation set for cycle detection.
+  @retval true The limit is exceeded along some path.
+  @retval false No path exceeds the limit.
+*/
+static bool json_schema_exceeds_expansion_depth(
+    const rapidjson::Document &schema_document, const rapidjson::Value *node,
+    uint32_t depth_so_far, uint32_t limit,
+    std::unordered_set<const rapidjson::Value *> *visiting) {
+  assert(node != nullptr);
+  assert(visiting != nullptr);
+
+  if (depth_so_far > limit) {
+    return true;
+  }
+
+  if (visiting->find(node) != visiting->end()) {
+    // Cycle detected. rapidjson will report cyclic references separately; treat
+    // this edge as non-contributing here to avoid infinite recursion.
+    return false;
+  }
+
+  visiting->insert(node);
+
+  // Local `$ref` edge.
+  if (node->IsObject()) {
+    const auto ref_itr = node->FindMember("$ref");
+    if (ref_itr != node->MemberEnd() &&
+        is_local_json_pointer_ref(ref_itr->value)) {
+      const rapidjson::Value *target =
+          resolve_local_json_pointer_ref(schema_document, ref_itr->value);
+      if (target != nullptr &&
+          json_schema_exceeds_expansion_depth(
+              schema_document, target, depth_so_far + 1, limit, visiting)) {
+        visiting->erase(node);
+        return true;
+      }
+    }
+  }
+
+  // JSON-tree edges.
+  if (node->IsObject()) {
+    for (auto it = node->MemberBegin(); it != node->MemberEnd(); ++it) {
+      const rapidjson::Value *child = &it->value;
+      if (!child->IsObject() && !child->IsArray()) continue;
+      if (json_schema_exceeds_expansion_depth(
+              schema_document, child, depth_so_far + 1, limit, visiting)) {
+        visiting->erase(node);
+        return true;
+      }
+    }
+  } else if (node->IsArray()) {
+    for (auto it = node->Begin(); it != node->End(); ++it) {
+      const rapidjson::Value *child = it;
+      if (!child->IsObject() && !child->IsArray()) continue;
+      if (json_schema_exceeds_expansion_depth(
+              schema_document, child, depth_so_far + 1, limit, visiting)) {
+        visiting->erase(node);
+        return true;
+      }
+    }
+  }
+
+  visiting->erase(node);
+  return false;
+}
+
+/**
+  Validate that a JSON Schema does not require excessive recursion depth during
+  rapidjson schema compilation.
+
+  rapidjson schema compilation expands local `$ref` by recursively compiling the
+  referenced subschemas. The recursion depth is therefore related to the number
+  of local reference "hops" along the deepest expansion path. This depth can be
+  large even if no referred object has a `$ref` at its own top level, as long as
+  each referred object contains a nested object with a `$ref`.
+
+  This function only checks whether any expansion path exceeds the limit. Each
+  step into a nested object/array and each local `$ref` expansion counts as 1.
+
+  It does this by walking JSON-tree edges (object members / array elements) and
+  local `$ref` edges (JSON pointer references starting with `#`), with early
+  exit as soon as the limit is exceeded.
+
+  If the limit is exceeded (`JSON_SCHEMA_MAX_EXPANSION_DEPTH`),
+  `depth_handler()` is called and the schema is rejected.
+
+  @param schema_document Parsed JSON schema document.
+  @param depth_handler Error handler invoked when the limit is exceeded.
+  @retval true The schema exceeded the limit and an error was reported.
+  @retval false No expansion path exceeds the limit.
+*/
+static bool check_json_schema_expansion_depth(
+    const rapidjson::Document &schema_document,
+    const JsonErrorHandler &depth_handler) {
+  std::unordered_set<const rapidjson::Value *> visiting;
+  visiting.reserve(JSON_SCHEMA_MAX_EXPANSION_DEPTH);
+
+  if (json_schema_exceeds_expansion_depth(
+          schema_document, &schema_document, /*depth_so_far=*/0,
+          JSON_SCHEMA_MAX_EXPANSION_DEPTH, &visiting)) {
+    depth_handler();
+    return true;
+  }
+  return false;
+}
 
 /**
   parse_json_schema will parse a JSON input into a JSON Schema. If the input
@@ -171,6 +350,10 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
     return true;
   }
 
+  if (check_json_schema_expansion_depth(schema_document, depth_handler)) {
+    return true;
+  }
+
   return Json_schema_validator_impl(schema_document)
       .is_valid_json_schema(document_str, document_length, error_handler,
                             depth_handler, is_valid, validation_report);
@@ -188,6 +371,10 @@ bool Json_schema_validator::initialize(
   rapidjson::Document schema_document;
   if (parse_json_schema(json_schema_str, json_schema_length, error_handler,
                         depth_handler, &schema_document)) {
+    return true;
+  }
+
+  if (check_json_schema_expansion_depth(schema_document, depth_handler)) {
     return true;
   }
 

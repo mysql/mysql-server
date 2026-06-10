@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -113,15 +113,6 @@ bool Protocol_callback::store_longlong(longlong from, bool is_unsigned,
   return false;
 }
 
-/**
-  Sends DECIMAL value
-
-  @param d    value
-
-  @return
-    false  success
-    true   failure
-*/
 bool Protocol_callback::store_decimal(const my_decimal *d, uint, uint) {
   if (callbacks.get_decimal) return callbacks.get_decimal(callbacks_ctx, d);
   return false;
@@ -152,12 +143,15 @@ bool Protocol_callback::store_datetime(const MYSQL_TIME &time, uint precision) {
   return false;
 }
 
-bool Protocol_callback::store_date(const MYSQL_TIME &time) {
-  if (callbacks.get_date) return callbacks.get_date(callbacks_ctx, &time);
+bool Protocol_callback::store_date(const Date_val date) {
+  if (callbacks.get_date != nullptr) {
+    MYSQL_TIME tm = MYSQL_TIME(date);
+    if (callbacks.get_date(callbacks_ctx, &tm)) return true;
+  }
   return false;
 }
 
-bool Protocol_callback::store_time(const Time_val &time, uint precision) {
+bool Protocol_callback::store_time(const Time_val time, uint precision) {
   if (callbacks.get_time != nullptr) {
     MYSQL_TIME tm = MYSQL_TIME(time);
     if (callbacks.get_time(callbacks_ctx, &tm, precision) != 0) return true;

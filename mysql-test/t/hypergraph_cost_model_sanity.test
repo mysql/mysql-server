@@ -28,7 +28,7 @@ CREATE TABLE t3(p INT PRIMARY KEY, s INT, c INT, KEY(s));
 INSERT INTO t3 SELECT a.x, a.x, a.x FROM thousand AS a;
 ANALYZE TABLE t3;
 
---echo # Should use a table scan.
+--echo # Should use index scan on PRIMARY.
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t0;
 --replace_regex $elide_metrics
@@ -48,7 +48,7 @@ EXPLAIN FORMAT=TREE SELECT s FROM t3;
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 10;
 
---echo # Should use a full table scan with a filter rather than a non-covering index range scan
+--echo # Should use a index scan on primary with a filter rather than a non-covering index range scan
 --echo # because it is cheaper than performing 500 lookups into the clustered index.
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 500;
@@ -74,7 +74,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE p = 0;
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t2 WHERE t3.c = t2.c;
 
---echo # Should choose a hash join with table scans.
+--echo # Should choose a hash join with index scans on PRIMARY.
 # This choice is not so much about cost (nested loop join is actually
 # slightly cheaper), but about safety. If t0 is bigger than expected,
 # the nested loop join will quickly become much more expensive than
@@ -106,7 +106,7 @@ ANALYZE TABLE t_wide;
 --echo # the cost of a filtered table scan will become more expensive relative to a non-covering
 --echo # index range scan with the same number of matching rows.
 
---echo # Narrow table: Filtered table scan should be chosen.
+--echo # Narrow table: Filtered index scan should be chosen.
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t2 AS t WHERE t.s < 33;
 

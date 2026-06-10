@@ -1,0 +1,64 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_resource_attributes;
+@@global.telemetry.otel_resource_attributes
+
+SELECT @@session.telemetry.otel_resource_attributes;
+ERROR HY000: Variable 'telemetry.otel_resource_attributes' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_resource_attributes';
+Variable_name	Value
+telemetry.otel_resource_attributes	
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_resource_attributes';
+Variable_name	Value
+telemetry.otel_resource_attributes	
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_resource_attributes';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_resource_attributes	
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_resource_attributes';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_resource_attributes	
+SET GLOBAL telemetry.otel_resource_attributes
+='SHARD_ID=12, CLUSTER_ID=23, REGION=moon';
+ERROR HY000: Variable 'telemetry.otel_resource_attributes' is a read only variable
+SET SESSION telemetry.otel_resource_attributes
+='SHARD_ID=12, CLUSTER_ID=23, REGION=moon';
+ERROR HY000: Variable 'telemetry.otel_resource_attributes' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_resource_attributes
+='SHARD_ID=12, CLUSTER_ID=23, REGION=moon';
+SELECT @@global.telemetry.otel_resource_attributes;
+@@global.telemetry.otel_resource_attributes
+SHARD_ID=12, CLUSTER_ID=23, REGION=moon
+SET PERSIST telemetry.otel_resource_attributes
+='APP=Gaming, CURRENCY=coins, REGION=eldorado';
+ERROR HY000: Variable 'telemetry.otel_resource_attributes' is a read only variable
+SET PERSIST_ONLY telemetry.otel_resource_attributes
+='APP=Gaming, CURRENCY=coins, REGION=eldorado';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_resource_attributes;
+@@global.telemetry.otel_resource_attributes
+APP=Gaming, CURRENCY=coins, REGION=eldorado
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+RESET PERSIST telemetry.otel_resource_attributes;
+call mtr.add_suppression("Found invalid key/value pair in resource attributes");
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_resource_attributes
+='A=1, broken, B=2, ok_empty=, B=3, ok_weird=x=y, C=4, broken_again';
+SELECT @@global.telemetry.otel_resource_attributes;
+@@global.telemetry.otel_resource_attributes
+A=1, broken, B=2, ok_empty=, B=3, ok_weird=x=y, C=4, broken_again
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

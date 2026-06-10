@@ -1,0 +1,67 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.trace_enabled = 'ON', telemetry.metrics_enabled = 'ON', telemetry.log_enabled = 'ON';
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+--echo # Telemetry system variables
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME LIKE 'telemetry%'
+  ORDER BY VARIABLE_NAME;
+
+-- echo # Connection con1
+
+connect (con1, localhost, root, , );
+
+SELECT "In connection con1";
+
+-- echo # Connection con2
+
+connect (con2, localhost, root, , );
+
+SELECT "In connection con2";
+
+--connection default
+SELECT NAME, TYPE, PROCESSLIST_USER
+  FROM performance_schema.threads where TELEMETRY_ACTIVE='YES'
+  ORDER BY NAME, TYPE, PROCESSLIST_USER;
+
+-- echo "BEFORE RESTART"
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+-- echo "AFTER RESTART"
+
+SELECT component_urn FROM mysql.component
+  WHERE component_urn = "file://component_telemetry";
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+SELECT NAME, TYPE, PROCESSLIST_USER
+  FROM performance_schema.threads where TELEMETRY_ACTIVE='YES'
+  ORDER BY NAME, TYPE, PROCESSLIST_USER;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+

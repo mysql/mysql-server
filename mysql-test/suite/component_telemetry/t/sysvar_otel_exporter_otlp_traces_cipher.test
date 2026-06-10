@@ -1,0 +1,133 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("Failed to start.");
+call mtr.add_suppression("Illegal TLS 1.2 cipher found");
+call mtr.add_suppression("Failed to check system variable");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+#
+# Only global
+#
+
+SELECT @@global.telemetry.otel_exporter_otlp_traces_cipher;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.telemetry.otel_exporter_otlp_traces_cipher;
+
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_cipher';
+
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_cipher';
+
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name='telemetry.otel_exporter_otlp_traces_cipher';
+
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name='telemetry.otel_exporter_otlp_traces_cipher';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL telemetry.otel_exporter_otlp_traces_cipher
+  ='SOME-CIPHER';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION telemetry.otel_exporter_otlp_traces_cipher
+  ='SOME-CIPHER';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component with set var
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    =':';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='::';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='ALONE-ILLEGAL';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='BEGIN-ILLEGAL:ECDHE-RSA-CHACHA20-POLY1305';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='ECDHE-RSA-CHACHA20-POLY1305:END-ILLEGAL';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='ECDHE-RSA-CHACHA20-POLY1305:MIDDLE-ILLEGAL:ECDHE-RSA-AES128-GCM-SHA256';
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='ECDHE-RSA-CHACHA20-POLY1305:MANY-ILLEGAL-A:MANY-ILLEGAL-B:ECDHE-RSA-AES128-GCM-SHA256';
+
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_cipher
+    ='ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256';
+
+SELECT @@global.telemetry.otel_exporter_otlp_traces_cipher;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST telemetry.otel_exporter_otlp_traces_cipher
+  ='ULTIMATE-CIPHER';
+
+# Invalid value in PERSIST_ONLY
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_traces_cipher
+  ='ULTIMATE-CIPHER';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component (invalid)
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT 'file://component_telemetry';
+
+RESET PERSIST;
+
+INSTALL COMPONENT 'file://component_telemetry';
+
+# Valid value in PERSIST_ONLY
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_traces_cipher
+  ='ECDHE-RSA-CHACHA20-POLY1305';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component (valid)
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT @@global.telemetry.otel_exporter_otlp_traces_cipher;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--echo # Cleanup
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

@@ -246,10 +246,7 @@ SELECT * FROM t1 WHERE c1 < ADDTIME(NOW(),'2 01:01:01') ORDER BY c1;
 # Hypergraph has different warnings
 --disable_warnings
 SELECT * FROM t1 WHERE c1 <=> ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
---enable_warnings
 DELETE FROM t1 WHERE c1 <=> ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
-# Hypergraph has different warnings
---disable_warnings
 SELECT * FROM t1 WHERE c1 <=> ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
 SELECT * FROM t1 WHERE c1 <=> ADDDATE(CURDATE(),'1 01:01:01') ORDER BY c1 DESC;
 --enable_warnings

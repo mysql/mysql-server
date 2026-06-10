@@ -1,0 +1,54 @@
+CREATE TABLE jt(j JSON);
+SET NAMES 'latin1';
+INSERT INTO jt VALUES ('{ "_id": 102, "name": "å", "name_u8": "å"}');
+INSERT INTO jt VALUES (_utf8mb4'{ "_id": 103, "name": "å", "name_u8": "å"}');
+SET NAMES 'utf8mb4';
+SELECT * FROM jt;
+j
+{"_id": 102, "name": "Ã¥", "name_u8": "Ã¥"}
+{"_id": 103, "name": "å", "name_u8": "å"}
+CREATE TABLE p_student(
+suid INT PRIMARY KEY,
+sname VARCHAR(100) CHARSET latin1,
+sname_u8 VARCHAR(100) CHARSET utf8mb4);
+SHOW CREATE TABLE p_student;
+Table	Create Table
+p_student	CREATE TABLE `p_student` (
+  `suid` int NOT NULL,
+  `sname` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  `sname_u8` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  PRIMARY KEY (`suid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO p_student VALUES (101, 0xE5, 'å');
+SELECT suid, sname, HEX(sname), HEX(sname_u8) FROM p_student;
+suid	sname	HEX(sname)	HEX(sname_u8)
+101	å	E5	C3A5
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : suid,
+'name' : sname,
+'name_u8': sname_u8
+) FROM p_student;
+SELECT * FROM p_dv1;
+data
+{"_id": 101, "name": "å", "name_u8": "å", "_metadata": {"etag": "60f30ff97791a23a313929f3fbc38eab"}}
+SELECT suid, sname, HEX(sname), HEX(sname_u8) FROM p_student;
+suid	sname	HEX(sname)	HEX(sname_u8)
+101	å	E5	C3A5
+SET NAMES 'latin1';
+INSERT INTO p_dv1 VALUES ('{ "_id": 102, "name": "å", "name_u8": "å"}');
+INSERT INTO p_dv1 VALUES (_utf8mb4'{ "_id": 103, "name": "å", "name_u8": "å"}');
+SET NAMES 'utf8mb4';
+SELECT * FROM p_dv1;
+data
+{"_id": 101, "name": "å", "name_u8": "å", "_metadata": {"etag": "60f30ff97791a23a313929f3fbc38eab"}}
+{"_id": 102, "name": "Ã¥", "name_u8": "Ã¥", "_metadata": {"etag": "0b06043e23f6e18a71bf2388be81a9e8"}}
+{"_id": 103, "name": "å", "name_u8": "å", "_metadata": {"etag": "572d7133814d80dda6dfd3c95d004c09"}}
+SELECT suid, sname, HEX(sname), HEX(sname_u8) FROM p_student;
+suid	sname	HEX(sname)	HEX(sname_u8)
+101	å	E5	C3A5
+102	Ã¥	C3A5	C383C2A5
+103	å	E5	C3A5
+DROP VIEW p_dv1;
+DROP TABLE p_student;
+DROP TABLE jt;

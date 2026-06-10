@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -864,11 +864,18 @@ void BuildInterestingOrders(
     if (const Ordering reduced_ordering =
             ReduceFinalOrdering(thd, *orderings, *order_by_ordering_idx);
         reduced_ordering.size() < CountOrderElements(join->order.order)) {
-      join->order =
-          ORDER_with_src(RemoveRedundantOrderElements(
-                             join->order.order, reduced_ordering, *orderings),
-                         join->order.src,
-                         /*const_optimized_arg=*/true);
+      ORDER *reduced_order = RemoveRedundantOrderElements(
+          join->order.order, reduced_ordering, *orderings);
+      join->order = ORDER_with_src(reduced_order, join->order.src,
+                                   /*const_optimized_arg=*/true);
+      // Keep query_block->order_list in sync with JOIN::order so that
+      // consumers that read order_list see the reduced ORDER BY.
+      if (reduced_order == nullptr) {
+        query_block->order_list.clear();
+      } else {
+        query_block->order_list.first = reduced_order;
+        query_block->order_list.elements = reduced_ordering.size();
+      }
     }
   }
   if (*group_by_ordering_idx != -1) {

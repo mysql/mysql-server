@@ -2403,3 +2403,37 @@ SELECT COUNT(*) FROM t3;
 DROP TABLE t1, t2, t3;
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc
+
+--echo #
+--echo # Bug#31402520: SQL_REQUIRE_PRIMARY_KEY should also accept PKEs
+--echo #
+
+SET sql_require_primary_key=ON;
+
+--echo # Table with a PK is allowed, of course.
+CREATE TABLE pk   (a INT PRIMARY KEY);
+
+--echo # We can't DROP INDEX if that would leave the table without a PK.
+--error ER_TABLE_WITHOUT_PK
+DROP INDEX `PRIMARY` ON pk;
+
+--echo # Table with a PKE is (newly) also allowed.
+CREATE TABLE uknn (a INT UNIQUE KEY NOT NULL);
+
+--echo # We can't DROP INDEX if that would leave the table without a PKE.
+--error ER_TABLE_WITHOUT_PK
+DROP INDEX `a` ON uknn;
+
+--echo # Table without a PKE (here: UNIQUE, but NULLable) is (still) not allowed.
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE ukn  (a INT UNIQUE KEY);
+
+--echo # Table with no keys is not allowed.
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE nk   (a INT NOT NULL);
+
+# Clean up.
+DROP TABLE IF EXISTS pk;
+DROP TABLE IF EXISTS uknn;
+
+SET SESSION sql_require_primary_key=DEFAULT;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/sql_base.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"
@@ -685,6 +686,7 @@ bool Query_term_set_op::prepare_type_holders(
 
   auto tp = m_types->begin();
   for (size_t j = 0; j < visible_columns && tp != m_types->end(); ++j, ++tp) {
+    Item_type_holder *const type_holder = down_cast<Item_type_holder *>(*tp);
     size_t childno = 0;  // index into child query term array
     for (auto *child : m_children) {
       // Skip unifying types from CTE recursive block
@@ -698,8 +700,59 @@ bool Query_term_set_op::prepare_type_holders(
       size_t idx = 0;
       for (; it != child->types_iterator().end(); ++it) {
         assert(childno < contributing_children);
+        Item *const item = *it;
         if (idx == j) {
-          child_items[childno] = *it;
+          child_items[childno] = item;
+          if (term_type() != QT_UNION && !type_holder->is_nullable() &&
+              item->is_nullable()) {
+            /*
+              Result is not nullable but one item of INTERSECT/EXCEPT is.
+              Add a NOT NULL filter to the query block.
+            */
+            if (item->has_aggregation() || item->has_wf()) {
+              // Needs an Item_ref wrapper because item is in HAVING or QUALIFY
+              Item **found;
+              uint counter;
+              enum_resolution_type resolution;
+              if (find_item_in_list(thd, item, child_block->get_fields_list(),
+                                    &found, &counter, &resolution)) {
+                return true;
+              }
+              assert(found != nullptr);
+              Item **replace_item = &child_block->base_ref_items[counter];
+              Item_ref *item_ref = new (thd->mem_root)
+                  Item_ref(&child_block->context, replace_item, nullptr,
+                           nullptr, (*replace_item)->item_name.ptr(),
+                           resolution == RESOLVED_AGAINST_ALIAS);
+              if (item_ref == nullptr) {
+                return true;
+              }
+              Item *pred = new (thd->mem_root) Item_func_isnotnull(item_ref);
+              if (pred == nullptr) return true;
+
+              if (item->has_wf()) {
+                // Add filter to QUALIFY, ie. after windowing
+                Item *cond = and_items(child_block->qualify_cond(), pred);
+                if (cond == nullptr) return true;
+                if (cond->fix_fields(thd, &cond)) return true;
+                child_block->set_qualify_cond(cond);
+              } else {
+                // Add filter to HAVING, ie. after aggregation is done
+                Item *cond = and_items(child_block->having_cond(), pred);
+                if (cond == nullptr) return true;
+                if (cond->fix_fields(thd, &cond)) return true;
+                child_block->set_having_cond(cond);
+              }
+            } else {
+              // Add filter to WHERE clause
+              Item *pred = new (thd->mem_root) Item_func_isnotnull(item);
+              if (pred == nullptr) return true;
+              Item *cond = and_items(child->query_block()->where_cond(), pred);
+              if (cond == nullptr) return true;
+              if (cond->fix_fields(thd, &cond)) return true;
+              child->query_block()->set_where_cond(cond);
+            }
+          }
         }
         idx++;
       }
@@ -708,8 +761,8 @@ bool Query_term_set_op::prepare_type_holders(
 
     // we vertically join types from all operands, one column position at a time
     // cf. outermost loop.
-    if (down_cast<Item_type_holder *>(*tp)->unify_types(
-            os.c_str(), child_items, contributing_children)) {
+    if (type_holder->unify_types(os.c_str(), child_items,
+                                 contributing_children)) {
       return true;
     }
   }

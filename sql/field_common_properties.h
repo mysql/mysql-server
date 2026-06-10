@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,30 @@ inline bool is_string_type(enum_field_types type) {
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_JSON:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
+  Is this a simple string type? CHAR/VARCHAR/BINARY/VARBINARY and variants of
+  TEXT and BLOB are considered simple string types. Not string-like types with
+  special semantics, such as JSON, GEOMETRY and temporal types.
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if simple string type, false otherwise
+*/
+inline bool is_simple_string_type(enum_field_types type) {
+  switch (type) {
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
       return true;
     default:
       return false;

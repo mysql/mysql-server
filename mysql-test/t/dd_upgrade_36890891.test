@@ -82,7 +82,7 @@
 --echo # Show tables we could not open during upgrade (all except t0, t4).
 SELECT "errlog>>" AS indent, prio, data
   FROM performance_schema.error_log
- WHERE error_code IN("MY-014078", "MY-014079", "MY-015638")
+ WHERE error_code IN("MY-014078", "MY-014079", "MY-015652")
  ORDER BY logged ASC;
 
 --echo

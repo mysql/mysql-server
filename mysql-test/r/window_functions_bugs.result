@@ -822,10 +822,10 @@ NULL
 NULL
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '1'
-Warning	1292	Incorrect datetime value: '1'
-Warning	1292	Incorrect datetime value: '1'
-Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Truncated incorrect date value: '1'
+Warning	1292	Truncated incorrect date value: '1'
+Warning	1292	Truncated incorrect date value: '1'
+Warning	1292	Truncated incorrect date value: '1'
 DROP TABLE t;
 #
 # Bug#27453155 W->FRAME_BUFFER()->S->DB_TYPE()->DB_TYPE ==
@@ -1123,13 +1123,13 @@ SELECT 0.2 * AVG(f1) OVER w AS avg, f1
 FROM t1 JOIN t2 ON t1_partkey = t2_partkey
 WINDOW w AS (PARTITION BY t1_partkey);
 avg	f1
-2.70000	34
 2.70000	10
+2.70000	34
 2.70000	4
 2.70000	6
-6.93334	9
-6.93334	64
 6.93334	31
+6.93334	64
+6.93334	9
 DROP TABLE t1, t2;
 #
 # Bug#32328576: BOOL PROCESS_BUFFERED_WINDOWING_RECORD: ASSERTION `!ROW_ADDED

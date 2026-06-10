@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,18 +159,17 @@ extern "C" int ndb_mgm_get_db_parameter_info(Uint32 paramId,
     return -1;
   }
 
-  ConfigInfo data;
-  for (int i = 0; i < data.m_NoOfParams; i++) {
-    if (paramId == data.m_ParamInfo[i]._paramId &&
-        strcmp("DB", data.m_ParamInfo[i]._section) == 0) {
+  for (int i = 0; i < ConfigInfo::m_NoOfParams; i++) {
+    if (paramId == ConfigInfo::m_ParamInfo[i]._paramId &&
+        strcmp("DB", ConfigInfo::m_ParamInfo[i]._section) == 0) {
       size_t tmp = 0;
       if (tmp + sizeof(info->m_id) <= *size) {
-        info->m_id = data.m_ParamInfo[i]._paramId;
+        info->m_id = ConfigInfo::m_ParamInfo[i]._paramId;
         tmp += sizeof(info->m_id);
       }
 
       if (tmp + sizeof(info->m_name) <= *size) {
-        info->m_name = data.m_ParamInfo[i]._fname;
+        info->m_name = ConfigInfo::m_ParamInfo[i]._fname;
         tmp += sizeof(info->m_name);
       }
 

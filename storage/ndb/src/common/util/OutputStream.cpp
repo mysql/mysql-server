@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <BaseString.hpp>
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
+#include <cstring>
 
 BufferedOutputStream::BufferedOutputStream(LogBuffer *plogBuf) {
   logBuf = plogBuf;
@@ -72,9 +73,12 @@ int BufferedOutputStream::write(const void *buf, size_t len) {
   return (int)(logBuf->append(buf, len));
 }
 
-FileOutputStream::FileOutputStream(FILE *file) { f = file; }
+FileOutputStream::FileOutputStream(FILE *file, OutputStream *flush_other,
+                                   bool flush_on_write)
+    : f(file), flush_other(flush_other), flush_on_write(flush_on_write) {}
 
 int FileOutputStream::print(const char *fmt, ...) {
+  if (flush_on_write && flush_other) flush_other->flush();
   va_list ap;
   va_start(ap, fmt);
   const int ret = vfprintf(f, fmt, ap);
@@ -83,6 +87,7 @@ int FileOutputStream::print(const char *fmt, ...) {
 }
 
 int FileOutputStream::println(const char *fmt, ...) {
+  if (flush_on_write && flush_other) flush_other->flush();
   va_list ap;
   va_start(ap, fmt);
   const int ret = vfprintf(f, fmt, ap);
@@ -91,6 +96,7 @@ int FileOutputStream::println(const char *fmt, ...) {
 }
 
 int FileOutputStream::write(const void *buf, size_t len) {
+  if (flush_on_write && flush_other) flush_other->flush();
   return (int)fwrite(buf, len, 1, f);
 }
 
@@ -394,3 +400,68 @@ const char *CircularStringBuffer::Iterator::getNextString(size_t *nextLen) {
     return nullptr;
   }
 }
+
+#ifdef TEST_OUTPUTSTREAM
+
+#include <cstdio>
+#include "util/NdbTap.hpp"
+
+#ifdef _WIN32
+#include <io.h>
+#define dup _dup
+#define dup2 _dup2
+#define close _close
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
+
+static bool demonstrate_reordering_between_stdout_and_stderr();
+
+int main() {
+  ok(demonstrate_reordering_between_stdout_and_stderr(),
+     "Demonstrate reordering between stdout and stderr");
+  return exit_status();
+}
+
+bool demonstrate_reordering_between_stdout_and_stderr() {
+  /*
+   * Demonstrate reordering between stdout and stderr when redirected to same
+   * file.
+   */
+  FILE *logfile = tmpfile();
+  int saved_stdout = dup(1);
+  int saved_stderr = dup(2);
+  dup2(fileno(logfile), 1);
+  dup2(1, 2);
+  {
+    // fully buffered
+    FileOutputStream out(stdout);
+    // unbuffered
+    FileOutputStream err(stderr);
+    // unbuffered, flush out before write
+    FileOutputStream errf(stderr, &out, true);
+
+    // since out is buffered it will end up between err and errf.
+    out.print("out\n");
+    err.print("err\n");
+    errf.print("errf\n");
+  }
+  dup2(saved_stdout, 1);
+  dup2(saved_stderr, 2);
+  close(saved_stdout);
+  close(saved_stderr);
+  char buf[100];
+  size_t n;
+  char *pbuf = buf;
+  rewind(logfile);
+  while ((n = fread(pbuf, 1, sizeof(buf) - (pbuf - buf), logfile)) > 0) {
+    pbuf += n;
+  }
+  *pbuf = 0;
+  // Note out ends up between err and errf.
+  const char expect[] = "err\nout\nerrf\n";
+  return (strcmp(buf, expect) == 0);
+}
+
+#endif

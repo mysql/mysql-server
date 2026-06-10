@@ -1,0 +1,68 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+#
+# Only global
+#
+
+SELECT @@global.telemetry.otel_bsp_max_queue_size;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.telemetry.otel_bsp_max_queue_size;
+
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_bsp_max_queue_size';
+
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_bsp_max_queue_size';
+
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name='telemetry.otel_bsp_max_queue_size';
+
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name='telemetry.otel_bsp_max_queue_size';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL telemetry.otel_bsp_max_queue_size=1024;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION telemetry.otel_bsp_max_queue_size=1024;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_bsp_max_queue_size=1024;
+
+SELECT @@global.telemetry.otel_bsp_max_queue_size;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST telemetry.otel_bsp_max_queue_size=900;
+
+SET PERSIST_ONLY telemetry.otel_bsp_max_queue_size=900;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT @@global.telemetry.otel_bsp_max_queue_size;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--echo # Cleanup
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

@@ -1418,3 +1418,52 @@ SELECT SUBTIME(FROM_UNIXTIME(3569025024, CONCAT_WS(':', '%V', '%V', '%m', '%T')
 --echo #
 
 SELECT TIMEDIFF('4617000000', DATE(NULL)) AS c;
+
+--echo #
+--echo # Bug#38179658: TIMEDIFF is not consistent with documentation
+--echo #
+
+CREATE TABLE t(t2 TIME, t4 DATETIME);
+INSERT INTO t VALUES(TIME'01:01:01', TIMESTAMP'2001-02-01 01:01:01');
+
+SELECT t2, t4, TIMEDIFF(t2, t4) AS v FROM t;
+SELECT TIMEDIFF('01:01:01', '2001-02-01 01:01:01');
+SELECT TIMEDIFF(TIME'01:01:01', TIMESTAMP'2001-02-01 01:01:01');
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#38177844: TO_DAYS() result is inconsistent
+--echo #
+
+SELECT FROM_DAYS(3652499), FROM_DAYS(3652500), FROM_DAYS(3652501);
+
+--echo #
+--echo # Bug#38177993: TO_DAYS() result with argument < 366 is inconsistent
+--echo #
+
+SELECT FROM_DAYS(1), FROM_DAYS(365);
+
+--echo #
+--echo # Bug#38181443: TIMEDIFF returns wrong result when first argument
+--echo #               is DATETIME and second argument is DATE
+--echo #
+
+SELECT TIMEDIFF(TIMESTAMP'0000-01-01 00:00:00.00000', DATE'2025-08-01');
+SELECT TIMEDIFF(TIMESTAMP'0000-01-01 00:00:00.00000', '2025-08-01');
+SELECT TIMEDIFF('0000-01-01 00:00:00.00000', DATE'2025-08-01');
+SELECT TIMEDIFF('0000-01-01 00:00:00.00000', '2025-08-01');
+
+--echo #
+--echo # Bug#38980002: Assertion 'dt.time_type == MYSQL_TIMESTAMP_DATETIME ||
+--echo #               dt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ' failed
+--echo #
+
+SELECT CEILING(CONVERT_TZ('2025-01-01' ,'-01:00','-08:00')) AS ceil;
+
+--echo #
+--echo # Bug#38979962: Assertion 'hour != 0 && minute != 0 && second != 0 &&
+--echo #               microsecond != 0' failed'
+--echo #
+
+SELECT SEC_TO_TIME(-00.0000004584) AS tv;

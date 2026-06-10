@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/resolver/resolver.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/connection_pool_component.h"
@@ -244,11 +245,12 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
   if (destination_->destination().is_tcp()) {
     auto tcp_dest = destination_->destination().as_tcp();
 
-    const auto resolve_res =
-        resolver_.resolve(tcp_dest.hostname(), std::to_string(tcp_dest.port()));
+    const auto resolve_result = mysql_harness::resolver::resolve_host(
+        tcp_dest.hostname(),
+        mysql_harness::resolver::CachePolicy::UseIfPresent);
 
-    if (!resolve_res) {
-      auto ec = resolve_res.error();
+    if (!resolve_result) {
+      auto ec = resolve_result.error();
 
       const auto resolve_duration =
           std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -286,9 +288,9 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
 
     endpoints_.clear();
 
-    for (const auto &ep : *resolve_res) {
+    for (const auto &ep : resolve_result->addresses) {
       endpoints_.emplace_back(
-          mysql_harness::DestinationEndpoint::TcpType(ep.endpoint()));
+          mysql_harness::DestinationEndpoint::TcpType(ep, tcp_dest.port()));
     }
   } else {
     endpoints_.clear();

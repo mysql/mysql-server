@@ -685,7 +685,7 @@ SET @old_sql_mode= @@sql_mode;
 SET sql_mode="";
 CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
 ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
-ERROR 22007: Incorrect datetime value: '1' for column 'a' at row 1
+ERROR 22007: Incorrect datetime value: '1'
 DROP TABLE t;
 SET sql_mode= @old_sql_mode;
 #

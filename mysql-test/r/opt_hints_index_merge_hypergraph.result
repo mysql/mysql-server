@@ -384,7 +384,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: ((t1.f2 > 2) and (t1.f4 = 'h'))  (rows=42.7)
-        -> Table scan on t1  (rows=288)
+        -> Index scan on t1 using PRIMARY  (rows=288)
 
 SET optimizer_switch='index_merge_union=off,index_merge=off';
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
@@ -397,7 +397,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
 EXPLAIN
 -> Filter: ((t1.f2 = 5) or (t1.f3 = 'c') or (t1.f4 = 'f'))  (rows=40)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f1 = 4 OR f4 = 'f');
 EXPLAIN
@@ -417,12 +417,12 @@ SET optimizer_switch='index_merge_union=on,index_merge=on';
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f3, f4) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
 EXPLAIN
 -> Filter: ((t1.f2 = 5) or (t1.f3 = 'c') or (t1.f4 = 'f'))  (rows=40)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f1 = 4 OR f4 = 'f');
 EXPLAIN
 -> Filter: (((t1.f1 = 4) or (t1.f4 = 'f')) and ((t1.f2 = 5) or (t1.f3 = 'c')))  (rows=6.11)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f1 = 4 OR f4 = 'f');
 EXPLAIN
@@ -461,7 +461,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
 EXPLAIN
 -> Filter: (((t1.f2 between 5 and 6) or (t1.f3 = 'c')) and ((t1.f2 between 5 and 6) or (t1.f4 = 'f')))  (rows=3.56)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 Warnings:
 Warning	3614	Invalid number of arguments for hint INDEX_MERGE(`t1`  `f3`)
@@ -477,12 +477,12 @@ SET optimizer_switch='index_merge_sort_union=on,index_merge=on';
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f4) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
 EXPLAIN
 -> Filter: (((t1.f2 between 5 and 6) or (t1.f3 = 'c')) and ((t1.f2 between 5 and 6) or (t1.f4 = 'f')))  (rows=3.56)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f3) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
 EXPLAIN
 -> Filter: (((t1.f2 between 5 and 6) or (t1.f3 = 'c')) and ((t1.f2 between 5 and 6) or (t1.f4 = 'f')))  (rows=3.56)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
 EXPLAIN
@@ -501,7 +501,7 @@ EXPLAIN
 EXPLAIN SELECT * FROM t1 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
 EXPLAIN
 -> Filter: (((t1.f2 between 1 and 200) or (t1.f3 = 'c')) and ((t1.f2 between 1 and 200) or (t1.f4 = 'f')))  (rows=288)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
 EXPLAIN
@@ -537,7 +537,7 @@ EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: (((t1.f4 = 'h') and (t1.f2 = 2) and (t1.f3 = 'b')) or ((t1.f7 = 'd') and (t1.f6 = 'e')))  (rows=129)
-        -> Table scan on t1  (rows=288)
+        -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
 EXPLAIN
@@ -610,7 +610,7 @@ EXPLAIN
 EXPLAIN SELECT f3 FROM t1 WHERE (f2 = 3 AND f4 = '' AND f5 > '') OR (f7 = 'd' AND f6 = 'e');
 EXPLAIN
 -> Filter: (((t1.f5 > '') and (t1.f2 = 3) and (t1.f4 = '')) or ((t1.f7 = 'd') and (t1.f6 = 'e')))  (rows=65)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f3 FROM t1 WHERE (f2 = 3 AND f4 = '' AND f5 > '') OR (f7 = 'd' AND f6 = 'e');
 EXPLAIN
@@ -648,7 +648,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1 IGNORE INDEX (f4)
 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
 EXPLAIN
 -> Filter: (((t1.f2 between 1 and 200) or (t1.f3 = 'c')) and ((t1.f2 between 1 and 200) or (t1.f4 = 'f')))  (rows=96)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1 FORCE INDEX (f4)
 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
@@ -659,7 +659,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 IGNORE INDEX (f2, f3) WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
 -> Filter: ((t1.f2 = 2) and (t1.f4 = 'h') and (t1.f3 = 'b'))  (rows=5.33)
-    -> Table scan on t1  (rows=288)
+    -> Index scan on t1 using PRIMARY  (rows=288)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 FORCE INDEX (f2, f3) WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN

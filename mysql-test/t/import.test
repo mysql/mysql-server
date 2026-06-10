@@ -650,6 +650,29 @@ SET SESSION sql_require_primary_key= OFF;
 --echo # Clean SDI files in \$EXPORT_DIR
 --remove_files_wildcard $EXPORT_DIR t*
 
+--echo
+--echo # Addendum for Bug#31402520: UNIQUE KEY NOT NULL should be accepted.
+
+CREATE TABLE t1 (i INT UNIQUE KEY NOT NULL);
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Copy files back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t*
+
+SET SESSION sql_require_primary_key= ON;
+IMPORT TABLE FROM 't1_*.sdi';
+DROP TABLE IF EXISTS t1;
+--remove_files_wildcard $MYSQLD_DATADIR/test/ t*
+
+SET SESSION sql_require_primary_key= OFF;
+--echo # Clean SDI files in \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR t*
+
 --echo #-----------------------------------------------------------------------
 --echo # WL#929 - Check constraint.
 --echo # Test case to verify check constraint import from SDI.

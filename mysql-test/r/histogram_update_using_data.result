@@ -667,7 +667,6 @@ test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'c
 test.tbl_date	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
 ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 Table	Op	Msg_type	Msg_text
-test.tbl_date	histogram	Note	Incorrect date value: '2017-02-06' for column 'col1' at row 1
 test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
 test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
 ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
@@ -711,12 +710,10 @@ test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'c
 test.tbl_date	histogram	Error	Wrong attribute type at '$.buckets[0][1]'.
 ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 Table	Op	Msg_type	Msg_text
-test.tbl_date	histogram	Note	Incorrect date value: '2017-02-06' for column 'col1' at row 1
 test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
 test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
 ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12 14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 Table	Op	Msg_type	Msg_text
-test.tbl_date	histogram	Note	Incorrect date value: '2018-02-12' for column 'col1' at row 1
 test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
 test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[1][1]'.
 ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
@@ -1050,3 +1047,15 @@ ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25
 Table	Op	Msg_type	Msg_text
 test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
 DROP TABLE tbl_int;
+#
+# Bug#37269033: user defined histogram import error for bigint data
+#
+CREATE TABLE tbl_bigint(col1 BIGINT);
+INSERT INTO tbl_bigint VALUES (100000000000);
+ANALYZE TABLE tbl_bigint UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS MANUAL UPDATE;
+Table	Op	Msg_type	Msg_text
+test.tbl_bigint	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_bigint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[100000000000, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_bigint	histogram	status	Histogram statistics created for column 'col1'.
+DROP TABLE tbl_bigint;

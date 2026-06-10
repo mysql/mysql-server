@@ -10,11 +10,11 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN
 -> Filter: (t1.f1 = (select #2))  (rows=1)
-    -> Table scan on t1  (rows=3)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
     -> Select #2 (subquery in condition; dependent)
         -> Aggregate: min(i.f1)  (rows=1)
             -> Filter: (i.f1 > t1.f1)  (rows=1)
-                -> Table scan on i  (rows=3)
+                -> Covering index scan on i using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -25,14 +25,17 @@ EXPLAIN
   "query_plan": {
     "inputs": [
       {
-        "operation": "Table scan on t1",
+        "covering": true,
+        "operation": "Covering index scan on t1 using PRIMARY",
+        "index_name": "PRIMARY",
         "table_name": "t1",
-        "access_type": "table",
+        "access_type": "index",
         "schema_name": "test",
         "used_columns": [
           "f1"
         ],
         "estimated_rows": "elided",
+        "index_access_type": "index_scan",
         "estimated_total_cost": "elided",
         "estimated_first_row_cost": "elided"
       },
@@ -42,14 +45,17 @@ EXPLAIN
             "inputs": [
               {
                 "alias": "i",
-                "operation": "Table scan on i",
+                "covering": true,
+                "operation": "Covering index scan on i using PRIMARY",
+                "index_name": "PRIMARY",
                 "table_name": "t1",
-                "access_type": "table",
+                "access_type": "index",
                 "schema_name": "test",
                 "used_columns": [
                   "f1"
                 ],
                 "estimated_rows": "elided",
+                "index_access_type": "index_scan",
                 "estimated_total_cost": "elided",
                 "estimated_first_row_cost": "elided"
               }
@@ -98,10 +104,10 @@ Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
 -> Filter: (t1.f1 > (select #2))  (rows=1)
-    -> Table scan on t1  (rows=3)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)  (rows=1)
-            -> Table scan on t1  (rows=3)
+            -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
@@ -110,14 +116,17 @@ EXPLAIN
   "query_plan": {
     "inputs": [
       {
-        "operation": "Table scan on t1",
+        "covering": true,
+        "operation": "Covering index scan on t1 using PRIMARY",
+        "index_name": "PRIMARY",
         "table_name": "t1",
-        "access_type": "table",
+        "access_type": "index",
         "schema_name": "test",
         "used_columns": [
           "f1"
         ],
         "estimated_rows": "elided",
+        "index_access_type": "index_scan",
         "estimated_total_cost": "elided",
         "estimated_first_row_cost": "elided"
       },
@@ -125,14 +134,17 @@ EXPLAIN
         "limit": 1,
         "inputs": [
           {
-            "operation": "Table scan on t1",
+            "covering": true,
+            "operation": "Covering index scan on t1 using PRIMARY",
+            "index_name": "PRIMARY",
             "table_name": "t1",
-            "access_type": "table",
+            "access_type": "index",
             "schema_name": "test",
             "used_columns": [
               "f1"
             ],
             "estimated_rows": "elided",
+            "index_access_type": "index_scan",
             "estimated_total_cost": "elided",
             "estimated_first_row_cost": "elided"
           }
@@ -221,10 +233,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN format=TREE SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.83)
+-> Inner hash join (LooseScan) (t1.i = t2.i)  (rows=2.83)
     -> Remove duplicates from input grouped on t2.i  (rows=2.83)
         -> Covering index scan on t2 using i1  (rows=8)
-    -> Single-row covering index lookup on t1 using PRIMARY (i = t2.i)  (rows=1)
+    -> Hash
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
 
 EXPLAIN format=JSON SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
@@ -260,33 +273,34 @@ EXPLAIN
         "estimated_first_row_cost": "elided"
       },
       {
+        "heading": "Hash",
         "covering": true,
-        "operation": "Single-row covering index lookup on t1 using PRIMARY (i = t2.i)",
+        "operation": "Covering index scan on t1 using PRIMARY",
         "index_name": "PRIMARY",
         "table_name": "t1",
         "access_type": "index",
-        "key_columns": [
-          "i"
-        ],
         "schema_name": "test",
         "used_columns": [
           "i"
         ],
         "estimated_rows": "elided",
-        "lookup_condition": "i = t2.i",
-        "index_access_type": "index_lookup",
-        "lookup_references": [
-          "test.t2.i"
-        ],
+        "index_access_type": "index_scan",
         "estimated_total_cost": "elided",
         "estimated_first_row_cost": "elided"
       }
     ],
     "join_type": "inner join",
-    "operation": "Nested loop inner join (LooseScan)",
+    "operation": "Inner hash join (LooseScan) (t1.i = t2.i)",
     "access_type": "join",
+    "join_columns": [
+      "test.t1.i",
+      "test.t2.i"
+    ],
     "estimated_rows": "elided",
-    "join_algorithm": "nested_loop",
+    "hash_condition": [
+      "(t1.i = t2.i)"
+    ],
+    "join_algorithm": "hash",
     "semijoin_strategy": "loosescan",
     "estimated_total_cost": "elided",
     "estimated_first_row_cost": "elided"
@@ -417,12 +431,12 @@ EXPLAIN
 -> Group (no aggregates)  (rows=1.95)
     -> Sort: t1.col_varchar_key  (rows=3.8)
         -> Inner hash join (no condition)  (rows=3.8)
-            -> Covering index scan on alias1 using idx_CC_col_varchar_key  (rows=3)
+            -> Covering index scan on alias1 using PRIMARY  (rows=3)
             -> Hash
                 -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (rows=1.27)
-                    -> Table scan on t1  (rows=3)
+                    -> Index scan on t1 using PRIMARY  (rows=3)
                     -> Hash
-                        -> Covering index scan on alias2 using idx_CC_col_varchar_key  (rows=3)
+                        -> Index scan on alias2 using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -433,7 +447,7 @@ WHERE alias2.col_varchar_key >= t1.col_varchar)
 GROUP BY field1;
 EXPLAIN
 {
-  "query": "/* select#1 */ select sql_big_result `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on(((`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`))) where true group by `field1`",
+  "query": "/* select#1 */ select sql_big_result `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on((`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`)) where true group by `field1`",
   "query_plan": {
     "inputs": [
       {
@@ -443,8 +457,8 @@ EXPLAIN
               {
                 "alias": "alias1",
                 "covering": true,
-                "operation": "Covering index scan on alias1 using idx_CC_col_varchar_key",
-                "index_name": "idx_CC_col_varchar_key",
+                "operation": "Covering index scan on alias1 using PRIMARY",
+                "index_name": "PRIMARY",
                 "table_name": "t1",
                 "access_type": "index",
                 "schema_name": "test",
@@ -456,24 +470,27 @@ EXPLAIN
               {
                 "inputs": [
                   {
-                    "operation": "Table scan on t1",
+                    "covering": false,
+                    "operation": "Index scan on t1 using PRIMARY",
+                    "index_name": "PRIMARY",
                     "table_name": "t1",
-                    "access_type": "table",
+                    "access_type": "index",
                     "schema_name": "test",
                     "used_columns": [
                       "col_varchar",
                       "col_varchar_key"
                     ],
                     "estimated_rows": "elided",
+                    "index_access_type": "index_scan",
                     "estimated_total_cost": "elided",
                     "estimated_first_row_cost": "elided"
                   },
                   {
                     "alias": "alias2",
                     "heading": "Hash",
-                    "covering": true,
-                    "operation": "Covering index scan on alias2 using idx_CC_col_varchar_key",
-                    "index_name": "idx_CC_col_varchar_key",
+                    "covering": false,
+                    "operation": "Index scan on alias2 using PRIMARY",
+                    "index_name": "PRIMARY",
                     "table_name": "t1",
                     "access_type": "index",
                     "schema_name": "test",
@@ -744,14 +761,14 @@ EXPLAIN
             -> Group aggregate: group_concat(t2.b separator ',')
                 -> Sort: t1.a
                     -> Left hash join (t1.a = t2.a)
-                        -> Table scan on t1
+                        -> Index scan on t1 using PRIMARY
                         -> Hash
-                            -> Table scan on t2
+                            -> Covering index scan on t2 using PRIMARY
 
 EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on(multiple equal(`test`.`t1`.`a`, `test`.`t2`.`a`)) group by `test`.`t1`.`a` order by `test`.`t1`.`b`",
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) group by `test`.`t1`.`a` order by `test`.`t1`.`b`",
   "query_plan": {
     "inputs": [
       {
@@ -765,29 +782,35 @@ EXPLAIN
                       {
                         "inputs": [
                           {
-                            "operation": "Table scan on t1",
+                            "covering": false,
+                            "operation": "Index scan on t1 using PRIMARY",
+                            "index_name": "PRIMARY",
                             "table_name": "t1",
-                            "access_type": "table",
+                            "access_type": "index",
                             "schema_name": "test",
                             "used_columns": [
                               "a",
                               "b"
                             ],
                             "estimated_rows": "elided",
+                            "index_access_type": "index_scan",
                             "estimated_total_cost": "elided",
                             "estimated_first_row_cost": "elided"
                           },
                           {
                             "heading": "Hash",
-                            "operation": "Table scan on t2",
+                            "covering": true,
+                            "operation": "Covering index scan on t2 using PRIMARY",
+                            "index_name": "PRIMARY",
                             "table_name": "t2",
-                            "access_type": "table",
+                            "access_type": "index",
                             "schema_name": "test",
                             "used_columns": [
                               "a",
                               "b"
                             ],
                             "estimated_rows": "elided",
+                            "index_access_type": "index_scan",
                             "estimated_total_cost": "elided",
                             "estimated_first_row_cost": "elided"
                           }
@@ -876,7 +899,7 @@ EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
 LEFT JOIN t1 AS c ON b.a=c.a;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a`,`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on(multiple equal(`b`.`a`, `c`.`a`))",
+  "query": "/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a`,`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on((`b`.`a` = `c`.`a`))",
   "query_plan": {
     "inputs": [
       {
@@ -1171,9 +1194,9 @@ OVER (PARTITION BY b) FROM t1 x1;
 EXPLAIN
 -> Window aggregate with buffering: last_value(`(select #2)`) OVER (PARTITION BY x1.b )   (...)
     -> Sort: x1.b  (...)
-        -> Table scan on x1  (...)
+        -> Index scan on x1 using PRIMARY  (...)
     -> Select #2 (subquery in projection; dependent)
-        -> Table scan on t1  (...)
+        -> Covering index scan on t1 using PRIMARY  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1188,15 +1211,18 @@ EXPLAIN
         "inputs": [
           {
             "alias": "x1",
-            "operation": "Table scan on x1",
+            "covering": false,
+            "operation": "Index scan on x1 using PRIMARY",
+            "index_name": "PRIMARY",
             "table_name": "t1",
-            "access_type": "table",
+            "access_type": "index",
             "schema_name": "test",
             "used_columns": [
               "a",
               "b"
             ],
             "estimated_rows": "elided",
+            "index_access_type": "index_scan",
             "estimated_total_cost": "elided",
             "estimated_first_row_cost": "elided"
           }
@@ -1212,13 +1238,16 @@ EXPLAIN
       },
       {
         "heading": "Select #2 (subquery in projection; dependent)",
+        "covering": true,
         "subquery": true,
         "dependent": true,
-        "operation": "Table scan on t1",
+        "operation": "Covering index scan on t1 using PRIMARY",
+        "index_name": "PRIMARY",
         "table_name": "t1",
-        "access_type": "table",
+        "access_type": "index",
         "schema_name": "test",
         "estimated_rows": "elided",
+        "index_access_type": "index_scan",
         "subquery_location": "projection",
         "estimated_total_cost": "elided",
         "estimated_first_row_cost": "elided"

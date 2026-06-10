@@ -1,0 +1,313 @@
+################################################################################
+#  This test validates if most uptodate method is enable on the group and
+#  a member has errors when calling the component service, the member will exit
+#  the group.
+#
+# Test:
+#  0. The test requires three servers: M1,M2 and M3.
+# 1. Install component and bootstrap group with member M1
+# 2. Install component, join to group member M2 and increase
+#    to have highest priority on primary election
+# 3. Force member to suspend applying transactions until
+#    sending an unblock signal
+# 4. Install component and join to group member M3
+# 5. Insert transactions on the group and confirm twenty
+#    entries
+# 6. Force member to error out when using most
+#    uptodate primary election method
+# 7. Force a failover primary election by restarting primary
+# 8. Unblock M2 from applying transactions
+# 9. Remove debug point that make most uptodate method fail
+# 10. Primary election fail on M3 and it will change state
+#     to error
+# 11. Confirm global status variables are still on defaults,
+#     call to service failed.
+# 12. Confirm global status variables were updated due usage
+#     of most up to date primary election method
+# 13. M2 will be primary after M3 leave group on failure
+# 14. Confirm error log contain message that states most
+#     uptodate method was used to elect new primary
+# 15. Cleanup
+################################################################################
+
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/have_gr_replication_elect_prefers_most_updated.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Install component and bootstrap group with member M1
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Install component, join to group member M2 and increase
+--echo #    to have highest priority on primary election
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $server2_uuid= `SELECT @@server_uuid`
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+
+--source include/start_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 3. Force member to suspend applying transactions until
+--echo #    sending an unblock signal
+
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+
+--echo
+--echo ############################################################
+--echo # 4. Install component and join to group member M3
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+--let $server3_uuid= `SELECT @@server_uuid`
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/start_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 5. Insert transactions on the group and confirm twenty
+--echo #    entries
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+set sql_log_bin=1;
+
+CREATE TABLE t1(a int primary key);
+
+# Create the procedure to perform the dml operations.
+delimiter $$;
+CREATE PROCEDURE dml_operations()
+     BEGIN
+     declare x INT;
+     set x=1;
+     while x<=48 do
+     insert into t1 values (x);
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+--echo ----call procedure----
+call dml_operations();
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+
+# Wait until 48 inserts done causing to be a total of 50 transactions applied
+--let $wait_condition= SELECT COUNT(*) >=48 FROM t1
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Force member to error out when using most
+--echo #    uptodate primary election method
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $debug_point = group_replication_primary_election_most_uptodate_fail
+--source include/add_debug_point.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Force a failover primary election by restarting primary
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+
+# Kill server1
+--echo # killing
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+
+--source include/kill_and_restart_mysqld.inc
+--echo # restarting
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+# Needed as we are not using rpl/restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl/reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+# Wait until group has only 2 members, that is, server1 death is detected by
+# the group.
+--echo # check that there are 2 members in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Unblock M2 from applying transactions
+
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+
+
+--echo
+--echo ############################################################
+--echo # 9. Remove debug point that make most uptodate method fail
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $debug_point = group_replication_primary_election_most_uptodate_fail
+--source include/remove_debug_point.inc
+
+
+--echo
+--echo ############################################################
+--echo # 10. Primary election fail on M3 and it will change state
+--echo #     to error
+
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Confirm global status variables are still on defaults,
+--echo #     call to service failed.
+
+SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_latest_primary_election_by_most_uptodate_members_trx_delta";
+
+SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_latest_primary_election_by_most_uptodate_member_timestamp";
+
+
+--echo
+--echo ############################################################
+--echo # 12. Confirm global status variables were updated due usage
+--echo #     of most up to date primary election method
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $assert_text= 'At least twenty transactions delta from two members'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_latest_primary_election_by_most_uptodate_members_trx_delta", VARIABLE_VALUE, 1] > 20
+--source include/assert.inc
+
+--let $assert_text= 'Time of last use of most up-to-date usage is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_latest_primary_election_by_most_uptodate_member_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 13. M2 will be primary after M3 leave group on failure
+
+--let $wait_timeout= 120
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE member_role="PRIMARY" AND member_id="$server2_uuid"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 14. Confirm error log contain message that states most
+--echo #     uptodate method was used to elect new primary
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_group_replication_elect_prefers_most_updated_service_fail
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_select= uuid $server3_uuid was elected primary since it was the most up-to-date member with
+--let $assert_count= 0
+--let $assert_text= Server 3 do not use most uptodate method, it fails to elect new primary.
+--source include/assert_grep.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_group_replication_elect_prefers_most_updated_service_fail
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= uuid $server3_uuid was elected primary since it was the most up-to-date member with
+--let $assert_count= 1
+--let $assert_text= Server 2 used most uptodate method to elect new primary.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 15. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+DROP TABLE t1;
+DROP PROCEDURE dml_operations;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+SET GLOBAL SUPER_READ_ONLY=ON;
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Fatal error during the primary election process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+set session sql_log_bin=1;
+SET GLOBAL SUPER_READ_ONLY=ON;
+
+--source include/group_replication_end.inc

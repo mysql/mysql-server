@@ -1,0 +1,3123 @@
+--echo ################################################################################
+--echo # Inserting new Root object.
+--echo # Root object - Primary key   Table annotations: READ_ONLY
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+
+--echo ## Providing no tags
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+
+--echo ## Providing UPDATE, DELETE tags
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+                  WITH (UPDATE, DELETE)
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+
+--echo ## Providing NO INSERT tag
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+                  WITH NO INSERT
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+
+--echo ## Providing NO INSERT, UPDATE, DELETE tags
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+                  WITH (NO INSERT, UPDATE, DELETE)
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+
+--echo ## Providing NO INSERT, NO UPDATE, NO DELETE tags
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+                    WITH (NO INSERT, NO UPDATE, NO DELETE)
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+
+--echo ## Providing INSERT tag
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (' {} ');
+
+--error ER_JDV_NULL_INSERT_VALUE
+INSERT INTO p_dv1 VALUES (NULL);
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (' { "_id" : 2, "f2" : null } ');
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t1;
+
+--echo ## Providing INSERT, NO UPDATE tags
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT DEFAULT 24);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, NO UPDATE)
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (' {} ');
+
+--error ER_JDV_NULL_INSERT_VALUE
+INSERT INTO p_dv1 VALUES (NULL);
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (' { "_id" : 2, "f2" : null } ');
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t1;
+
+--echo ## Providing INSERT, NO UPDATE, NO DELETE tags
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT DEFAULT 24);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, NO UPDATE, NO DELETE)
+                    "_id" : f1,
+                    "f2" : f2
+                  ) FROM p_t1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (' {} ');
+
+--error ER_JDV_NULL_INSERT_VALUE
+INSERT INTO p_dv1 VALUES (NULL);
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (' { "_id" : 1, "f2" : 1 } ');
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (' { "_id" : 2, "f2" : null } ');
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object.
+
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: NO INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                          WITH NO INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+--echo ## Root object - Foreign Key  Table annotations: NO INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH NO INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                          WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+--echo ## Root object - Foreign Key  Table annotations: READ ONLY
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                          WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                          WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and referencing an Existing Sub-object.
+
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: NO INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            WITH NO INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object with NULL value for PK columns.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : null,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object referencing existing sub-object but not specifying
+--echo # sub-object.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object without non-PK columns.
+--echo # Root object - Foreign Key  Table annotations: INSERT, UPDATE, DELETE
+--echo # Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "ChildNode" : {
+                      "f1" : 2
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object with an existing sub-object and without specifying
+--echo # non-PK columns.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: READ ONLY
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "ChildNode" : {
+                      "f1" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object without specifying value for
+--echo # PK columns.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 400,
+     "ChildNode" : {
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and Sub-object without specifying PK column
+--echo # for Root object but with PK column of Sub-object.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object referencing an existing sub-object without specifying
+--echo # PK column of Root object and sub-object.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 400,
+     "ChildNode" : {
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object referencing an existing sub-object and
+--echo # with NULL value to PK column of Root object.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: NO INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object referencing an existing sub-object. Non-Pk column of
+--echo # sub-object value is modified.
+
+--echo ## Row in p_t1 gets updated
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: UPDATE
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 444
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Row in p_t1 remains as it was
+--echo ## Root object - Foreign Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 444
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new sub-object with PK column values.
+--echo # Root object - Foreign Key, Auto-increment  Table annotations: INSERT
+--echo # Sub-object - Primary Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new sub-object without PK column values.
+--echo # Root object - Foreign Key, Auto-increment  Table annotations: INSERT
+--echo # Sub-object - Primary Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 400,
+     "ChildNode" : {
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new sub-object without PK column values.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 400,
+     "ChildNode" : {
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new sub-object with null value for PK column.
+--echo # Root object - Foreign Key, Auto-increment  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+# Insertion in singleton child happens first and generates value for f1
+# But this valus is NOT substituted for f3(_id) as its value is provided explicitly as null
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : null,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object with null value for PK columns.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+# Inserting generated value for AI column is not supported in V1.  When allowed,
+# should instead fail with ER_BAD_NULL_ERROR (1048)
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : null,
+                      "f2" : 4
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object, new Sub-object and verify trigger execution.
+--echo # Triggers:
+--echo #     For INSERT event on Root table.
+--echo #     For INSERT event on Sub-object's  table.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE TABLE p_t1_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t1_trigger1 BEFORE INSERT ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t1_trigger2 AFTER INSERT ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("AFTER INSERT EVENT");
+
+CREATE TABLE p_t2_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t2_trigger1 BEFORE INSERT ON p_t2
+     FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t2_trigger2 AFTER INSERT ON p_t2
+     FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("AFTER INSERT EVENT");
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+SELECT * FROM p_t1_trigger_tbl;
+SELECT * FROM p_t2_trigger_tbl;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP TABLE p_t1_trigger_tbl;
+DROP TABLE p_t2_trigger_tbl;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object referencing an existing Sub-object and Non-Pk column of
+--echo # sub-object value is modified. Test case verifies trigger execution.
+--echo # Triggers:
+--echo #     For INSERT event on Root table.
+--echo #     For UPDATE event on Sub-object's table.
+--echo # Root object - Foreign Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (3, 4);
+
+CREATE TABLE p_t1_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t1_trigger1 BEFORE INSERT ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t1_trigger2 AFTER INSERT ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("AFTER INSERT EVENT");
+CREATE TRIGGER p_t1_trigger3 BEFORE UPDATE ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("BEFORE UPDATE EVENT");
+CREATE TRIGGER p_t1_trigger4 AFTER UPDATE ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("AFTER UPDATE EVENT");
+
+CREATE TABLE p_t2_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t2_trigger1 BEFORE INSERT ON p_t2
+     FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t2_trigger2 AFTER INSERT ON p_t2
+     FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("AFTER INSERT EVENT");
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1  WHERE p_t1.f1 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 400,
+     "ChildNode" : {
+                      "f1" : 3,
+                      "f2" : 444
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+--echo #
+--echo # SELECT * FROM p_t1_trigger_tbl;
+--echo # msg
+--echo # BEFORE INSERT EVENT
+--echo # BEFORE UPDATE EVENT
+--echo # AFTER UPDATE EVENT
+--echo # SELECT * FROM p_t2_trigger_tbl;
+--echo # msg
+--echo # BEFORE INSERT EVENT
+--echo # AFTER INSERT EVENT
+SELECT * FROM p_t1_trigger_tbl;
+SELECT * FROM p_t2_trigger_tbl;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP TABLE p_t1_trigger_tbl;
+DROP TABLE p_t2_trigger_tbl;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT( WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                           )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f2" : 300,
+     "ChildNode" : [{
+                      "f3" : 2,
+                      "f4" : 3
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object without sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f2" : 400
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object without non-PK columns.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "ChildNode" : [{
+                      "f3" : 2
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object without specifying value for
+--echo # PK columns.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                    )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and Sub-object and without specifying PK column
+--echo # of Root object but with PK column of Sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f3" : 3,
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and empty Sub-object.
+--echo # of Root object but with PK column of Sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f2" : 400,
+     "ChildNode" : [{}]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object with PK column values.
+--echo # Root object - Primary Key, Auto-increment  Table annotations: INSERT
+--echo # Sub-object - Foreign Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f3" : 3,
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object without PK column values.
+
+--echo ## Root object - Primary Key, Auto-increment  Table annotations: INSERT
+--echo ## Sub-object - Foreign Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f4" : 4
+                    } ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key, Auto-increment  Table annotations: INSERT
+--echo ## Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Foreign Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                    )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object with null value for PK columns.
+
+--echo ## Root object - Primary Key, Auto-increment  Table annotations: INSERT
+--echo ## Sub-object - Foreign Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+# Inserting generated value for AI column is not supported in V1.  When allowed,
+# should instead fail with ER_BAD_NULL_ERROR (1048)
+# This works because both f1 and f3 are auto-generated and happen to end up with the same value.
+# It would not work if the base tables had different number of rows, or if we attempted to
+# insert multiple objects into ChildNode array.
+#--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f3" : null,
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key, Auto-increment  Table annotations: INSERT
+--echo ## Sub-object - Foreign Key  Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+# Insertion in root table happens first and generates value for f1 (_id).
+# But this valus is NOT substituted for f3 as its value is provided explicitly as null
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f3" : null,
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key Table annotations: INSERT
+--echo ## Sub-object - Foreign Key, Auto-increment   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY AUTO_INCREMENT REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+# Inserting generated value for AI column is not supported in V1.  When allowed,
+# should instead fail with ER_BAD_NULL_ERROR (1048)
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : null,
+     "f2" : 400,
+     "ChildNode" : [{
+                      "f3" : null,
+                      "f4" : 4
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object. Verify trigger execution.
+--echo # Triggers:
+--echo #     For INSERT event on Root table.
+--echo #     For INSERT event on Sub-object's  table.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE TABLE p_t1_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t1_trigger1 BEFORE INSERT ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t1_trigger2 AFTER INSERT ON p_t1
+     FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("AFTER INSERT EVENT");
+
+CREATE TABLE p_t2_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t2_trigger1 BEFORE INSERT ON p_t2
+     FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t2_trigger2 AFTER INSERT ON p_t2
+     FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("AFTER INSERT EVENT");
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f3 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f2" : 300,
+     "ChildNode" : [{
+                      "f3" : 2,
+                      "f4" : 3
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+SELECT * FROM p_t1_trigger_tbl;
+SELECT * FROM p_t2_trigger_tbl;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP TABLE p_t1_trigger_tbl;
+DROP TABLE p_t2_trigger_tbl;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and multiple Sub-objects.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT REFERENCES p_t1(f1));
+
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+      JSON_DUALITY_OBJECT(WITH INSERT
+             '_id' : f1,
+             'f2'  : f2,
+             'ChildNode' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                       'f3' : f3,
+                                       'f4' : f4
+                                     )) FROM p_t2 WHERE p_t2.f4 = p_t1.f1
+                         )
+            ) FROM p_t1;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f2" : 300,
+     "ChildNode" : [
+                     {
+                      "f3" : 111,
+                      "f4" : 2
+                     },
+                     {
+                      "f3" : 112,
+                      "f4" : 2
+                     }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting into Root object and Sub object using table with self referencing FK.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_employee (empid INT PRIMARY KEY,
+                         name VARCHAR(100),
+                         mgrid INT REFERENCES p_employee(empid));
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+            '_id' : empid,
+            'name' : name,
+            'mgr' : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                   'empid': empid,
+                                   'name' : name,
+                                   'mgr' : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                                          'empid' : empid,
+                                                          'name'  : name
+                                                         ) FROM p_employee MM  WHERE MM.empid = M.mgrid)
+                                 ) FROM p_employee M  WHERE M.empid = emp.mgrid)
+            ) FROM p_employee emp;
+
+INSERT INTO p_dv1 VALUES ('
+{
+  "_id" : 10,
+  "name"  : "FirstEmployee",
+  "mgr"   : {
+              "empid" : 2,
+              "name"  : "Mgr",
+              "mgr"   : {
+                           "empid" : 1,
+                           "name"  : "M1"
+                        }
+            }
+} ' );
+
+SELECT * FROM p_dv1;
+SELECT * FROM p_employee;
+
+DROP TABLE p_employee;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+#--echo # Inserting into Root object and Sub object using table with circular referencing.
+#--echo # Root object - Primary Key  Table annotations: INSERT
+#--echo # Sub-object - Foreign Key   Table annotations: INSERT
+
+CREATE TABLE p_department (deptid INT PRIMARY KEY,
+                           name varchar(100),
+                           mgrid INT);
+CREATE TABLE p_employee (empid INT PRIMARY KEY,
+                         name VARCHAR(100),
+                         deptid INT REFERENCES p_department(deptid));
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+  '_id' : empid,
+  'name' : name,
+  'dept' : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                          'deptid' : deptid,
+                          'name'   : name,
+                          'dept_mgr' : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                                      'empid' : empid,
+                                                      'name'  : name
+                                               ) FROM p_employee DM
+                                          WHERE DM.empid = D.mgrid)
+                   ) FROM p_department D WHERE D.deptid = E.deptid)
+) FROM p_employee E;
+
+INSERT INTO p_dv1 VALUES (
+' {
+    "_id" : 10,
+    "name" : "FirstEmployee",
+    "dept" : { "deptid" : 888,
+               "name"   : "IMPACT",
+               "dept_mgr" : {
+                              "empid" : 1,
+                              "name"  : "M1"
+                            }
+              }
+    }');
+
+SELECT * FROM p_dv1;
+SELECT * FROM p_department;
+SELECT * FROM p_employee;
+
+DROP TABLE p_employee;
+DROP TABLE p_department;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+
+--echo # Inserting new Root Object and new Sub-object.
+
+--echo ## Root object - Primary Key  Table annotations: READ ONLY
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+            WITH (NO UPDATE, NO INSERT, NO DELETE)
+            "_id" : f3,
+            "f4" : f4,
+            "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+                                            WITH (NO UPDATE, NO INSERT, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_INSERT_TAG
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : [{
+                      "f1" : 2,
+                      "f2" : 2
+                    }]
+  } ');
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : [{
+                      "f1" : 2,
+                      "f2" : 2
+                    }]
+  } ');
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : [{
+                      "f1" : 2,
+                      "f2" : 2
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing an existing Sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : [{
+                      "f1" : 2,
+                      "f2" : 2
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing an existing Sub-object but not
+--echo # specifying sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+INSERT INTO p_t1 VALUES (2, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and new sub-object without specifying PK columns.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--echo ##
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 300,
+     "ChildNode" : [{"f2" : 2}]
+  } ');
+
+--echo ## PK value is not substituted from the "_id" as it is not part of
+--echo ## join condition.
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : [{"f2" : 2}]
+  } ');
+
+--echo ## "_id" value is substituted from the p_t1.f2 as it is part of
+--echo ## join condition.
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" : 300,
+     "ChildNode" : [{"f1" : 2, "f2" : 2}]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and new sub-object without specifying
+--echo # sub-object's non-pk column used in the join_condition.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [{"f1" : 2}]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing multiple sub-objects.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 3);
+INSERT INTO p_t1 VALUES (3, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing an existing Sub-object and modifying
+--echo # sub-object column(s).
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (2, 3, 23);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                            "f1" : f1,
+                                            "f2" : f2,
+                                            "f5" : f5
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [{
+                      "f1" : 2,
+                      "f2" : 3,
+                      "f5" : 222
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing an existing Sub-object and modifying
+--echo # sub-object column used in join_condition.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (2, 3, 23);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2,
+                                            "f5" : f5
+                                            )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_JOIN_CONDITION_NOT_SATISFIED
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" : 300,
+     "ChildNode" : [{
+                      "f1" : 2,
+                      "f2" : 4,
+                      "f5" : 23
+                    }]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and new sub-objects.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [
+                     { "f1" : 2, "f2" : 3 },
+                     { "f1" : 3, "f2" : 3 }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing few sub-objects instead of all
+--echo # matching sub-objects.
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 3);
+INSERT INTO p_t1 VALUES (3, 3);
+INSERT INTO p_t1 VALUES (4, 3);
+INSERT INTO p_t1 VALUES (5, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [
+                     { "f1" : 2, "f2" : 3 },
+                     { "f1" : 3, "f2" : 3 }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 3);
+INSERT INTO p_t1 VALUES (3, 3);
+INSERT INTO p_t1 VALUES (4, 3);
+INSERT INTO p_t1 VALUES (5, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [
+                     { "f1" : 2, "f2" : 3 },
+                     { "f1" : 3, "f2" : 3 }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing few sub-objects. Adding new sub-object
+--echo # and modifying few existing sub-objects.
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1, 55);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 3, 55);
+INSERT INTO p_t1 VALUES (3, 3, 55);
+INSERT INTO p_t1 VALUES (4, 3, 55);
+INSERT INTO p_t1 VALUES (5, 3, 55);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2,
+                                            "f5" : f5
+                                          )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [
+                     { "f1" : 2, "f2" : 3, "f5" : 55 },
+                     { "f1" : 3, "f2" : 3, "f5" : 111 },
+                     { "f1" : 6, "f2" : 3, "f5" : 55 }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+--echo ## Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1, 55);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 3, 55);
+INSERT INTO p_t1 VALUES (3, 3, 55);
+INSERT INTO p_t1 VALUES (4, 3, 55);
+INSERT INTO p_t1 VALUES (5, 3, 55);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                            "f1" : f1,
+                                            "f2" : f2,
+                                            "f5" : f5
+                                          )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [
+                     { "f1" : 2, "f2" : 3, "f5" : 55 },
+                     { "f1" : 3, "f2" : 3, "f5" : 111 },
+                     { "f1" : 6, "f2" : 3, "f5" : 55 }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing few existing sub-objects but without
+--echo # specifying column used in the join_condition.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+--echo # Join_condition - Root object.PK = sub_object.non_pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+INSERT INTO p_t1 VALUES (2, 3);
+INSERT INTO p_t1 VALUES (3, 3);
+INSERT INTO p_t1 VALUES (4, 3);
+INSERT INTO p_t1 VALUES (5, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          )) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 3,
+     "f4" : 300,
+     "ChildNode" : [
+                     { "f1" : 2 },
+                     { "f1" : 3 }
+                   ]
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and new Sub-object.
+
+--echo ## Root object - Primary Key  Table annotations: READ ONLY
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+            WITH (NO INSERT, NO UPDATE, NO DELETE)
+            "_id" : f3,
+            "f4" : f4,
+            "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                        WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                        "f1" : f1,
+                                        "f2" : f2
+                                        ) FROM p_t1 WHERE p_t1.f1 = p_t2.f4)
+        ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing an existing Sub-object.
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+INSERT INTO p_t1 VALUES (2, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: INSERT
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+INSERT INTO p_t1 VALUES (2, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2,
+     "ChildNode" : {
+                      "f1" : 2,
+                      "f2" : 3
+                    }
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and referencing an existing Sub-object but not
+--echo # specifying sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+INSERT INTO p_t1 VALUES (2, 3);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and new sub-object without specifying PK columns.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+--error ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+INSERT INTO p_dv1 VALUES (
+' {
+     "f4" :  2,
+     "ChildNode" : {"f2" : 300}
+  } ');
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4" :  2,
+     "ChildNode" : {"f2" : 300}
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Object and new sub-object without specifying
+--echo # root-object's non-pk column used in the join_condition.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "ChildNode" : {"f1" : 2, "f2" : 300}
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Objects referencing existing sub-object.
+--echo # Root object - Primary Key  Table annotations: INSERT
+--echo # Sub-object - Primary Key   Table annotations: INSERT
+--echo # Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+                                            "f1" : f1,
+                                            "f2" : f2
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4"  : 1,
+     "ChildNode" : {"f1" : 1, "f2" : 1}
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Inserting new Root Objects and referencing an existing Sub-object and modifying
+--echo # sub-object column.
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: READ ONLY
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1, 11);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+                                            WITH (NO INSERT, NO UPDATE, NO DELETE)
+                                            "f1" : f1,
+                                            "f2" : f2,
+                                            "f5" : f5
+                                          ) FROM p_t1 WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4"  : 1,
+     "ChildNode" : {"f1" : 1, "f2" : 200, "f5" : 555}
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ## Root object - Primary Key  Table annotations: INSERT
+--echo ## Sub-object - Primary Key   Table annotations: UPDATE
+--echo ## Join_condition - Root object.non_pk_column = sub_object.pk_column
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT, f5 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+INSERT INTO p_t1 VALUES (1, 1, 11);
+INSERT INTO p_t2 VALUES (1, 1);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+              "_id" : f3,
+               "f4" : f4,
+               "ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                            "f1" : f1,
+                                            "f2" : f2,
+                                            "f5" : f5
+                                          ) FROM p_t1
+                                          WHERE p_t1.f1 = p_t2.f4)
+            ) FROM p_t2;
+
+SELECT * FROM p_dv1;
+
+INSERT INTO p_dv1 VALUES (
+' {
+     "_id" : 2,
+     "f4"  : 1,
+     "ChildNode" : {"f1" : 1, "f2" : 200, "f5" : 555}
+  } ');
+
+SELECT * FROM p_dv1;
+
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+
+--echo ################################################################################
+--echo # Handling cases with missing rows and join condition violation
+--echo # when standalone DELETE or UPDATE tags are provided.
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT);
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t2 VALUES (1,1);
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+    SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+        '_id' : t2.c1,
+        'c2' : t2.c2,
+        't1' : (
+                SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+                        'c1' : t1.c1,
+                        'c2' : t1.c2
+                ) FROM t1
+                  WHERE t1.c1 = t2.c1
+        )
+    ) FROM t2;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv2 AS
+    SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+        '_id' : t1.c1,
+        'c2' : t1.c2,
+        't2' : (
+                SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+                        WITH DELETE
+                        'c1' : t2.c1,
+                        'c2' : t2.c2
+                  )) FROM t2
+                  WHERE t1.c1 = t2.c1
+        )
+    ) FROM t1;
+
+CREATE OR REPLACE JSON DUALITY VIEW dv3 AS
+    SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+        '_id' : t1.c1,
+        'c2' : t1.c2,
+        't2' : (
+                SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH UPDATE
+                        'c1' : t2.c1,
+                        'c2' : t2.c2
+                )) FROM t2
+                  WHERE t1.c1 = t2.c1
+        )
+    ) FROM t1;
+
+--echo ## Only DELETE tag is specified for the sub-object
+--echo ### Row for sub-object is `not` available in the table?
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO dv2 VALUES ('{
+        "_id" : 4,
+        "c2"  : 4,
+        "t2"  : [{
+            "c1" : 4,
+            "c2" :4
+        }]
+}');
+
+--echo ### Row being inserted violates the JOIN condition?
+
+--error ER_JDV_JOIN_CONDITION_NOT_SATISFIED
+INSERT INTO dv2 VALUES ('{
+        "_id" : 1,
+        "c2"  : 1,
+        "t2"  : [{
+            "c1" : 2,
+            "c2" : 4
+        }]
+}');
+
+--echo ## Only UPDATE tag is specified for the sub-object
+--echo ### Row for sub-object is `not` available in the table?
+
+--error ER_JDV_MISSING_READONLY_SUBOBJECT
+INSERT INTO dv3 VALUES ('{
+    "_id" : 4,
+    "c2"  : 4,
+    "t2"  : [{
+        "c1" : 4,
+        "c2" :4
+        }]
+}');
+
+--echo ### Row being inserted violates the JOIN condition
+
+--error ER_JDV_JOIN_CONDITION_NOT_SATISFIED
+INSERT INTO dv1 VALUES ('{
+    "_id" : 1,
+    "c2"  : 1,
+    "t1"  : {
+        "c1" : 2,
+        "c2" : 4
+    }
+}');
+
+DROP VIEW dv1, dv2, dv3;
+DROP TABLE t1, t2;
+
+--echo ################################################################################
+--echo # Update skipped: the subobject has a no-update restriction, so updates to its rows are ignored.
+CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `Name` varchar(20) DEFAULT NULL,
+  `age` int DEFAULT NULL,
+  `child_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t1 VALUES (1, 'aa', 10, 1), (2, 'bb',12, 2), (3, 'cc', 15, 2);
+INSERT INTO t2 SELECT * FROM t1;
+
+CREATE JSON DUALITY VIEW dv AS
+SELECT JSON_DUALITY_OBJECT(
+        WITH INSERT
+        "_id" : id,
+        "name" : name,
+        "age":age,
+        "child" : (
+                    SELECT JSON_DUALITY_OBJECT(
+                            WITH (INSERT, NO UPDATE)
+                            "id": id,
+                            "name" : name
+                    ) FROM t2 WHERE t2.id = t1.child_id
+                  )
+)
+FROM t1;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+INSERT INTO dv VALUES ('{"_id": 111, "age": 10, "name": "bbvbbv", "child": {"id": 3, "name": "hhh"}}');
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP VIEW dv;
+DROP TABLE t1, t2;
+
+--echo ################################################################################

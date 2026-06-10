@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -532,39 +532,6 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   // Actions needed to cleanup before leaving scope.
   auto cleanup_guard = create_scope_guard([&]() {
     THD_STAGE_INFO(thd, stage_end);
-    if (m_non_empty_table && success && !info.m_is_dryrun) {
-      auto final_temp_name =
-          table_ref->table->file->bulk_load_generate_temporary_table_name();
-      Table_ref final_table_ref{};
-      final_table_ref.table_name = final_temp_name.c_str();
-      final_table_ref.table_name_length = final_temp_name.length();
-      final_table_ref.db = schema_name.c_str();
-      final_table_ref.db_length = schema_name.length();
-      MDL_REQUEST_INIT(&final_table_ref.mdl_request, MDL_key::TABLE,
-                       final_table_ref.db, final_table_ref.table_name,
-                       MDL_EXCLUSIVE, MDL_TRANSACTION);
-      if (lock_table_names(thd, &final_table_ref, nullptr,
-                           thd->variables.lock_wait_timeout, 0)) {
-        success = false;
-      } else {
-        // mysql_create_like_table  opens the table under the hood so we close
-        // it here for now.
-        rename_table_for_incremental_bulk_load(thd, schema_name, original_name,
-                                               final_temp_name);
-        rename_table_for_incremental_bulk_load(thd, schema_name, temp_name,
-                                               original_name);
-
-        Table_ref old_table_ref;
-
-        old_table_ref.table_name = final_temp_name.c_str();
-        old_table_ref.table_name_length = final_temp_name.length();
-        old_table_ref.db = schema_name.c_str();
-        old_table_ref.db_length = schema_name.length();
-        old_table_ref.alias = old_table_ref.table_name;
-        close_thread_tables(thd);
-        mysql_rm_table(thd, &old_table_ref, false, false);
-      }
-    }
 
     close_thread_tables(thd);
     // End transaction
@@ -578,8 +545,10 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
                      table_ref->table_name, false);
     if (m_non_empty_table && !info.m_is_dryrun) {
-      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, new_table_ref.db,
-                       new_table_ref.table_name, false);
+      if (new_table_ref.db != nullptr && new_table_ref.table_name != nullptr) {
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, new_table_ref.db,
+                         new_table_ref.table_name, false);
+      }
     }
 
     // Post DDL action for truncate (and rename, create and remove tables during
@@ -591,6 +560,13 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
 
   if (!table_ref->table->file->is_table_empty()) {
     m_non_empty_table = true;
+  }
+
+  if (m_non_empty_table && table_ref->table->s->foreign_keys > 0) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "BULK LOAD: Non-empty table with foreign keys");
+    success = false;
+    return false;
   }
 
   if (m_non_empty_table && !info.m_is_dryrun) {
@@ -637,12 +613,11 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
     return true;
   }
 
-  /*
-  Open the table after truncate. Here we open the destination table, on which
-  we already have an exclusive metadata lock.
-  */
-  if (open_tables(thd, &table_ref, &counter, MYSQL_OPEN_HAS_MDL_LOCK)) {
-    my_error(ER_INTERNAL_ERROR, MYF(0), "BULK LOAD: open_tables failed");
+  /* Open the table after truncate. Here we open the destination table, on
+  which we already have an exclusive metadata lock.  */
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+  if (open_table(thd, table_ref, &ot_ctx)) {
+    my_error(ER_INTERNAL_ERROR, MYF(0), "BULK LOAD: open_table failed");
     success = false;
     return true;
   }
@@ -674,6 +649,73 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
                              affected_rows)) {
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "BULK LOAD: bulk_driver_service failed");
+      success = false;
+      return true;
+    }
+  }
+
+  const bool no_fk_check =
+      thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS;
+
+  if (table_ref->table->s->foreign_keys > 0 && !no_fk_check) {
+    auto *share = table_ref->table->s;
+    for (TABLE_SHARE_FOREIGN_KEY_INFO *fk = share->foreign_key;
+         fk < share->foreign_key + share->foreign_keys; ++fk) {
+      Table_ref fk_table(fk->referenced_table_db.str,
+                         fk->referenced_table_db.length,
+                         fk->referenced_table_name.str,
+                         fk->referenced_table_name.length, TL_WRITE);
+
+      if (lock_table_names(thd, &fk_table, nullptr,
+                           thd->variables.lock_wait_timeout, 0)) {
+        return true;
+      }
+    }
+
+    if (table_ref->table->file->ha_check_foreign_constraints(thd,
+                                                             m_concurrency)) {
+      /* Foreign key constraint check failed. */
+      my_error(ER_BULK_LOADER_COMPONENT_ERROR, MYF(0),
+               "Foreign key check failed");
+      return true;
+    }
+  }
+
+  if (m_non_empty_table && !info.m_is_dryrun) {
+    auto final_temp_name =
+        table_ref->table->file->bulk_load_generate_temporary_table_name();
+    Table_ref final_table_ref{};
+    final_table_ref.table_name = final_temp_name.c_str();
+    final_table_ref.table_name_length = final_temp_name.length();
+    final_table_ref.db = schema_name.c_str();
+    final_table_ref.db_length = schema_name.length();
+    MDL_REQUEST_INIT(&final_table_ref.mdl_request, MDL_key::TABLE,
+                     final_table_ref.db, final_table_ref.table_name,
+                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+    if (lock_table_names(thd, &final_table_ref, nullptr,
+                         thd->variables.lock_wait_timeout, 0)) {
+      success = false;
+      return true;
+    }
+    if (rename_table_for_incremental_bulk_load(thd, schema_name, original_name,
+                                               final_temp_name)) {
+      success = false;
+      return true;
+    }
+    if (rename_table_for_incremental_bulk_load(thd, schema_name, temp_name,
+                                               original_name)) {
+      success = false;
+      return true;
+    }
+
+    Table_ref old_table_ref;
+    old_table_ref.table_name = final_temp_name.c_str();
+    old_table_ref.table_name_length = final_temp_name.length();
+    old_table_ref.db = schema_name.c_str();
+    old_table_ref.db_length = schema_name.length();
+    old_table_ref.alias = old_table_ref.table_name;
+    close_thread_tables(thd);
+    if (mysql_rm_table(thd, &old_table_ref, false, false)) {
       success = false;
       return true;
     }
@@ -939,6 +981,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       (table_list->lock_descriptor().type == TL_WRITE_CONCURRENT_INSERT);
 
   if (m_opt_fields_or_vars.empty()) {
+    // Column list is omitted, create a list consisting of all columns in table
+
     Field_iterator_table_ref field_iterator;
     field_iterator.set(table_list);
     for (; !field_iterator.end_of_fields(); field_iterator.next()) {
@@ -947,8 +991,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           field_iterator.field()->is_hidden())
         continue;
 
-      Item *item;
-      if (!(item = field_iterator.create_item(thd))) return true;
+      Item *item = field_iterator.create_item(thd);
+      if (item == nullptr) return true;
 
       if (item->field_for_view_update() == nullptr) {
         my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
@@ -957,87 +1001,96 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       m_opt_fields_or_vars.push_back(item->real_item());
     }
     bitmap_set_all(table->write_set);
-    /*
-      Let us also prepare SET clause, although it is probably empty
-      in this case.
-    */
-    if (setup_fields(thd, /*want_privilege=*/INSERT_ACL,
-                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
-                     /*column_update=*/true, /*typed_items=*/nullptr,
-                     &m_opt_set_fields, Ref_item_array()) ||
-        setup_fields(thd, /*want_privilege=*/SELECT_ACL,
-                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
-                     /*column_update=*/false, /*typed_items=*/nullptr,
-                     &m_opt_set_exprs, Ref_item_array()))
-      return true;
-  } else {  // Part field list
-    /*
-      Because m_opt_fields_or_vars may contain user variables,
-      pass false for column_update in first call below.
-    */
-    if (setup_fields(thd, /*want_privilege=*/INSERT_ACL,
-                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
-                     /*column_update=*/false, /*typed_items=*/nullptr,
-                     &m_opt_fields_or_vars, Ref_item_array()) ||
-        setup_fields(thd, /*want_privilege=*/INSERT_ACL,
-                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
-                     /*column_update=*/true, /*typed_items=*/nullptr,
-                     &m_opt_set_fields, Ref_item_array()))
-      return true;
+  }
 
-    /*
-      Special updatability test is needed because m_opt_fields_or_vars may
-      contain a mix of column references and user variables.
-    */
-    for (Item *item : m_opt_fields_or_vars) {
-      if ((item->type() == Item::FIELD_ITEM ||
-           item->type() == Item::REF_ITEM) &&
-          item->field_for_view_update() == nullptr) {
-        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+  // Create a list of all fields that will be assigned values
+  mem_root_deque<Item *> set_fields(thd->mem_root);
+
+  // .. and a list of variables that will be assigned values
+  mem_root_deque<Item *> set_vars(thd->mem_root);
+
+  for (Item *item : m_opt_fields_or_vars) {
+    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM) {
+      if (set_fields.push_back(item)) {
         return true;
       }
-      if (item->type() == Item::STRING_ITEM) {
-        /*
-          This item represents a user variable. Create a new item with the
-          same name that can be added to LEX::set_var_list. This ensures
-          that corresponding Item_func_get_user_var items are resolved as
-          non-const items.
-        */
-        Item_func_set_user_var *user_var =
-            new (thd->mem_root) Item_func_set_user_var(item->item_name, item);
-        if (user_var == nullptr) return true;
-        thd->lex->set_var_list.push_back(user_var);
+    } else if (item->type() == Item::STRING_ITEM) {
+      if (set_vars.push_back(item)) {
+        return true;
       }
+      /*
+        This item represents a user variable. Create a new item with the
+        same name that can be added to LEX::set_var_list. This ensures
+        that corresponding Item_func_get_user_var items are resolved as
+        non-const items.
+      */
+      Item_func_set_user_var *user_var =
+          new (thd->mem_root) Item_func_set_user_var(item->item_name, item);
+      if (user_var == nullptr) return true;
+      thd->lex->set_var_list.push_back(user_var);
     }
-
-    // Consider the following table:
-    //
-    //   CREATE TABLE t1 (x DOUBLE, y DOUBLE, g POINT SRID 4326 NOT NULL);
-    //
-    // If the user wants to load a file which only contains two values (x and y
-    // coordinates), it is possible to do it by executing the following
-    // statement:
-    //
-    //  LOAD DATA INFILE 'data' (@x, @y)
-    //    SET x = @x, y = @y, g = ST_SRID(POINT(@x, @y));
-    //
-    // However, the columns that are specified in the SET clause are only marked
-    // in the write set, and not in fields_set_during_insert. The latter is the
-    // bitmap used during check_that_all_fields_are_given_values(), so we need
-    // to copy the bits from the write set over to said bitmap. If not, the
-    // server will return an error saying that column 'g' doesn't have a default
-    // value.
-    bitmap_union(table->fields_set_during_insert, table->write_set);
-
-    if (check_that_all_fields_are_given_values(thd, table, table_list))
-      return true;
-    /* Fix the expressions in SET clause */
-    if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
-                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
-                     /*column_update=*/false, /*typed_items=*/nullptr,
-                     &m_opt_set_exprs, Ref_item_array()))
-      return true;
   }
+  // Add fields from "m_opt_set_fields"
+  for (Item *item : m_opt_set_fields) {
+    assert(item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM);
+    if (set_fields.push_back(item)) {
+      return true;
+    }
+  }
+
+  // Prepare list of columns for insertion
+  if (setup_fields(thd, /*want_privilege=*/INSERT_ACL, /*allow_sum_func=*/false,
+                   /*split_sum_funcs=*/false, /*column_update=*/true,
+                   /*typed_items=*/nullptr, &set_fields, Ref_item_array())) {
+    return true;
+  }
+
+  // Prepare list of set variables (arguments are mostly irrelevant)
+  if (setup_fields(thd, /*want_privilege=*/SELECT_ACL, /*allow_sum_func=*/false,
+                   /*split_sum_funcs=*/false, /*column_update=*/false,
+                   /*typed_items=*/nullptr, &set_vars, Ref_item_array())) {
+    return true;
+  }
+  // Prepare the expressions in the SET clause
+  if (setup_fields(thd, /*want_privilege=*/SELECT_ACL, /*allow_sum_func=*/false,
+                   /*split_sum_funcs=*/false, /*column_update=*/false,
+                   /*typed_items=*/nullptr, &m_opt_set_exprs,
+                   Ref_item_array())) {
+    return true;
+  }
+
+  // Resolving may have replaced item pointers, copy them back
+  auto transformed = set_fields.begin();
+  for (auto it = m_opt_fields_or_vars.begin(); it != m_opt_fields_or_vars.end();
+       ++it) {
+    if ((*it)->type() == Item::FIELD_ITEM || (*it)->type() == Item::REF_ITEM) {
+      *it = *transformed++;
+    }
+  }
+  for (auto it = m_opt_set_fields.begin(); it != m_opt_set_fields.end(); it++) {
+    *it = *transformed++;
+  }
+
+  // Consider the following table:
+  //
+  //   CREATE TABLE t1 (x DOUBLE, y DOUBLE, g POINT SRID 4326 NOT NULL);
+  //
+  // If the user wants to load a file which only contains two values (x and y
+  // coordinates), it is possible to do it by executing the following statement:
+  //
+  //  LOAD DATA INFILE 'data' (@x, @y)
+  //    SET x = @x, y = @y, g = ST_SRID(POINT(@x, @y));
+  //
+  // However, the columns that are specified in the SET clause are only marked
+  // in the write set, and not in fields_set_during_insert. The latter is the
+  // bitmap used during check_that_all_fields_are_given_values(), so we need
+  // to copy the bits from the write set over to said bitmap. If not, the
+  // server will return an error saying that column 'g' doesn't have a default
+  // value.
+
+  bitmap_union(table->fields_set_during_insert, table->write_set);
+  if (check_that_all_fields_are_given_values(thd, table, table_list))
+    return true;
 
   const int escape_char =
       (escaped->length() &&

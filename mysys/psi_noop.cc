@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -721,6 +721,9 @@ static void notify_statement_query_attributes_noop(PSI_statement_locker *,
 
 static void abort_statement_telemetry_noop(PSI_statement_locker * /*unused*/) {}
 
+static void digest_set_noop(struct PSI_statement_locker *,
+                            const struct sql_digest_storage *) {}
+
 static PSI_statement_service_t psi_statement_noop = {
     register_statement_noop,
     get_thread_statement_locker_noop,
@@ -760,7 +763,8 @@ static PSI_statement_service_t psi_statement_noop = {
     end_sp_noop,
     drop_sp_noop,
     notify_statement_query_attributes_noop,
-    abort_statement_telemetry_noop};
+    abort_statement_telemetry_noop,
+    digest_set_noop};
 
 struct PSI_statement_bootstrap *psi_statement_hook = nullptr;
 PSI_statement_service_t *psi_statement_service = &psi_statement_noop;

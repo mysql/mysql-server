@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 #
 
 # ==== Purpose ====
@@ -120,6 +120,9 @@ if (!$tmp) {
 # removed by test(and also that it does not exist before test).
 if ($NDB_BACKUP_DIR)
 {
+  #Check no backup is sill running, backupstatus should report "Backup not started"
+  --exec $NDB_MGM -e"ALL REPORT BACKUPSTATUS"
+
   #Include backup_restore_cleanup.inc at the end of test case
   #to remove the backup directory inside test case.
   let $backup_dir = $NDB_BACKUP_DIR/BACKUP;

@@ -1086,7 +1086,7 @@ Show_parse_tree
                   "components": [
                     {
                       "text": "1 - INTERVAL 2 HOUR_MINUTE",
-                      "type": "Item_date_add_interval",
+                      "type": "Item_func_add_interval",
                       "subtract": true,
                       "func_name": "date_add_interval",
                       "components": [

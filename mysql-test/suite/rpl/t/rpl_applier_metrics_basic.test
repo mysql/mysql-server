@@ -1,0 +1,306 @@
+# ==== Purpose ====
+#
+# Testing all the basic columns of the replication_applier_metrics table
+# Testing for waiting metrics of the same table is done at:
+#   - rpl_applier_metrics_waits.test
+#
+# ==== Requirements ====
+#
+# R1. When the component is installed, and after the channel is restarted,
+#     the table replication_applier_metrics exposes performance metrics
+#     for that channel
+#
+# ==== Implementation ====
+#
+# 1. Test the plugin in a the source that as no active channels
+# 2. Install the plugin in the replica when it is running
+#    No metrics are present before start
+# 3. Restart replication on the server
+#    Execute some transactions in the source
+#    Check basic metrics in the replica
+# 4. Stop the applier and then block some transactions
+#    Check ongoing and pending transactions
+# 5. Cleanup
+#
+# ==== References ====
+#
+# WL#15620: MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test scenarios need to control the numbers and sizes of events.
+--source include/have_binlog_format_row.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Test the plugin in a source that has no active channels
+
+--source include/rpl/connection_source.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--let $from_ch = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--let $assert_text = The default channel is hidden in replication_applier_metrics because it is not configured
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_metrics] = 0
+--source include/assert.inc
+
+--let $assert_text = The default channel is hidden in replication_applier_progress_by_worker because it is not configured
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker] = 0
+--source include/assert.inc
+
+
+--echo ##############################################################
+--echo # 2. Install the plugin in the replica when replica is running
+--echo #    No metrics are present before start
+
+--source include/rpl/connection_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--let $assert_text = Initial value for TOTAL_ACTIVE_TIME_DURATION is 0
+--let $assert_cond = [SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch] = 0
+--source include/assert.inc
+
+--let $assert_text = Initial value for TRANSACTIONS_COMMITTED_COUNT is 0
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--let $assert_text = There are 4 workers with ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker WHERE ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'] = 4
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Restart replication on the server
+--echo #    Execute some transactions in the source
+--echo #    Check basic metrics in the replica
+
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+# These are separated to make the metrics on dependency waits deterministic
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 (a) VALUES(1);
+
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text = Eventually, TOTAL_ACTIVE_TIME_DURATION > 0
+--let $assert_cond = [SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = LAST_APPLIER_START is less than 2 minutes ago
+--let $assert_cond = '[SELECT LAST_APPLIER_START $from_ch]' >= CURRENT_TIMESTAMP - INTERVAL 2 MINUTE
+--source include/assert.inc
+
+--let $assert_text = Eventually, LAST_APPLIER_START is at least 1 second ago
+--let $assert_cond = '[SELECT LAST_APPLIER_START $from_ch]' < CURRENT_TIMESTAMP
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers increment TRANSACTIONS_COMMITTED_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers decrease TRANSACTIONS_ONGOING_COUNT to 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers decrease TRANSACTIONS_PENDING_COUNT to 0
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM to nonzero.
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM $from_ch] > 1
+--source include/assert_eventually.inc
+--let $committed_size_1 = `SELECT TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM $from_ch`
+
+--let $assert_text = Eventually, workers decrease TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM to 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers decrease TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM to 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers decrease TRANSACTIONS_PENDING_SIZE_BYTES_SUM to 0
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_SIZE_BYTES_SUM $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers increase EVENTS_COMMITTED_COUNT to either 4 (compressed) or 7 (non-compressed)
+--let $assert_cond = [SELECT EVENTS_COMMITTED_COUNT $from_ch] IN (4, 7)
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increases WAITS_FOR_WORK_FROM_SOURCE_COUNT (possibly multiple times)
+--let $assert_cond = [SELECT WAITS_FOR_WORK_FROM_SOURCE_COUNT $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increaess WAITS_FOR_WORK_FROM_SOURCE_SUM_TIME
+--let $assert_cond = [SELECT WAITS_FOR_WORK_FROM_SOURCE_SUM_TIME $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = WAITS_FOR_AVAILABLE_WORKER_COUNT should remain 0 (because there are more workers than transactions)
+--let $assert_cond = [SELECT WAITS_FOR_AVAILABLE_WORKER_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--let $assert_text = WAITS_FOR_AVAILABLE_WORKER_SUM_TIME should remain 0 (because there are more workers than transactions)
+--let $assert_cond = [SELECT WAITS_FOR_AVAILABLE_WORKER_SUM_TIME $from_ch] = 0
+--source include/assert.inc
+
+# The first transaction in a channel always causes a dependency check.
+# The second transaction, in this case, executes on source only after the first
+# one completes on replica, so it will not check dependencies. Hence we expect
+# the counter to be exactly 1.
+--let $assert_text = There were no "real" waits on dependencies, so WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT is 1
+--let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch] = 1
+--source include/assert.inc
+
+--echo # Nothing to assert for WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME: there was a wait, so it is likely nonzero, but there is no guarantee
+
+--let $count = `SELECT WAITS_FOR_WORKER_QUEUE_MEMORY_COUNT $from_ch`
+--let $time = `SELECT WAITS_FOR_WORKER_QUEUE_MEMORY_SUM_TIME $from_ch`
+--let $assert_text = There are no waits for memory on worker queues
+--let $assert_cond = $count = 0 AND $time = 0
+--source include/assert.inc
+
+--let $count = `SELECT WAITS_WORKER_QUEUES_FULL_COUNT $from_ch`
+--let $time = `SELECT WAITS_WORKER_QUEUES_FULL_SUM_TIME $from_ch`
+--let $assert_text = There are no waits on full queues
+--let $assert_cond = $count = 0 AND $time = 0
+--source include/assert.inc
+
+--let $count = `SELECT WAITS_DUE_TO_COMMIT_ORDER_COUNT $from_ch`
+--let $time = `SELECT WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME $from_ch`
+--let $assert_text = There are no waits on waits on commit order
+--let $assert_cond = $count = 0 AND $time = 0
+--source include/assert.inc
+
+--echo # Nothing to assert for TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME: there was a read, so it is likely nonzero, but there is no guarantee
+
+--echo
+--echo ##############################################################
+--echo # 4. Stop the applier and then block some transactions
+--echo #    Check ongoing and pending transactions
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 (a) VALUES(2);
+
+--source include/rpl/sync_to_replica_received.inc
+
+--let $assert_text = TRANSACTIONS_ONGOING_COUNT remains 0
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--let $ongoing_full_size = `SELECT TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM $from_ch`
+--let $ongoing_progress_size = `SELECT TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM $from_ch`
+--let $assert_text = TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM and TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM are both 0
+--let $assert_cond = $ongoing_full_size = 0 AND $ongoing_progress_size = 0
+--source include/assert.inc
+
+--let $assert_text = Eventually, receiver increments TRANSACTIONS_PENDING_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, receiver increments TRANSACTIONS_PENDING_SIZE_BYTES_SUM
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_SIZE_BYTES_SUM $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $events_committed_count = `SELECT EVENTS_COMMITTED_COUNT $from_ch`
+
+--source include/rpl/connection_replica1.inc
+
+# block the update to t1
+LOCK TABLE t1 WRITE;
+
+--source include/rpl/connection_replica.inc
+
+--source include/rpl/start_applier.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_ONGOING_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = ONGOING_PROGRESS_SIZE < ONGOING_FULL_SIZE
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM $from_ch] < [SELECT TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM $from_ch]
+--source include/assert.inc
+
+--let $assert_text = TRANSACTIONS_PENDING_COUNT remains 1
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 1
+--source include/assert.inc
+
+--let $assert_text = EVENTS_COMMITTED_COUNT is not incremented for ongoing transactions
+--let $assert_cond = [SELECT EVENTS_COMMITTED_COUNT $from_ch] = $events_committed_count
+--source include/assert.inc
+
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--source include/rpl/connection_replica.inc
+
+--let $wait_condition = SELECT COUNT(*) = 2 FROM t1
+--source include/wait_condition.inc
+
+# The metrics are updated after transaction commit, and they are not updated
+# all at the same time atomically. Therefore, we wait for them to be updated,
+# rather than instantly assert that they have been updated.
+--let $assert_text = Eventually, worker decreases TRANSACTIONS_PENDING_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker decreases TRANSACTIONS_PENDING_SIZE_BYTES_SUM
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_SIZE_BYTES_SUM $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker decreases TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker decreases TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM $from_ch] = 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_COMMITTED_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 3
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM $from_ch] > $committed_size_1
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 5. Cleanup
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/connection_source.inc
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+DROP TABLE t1;
+
+--source include/rpl/deinit.inc

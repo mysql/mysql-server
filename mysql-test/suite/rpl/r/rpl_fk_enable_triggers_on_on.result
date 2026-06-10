@@ -1,0 +1,96 @@
+#FR 10.2.4:Source(enable_cascade_triggers=ON) -> Replica(enable_cascade_triggers=ON)
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+# WL#17024 Activate triggers on child table during FK cascade
+# FR 10 Replication with FK cascade triggers
+# FR 10.1: In Row Based Replication mode, triggers must not be executed on
+# the replica as a consequence of cascades applied by the applier thread.
+# FR 10.2: In Statement Based Replication mode, the binlog applier thread
+# in replica node must use the source setting of enable_cascade_triggers
+# variable.
+#Source
+#t1 - Parent table
+CREATE TABLE t1 (f1 INT PRIMARY KEY);
+#t2(f1) -> t1(f1) -  ON DELETE | UPDATE CASCADE
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f1) REFERENCES t1(f1) ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE TABLE logtable (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, action VARCHAR(128), oldval INT, newval INT);
+SHOW VARIABLES LIKE 'enable_cascade_triggers';
+Variable_name	Value
+enable_cascade_triggers	ON
+INSERT INTO t1 VALUES (10), (20), (30);
+INSERT INTO t2 VALUES (10, 10), (20, 20), (30, 30);
+SELECT * FROM t1 ORDER BY f1;
+f1
+10
+20
+30
+SELECT * FROM t2 ORDER BY f1;
+f1	f2
+10	10
+20	20
+30	30
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+FOR EACH ROW BEGIN
+INSERT INTO logtable(action,oldval,newval) VALUES("t1-AFTER-DELETE", OLD.f1, 0);
+END//
+CREATE TRIGGER trg2 AFTER DELETE ON t2
+FOR EACH ROW BEGIN
+INSERT INTO logtable(action,oldval,newval) VALUES("t2-AFTER-DELETE", OLD.f2, 0);
+END//
+CREATE TRIGGER trg3 AFTER UPDATE ON t1
+FOR EACH ROW BEGIN
+INSERT INTO logtable(action,oldval,newval) VALUES("t1-AFTER-UPDATE", OLD.f1, NEW.f1);
+END//
+CREATE TRIGGER trg4 AFTER UPDATE ON t2
+FOR EACH ROW BEGIN
+INSERT INTO logtable(action,oldval,newval) VALUES("t2-AFTER-UPDATE", OLD.f2, NEW.f2);
+END//
+# Update row in t1 and verify that it cascades to t2 correctly on
+# both the master and replica.
+UPDATE t1 SET f1=50 where f1=20;
+# Delete a row from t1 and verify that it cascades to t2 correctly on
+# both the master and replica.
+DELETE FROM t1 where f1=10;
+SELECT * FROM t1 ORDER BY f1;
+f1
+30
+50
+SELECT * FROM t2 ORDER BY f1;
+f1	f2
+30	30
+50	20
+SELECT * FROM logtable;
+id	action	oldval	newval
+1	t2-AFTER-UPDATE	20	20
+2	t1-AFTER-UPDATE	20	50
+3	t2-AFTER-DELETE	10	0
+4	t1-AFTER-DELETE	10	0
+include/rpl/sync_to_replica.inc
+#Replica
+SHOW VARIABLES LIKE 'enable_cascade_triggers';
+Variable_name	Value
+enable_cascade_triggers	ON
+SELECT * FROM t1 ORDER BY f1;
+f1
+30
+50
+SELECT * FROM t2 ORDER BY f1;
+f1	f2
+30	30
+50	20
+SELECT * FROM logtable;
+id	action	oldval	newval
+1	t2-AFTER-UPDATE	20	20
+2	t1-AFTER-UPDATE	20	50
+3	t2-AFTER-DELETE	10	0
+4	t1-AFTER-DELETE	10	0
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:logtable, slave:logtable]
+drop table logtable, t2, t1;
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -3693,7 +3693,7 @@ ER_AUDIT_LOG_EC_WRITER_FAILED_TO_CREATE_FILE
 ER_AUDIT_LOG_RENAME_LOG_FILE_BEFORE_FLUSH
   eng "Audit log file (%s) must be manually renamed before audit_log_flush is set to true."
 
-ER_AUDIT_LOG_FILTER_RESULT_MSG
+OBSOLETE_ER_AUDIT_LOG_FILTER_RESULT_MSG
   eng "%s"
 
 ER_AUDIT_LOG_JSON_READER_FAILED_TO_PARSE
@@ -10615,16 +10615,16 @@ ER_IB_MSG_DOWNGRADE_PARTITION_FILE
 ER_IB_MSG_UPGRADE_PARTITION_FILE_IMPORT
   eng "Updating partition file name '%s' to '%s' for import"
 
-ER_IB_WARN_OPEN_PARTITION_FILE
+OBSOLETE_ER_IB_WARN_OPEN_PARTITION_FILE
   eng "Unable to open partition file with new name '%s'. Please check if innodb_directories is set to include all external file paths"
 
-ER_IB_MSG_FIL_STATE_MOVED_CORRECTED
+OBSOLETE_ER_IB_MSG_FIL_STATE_MOVED_CORRECTED
   eng "%s DD ID: %llu - Partition tablespace %u, name '%s' is corrected to '%s'"
 
 ER_IB_MSG_FIL_STATE_MOVED_CHANGED_PATH
   eng "%s DD ID: %llu - Tablespace %u, name '%s', '%s' is moved to '%s'"
 
-ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME
+OBSOLETE_ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME
   eng "%s DD ID: %llu - Partition tablespace %u, name '%s', '%s' is updated to '%s'"
 
 ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY
@@ -12360,6 +12360,21 @@ ER_IB_WRN_REDO_DISABLED_INFO
 ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE_INFO
   eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity. The current log capacity is %llu bytes. The log capacity used is %llu bytes."
 
+ER_AUDIT_LOG_INVALID_FILTER_LOG_ALL
+  eng "The '%s' filter is invalid: %s The operation will continue, and all activities will be logged for this filter. Please fix the filter using the '%s' UDF."
+
+ER_AUDIT_LOG_INVALID_FILTER_LOG_NOTHING
+  eng "The '%s' filter is invalid: %s The operation will continue, but logging for this filter has been disabled. Please fix the filter using the '%s' UDF, or change the '%s' variable to LOG_ALL_IF_INVALID_FILTER_DETECTED."
+
+ER_AUDIT_LOG_INVALID_FILTER_ABORT
+  eng "The '%s' filter is invalid: %s The operation has been aborted. Please fix the filter using the '%s' UDF, or change the '%s' variable as required."
+
+ER_AUDIT_LOG_JSON_INVALID_FILTER_CANNOT_BE_USED
+  eng "The '%s' filter is invalid and cannot be used until corrected. Please apply the '%s' UDF to resolve the issue."
+
+ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED_LOG
+  eng "The '%s' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12808,45 +12823,6 @@ ER_DD_UPDATE_DATADIR_FLAG_FAIL
 ER_IB_MSG_FIL_STATE_MOVED_PREV
   eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory, but DD misses info about DATA DIRECTORY"
 
-ER_LOAD_BULK_JSON_ERROR
-  eng "Bulk CSV parser reports JSON error: %s at %zu"
-
-ER_IB_BULK_LOAD_STATS_INFO
-  eng "%s: %s: Saving statistics for table=%s err=%zu trx_err=%zu"
-
-ER_AUTHENTICATION_OPENID_INVALID_TOKEN
-  eng "Invalid identity token provided by '%s' for '%s'@'%s': %s."
-
-ER_AUTHENTICATION_OPENID_ISSUER_MISMATCH
-  eng "Issuer (%s) found in identity token provided by '%s' for '%s'@'%s' does not match the issuer in the configuration."
-
-ER_AUTHENTICATION_OPENID_USER_MISMATCH
-  eng "Unknown subject (%s) found in identity token provided by '%s' for '%s'@'%s'."
-
-ER_AUTHENTICATION_OPENID_INVALID_CONFIGURATION
-  eng "The configuration for authentication_openid_connect is invalid. %s."
-
-ER_AUTHENTICATION_OPENID_TOKEN_NOT_VERIFIED
-  eng "Verification failed for identity token provided by '%s' for '%s'@'%s' : %s."
-
-ER_AUTHENTICATION_OPENID_INSECURE_CONNECTION
-  eng "The Client-Server connection is not secure. Please make sure either a TLS, socket or shared memory connection is established between the client and the server."
-
-ER_AUTHENTICATION_OPENID_READ_PACKET
-  eng "An error occurred during the client server handshake."
-
-ER_AUTHENTICATION_OPENID_INVALID_TOKEN_SIZE
-  eng "The ID token is not acceptable. Token size should be less than 10k."
-
-ER_AUTHENTICATION_OPENID_INVALID_IDENTITY_PROVIDER
-  eng "The provided identity provider in the auth string is not supported."
-
-ER_AUTHENTICATION_OPENID_CONFIGURATION_NOT_SET
-  eng "The configuration for the plugin is not set. Please set authentication_openid_connect_configuration before a login attempt or user creation."
-
-ER_AUTHENTICATION_OPENID_FAILED_TO_UPDATE_CONFIGURATION
-  eng "Failed to update authentication_openid_connect_configuration to a new value and the old value is lost too. Please set it to avoid unexpected results."
-
 ER_SIMPLE_ERROR_LOG_COMPONENT_STATUS
   eng "%s"
 
@@ -12859,8 +12835,8 @@ ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
 ER_TEMPTABLE_ENGINE_ERROR
   eng "Temptable: %s"
 
-ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
-   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+OBSOLETE_ER_AUTH_INITIAL_PLUGIN_OVERRIDE
+  eng "Plugin '%s' from authentication policy cannot be used for initial handshake, using '%s' default instead"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
@@ -12884,6 +12860,12 @@ ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
 #
 
 start-error-number 15500
+
+ER_LOAD_BULK_JSON_ERROR
+  eng "Bulk CSV parser reports JSON error: %s at %zu"
+
+ER_IB_BULK_LOAD_STATS_INFO
+  eng "%s: %s: Saving statistics for table=%s err=%zu trx_err=%zu"
 
 ER_INVALID_METER
   eng "Invalid meter name or value for performance_schema_meter '%s'."
@@ -12989,6 +12971,39 @@ ER_AUTHENTICATION_OPENID_OPTION_REGISTER
 
 ER_AUTHENTICATION_OPENID_OPTION_DEREGISTER
   eng "Option deregistration failed."
+
+ER_AUTHENTICATION_OPENID_INVALID_TOKEN
+  eng "Invalid identity token provided by '%s' for '%s'@'%s': %s."
+
+ER_AUTHENTICATION_OPENID_ISSUER_MISMATCH
+  eng "Issuer (%s) found in identity token provided by '%s' for '%s'@'%s' does not match the issuer in the configuration."
+
+ER_AUTHENTICATION_OPENID_USER_MISMATCH
+  eng "Unknown subject (%s) found in identity token provided by '%s' for '%s'@'%s'."
+
+ER_AUTHENTICATION_OPENID_INVALID_CONFIGURATION
+  eng "The configuration for authentication_openid_connect is invalid. %s."
+
+ER_AUTHENTICATION_OPENID_TOKEN_NOT_VERIFIED
+  eng "Verification failed for identity token provided by '%s' for '%s'@'%s' : %s."
+
+ER_AUTHENTICATION_OPENID_INSECURE_CONNECTION
+  eng "The Client-Server connection is not secure. Please make sure either a TLS, socket or shared memory connection is established between the client and the server."
+
+ER_AUTHENTICATION_OPENID_READ_PACKET
+  eng "An error occurred during the client server handshake."
+
+ER_AUTHENTICATION_OPENID_INVALID_TOKEN_SIZE
+  eng "The ID token is not acceptable. Token size should be less than 10k."
+
+ER_AUTHENTICATION_OPENID_INVALID_IDENTITY_PROVIDER
+  eng "The provided identity provider in the auth string is not supported."
+
+ER_AUTHENTICATION_OPENID_CONFIGURATION_NOT_SET
+  eng "The configuration for the plugin is not set. Please set authentication_openid_connect_configuration before a login attempt or user creation."
+
+ER_AUTHENTICATION_OPENID_FAILED_TO_UPDATE_CONFIGURATION
+  eng "Failed to update authentication_openid_connect_configuration to a new value and the old value is lost too. Please set it to avoid unexpected results."
 
 ER_BULK_PARSER_UNEXPECTED_ENCLOSED_BY_CHARACTER_LOG
   eng "Unexpected enclosed by character found inside unenclosed string at row %ld in file '%s' resulting in malformed CSV."
@@ -13166,6 +13181,9 @@ ER_SERVER_MEMORY_OPTION_INVALID
 
 ER_WARN_KEYRING_PLUGIN_DEPRECTED
   eng "Plugin %s is of the deprecated keyring plugin type. Please use the corresponding keyring component instead."
+
+ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
+   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
 
 ER_AUDIT_LOG_OFFLOAD_INFO
   eng "%s"
@@ -13355,6 +13373,82 @@ ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
 
 ER_AUDIT_LOG_DATABASE_NAME_EMPTY
   eng "Database name cannot be empty."
+
+
+ER_RPL_REPLICA_VERSION_INCOMPATIBLE
+  eng "Replication from higher version source (%s) to lower version replica (%s) is disallowed due to replica_allow_higher_version_source=OFF."
+
+ER_COMPONENT_OBJECT_POLICY_CANNOT_ACCESS_TABLE
+  eng "Cannot access %s.%s table."
+
+ER_COMPONENT_OBJECT_POLICY_OPTION_TRACKER_INIT_FAILED
+  eng "Failed to initialize option tracker for '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_OPTION_TRACKER_DEINIT_FAILED
+  eng "Failed to deinitialize option tracker for '%s'."
+
+ER_COMPONNENT_OBJECT_POLICY_STATUS_VARIABLE_REGISTER_FAILED
+  eng "Failed to register status variable '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_STATUS_VARIABLE_UNREGISTER_FAILED
+  eng "Failed to unregister status variable '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_LOCK_INIT_FAILED
+  eng "Failed to initialize lock manager for the component. Most likely this is due to OOM."
+
+ER_COMPONENT_OBJECT_POLICY_MASKING_POLICY_CACHE_INIT_FAILED
+  eng "Failed to initialize masking policy cache. Most likely this is due to OOM."
+
+ER_COMPONENT_OBJECT_POLICY_VAR_REGISTRATION_FAILED
+  eng "Cannot register variable '%s'.'%s'."
+
+ER_WARN_COMPONENT_OBJECT_POLICY_INVALID_FLUSH_INTERVAL_VALUE
+   eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
+
+ER_COMPONENT_OBJECT_POLICY_SCHEDULER_REGISTRATION_FAILED
+  eng "Registration of scheduler service failed."
+
+ER_COMPONENT_OBJECT_POLICY_NOTIFICATION_REGISTRATION_FAILED
+  eng "Failed to register notification service. Periodical policy data flush will not work."
+
+ER_COMPONENT_OBJECT_POLICY_MASKING_POLICY_DATA_LOAD_FAILED
+  eng "Failed to load data masking policy data to cache."
+
+ER_COMPONENT_OBJECT_POLICY_TABLE_CHECK_FAILED
+  eng "Table check returned: '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_TABLE_INDEX_INIT_FAILED
+  eng "Failed to initialize index '%s' for table '%s'. Table may not be in expected format."
+
+ER_COMPONENT_OBJECT_POLICY_TABLE_READ_FAILED
+  eng "Failed to read data from table '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_CACHE_UPDATE_FAILED
+  eng "Failed to perform '%s' operation on '%s' cache for entry '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_CREATE_MASKING_POLICY_FAILED
+  eng "Failed to create masking policy '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_POLICY_EXISTS
+  eng "Failed to create masking policy '%s'. A policy with the same name already exists."
+
+ER_COMPONENT_OBJECT_POLICY_DROP_MASKING_POLICY_FAILED
+  eng "Failed to drop masking policy '%s'."
+
+ER_COMPONENT_OBJECT_POLICY_INIT_FAILED
+  eng "Failed to initialize component_object_policy. Check logs for more details."
+
+ER_COMPONENT_OBJECT_POLICY_DEINIT_FAILED
+  eng "Failed to deinitialize component_object_policy. Check logs for more details."
+
+ER_RPL_STMT_FORCE_DISABLE_CASCADE_TRIGGERS
+  eng "Executing triggers on foreign key cascade operations is supported only with SQL Foreign Key Handling. State of the variable \'enable_cascade_triggers\' is logged as OFF in binlog for an event in this case."
+
+ER_WARN_AUDIT_LOG_SYSVAR_ADJUSTED
+  eng "Variable '%s' was adjusted to value '%lld', to make pruning slower than rotation."
+
+ER_WARN_AUDIT_LOG_SYSVAR_DISCARDED
+  eng "Variable '%s' value change was discarded, to make pruning slower than rotation."
 
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for

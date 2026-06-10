@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
 
+#include "base64_encode.h"
 #include "crypt_genhash_impl.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/auth/i_sha2_password.h"
@@ -32,7 +33,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "template_utils.h"
 #include "unittest/gunit/test_utils.h"
 
+#include <iomanip>
+#include <iostream>
+
 namespace sha2_password_unittest {
+
+void print_hex(const std::string &in) {
+  std::cout << std::endl
+            << "Length of string: " << in.length()
+            << ". Hex string: " << std::endl;
+  for (unsigned char c : in) {
+    std::cout << "0x" << std::hex << std::setw(2) << std::setfill('0') << (int)c
+              << ", ";
+  }
+  std::cout << std::endl;
+}
+
 using namespace sha2_password;
 using my_testing::Server_initializer;
 
@@ -43,15 +59,21 @@ class SHA256_digestTest : public ::testing::Test {
   THD *thd() { return initializer.thd(); }
 
   Server_initializer initializer;
-};
 
-template <typename T>
-void print_hex(T digest) {
-  std::cout << std::endl << "Generated digest:";
-  for (uint i = 0; i < CACHING_SHA2_DIGEST_LENGTH; i++)
-    printf("0x%02x ", digest.str[i]);
-  std::cout << std::endl;
-}
+ public:
+  bool generate_crypt5(Caching_sha2_password &caching_sha2_password,
+                       const std::string &src, const std::string &random,
+                       std::string &digest, unsigned int iterations) {
+    return caching_sha2_password.generate_crypt5(src, random, digest,
+                                                 iterations);
+  }
+  bool generate_pbkdf2(Caching_sha2_password &caching_sha2_password,
+                       const std::string &src, const std::string &random,
+                       std::string &digest, unsigned int iterations) {
+    return caching_sha2_password.generate_pbkdf2(src, random, digest,
+                                                 iterations);
+  }
+};
 
 static void make_hash_key(const char *username, const char *hostname,
                           std::string &key) {
@@ -357,9 +379,10 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   Caching_sha2_password caching_sha2_password(nullptr,
                                               DEFAULT_STORED_DIGEST_ROUNDS);
 
-  Digest_info digest_type;
+  Stored_digest_info digest_type;
 
   std::string sha256_digest;
+  std::string pbkdf2_sha512_digest;
   std::string salt;
 
   size_t iterations;
@@ -372,7 +395,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.deserialize(
                   sha256_valid_auth_string1, digest_type, salt, sha256_digest,
                   iterations) == false);
-  ASSERT_TRUE(digest_type == Digest_info::SHA256_DIGEST);
+  ASSERT_TRUE(digest_type == Stored_digest_info::CRYPT5);
   ASSERT_TRUE(memcmp(salt.c_str(), "ABCDEFGHIJKLMNOPQRST", SALT_LENGTH) == 0);
   ASSERT_TRUE(memcmp(sha256_digest.c_str(),
                      "abcdefgh01234567ijklmnop89012345ABCDEFGH678",
@@ -385,6 +408,29 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(sha256_valid_auth_string1 ==
               sha256_valid_auth_string1_serialized);
 
+  std::string pbkdf2_valid_auth_string1(
+      "$B$005$"
+      "ABCDEFGHIJKLMNOPQRST8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL"
+      "9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6");
+  std::string pbkdf2_valid_auth_string1_serialized;
+
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_valid_auth_string1, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == false);
+  ASSERT_TRUE(digest_type == Stored_digest_info::PBKDF2_SHA512);
+  ASSERT_TRUE(memcmp(salt.c_str(), "ABCDEFGHIJKLMNOPQRST", SALT_LENGTH) == 0);
+  ASSERT_TRUE(memcmp(pbkdf2_sha512_digest.c_str(),
+                     "8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL9kH8j"
+                     "G7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6",
+                     PBKDF2_DIGEST_LENGTH) == 0);
+  ASSERT_TRUE(iterations == 5000);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_valid_auth_string1_serialized, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == false);
+  ASSERT_TRUE(pbkdf2_valid_auth_string1 ==
+              pbkdf2_valid_auth_string1_serialized);
+
   /* Valid string with largest iterations count */
   std::string sha256_valid_auth_string_biggest(
       "$A$FFF$ABCDEFGHIJKLMNOPQRSTabcdefgh01234567ijklmnop89012345ABCDEFGH678");
@@ -393,7 +439,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.deserialize(
                   sha256_valid_auth_string_biggest, digest_type, salt,
                   sha256_digest, iterations) == false);
-  ASSERT_TRUE(digest_type == Digest_info::SHA256_DIGEST);
+  ASSERT_TRUE(digest_type == Stored_digest_info::CRYPT5);
   ASSERT_TRUE(memcmp(salt.c_str(), "ABCDEFGHIJKLMNOPQRST", SALT_LENGTH) == 0);
   ASSERT_TRUE(memcmp(sha256_digest.c_str(),
                      "abcdefgh01234567ijklmnop89012345ABCDEFGH678",
@@ -406,6 +452,30 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(sha256_valid_auth_string_biggest ==
               sha256_valid_auth_string_biggest_serialized);
 
+  std::string pbkdf2_sha512_valid_auth_string_biggest(
+      "$B$FFF$"
+      "ABCDEFGHIJKLMNOPQRST8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL"
+      "9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6");
+  std::string pbkdf2_sha512_valid_auth_string_biggest_serialized;
+
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_valid_auth_string_biggest, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == false);
+  ASSERT_TRUE(digest_type == Stored_digest_info::PBKDF2_SHA512);
+  ASSERT_TRUE(memcmp(salt.c_str(), "ABCDEFGHIJKLMNOPQRST", SALT_LENGTH) == 0);
+  ASSERT_TRUE(memcmp(pbkdf2_sha512_digest.c_str(),
+                     "8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL9kH8j"
+                     "G7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6",
+                     PBKDF2_DIGEST_LENGTH) == 0);
+  ASSERT_TRUE(iterations == MAX_ITERATIONS);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_valid_auth_string_biggest_serialized,
+                  digest_type, salt, pbkdf2_sha512_digest,
+                  iterations) == false);
+  ASSERT_TRUE(pbkdf2_sha512_valid_auth_string_biggest ==
+              pbkdf2_sha512_valid_auth_string_biggest_serialized);
+
   /* Valid string with special characters */
   std::string sha256_valid_auth_string2(
       "$A$20A$01234567ABCDEFGH!@#$abcdefgh01234567ijklm890!@#$%^&*;[-=,+]']+*");
@@ -414,7 +484,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.deserialize(
                   sha256_valid_auth_string2, digest_type, salt, sha256_digest,
                   iterations) == false);
-  ASSERT_TRUE(digest_type == Digest_info::SHA256_DIGEST);
+  ASSERT_TRUE(digest_type == Stored_digest_info::CRYPT5);
   ASSERT_TRUE(memcmp(salt.c_str(), "01234567ABCDEFGH!@#$", SALT_LENGTH) == 0);
   ASSERT_TRUE(memcmp(sha256_digest.c_str(),
                      "abcdefgh01234567ijklm890!@#$%^&*;[-=,+]']+*",
@@ -427,9 +497,32 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(sha256_valid_auth_string2 ==
               sha256_valid_auth_string2_serialized);
 
+  std::string pbkdf2_sha512_valid_auth_string2(
+      "$B$20A$01234567ABCDEFGH!@#$8K4dLpN7aR3eK!9jH2fT@mQ5xZ8cV1bN4mJ7hG!"
+      "G6fE5dR4tY3pM2aL9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8F$e");
+  std::string pbkdf2_sha512_valid_auth_string2_serialized;
+
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_valid_auth_string2, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == false);
+  ASSERT_TRUE(digest_type == Stored_digest_info::PBKDF2_SHA512);
+  ASSERT_TRUE(memcmp(salt.c_str(), "01234567ABCDEFGH!@#$", SALT_LENGTH) == 0);
+  ASSERT_TRUE(memcmp(pbkdf2_sha512_digest.c_str(),
+                     "8K4dLpN7aR3eK!9jH2fT@mQ5xZ8cV1bN4mJ7hG!"
+                     "G6fE5dR4tY3pM2aL9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8F$e",
+                     STORED_SHA256_DIGEST_LENGTH) == 0);
+  ASSERT_TRUE(iterations == static_cast<size_t>(static_cast<long>(0x20A) *
+                                                static_cast<long>(1000)));
+
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_valid_auth_string2_serialized, digest_type,
+                  salt, pbkdf2_sha512_digest, iterations) == false);
+  ASSERT_TRUE(pbkdf2_sha512_valid_auth_string2 ==
+              pbkdf2_sha512_valid_auth_string2_serialized);
+
   /* Invalid string with incorrect digest type/length */
   std::string sha256_invalid_digest_type(
-      "$B$005$01234567ABCDEFGH!@#$abcdefgh01234567ijklm890!@#$%^&*a;3-6;2[6-4");
+      "$C$005$01234567ABCDEFGH!@#$abcdefgh01234567ijklm890!@#$%^&*a;3-6;2[6-4");
   ASSERT_TRUE(caching_sha2_password.deserialize(
                   sha256_invalid_digest_type, digest_type, salt, sha256_digest,
                   iterations) == true);
@@ -440,11 +533,11 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
                   sha256_invalid_digest_type, digest_type, salt, sha256_digest,
                   iterations) == true);
 
-  digest_type = Digest_info::DIGEST_LAST;
+  digest_type = Stored_digest_info::LAST;
   ASSERT_TRUE(caching_sha2_password.serialize(
                   sha256_valid_auth_string2_serialized, digest_type, salt,
                   sha256_digest, iterations) == true);
-  digest_type = Digest_info::SHA256_DIGEST;
+  digest_type = Stored_digest_info::CRYPT5;
 
   /* Invalid string with incorrect iteration count */
   std::string sha256_invalid_iteration(
@@ -467,6 +560,36 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.deserialize(
                   sha256_invalid_iteration, digest_type, salt, sha256_digest,
                   iterations) == true);
+
+  std::string pbkdf2_sha512_invalid_iteration(
+      "$B$0$01234567ABCDEFGH!@#$"
+      "8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL"
+      "9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6");
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_invalid_iteration, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == true);
+  pbkdf2_sha512_invalid_iteration.assign(
+      "$B$000$01234567ABCDEFGH!@#$"
+      "8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL"
+      "9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6");
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_invalid_iteration, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == true);
+  pbkdf2_sha512_invalid_iteration.assign(
+      "$B$01234567ABCDEFGH!@#$"
+      "8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL"
+      "9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6");
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_invalid_iteration, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == true);
+  pbkdf2_sha512_invalid_iteration.assign(
+      "$B$$01234567ABCDEFGH!@#$"
+      "8K4dLpN7aR3eK9jH2fT6mQ5xZ8cV1bN4mJ7hG6fE5dR4tY3pM2aL"
+      "9kH8jG7dS6fE5tR4yU3pM2aL1qKpJ8nH7gF6");
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_invalid_iteration, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == true);
+
   iterations = 0;
   ASSERT_TRUE(caching_sha2_password.serialize(
                   sha256_valid_auth_string2_serialized, digest_type, salt,
@@ -475,6 +598,14 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.serialize(
                   sha256_valid_auth_string2_serialized, digest_type, salt,
                   sha256_digest, iterations) == true);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_valid_auth_string2_serialized, digest_type,
+                  salt, pbkdf2_sha512_digest, iterations) == true);
+  iterations = MAX_ITERATIONS + 1;
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_valid_auth_string2_serialized, digest_type,
+                  salt, pbkdf2_sha512_digest, iterations) == true);
   iterations = 5000;
   /* Invalid string with incorrect salt length */
   std::string sha256_invalid_salt("$A$0005$01234567ABCDE");
@@ -489,6 +620,20 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.serialize(
                   sha256_valid_auth_string2_serialized, digest_type, salt,
                   sha256_digest, iterations) == true);
+
+  std::string pbkdf2_sha512_invalid_salt("$B$0005$01234567ABCDE");
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_invalid_salt, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == true);
+  salt.assign("$B$0005$01234567ABCDEW$% CF#$BBF");
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_valid_auth_string2_serialized, digest_type,
+                  salt, pbkdf2_sha512_digest, iterations) == true);
+  salt.assign("");
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_valid_auth_string2_serialized, digest_type,
+                  salt, pbkdf2_sha512_digest, iterations) == true);
+
   salt.assign("ABCDEFGHIJKLMNOPQRST");
   /* Invalid string with incorrect digest length */
   std::string sha256_invalid_digest(
@@ -496,13 +641,19 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(caching_sha2_password.deserialize(
                   sha256_invalid_digest, digest_type, salt, sha256_digest,
                   iterations) == true);
+  std::string pbkdf2_sha512_invalid_digest(
+      "$B$0005$01234567ABCDEFGH!@#$abcdefgh01234567ijklm890!@#$%^&");
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  pbkdf2_sha512_invalid_digest, digest_type, salt,
+                  pbkdf2_sha512_digest, iterations) == true);
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_generate_fast_digest) {
   Caching_sha2_password caching_sha2_password(nullptr,
                                               DEFAULT_STORED_DIGEST_ROUNDS);
   Caching_sha2_password caching_sha2_password_4(
-      nullptr, DEFAULT_STORED_DIGEST_ROUNDS, 4);
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS,
+      sha2_password::Stored_digest_info::CRYPT5, 4);
 
   std::string plaintext("HahaH0hO1234#$@#%");
   sha2_cache_entry digest;
@@ -567,9 +718,9 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
   Caching_sha2_password caching_sha2_password(nullptr,
                                               DEFAULT_STORED_DIGEST_ROUNDS);
   std::string digest;
-  ASSERT_TRUE(caching_sha2_password.generate_sha2_multi_hash(
-                  plaintext_buffer_arthur, salt_buffer_arthur, digest,
-                  ROUNDS_DEFAULT) == false);
+  ASSERT_TRUE(generate_crypt5(caching_sha2_password, plaintext_buffer_arthur,
+                              salt_buffer_arthur, digest,
+                              ROUNDS_DEFAULT) == false);
   ASSERT_TRUE(digest == digest_string1);
 
   /*Try with random salt */
@@ -585,9 +736,9 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
   digest_string1 = digest_string1.substr(
       digest_string1.find('$', 3 + CRYPT_SALT_LENGTH) + 1, std::string::npos);
 
-  ASSERT_TRUE(caching_sha2_password.generate_sha2_multi_hash(
-                  plaintext_buffer_arthur, salt_buffer_arthur, digest,
-                  ROUNDS_DEFAULT) == false);
+  ASSERT_TRUE(generate_crypt5(caching_sha2_password, plaintext_buffer_arthur,
+                              salt_buffer_arthur, digest,
+                              ROUNDS_DEFAULT) == false);
   ASSERT_TRUE(digest == digest_string1);
 }
 
@@ -596,7 +747,8 @@ TEST_F(SHA256_digestTest,
   Caching_sha2_password caching_sha2_password(nullptr,
                                               DEFAULT_STORED_DIGEST_ROUNDS);
   std::string_view serialized_string[MAX_PASSWORDS];
-  Digest_info digest_type = Digest_info::SHA256_DIGEST;
+  Stored_digest_info digest_type = Stored_digest_info::CRYPT5;
+  bool set_password_expired_flag = false;
   std::string digest;
   std::string salt;
   std::string plaintext;
@@ -622,13 +774,15 @@ TEST_F(SHA256_digestTest,
   serialized_string[0] = serialized;
 
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
   // Attempt again, it should pass
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
@@ -646,7 +800,8 @@ TEST_F(SHA256_digestTest,
   serialized_string[0] = serialized;
 
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == true);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
@@ -668,11 +823,13 @@ TEST_F(SHA256_digestTest,
   serialized_string[0] = serialized;
 
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_marvin, serialized_string, plaintext)
+                  .authenticate(auth_id_marvin, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
   // Attempt again, it should pass
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_marvin, serialized_string, plaintext)
+                  .authenticate(auth_id_marvin, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
 
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
@@ -694,11 +851,13 @@ TEST_F(SHA256_digestTest,
   serialized_string[0] = serialized;
 
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_zaphod, serialized_string, plaintext)
+                  .authenticate(auth_id_zaphod, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
   // Attempt again, it should pass
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_zaphod, serialized_string, plaintext)
+                  .authenticate(auth_id_zaphod, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 3);
 
@@ -760,23 +919,526 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_authenticate_sanity) {
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  bool set_password_expired_flag = false;
 
   plaintext.assign(empty_plaintext_buffer_arthur);
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == false);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
 
   plaintext.assign(nonempty_plaintext_buffer_arthur);
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == true);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
 
   plaintext.assign(invalid_plaintext_buffer_arthur);
   ASSERT_TRUE(caching_sha2_password
-                  .authenticate(auth_id_arthur, serialized_string, plaintext)
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
                   .first == true);
   ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
 }
+
+TEST_F(SHA256_digestTest, Caching_sha2_password_generate_pbkdf2_hash) {
+  std::string plaintext_buffer_arthur("HahaH0hO1234#$@#%");
+  std::string salt_buffer_arthur("01234567899876543210");
+
+  const unsigned char digest_string[] = {
+      0x6a, 0x36, 0x58, 0xef, 0x7b, 0xa4, 0x65, 0xc6, 0x88, 0x95, 0x43,
+      0x34, 0x73, 0x0e, 0x68, 0x36, 0x80, 0x65, 0x13, 0xb0, 0x21, 0x9d,
+      0xc4, 0x5d, 0x1e, 0xaf, 0xad, 0x9d, 0x88, 0x02, 0x19, 0x59, 0xba,
+      0x0b, 0x91, 0x71, 0xca, 0xa5, 0x86, 0x9f, 0x41, 0x24, 0x2b, 0x95,
+      0xd3, 0x03, 0xae, 0xe5, 0xc9, 0xd6, 0x51, 0x44, 0x22, 0x10, 0x69,
+      0xba, 0x5e, 0xe0, 0x3f, 0x59, 0x5e, 0x8f, 0xee, 0xda};
+
+  std::string pregenerated_digest;
+  pregenerated_digest =
+      oci::ssl::base64_encode(digest_string, PBKDF2_DIGEST_LENGTH);
+
+  Caching_sha2_password caching_sha2_password(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS,
+      sha2_password::Stored_digest_info::PBKDF2_SHA512);
+  std::string digest;
+  ASSERT_TRUE(generate_pbkdf2(caching_sha2_password, plaintext_buffer_arthur,
+                              salt_buffer_arthur, digest,
+                              SHA2_ROUNDS_DEFAULT) == false);
+
+  ASSERT_TRUE(digest.length() == STORED_PBKDF2_DIGEST_LENGTH);
+
+  ASSERT_TRUE(digest == pregenerated_digest);
+}
+
+TEST_F(SHA256_digestTest,
+       Caching_sha2_password_authenticate_fast_authenticate_pbkdf2) {
+  Caching_sha2_password caching_sha2_password(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS, Stored_digest_info::PBKDF2_SHA512);
+  std::string_view serialized_string[MAX_PASSWORDS];
+  Stored_digest_info digest_type = Stored_digest_info::PBKDF2_SHA512;
+  bool set_password_expired_flag = false;
+  std::string digest;
+  std::string salt;
+  std::string plaintext;
+  size_t iterations = 10000;
+
+  /* Part 1 : Populate the cache */
+
+  std::string auth_id_arthur("'arthur'@'dent.com'");
+  const char plaintext_buffer_arthur[] = "HahaH0hO1234#$@#%";
+  const char salt_buffer_arthur[] = "AbCd!@#	EfgH%^&*01@#";
+  const unsigned char digest_buffer_arthur[] = {
+      0x7d, 0x84, 0xa6, 0xc2, 0x6a, 0x6f, 0xc3, 0xa9, 0x6c, 0x7c, 0x7c,
+      0xca, 0x4a, 0xd8, 0x7d, 0xe1, 0x35, 0x39, 0x63, 0xbe, 0xd0, 0x56,
+      0xfd, 0x48, 0xee, 0x8c, 0x72, 0x2b, 0xde, 0xac, 0x6b, 0xbe, 0xab,
+      0x63, 0x34, 0x2a, 0x73, 0x68, 0x8f, 0x25, 0x5d, 0x61, 0x78, 0x3c,
+      0x83, 0x78, 0xb9, 0x62, 0xe5, 0x3b, 0xc6, 0x99, 0xdf, 0x0e, 0x6b,
+      0xf0, 0x5d, 0x95, 0x8d, 0x77, 0xa4, 0x3d, 0x02, 0x59};
+  digest = oci::ssl::base64_encode(digest_buffer_arthur, PBKDF2_DIGEST_LENGTH);
+  salt.assign(salt_buffer_arthur);
+  plaintext.assign(plaintext_buffer_arthur);
+
+  std::string serialized;
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized, digest_type, salt,
+                                              digest, iterations) == false);
+  serialized_string[0] = serialized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+  // Attempt with incorrect digest, it should fail
+  const unsigned char digest_buffer_arthur_ic[] = {
+      0x7d, 0x84, 0xa6, 0xc2, 0x6a, 0x6f, 0xc3, 0xa9, 0x6c, 0x7c, 0x7c,
+      0xca, 0x4a, 0xd8, 0x7d, 0xe1, 0x35, 0x39, 0x63, 0xbe, 0xd0, 0x56,
+      0xfd, 0x48, 0xee, 0x8c, 0x72, 0x2b, 0xde, 0xac, 0x6b, 0xbe, 0xab,
+      0x63, 0x34, 0x2a, 0x73, 0x68, 0x8f, 0x25, 0x5d, 0x61, 0x78, 0x3c,
+      0x83, 0x78, 0xb9, 0x62, 0xe5, 0x3b, 0xc6, 0x99, 0xdf, 0x0e, 0x6b,
+      0xf0, 0x5d, 0x95, 0x8d, 0x77, 0xa4, 0x3d, 0x03, 0x59};
+
+  digest =
+      oci::ssl::base64_encode(digest_buffer_arthur_ic, PBKDF2_DIGEST_LENGTH);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized, digest_type, salt,
+                                              digest, iterations) == false);
+  serialized_string[0] = serialized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == true);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+  std::string auth_id_marvin("'marvin'@'theparanoidandroid.com'");
+  const char plaintext_buffer_marvin[] = ";bCdEF34^i9&*\":({\\56\"";
+  const char salt_buffer_marvin[] = "CVlq))+AC>Q)#4!@# x!";
+  const unsigned char digest_buffer_marvin[] = {
+      0x58, 0xbc, 0xb3, 0xcb, 0x9d, 0xb8, 0x1a, 0x66, 0x1f, 0xa8, 0x3d,
+      0xee, 0x2c, 0x6d, 0x8b, 0x92, 0xaa, 0x7e, 0xbe, 0x7c, 0xfb, 0x5f,
+      0xf1, 0x16, 0x7d, 0x8b, 0xdd, 0x66, 0x01, 0xa6, 0x79, 0xb4, 0xb4,
+      0x1f, 0xfc, 0x2b, 0x1b, 0xe4, 0x6e, 0x8f, 0x29, 0x80, 0xab, 0x9e,
+      0x34, 0xc2, 0x35, 0x2c, 0x9b, 0x92, 0xe0, 0xe8, 0xac, 0x1d, 0x5d,
+      0x5f, 0xb6, 0x74, 0x63, 0x50, 0x30, 0xa0, 0x29, 0x2f};
+
+  digest = oci::ssl::base64_encode(digest_buffer_marvin, PBKDF2_DIGEST_LENGTH);
+  salt.assign(salt_buffer_marvin);
+  plaintext.assign(plaintext_buffer_marvin);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized, digest_type, salt,
+                                              digest, iterations) == false);
+  serialized_string[0] = serialized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
+  std::string auth_id_zaphod("'zaphod'@'beeblebrox'");
+  const char plaintext_buffer_zaphod[] = " CQ#$ML CF%IF$#(<#R ()<_q@#(rq";
+  const char salt_buffer_zaphod[] = "X#y)+q x2cx3,qr2##3	";
+  const unsigned char digest_buffer_zaphod[] = {
+      0x77, 0x30, 0x71, 0xfd, 0xd8, 0x5b, 0x69, 0x8a, 0x9f, 0x40, 0xe7,
+      0xf3, 0x3e, 0xb9, 0xcc, 0x4e, 0xe7, 0xd5, 0x5c, 0xca, 0xfd, 0x3c,
+      0x50, 0x8f, 0x27, 0x26, 0x43, 0x0d, 0xa9, 0x01, 0x2d, 0x84, 0x69,
+      0xa1, 0x75, 0x5c, 0xab, 0x73, 0x87, 0xd3, 0xfa, 0xb7, 0xd5, 0x9c,
+      0x50, 0x36, 0x7d, 0x2f, 0xec, 0xcd, 0xf0, 0xcd, 0xfb, 0x1b, 0x65,
+      0xc9, 0x16, 0x5a, 0xe4, 0x33, 0xa3, 0xfc, 0xa5, 0x9f};
+
+  digest = oci::ssl::base64_encode(digest_buffer_zaphod, PBKDF2_DIGEST_LENGTH);
+  salt.assign(salt_buffer_zaphod);
+  plaintext.assign(plaintext_buffer_zaphod);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(serialized, digest_type, salt,
+                                              digest, iterations) == false);
+  serialized_string[0] = serialized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_zaphod, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_zaphod, serialized_string, plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 3);
+
+  /* Part 2 : Perform fast authentication */
+  std::string scramble_random_zaphod("CVOS)=M@)=*%!)#_[-(2");
+  Generate_scramble generate_scramble(plaintext, scramble_random_zaphod);
+  unsigned char scramble_zaphod[CACHING_SHA2_DIGEST_LENGTH];
+  generate_scramble.scramble(scramble_zaphod, CACHING_SHA2_DIGEST_LENGTH);
+
+  ASSERT_TRUE(caching_sha2_password
+                  .fast_authenticate(auth_id_zaphod,
+                                     reinterpret_cast<const unsigned char *>(
+                                         scramble_random_zaphod.c_str()),
+                                     scramble_random_zaphod.length(),
+                                     scramble_zaphod, false)
+                  .first == false);
+  caching_sha2_password.remove_cached_entry(auth_id_zaphod);
+  ASSERT_TRUE(caching_sha2_password
+                  .fast_authenticate(auth_id_zaphod,
+                                     reinterpret_cast<const unsigned char *>(
+                                         scramble_random_zaphod.c_str()),
+                                     scramble_random_zaphod.length(),
+                                     scramble_zaphod, false)
+                  .first == true);
+
+  plaintext.assign(plaintext_buffer_arthur);
+  char random_salt_buffer[CRYPT_SALT_LENGTH + 1];
+  generate_user_salt(random_salt_buffer, CRYPT_SALT_LENGTH + 1);
+  std::string scramble_random_arthur(random_salt_buffer);
+  Generate_scramble generate_scramble_arthur(plaintext, scramble_random_arthur);
+  unsigned char scramble_arthur[CACHING_SHA2_DIGEST_LENGTH];
+  generate_scramble_arthur.scramble(scramble_arthur,
+                                    CACHING_SHA2_DIGEST_LENGTH);
+
+  ASSERT_TRUE(caching_sha2_password
+                  .fast_authenticate(auth_id_arthur,
+                                     reinterpret_cast<const unsigned char *>(
+                                         scramble_random_arthur.c_str()),
+                                     scramble_random_arthur.length(),
+                                     scramble_arthur, false)
+                  .first == false);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
+  caching_sha2_password.clear_cache();
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
+}
+
+TEST_F(SHA256_digestTest,
+       Caching_sha2_password_authenticate_multi_hash_authenticate) {
+  Caching_sha2_password caching_sha2_password(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS, Stored_digest_info::PBKDF2_SHA512);
+  std::string_view pbkdf2_sha512_serialized_string[MAX_PASSWORDS];
+  std::string_view crypt5_serialized_string[MAX_PASSWORDS];
+  Stored_digest_info pbkdf2_sha512_digest_type =
+      Stored_digest_info::PBKDF2_SHA512;
+  Stored_digest_info crypt5_digest_type = Stored_digest_info::CRYPT5;
+  bool set_password_expired_flag = false;
+  std::string digest;
+  std::string salt;
+  std::string pbkdf2_sha512_plaintext;
+  std::string crpyt5_plaintext;
+  size_t pbkdf2_iterations = 10000;
+  size_t crypt5_iterations = 5000;
+
+  std::string auth_id_arthur("'arthur'@'dent.com'");
+  const char plaintext_buffer_arthur[] = "HahaH0hO1234#$@#%";
+  const char salt_buffer_arthur[] = "AbCd!@#	EfgH%^&*01@#";
+  const unsigned char digest_buffer_arthur[] = {
+      0x7d, 0x84, 0xa6, 0xc2, 0x6a, 0x6f, 0xc3, 0xa9, 0x6c, 0x7c, 0x7c,
+      0xca, 0x4a, 0xd8, 0x7d, 0xe1, 0x35, 0x39, 0x63, 0xbe, 0xd0, 0x56,
+      0xfd, 0x48, 0xee, 0x8c, 0x72, 0x2b, 0xde, 0xac, 0x6b, 0xbe, 0xab,
+      0x63, 0x34, 0x2a, 0x73, 0x68, 0x8f, 0x25, 0x5d, 0x61, 0x78, 0x3c,
+      0x83, 0x78, 0xb9, 0x62, 0xe5, 0x3b, 0xc6, 0x99, 0xdf, 0x0e, 0x6b,
+      0xf0, 0x5d, 0x95, 0x8d, 0x77, 0xa4, 0x3d, 0x02, 0x59};
+  digest = oci::ssl::base64_encode(digest_buffer_arthur, PBKDF2_DIGEST_LENGTH);
+  salt.assign(salt_buffer_arthur);
+  pbkdf2_sha512_plaintext.assign(plaintext_buffer_arthur);
+
+  std::string pbkdf2_sha512_serialized;
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_serialized, pbkdf2_sha512_digest_type, salt,
+                  digest, pbkdf2_iterations) == false);
+  pbkdf2_sha512_serialized_string[0] = pbkdf2_sha512_serialized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, pbkdf2_sha512_serialized_string,
+                                pbkdf2_sha512_plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+
+  std::string auth_id_marvin("'marvin'@'theparanoidandroid.com'");
+  const char plaintext_buffer_marvin[] = ";bCdEF34^i9&*\":({\\56\"";
+  const char salt_buffer_marvin[] = "CVlq))+AC>Q)#4!@# x!";
+  const char digest_buffer_marvin[] = {
+      0x53, 0x50, 0x4d, 0x4e, 0x2f, 0x4c, 0x38, 0x2e, 0x6e, 0x6f, 0x4b,
+      0x71, 0x65, 0x38, 0x49, 0x58, 0x56, 0x5a, 0x32, 0x44, 0x70, 0x43,
+      0x45, 0x36, 0x77, 0x32, 0x39, 0x62, 0x31, 0x30, 0x36, 0x76, 0x43,
+      0x51, 0x65, 0x63, 0x61, 0x70, 0x39, 0x4a, 0x4b, 0x70, 0x41};
+
+  digest.assign(digest_buffer_marvin, STORED_SHA256_DIGEST_LENGTH);
+  salt.assign(salt_buffer_marvin);
+  crpyt5_plaintext.assign(plaintext_buffer_marvin);
+
+  std::string crypt5_seralized;
+  ASSERT_TRUE(caching_sha2_password.serialize(crypt5_seralized,
+                                              crypt5_digest_type, salt, digest,
+                                              crypt5_iterations) == false);
+  crypt5_serialized_string[0] = crypt5_seralized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, crypt5_serialized_string,
+                                crpyt5_plaintext, set_password_expired_flag)
+                  .first == false);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
+
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, pbkdf2_sha512_serialized_string,
+                                pbkdf2_sha512_plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, crypt5_serialized_string,
+                                crpyt5_plaintext, set_password_expired_flag)
+                  .first == false);
+
+  // Multiple passwords with different format
+
+  caching_sha2_password.clear_cache();
+
+  pbkdf2_sha512_serialized_string[0] = crypt5_seralized;
+  pbkdf2_sha512_serialized_string[1] = pbkdf2_sha512_serialized;
+  crypt5_serialized_string[0] = pbkdf2_sha512_serialized;
+  crypt5_serialized_string[1] = crypt5_seralized;
+
+  // Try with the plaintext that corresponds to the first transformation
+  auto return_value = caching_sha2_password.authenticate(
+      auth_id_arthur, pbkdf2_sha512_serialized_string, crpyt5_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == false);
+
+  return_value = caching_sha2_password.authenticate(
+      auth_id_marvin, crypt5_serialized_string, pbkdf2_sha512_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == false);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
+
+  // Try with the plaintext that corresponds to the second transformation
+  return_value = caching_sha2_password.authenticate(
+      auth_id_arthur, pbkdf2_sha512_serialized_string, pbkdf2_sha512_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == true);
+
+  return_value = caching_sha2_password.authenticate(
+      auth_id_marvin, crypt5_serialized_string, crpyt5_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == true);
+
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
+}
+
+TEST_F(SHA256_digestTest, Caching_sha2_password_multi_hash_generate) {
+  const char plaintext_buffer_arthur[] = "HahaH0hO1234#$@#%";
+  const char salt_buffer_arthur[] = "AbCd!@#	EfgH%^&*01@#";
+  const unsigned char digest_buffer_arthur[] = {
+      0x7d, 0x84, 0xa6, 0xc2, 0x6a, 0x6f, 0xc3, 0xa9, 0x6c, 0x7c, 0x7c,
+      0xca, 0x4a, 0xd8, 0x7d, 0xe1, 0x35, 0x39, 0x63, 0xbe, 0xd0, 0x56,
+      0xfd, 0x48, 0xee, 0x8c, 0x72, 0x2b, 0xde, 0xac, 0x6b, 0xbe, 0xab,
+      0x63, 0x34, 0x2a, 0x73, 0x68, 0x8f, 0x25, 0x5d, 0x61, 0x78, 0x3c,
+      0x83, 0x78, 0xb9, 0x62, 0xe5, 0x3b, 0xc6, 0x99, 0xdf, 0x0e, 0x6b,
+      0xf0, 0x5d, 0x95, 0x8d, 0x77, 0xa4, 0x3d, 0x02, 0x59};
+
+  const char plaintext_buffer_marvin[] = ";bCdEF34^i9&*\":({\\56\"";
+  const char salt_buffer_marvin[] = "CVlq))+AC>Q)#4!@# x!";
+  const char digest_buffer_marvin[] = {
+      0x53, 0x50, 0x4d, 0x4e, 0x2f, 0x4c, 0x38, 0x2e, 0x6e, 0x6f, 0x4b,
+      0x71, 0x65, 0x38, 0x49, 0x58, 0x56, 0x5a, 0x32, 0x44, 0x70, 0x43,
+      0x45, 0x36, 0x77, 0x32, 0x39, 0x62, 0x31, 0x30, 0x36, 0x76, 0x43,
+      0x51, 0x65, 0x63, 0x61, 0x70, 0x39, 0x4a, 0x4b, 0x70, 0x41};
+
+  std::string pregenerated_digest;
+  pregenerated_digest =
+      oci::ssl::base64_encode(digest_buffer_arthur, PBKDF2_DIGEST_LENGTH);
+
+  Caching_sha2_password caching_sha2_password(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS,
+      sha2_password::Stored_digest_info::PBKDF2_SHA512);
+
+  std::string digest;
+  ASSERT_TRUE(generate_pbkdf2(caching_sha2_password, plaintext_buffer_arthur,
+                              salt_buffer_arthur, digest,
+                              SHA2_ROUNDS_DEFAULT) == false);
+  ASSERT_TRUE(digest.length() == STORED_PBKDF2_DIGEST_LENGTH);
+  ASSERT_TRUE(digest == pregenerated_digest);
+
+  caching_sha2_password.set_stored_digest_type(Stored_digest_info::CRYPT5);
+  caching_sha2_password.set_stored_digest_rounds(5000);
+  pregenerated_digest.assign(digest_buffer_marvin, STORED_SHA256_DIGEST_LENGTH);
+  digest.clear();
+
+  ASSERT_TRUE(generate_crypt5(caching_sha2_password, plaintext_buffer_marvin,
+                              salt_buffer_marvin, digest, 5000) == false);
+  ASSERT_TRUE(digest.length() == STORED_SHA256_DIGEST_LENGTH);
+  ASSERT_TRUE(digest == pregenerated_digest);
+}
+
+TEST_F(SHA256_digestTest,
+       Caching_sha2_password_authenticate_enforce_storage_format) {
+  Caching_sha2_password caching_sha2_password(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS, Stored_digest_info::PBKDF2_SHA512,
+      DEFAULT_FAST_DIGEST_ROUNDS, true);
+  std::string_view pbkdf2_sha512_serialized_string[MAX_PASSWORDS];
+  std::string_view crypt5_serialized_string[MAX_PASSWORDS];
+  Stored_digest_info pbkdf2_sha512_digest_type =
+      Stored_digest_info::PBKDF2_SHA512;
+  Stored_digest_info crypt5_digest_type = Stored_digest_info::CRYPT5;
+  bool set_password_expired_flag = false;
+  std::string digest;
+  std::string salt;
+  std::string pbkdf2_sha512_plaintext;
+  std::string crpyt5_plaintext;
+  size_t pbkdf2_iterations = 10000;
+  size_t crypt5_iterations = 5000;
+
+  std::string auth_id_arthur("'arthur'@'dent.com'");
+  const char plaintext_buffer_arthur[] = "HahaH0hO1234#$@#%";
+  const char salt_buffer_arthur[] = "AbCd!@#	EfgH%^&*01@#";
+  const unsigned char digest_buffer_arthur[] = {
+      0x7d, 0x84, 0xa6, 0xc2, 0x6a, 0x6f, 0xc3, 0xa9, 0x6c, 0x7c, 0x7c,
+      0xca, 0x4a, 0xd8, 0x7d, 0xe1, 0x35, 0x39, 0x63, 0xbe, 0xd0, 0x56,
+      0xfd, 0x48, 0xee, 0x8c, 0x72, 0x2b, 0xde, 0xac, 0x6b, 0xbe, 0xab,
+      0x63, 0x34, 0x2a, 0x73, 0x68, 0x8f, 0x25, 0x5d, 0x61, 0x78, 0x3c,
+      0x83, 0x78, 0xb9, 0x62, 0xe5, 0x3b, 0xc6, 0x99, 0xdf, 0x0e, 0x6b,
+      0xf0, 0x5d, 0x95, 0x8d, 0x77, 0xa4, 0x3d, 0x02, 0x59};
+  digest = oci::ssl::base64_encode(digest_buffer_arthur, PBKDF2_DIGEST_LENGTH);
+  salt.assign(salt_buffer_arthur);
+  pbkdf2_sha512_plaintext.assign(plaintext_buffer_arthur);
+
+  std::string pbkdf2_sha512_serialized;
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  pbkdf2_sha512_serialized, pbkdf2_sha512_digest_type, salt,
+                  digest, pbkdf2_iterations) == false);
+  pbkdf2_sha512_serialized_string[0] = pbkdf2_sha512_serialized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, pbkdf2_sha512_serialized_string,
+                                pbkdf2_sha512_plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+
+  ASSERT_TRUE(set_password_expired_flag == false);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+
+  std::string auth_id_marvin("'marvin'@'theparanoidandroid.com'");
+  const char plaintext_buffer_marvin[] = ";bCdEF34^i9&*\":({\\56\"";
+  const char salt_buffer_marvin[] = "CVlq))+AC>Q)#4!@# x!";
+  const char digest_buffer_marvin[] = {
+      0x53, 0x50, 0x4d, 0x4e, 0x2f, 0x4c, 0x38, 0x2e, 0x6e, 0x6f, 0x4b,
+      0x71, 0x65, 0x38, 0x49, 0x58, 0x56, 0x5a, 0x32, 0x44, 0x70, 0x43,
+      0x45, 0x36, 0x77, 0x32, 0x39, 0x62, 0x31, 0x30, 0x36, 0x76, 0x43,
+      0x51, 0x65, 0x63, 0x61, 0x70, 0x39, 0x4a, 0x4b, 0x70, 0x41};
+
+  digest.assign(digest_buffer_marvin, STORED_SHA256_DIGEST_LENGTH);
+  salt.assign(salt_buffer_marvin);
+  crpyt5_plaintext.assign(plaintext_buffer_marvin);
+
+  std::string crypt5_seralized;
+  ASSERT_TRUE(caching_sha2_password.serialize(crypt5_seralized,
+                                              crypt5_digest_type, salt, digest,
+                                              crypt5_iterations) == false);
+  crypt5_serialized_string[0] = crypt5_seralized;
+
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, crypt5_serialized_string,
+                                crpyt5_plaintext, set_password_expired_flag)
+                  .first == false);
+  ASSERT_TRUE(set_password_expired_flag == true);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_arthur, pbkdf2_sha512_serialized_string,
+                                pbkdf2_sha512_plaintext,
+                                set_password_expired_flag)
+                  .first == false);
+  // Attempt again, it should pass
+  ASSERT_TRUE(caching_sha2_password
+                  .authenticate(auth_id_marvin, crypt5_serialized_string,
+                                crpyt5_plaintext, set_password_expired_flag)
+                  .first == false);
+
+  // Multiple passwords with different format
+
+  caching_sha2_password.clear_cache();
+
+  pbkdf2_sha512_serialized_string[0] = crypt5_seralized;
+  pbkdf2_sha512_serialized_string[1] = pbkdf2_sha512_serialized;
+  crypt5_serialized_string[0] = pbkdf2_sha512_serialized;
+  crypt5_serialized_string[1] = crypt5_seralized;
+
+  // Try with the plaintext that corresponds to the first transformation
+  auto return_value = caching_sha2_password.authenticate(
+      auth_id_arthur, pbkdf2_sha512_serialized_string, crpyt5_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == false);
+  ASSERT_TRUE(set_password_expired_flag == true);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
+
+  return_value = caching_sha2_password.authenticate(
+      auth_id_marvin, crypt5_serialized_string, pbkdf2_sha512_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == false);
+  ASSERT_TRUE(set_password_expired_flag == false);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+
+  caching_sha2_password.clear_cache();
+
+  // Try with the plaintext that corresponds to the second transformation
+  return_value = caching_sha2_password.authenticate(
+      auth_id_arthur, pbkdf2_sha512_serialized_string, pbkdf2_sha512_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == true);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+
+  return_value = caching_sha2_password.authenticate(
+      auth_id_marvin, crypt5_serialized_string, crpyt5_plaintext,
+      set_password_expired_flag);
+  ASSERT_TRUE(return_value.first == false);
+  ASSERT_TRUE(return_value.second == true);
+  ASSERT_TRUE(set_password_expired_flag == true);
+  ASSERT_TRUE(caching_sha2_password.get_cache_count() == 1);
+}
+
 }  // namespace sha2_password_unittest

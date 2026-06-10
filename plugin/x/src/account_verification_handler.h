@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+
 #include "plugin/x/src/interface/account_verification.h"
 #include "plugin/x/src/interface/account_verification_handler.h"
 #include "plugin/x/src/interface/authentication.h"
@@ -91,6 +93,7 @@ class Account_verification_handler
     bool is_password_expired{true};
     bool disconnect_on_expired_password{true};
     bool is_offline_mode_and_not_super_user{true};
+    std::optional<std::string> cache2_enforced_format;
     Sql_user_require user_required;
   };
 
@@ -104,6 +107,7 @@ class Account_verification_handler
 
   iface::Account_verification::Account_type get_account_verificator_id(
       const std::string &plugin_name) const;
+  bool is_caching_sha2_password(const std::string &plugin_name) const;
 
   ngs::Error_code get_offline_mode_error() const;
   ngs::Error_code get_account_record(const std::string &user,

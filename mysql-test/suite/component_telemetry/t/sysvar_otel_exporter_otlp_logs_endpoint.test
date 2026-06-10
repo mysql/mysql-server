@@ -1,0 +1,73 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_logs.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+#
+# Only global
+#
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_endpoint;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.telemetry.otel_exporter_otlp_logs_endpoint;
+
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_logs_endpoint';
+
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_logs_endpoint';
+
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name='telemetry.otel_exporter_otlp_logs_endpoint';
+
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name='telemetry.otel_exporter_otlp_logs_endpoint';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL telemetry.otel_exporter_otlp_logs_endpoint
+  ='https://somewhere.example.com:4318/v1/traces';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION telemetry.otel_exporter_otlp_logs_endpoint
+  ='https://somewhere.example.com:4318/v1/traces';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_endpoint
+    ='https://somewhere.example.com:4318/v1/traces';
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_endpoint;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST telemetry.otel_exporter_otlp_logs_endpoint
+  ='https://somewhere.else.example.com:4318/v1/traces';
+
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_logs_endpoint
+  ='https://somewhere.else.example.com:4318/v1/traces';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT @@global.telemetry.otel_exporter_otlp_logs_endpoint;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--echo # Cleanup
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

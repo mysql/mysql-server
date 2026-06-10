@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1066,8 +1066,6 @@ bool Log_to_csv_event_handler::log_slow(
       lock_time may be truncated without warning here, if greater than
       839 hours (~35 days)
     */
-    MYSQL_TIME t;
-    t.neg = false;
 
     // overflow TIME-max
     DBUG_EXECUTE_IF("slow_log_table_max_rows_examined", {
@@ -1078,15 +1076,17 @@ bool Log_to_csv_event_handler::log_slow(
     /* fill in query_time field */
     query_utime = min((ulonglong)query_utime,
                       (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
-    calc_time_from_sec(&t, static_cast<long>(query_utime / 1000000LL),
-                       query_utime % 1000000);
-    table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t);
+    Time_val time =
+        Time_val(false, static_cast<uint32_t>(query_utime / 1000000LL),
+                 static_cast<uint32_t>(query_utime % 1000000));
+    table->field[SQLT_FIELD_QUERY_TIME]->store_time(time, 0);
     /* lock_time */
     lock_utime = min((ulonglong)lock_utime,
                      (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
-    calc_time_from_sec(&t, static_cast<long>(lock_utime / 1000000LL),
-                       lock_utime % 1000000);
-    table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t);
+    time = Time_val(false, static_cast<uint32_t>(lock_utime / 1000000LL),
+                    static_cast<uint32_t>(lock_utime % 1000000));
+
+    table->field[SQLT_FIELD_LOCK_TIME]->store_time(time, 0);
     /* rows_sent */
     table->field[SQLT_FIELD_ROWS_SENT]->store(
         (longlong)thd->get_sent_row_count(), true);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2025, Oracle and/or its affiliates.
+Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -9731,16 +9731,8 @@ dberr_t fil_open_for_business(bool read_only_mode) {
   return fil_system->prepare_open_for_business(read_only_mode);
 }
 
-/** Replay a file rename operation for ddl replay.
-@param[in]      page_id         Space ID and first page number in the file
-@param[in]      old_name        old file name
-@param[in]      new_name        new file name
-@return whether the operation was successfully applied (the name did not
-exist, or new_name did not exist and name was successfully renamed to
-new_name)  */
-bool fil_op_replay_rename_for_ddl(const page_id_t &page_id,
+bool fil_op_replay_rename_for_ddl(const space_id_t space_id,
                                   const char *old_name, const char *new_name) {
-  space_id_t space_id = page_id.space();
   fil_space_t *space = fil_space_get(space_id);
 
   if (space == nullptr && !fil_system->open_for_recovery(space_id)) {
@@ -9752,7 +9744,7 @@ bool fil_op_replay_rename_for_ddl(const page_id_t &page_id,
     return true;
   }
 
-  return fil_op_replay_rename(page_id, old_name, new_name);
+  return fil_op_replay_rename({space_id, 0}, old_name, new_name);
 }
 
 /** Lookup the tablespace ID for recovery and DDL log apply.
@@ -9790,6 +9782,55 @@ bool Fil_system::lookup_for_recovery(space_id_t space_id) {
   }
 
   return is_known;
+}
+
+/**
+Check if a discovered file-per-table .ibd refers to the same file as the
+implicit default-path .ibd under @@datadir for this tablespace name.
+This makes default-location detection robust against symlinks inside the
+datadir tree.
+@param[in]      space_name              Tablespace name
+@param[in]      discovered_path         Full path of the new directory
+@return true if both the files are same. */
+static bool fil_ibd_same_as_default_path(const char *space_name,
+                                         const std::string &discovered_path) {
+  if (space_name == nullptr || *space_name == '\0') {
+    return false;
+  }
+
+  if (!Fil_path::has_suffix(IBD, discovered_path)) {
+    return false;
+  }
+
+  /* Build the implicit default path for this table name under @@datadir. */
+  char *default_path = Fil_path::make("", space_name, IBD);
+
+  if (default_path == nullptr || default_path[0] == '\0') {
+    return false;
+  }
+
+  Datafile df_default;
+  Datafile df_found;
+
+  df_default.set_filepath(default_path);
+  df_found.set_filepath(discovered_path.c_str());
+
+  if (df_default.open_read_only(false) != DB_SUCCESS) {
+    return false;
+  }
+
+  if (df_found.open_read_only(false) != DB_SUCCESS) {
+    df_default.close();
+    return false;
+  }
+
+  const bool same = df_default.same_as(df_found);
+
+  df_found.close();
+  df_default.close();
+  ut::free(default_path);
+
+  return same;
 }
 
 /** Lookup the tablespace ID.
@@ -9941,6 +9982,9 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
 
   new_dir = Fil_path::get_real_path(new_dir);
 
+  /* Keep the full file path before we trim it to a directory. */
+  const std::string new_full_path{new_dir};
+
   /* Do not use a datafile that is in the wrong place. */
   if (!Fil_path::is_valid_location(space_name, space_id, fsp_flags, new_dir)) {
     return Fil_state::MISSING;
@@ -9952,8 +9996,16 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
   ut_ad(pos != std::string::npos);
 
   new_dir.resize(pos + 1);
+  bool same_file_as_default_path = false;
+  /* Only attempt inode matching for file-per-table .ibd (not shared TS). */
+  if (!fsp_is_shared_tablespace(fsp_flags) &&
+      Fil_path::has_suffix(IBD, old_path)) {
+    same_file_as_default_path =
+        fil_ibd_same_as_default_path(space_name, new_full_path);
+  }
 
-  const bool new_same_as_default = MySQL_datadir_path.is_same_as(new_dir) ||
+  const bool new_same_as_default = same_file_as_default_path ||
+                                   MySQL_datadir_path.is_same_as(new_dir) ||
                                    MySQL_datadir_path.is_ancestor(new_dir);
 
   if (old_dir != new_dir) {
@@ -10036,71 +10088,6 @@ void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
   /* Keep space_name in system cs. We handle it while modifying DD. */
   fil_system->moved(dd_object_id, space_id, space_name, old_path, new_path,
                     dd_flag_missing);
-}
-
-bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
-                               bool update_space, std::string &space_name,
-                               std::string &dd_path) {
-#ifdef _WIN32
-  /* Safe check. Never needed on Windows for path. */
-  if (!update_space) {
-    return false;
-  }
-#endif /* WIN32 */
-
-  /* Never needed in case insensitive file system for path. */
-  if (!update_space && lower_case_file_system) {
-    return false;
-  }
-
-  /* Only needed for file per table. */
-  if (update_space && !fsp_is_file_per_table(space_id, fsp_flags)) {
-    return false;
-  }
-
-  /* Extract dictionary name schema_name/table_name from dd path. */
-  std::string table_name;
-
-  if (!Fil_path::parse_file_path(dd_path, IBD, table_name)) {
-    /* Not a valid file-per-table IBD path */
-    return false;
-  }
-  ut_ad(!table_name.empty());
-
-  /* Only needed for partition file. */
-  if (!dict_name::is_partition(table_name)) {
-    return false;
-  }
-
-  /* Rebuild dictionary name to convert partition names to lower case. */
-  dict_name::rebuild(table_name);
-
-  if (update_space) {
-    /* Rebuild space name if required. */
-    dict_name::rebuild_space(table_name, space_name);
-  }
-
-  /* No need to update file name for lower case file system. */
-  if (lower_case_file_system) {
-    return false;
-  }
-
-  /* Rebuild path and compare. */
-  std::string table_path = Fil_path::make_new_path(dd_path, table_name, IBD);
-  ut_ad(!table_path.empty());
-
-  if (dd_path.compare(table_path) != 0) {
-    /* Validate that the file exists. */
-    if (os_file_exists(table_path.c_str())) {
-      dd_path.assign(table_path);
-      return true;
-
-    } else {
-      ib::warn(ER_IB_WARN_OPEN_PARTITION_FILE, table_path.c_str());
-    }
-  }
-
-  return false;
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -10272,12 +10259,8 @@ const byte *fil_tablespace_redo_create(const byte *ptr, const byte *end,
     return ptr;
   }
 
-  /* Update filename with correct partition case, if needed. */
-  std::string space_name;
-  fil_update_partition_name(page_id.space(), 0, false, space_name, name);
-
   /* Duplicates should have been sorted out before we get here. */
-  ut_a(result.second->size() == 1);
+  ut_a_eq(result.second->size(), 1);
 #endif /* UNIV_HOTBACKUP */
 
   return ptr;
@@ -10562,11 +10545,7 @@ const byte *fil_tablespace_redo_delete(const byte *ptr, const byte *end,
 
   /* Space_id_set should have been sorted out before we get here. */
 
-  ut_a(result.second->size() == 1);
-
-  /* Update filename with correct partition case, if needed. */
-  std::string space_name;
-  fil_update_partition_name(page_id.space(), 0, false, space_name, name);
+  ut_a_eq(result.second->size(), 1);
 
   fil_space_free(page_id.space(), false);
 

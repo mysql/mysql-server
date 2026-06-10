@@ -750,8 +750,8 @@ SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
 ,1)OVER())),'9236-05-27',0xe2a7d4))^(0x1109))
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '| !*c>*{/'
-Warning	1292	Incorrect datetime value: '| !*c>*{/'
+Warning	1292	Truncated incorrect date value: '| !*c>*{/'
+Warning	1292	Truncated incorrect date value: '| !*c>*{/'
 Warning	1292	Truncated incorrect INTEGER value: '9236-05-27'
 SELECT ((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
 ((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1))

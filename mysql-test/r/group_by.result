@@ -5102,3 +5102,8 @@ GROUP BY x
 1
 DROP TABLE t;
 #
+# Bug#38989845: Assertion '!thd->is_error()' failed with GROUPING SETS
+#
+SELECT 1
+GROUP BY GROUPING SETS((ST_LONGFROMGEOHASH(ST_GEOHASH(POINT(79, 146), 107))));
+ERROR 22003: latitude value is out of range in 'st_geohash'

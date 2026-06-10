@@ -1,0 +1,61 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("telemetry: Failed to acquire service <telemetry_resource_provider.component_test_telemetry_resource_provider>, will wait");
+
+-- echo # Install a resource provider before telemetry
+
+-- echo # 1) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+
+-- echo # 2) Install component with dummy resource provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider';
+
+SELECT "Resource provider loading" as message;
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+SELECT "Resource provider loaded" as message;
+
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+
+-- echo # Install telemetry before a resource provider
+
+-- echo # 1) Install component with (unloaded) dummy resource provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider';
+
+SELECT "Resource provider missing" as message;
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+-- echo # 2) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+
+SELECT "Resource provider loading" as message;
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+SELECT "Resource provider loaded" as message;
+
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';

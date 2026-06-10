@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -747,7 +747,13 @@ void LogicalOrderings::AddFDsFromConstItems(THD *thd) {
       continue;
     }
 
-    if (m_items[item_idx].item->const_for_execution()) {
+    const Item &item = *m_items[item_idx].item;
+
+    // Add a FD for items that are known to be constant, and for items that are
+    // effectively constant because their type allows only a single value (for
+    // example CHAR(0) NOT NULL, which only allows the empty string).
+    if (item.const_for_execution() ||
+        (item.max_length == 0 && !item.is_nullable())) {
       // Add {} → item.
       FunctionalDependency fd;
       fd.type = FunctionalDependency::FD;
@@ -757,6 +763,51 @@ void LogicalOrderings::AddFDsFromConstItems(THD *thd) {
       AddFunctionalDependency(thd, fd);
     }
   }
+
+  // Propagate "constant" status through existing FDs. The loop above
+  // marks directly constant items (e.g. WHERE id = 1 gives {} -> id).
+  // Here we repeatedly scan all FDs: if every head item of an FD is
+  // already constant, the tail becomes constant too. For example,
+  // {} -> id (from WHERE) plus {id} -> a (from PRIMARY KEY) gives
+  // {} -> a by transitive closure, so ORDER BY a can be elided. We
+  // repeat until no new constants are found.
+  Mem_root_array<bool> is_const(thd->mem_root, num_original_items);
+  std::fill(is_const.begin(), is_const.end(), false);
+  for (const FunctionalDependency &fd : m_fds) {
+    if (fd.type == FunctionalDependency::FD && fd.head.empty()) {
+      assert(fd.tail >= 0 && fd.tail < num_original_items);
+      is_const[fd.tail] = true;
+    }
+  }
+
+  bool changed;
+  do {
+    changed = false;
+    const int num_fds = m_fds.size();
+    // For every FD: if head is not empty and tail is not const...
+    for (int i = 0; i < num_fds; ++i) {
+      const FunctionalDependency &fd = m_fds[i];
+      if (fd.type != FunctionalDependency::FD || fd.head.empty()) continue;
+      assert(fd.tail >= 0 && fd.tail < num_original_items);
+      if (is_const[fd.tail]) continue;
+
+      // Check that all FD head items are constants.
+      bool all_head_const =
+          std::all_of(fd.head.begin(), fd.head.end(),
+                      [&](ItemHandle h) { return is_const[h]; });
+      // All heads constant: tail is also constant, add {} -> tail.
+      if (all_head_const) {
+        FunctionalDependency new_fd;
+        new_fd.type = FunctionalDependency::FD;
+        new_fd.head = Bounds_checked_array<ItemHandle>();
+        new_fd.tail = fd.tail;
+        new_fd.always_active = fd.always_active;
+        AddFunctionalDependency(thd, new_fd);
+        is_const[fd.tail] = true;
+        changed = true;
+      }
+    }
+  } while (changed);
 }
 
 void LogicalOrderings::AddFDsFromAggregateItems(THD *thd) {

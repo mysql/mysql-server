@@ -1,0 +1,651 @@
+#
+# Basic JSON duality views.
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f1) REFERENCES t1(f1));
+CREATE JSON DUALITY VIEW dv1 AS SELECT JSON_DUALITY_OBJECT("_id": t1.f1) FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv2 AS SELECT JSON_DUALITY_OBJECT("_id": t1.f1) FROM t1;
+CREATE JSON DUALITY VIEW dv3 AS SELECT JSON_DUALITY_OBJECT("_id": t1.f1) FROM t1;
+CREATE OR REPLACE JSON DUALITY VIEW dv3 AS SELECT JSON_DUALITY_OBJECT("_id": t2.f1) FROM t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	dv1	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
+def	test	dv2	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
+def	test	dv3	root@localhost	DEFINER	data	def	test	t2	0	0	0	1	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	dv1	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv2	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv3	def	test	t2		0	0	0	1	1	0	NULL	NULL
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	dv1	def	test	t1	1	0	f1	_id	0	0	0	1
+def	test	dv2	def	test	t1	1	0	f1	_id	0	0	0	1
+def	test	dv3	def	test	t2	1	0	f1	_id	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+DROP VIEW dv1, dv2, dv3;
+DROP TABLE t1, t2;
+#
+# Child's PK is also FK to parent.
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, c2 INT, FOREIGN KEY (pk) REFERENCES t1(pk));
+CREATE TABLE t3 (pk INT PRIMARY KEY, c2 INT, FOREIGN KEY (pk) REFERENCES t2(pk));
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+"_id": t1.pk,
+"c2": t1.c2
+) FROM t1;
+CREATE JSON DUALITY VIEW dv2 AS
+SELECT JSON_DUALITY_OBJECT(
+"_id": t1.pk,
+"c2": t1.c2,
+"t2s": (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+"pk": t2.pk,
+"c2": t2.c2
+)
+) FROM t2 WHERE t1.pk = t2.pk
+)
+) FROM t1;
+CREATE JSON DUALITY VIEW dv3 AS
+SELECT JSON_DUALITY_OBJECT(
+"_id": t2.pk,
+"c2": t2.c2,
+"t1s": (
+SELECT JSON_DUALITY_OBJECT(
+"pk": t1.pk,
+"c2": t1.c2
+)
+FROM t1 WHERE t2.pk = t1.pk
+)
+) FROM t2;
+CREATE JSON DUALITY VIEW dv4 AS
+SELECT JSON_DUALITY_OBJECT(
+"_id": t1.pk,
+"c2": t1.c2,
+"t2s": (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+"pk": t2.pk,
+"c2": t2.c2,
+"t3s": (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+"pk": t3.pk,
+"c2": t3.c2
+)
+) FROM t3 WHERE t2.pk = t3.pk
+)
+)
+) FROM t2 WHERE t1.pk = t2.pk
+)
+) FROM t1;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	dv1	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
+def	test	dv2	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
+def	test	dv3	root@localhost	DEFINER	data	def	test	t2	0	0	0	1	valid
+def	test	dv4	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	dv1	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv2	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv2	def	test	t2	test.t2.pk = test.t1.pk	0	0	0	1	0	1	0	nested
+def	test	dv3	def	test	t2		0	0	0	1	1	0	NULL	NULL
+def	test	dv3	def	test	t1	test.t1.pk = test.t2.pk	0	0	0	1	0	1	0	singleton
+def	test	dv4	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv4	def	test	t2	test.t2.pk = test.t1.pk	0	0	0	1	0	1	0	nested
+def	test	dv4	def	test	t3	test.t3.pk = test.t2.pk	0	0	0	1	0	2	1	nested
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	dv1	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv1	def	test	t1	1	0	c2	c2	0	0	0	1
+def	test	dv2	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv2	def	test	t1	1	0	c2	c2	0	0	0	1
+def	test	dv2	def	test	t2	0	1	c2	c2	0	0	0	1
+def	test	dv2	def	test	t2	0	1	pk	pk	0	0	0	1
+def	test	dv3	def	test	t2	1	0	pk	_id	0	0	0	1
+def	test	dv3	def	test	t2	1	0	c2	c2	0	0	0	1
+def	test	dv3	def	test	t1	0	1	c2	c2	0	0	0	1
+def	test	dv3	def	test	t1	0	1	pk	pk	0	0	0	1
+def	test	dv4	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv4	def	test	t1	1	0	c2	c2	0	0	0	1
+def	test	dv4	def	test	t2	0	1	c2	c2	0	0	0	1
+def	test	dv4	def	test	t2	0	1	pk	pk	0	0	0	1
+def	test	dv4	def	test	t3	0	2	c2	c2	0	0	0	1
+def	test	dv4	def	test	t3	0	2	pk	pk	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	dv2	def	test	t1	def	test	t2	pk	pk	nested	t2s
+def	test	dv3	def	test	t2	def	test	t1	pk	pk	outer	t1s
+def	test	dv4	def	test	t1	def	test	t2	pk	pk	nested	t2s
+def	test	dv4	def	test	t2	def	test	t3	pk	pk	nested	t3s
+DROP VIEW dv1, dv2, dv3, dv4;
+DROP TABLE t1, t2, t3;
+#
+# Child having non-PK which is FK to parent.
+#
+CREATE TABLE t1(pk INT,
+CONSTRAINT t1_pk PRIMARY KEY (pk));
+CREATE TABLE t2(pk INT, fk int,
+CONSTRAINT t2_pk PRIMARY KEY (pk),
+CONSTRAINT t2_fk FOREIGN KEY (fk) REFERENCES t1 (pk));
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1, 2), (2, 2), (3, 3);
+CREATE JSON RELATIONAL DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE) '_id': t1.pk)
+FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv2 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': t1.pk,
+'t2s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT('pk': t2.pk)
+) FROM t2 WHERE t2.fk = t1.pk
+)
+)
+FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv3 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': t2.pk,
+'t1s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT('pk': t1.pk)
+) FROM t1 WHERE t2.pk = t1.pk
+)
+)
+FROM t2;
+CREATE JSON RELATIONAL DUALITY VIEW dv4 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': t2.pk,
+'t1s': (
+SELECT JSON_DUALITY_OBJECT('pk': t1.pk)
+FROM t1 WHERE t2.fk = t1.pk
+)
+)
+FROM t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	dv1	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv2	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv3	root@localhost	DEFINER	data	def	test	t2	1	1	1	0	valid
+def	test	dv4	root@localhost	DEFINER	data	def	test	t2	1	1	1	0	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	dv1	def	test	t1		1	1	1	0	1	0	NULL	NULL
+def	test	dv2	def	test	t1		1	1	1	0	1	0	NULL	NULL
+def	test	dv2	def	test	t2	test.t2.fk = test.t1.pk	0	0	0	1	0	1	0	nested
+def	test	dv3	def	test	t2		1	1	1	0	1	0	NULL	NULL
+def	test	dv3	def	test	t1	test.t1.pk = test.t2.pk	0	0	0	1	0	1	0	nested
+def	test	dv4	def	test	t2		1	1	1	0	1	0	NULL	NULL
+def	test	dv4	def	test	t1	test.t1.pk = test.t2.fk	0	0	0	1	0	1	0	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	dv1	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv2	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv2	def	test	t2	0	1	pk	pk	0	0	0	1
+def	test	dv3	def	test	t2	1	0	pk	_id	0	0	0	1
+def	test	dv3	def	test	t1	0	1	pk	pk	0	0	0	1
+def	test	dv4	def	test	t2	1	0	pk	_id	0	0	0	1
+def	test	dv4	def	test	t1	0	1	pk	pk	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	dv2	def	test	t1	def	test	t2	pk	fk	nested	t2s
+def	test	dv3	def	test	t2	def	test	t1	pk	pk	nested	t1s
+def	test	dv4	def	test	t2	def	test	t1	fk	pk	outer	t1s
+DROP VIEW dv1, dv2, dv3, dv4;
+DROP TABLE t1, t2;
+#
+# Parent and child with no relationship.
+#
+CREATE TABLE t1(pk INT,
+CONSTRAINT t1_pk PRIMARY KEY (pk));
+CREATE TABLE t2(pk INT, i INT,
+CONSTRAINT t2_pk PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1, 2), (3, 4), (5, 6);
+CREATE JSON RELATIONAL DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': t1.pk)
+FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv2 AS
+# TODO: Support for column level tags was removed.
+# SELECT JSON_DUALITY_OBJECT('_id': t1.pk WITH UPDATE)
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': t1.pk)
+FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv3 AS
+SELECT JSON_DUALITY_OBJECT(
+'_id': t1.pk,
+'t2s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'pk': t2.pk,
+'i': t2.i)
+) FROM t2 WHERE t2.pk = t1.pk
+)
+) FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv4 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': t1.pk,
+'t2s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'pk': t2.pk,
+# Column level tags not supported
+#         'i': t2.i WITH UPDATE)
+'i': t2.i)
+) FROM t2 WHERE t2.pk = t1.pk
+)
+) FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv5 AS
+SELECT JSON_DUALITY_OBJECT(
+'_id': t1.pk,
+'t2s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'pk': t2.pk,
+# Column level tags not supported
+#         'i': t2.i WITH UPDATE)
+'i': t2.i)
+) FROM t2 WHERE t2.pk = t1.pk
+)
+) FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv6 AS
+SELECT JSON_DUALITY_OBJECT(
+'_id': t1.pk,
+'t2s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+'pk': t2.pk,
+'i': t2.i)
+) FROM t2 WHERE t2.pk = t1.pk
+)
+) FROM t1;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	dv1	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv2	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv3	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv4	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv5	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
+def	test	dv6	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	dv1	def	test	t1		1	1	1	0	1	0	NULL	NULL
+def	test	dv2	def	test	t1		1	1	1	0	1	0	NULL	NULL
+def	test	dv3	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv3	def	test	t2	test.t2.pk = test.t1.pk	1	1	1	0	0	1	0	nested
+def	test	dv4	def	test	t1		1	1	1	0	1	0	NULL	NULL
+def	test	dv4	def	test	t2	test.t2.pk = test.t1.pk	1	1	1	0	0	1	0	nested
+def	test	dv5	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv5	def	test	t2	test.t2.pk = test.t1.pk	1	1	1	0	0	1	0	nested
+def	test	dv6	def	test	t1		0	0	0	1	1	0	NULL	NULL
+def	test	dv6	def	test	t2	test.t2.pk = test.t1.pk	0	0	0	1	0	1	0	nested
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	dv1	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv2	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv3	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv3	def	test	t2	0	1	i	i	0	1	0	0
+def	test	dv3	def	test	t2	0	1	pk	pk	0	0	0	1
+def	test	dv4	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv4	def	test	t2	0	1	i	i	0	1	0	0
+def	test	dv4	def	test	t2	0	1	pk	pk	0	0	0	1
+def	test	dv5	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv5	def	test	t2	0	1	i	i	0	1	0	0
+def	test	dv5	def	test	t2	0	1	pk	pk	0	0	0	1
+def	test	dv6	def	test	t1	1	0	pk	_id	0	0	0	1
+def	test	dv6	def	test	t2	0	1	i	i	0	0	0	1
+def	test	dv6	def	test	t2	0	1	pk	pk	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	dv3	def	test	t1	def	test	t2	pk	pk	nested	t2s
+def	test	dv4	def	test	t1	def	test	t2	pk	pk	nested	t2s
+def	test	dv5	def	test	t1	def	test	t2	pk	pk	nested	t2s
+def	test	dv6	def	test	t1	def	test	t2	pk	pk	nested	t2s
+DROP VIEW dv1, dv2, dv3, dv4, dv5, dv6;
+DROP TABLE t1, t2;
+#
+# Tables with aliases and self referencing keys.
+#
+# Self-referencing FK
+CREATE TABLE p_employee (empid INT PRIMARY KEY,
+name VARCHAR(100),
+mgrid INT REFERENCES p_employee(empid));
+INSERT INTO p_employee VALUES (0, 'M0', NULL);
+CREATE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id': empid,
+'name': name,
+'mgr': (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+'empid': empid,
+'name': name,
+'mgr': (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+'empid': empid,
+'name': name)
+FROM p_employee MM WHERE MM.empid = M.mgrid)
+) FROM p_employee M WHERE M.empid = emp.mgrid)
+) FROM p_employee emp;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	p_dv1	root@localhost	DEFINER	data	def	test	p_employee	1	1	1	0	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	p_dv1	def	test	p_employee		1	1	1	0	1	0	NULL	NULL
+def	test	p_dv1	def	test	p_employee	test.p_employee.empid = test.p_employee.mgrid	1	1	0	0	0	1	0	singleton
+def	test	p_dv1	def	test	p_employee	test.p_employee.empid = test.p_employee.mgrid	1	1	0	0	0	2	1	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	p_dv1	def	test	p_employee	1	0	empid	_id	0	0	0	1
+def	test	p_dv1	def	test	p_employee	1	0	name	name	0	1	0	0
+def	test	p_dv1	def	test	p_employee	0	1	empid	empid	0	0	0	1
+def	test	p_dv1	def	test	p_employee	0	1	name	name	0	1	0	0
+def	test	p_dv1	def	test	p_employee	0	2	empid	empid	0	0	0	1
+def	test	p_dv1	def	test	p_employee	0	2	name	name	0	1	0	0
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	p_dv1	def	test	p_employee	def	test	p_employee	mgrid	empid	outer	mgr
+def	test	p_dv1	def	test	p_employee	def	test	p_employee	mgrid	empid	outer	mgr
+#
+# Invalid view - drop the table created above,
+# I_S view should then show warning.
+#
+DROP TABLE p_employee;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+Warnings:
+Warning	1356	View 'test.p_dv1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+Warnings:
+Warning	1356	View 'test.p_dv1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+Warnings:
+Warning	1356	View 'test.p_dv1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP VIEW p_dv1;
+# INFORMATION_SCHEMA.JSON_DUALITY_VIEWS with granular tags
+# 1. The ALLOW_INSERT, ALLOW_UPDATE and ALLOW_DELETE fields in the
+# JSON_DUALITY_VIEWS view should be set to 1 if any projected
+# table in the view hierarchy (root or child) is explicitly
+# tagged to allow INSERT, UPDATE and DELETE, respectively.
+# 2. The READ_ONLY field must be set to 1 if none of the
+# INSERT, UPDATE, or DELETE operations are permitted
+# in any of the projected table.
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	p_dv1	root@localhost	DEFINER	data	def	test	p_t2	0	0	0	1	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	p_dv1	def	test	p_t2		0	0	0	1	1	0	NULL	NULL
+def	test	p_dv1	def	test	p_t1	test.p_t1.f1 = test.p_t2.f3	0	0	0	1	0	1	0	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	p_dv1	def	test	p_t2	1	0	f3	_id	0	0	0	1
+def	test	p_dv1	def	test	p_t2	1	0	f4	f4	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f1	f1	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f2	f2	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	p_dv1	def	test	p_t2	def	test	p_t1	f3	f1	outer	ChildNode
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, NO UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	p_dv1	root@localhost	DEFINER	data	def	test	p_t2	1	0	0	0	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	p_dv1	def	test	p_t2		1	0	0	0	1	0	NULL	NULL
+def	test	p_dv1	def	test	p_t1	test.p_t1.f1 = test.p_t2.f3	0	0	0	1	0	1	0	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	p_dv1	def	test	p_t2	1	0	f3	_id	0	0	0	1
+def	test	p_dv1	def	test	p_t2	1	0	f4	f4	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f1	f1	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f2	f2	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	p_dv1	def	test	p_t2	def	test	p_t1	f3	f1	outer	ChildNode
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	p_dv1	root@localhost	DEFINER	data	def	test	p_t2	0	1	0	0	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	p_dv1	def	test	p_t2		0	1	0	0	1	0	NULL	NULL
+def	test	p_dv1	def	test	p_t1	test.p_t1.f1 = test.p_t2.f3	0	0	0	1	0	1	0	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	p_dv1	def	test	p_t2	1	0	f3	_id	0	0	0	1
+def	test	p_dv1	def	test	p_t2	1	0	f4	f4	0	1	0	0
+def	test	p_dv1	def	test	p_t1	0	1	f1	f1	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f2	f2	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	p_dv1	def	test	p_t2	def	test	p_t1	f3	f1	outer	ChildNode
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	p_dv1	root@localhost	DEFINER	data	def	test	p_t2	0	0	1	0	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	p_dv1	def	test	p_t2		0	0	1	0	1	0	NULL	NULL
+def	test	p_dv1	def	test	p_t1	test.p_t1.f1 = test.p_t2.f3	0	0	0	1	0	1	0	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	p_dv1	def	test	p_t2	1	0	f3	_id	0	0	0	1
+def	test	p_dv1	def	test	p_t2	1	0	f4	f4	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f1	f1	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f2	f2	0	0	0	1
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	p_dv1	def	test	p_t2	def	test	p_t1	f3	f1	outer	ChildNode
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	DEFINER	SECURITY_TYPE	JSON_COLUMN_NAME	ROOT_TABLE_CATALOG	ROOT_TABLE_SCHEMA	ROOT_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	STATUS
+def	test	p_dv1	root@localhost	DEFINER	data	def	test	p_t2	1	1	1	0	valid
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	test	p_dv1	def	test	p_t2		1	1	1	0	1	0	NULL	NULL
+def	test	p_dv1	def	test	p_t1	test.p_t1.f1 = test.p_t2.f3	1	1	0	0	0	1	0	singleton
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
+def	test	p_dv1	def	test	p_t2	1	0	f3	_id	0	0	0	1
+def	test	p_dv1	def	test	p_t2	1	0	f4	f4	0	1	0	0
+def	test	p_dv1	def	test	p_t1	0	1	f1	f1	0	0	0	1
+def	test	p_dv1	def	test	p_t1	0	1	f2	f2	0	1	0	0
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
+def	test	p_dv1	def	test	p_t2	def	test	p_t1	f3	f1	outer	ChildNode
+DROP VIEW p_dv1;
+DROP TABLE p_t1, p_t2;
+#
+# Test visibility of duality views, tables and columns that are
+# not accessible by the current user. We also define an ordinary
+# SQL view for comparison to verify the behavior is the same for
+# both view types.
+#
+CREATE SCHEMA jdv;
+CREATE TABLE jdv.t1(c1 int primary key);
+CREATE TABLE jdv.t2(c2 int primary key);
+CREATE VIEW jdv.v1 AS SELECT * FROM jdv.t1, jdv.t2 WHERE jdv.t1.c1 = jdv.t2.c2;
+CREATE JSON RELATIONAL DUALITY VIEW jdv.dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+'_id': jdv.t1.c1,
+'t2s': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+'pk': jdv.t2.c2)
+) FROM jdv.t2 WHERE jdv.t2.c2 = jdv.t1.c1
+)
+) FROM jdv.t1;
+# Create user having no access.
+CREATE USER 'jdvuser'@'localhost';
+# When nothing is accessible, nothing is listed from I_S.views, view_table_usage, json_*.
+# Grant access to the views only, not to the underlying tables. The views are listed in
+# I_S.views with the view definition. The view is listed in JSON_DUALITY_VIEWS with hidden
+# root table name. Nothing is listed in  the other jdv I_S views.
+GRANT ALL ON jdv.v1 TO 'jdvuser'@'localhost';
+GRANT ALL ON jdv.dv1 TO 'jdvuser'@'localhost';
+# Grant access to table t1. Only t1 will be listed in the view_table_usage
+# and jdv I_S views. Nothing listed in the links view since t2 is inaccessible.
+GRANT ALL ON jdv.t1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Grant access also to table t2. Both accessible tables will be listed in
+# the view_table_usage and jdv I_S views.
+GRANT ALL ON jdv.t2 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Revoke access to t1. Only t2 will be listed in the view_table_usage and jdv I_S views.
+# Note that dv1 is listed in I_S.JSON_DUALITY_VIEW with the root table hidden because the
+# root table t1 is not accessible.
+REVOKE ALL ON jdv.t1 FROM 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Revoke all access to table t2 too. Grant DROP access to t1 and t2 (no select access).
+# Revoke view access and grant DROP access to the views as well. Both views are listed
+# in I_S.VIEWS, and the duality view is listed in I_S.JSON_DUALITY_VIEWS with the root
+# table name hidden.
+REVOKE ALL ON jdv.t2 FROM 'jdvuser'@'localhost';
+REVOKE ALL ON jdv.v1 FROM 'jdvuser'@'localhost';
+REVOKE ALL ON jdv.dv1 FROM 'jdvuser'@'localhost';
+GRANT DROP ON jdv.t1 TO 'jdvuser'@'localhost';
+GRANT DROP ON jdv.t2 TO 'jdvuser'@'localhost';
+GRANT DROP ON jdv.v1 TO 'jdvuser'@'localhost';
+GRANT DROP ON jdv.dv1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Grant full view access and keep the tables having DROP access.
+# This means we have table access, but not column access. Hence, both t1 and t2 are listed,
+# but the jdv I_S views for columns and links are empty because the columns are inaccessible.
+REVOKE DROP ON jdv.v1 FROM 'jdvuser'@'localhost';
+REVOKE DROP ON jdv.dv1 FROM 'jdvuser'@'localhost';
+GRANT ALL ON jdv.v1 TO 'jdvuser'@'localhost';
+GRANT ALL ON jdv.dv1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Grant select access to column c1.t1. Now, the output is the same as in the
+# previous test case, except we will have c1.t1 listed in the jdv columns view.
+GRANT SELECT(c1) ON jdv.t1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Revoke select access to column c1.t1. Grant select access to column c2.t2.
+# The output is the same as in the previous test case, except we will have
+# c2.t2 listed in the jdv columns view instead of c1.t1.
+REVOKE SELECT(c1) ON jdv.t1 FROM 'jdvuser'@'localhost';
+GRANT SELECT(c2) ON jdv.t2 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Finally, we grant select access to column c1.t1, making both source tables and
+# columns accessible. The output is the same as in the previous test case, except
+# we will now have both c1.t1 and c2.t2 listed in the jdv columns view, and we will
+# have one entry listed in the links view.
+GRANT SELECT(c1) ON jdv.t1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+# Cleanup
+DROP VIEW jdv.dv1;
+DROP VIEW jdv.v1;
+DROP TABLE jdv.t2, jdv.t1;
+DROP SCHEMA jdv;
+DROP USER 'jdvuser'@'localhost';
+#
+# Bug#38624596: Table ids reported in I_S do not match those reported
+# by ORACLE DB
+#
+CREATE TABLE parent (i INT PRIMARY KEY);
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (i INT PRIMARY KEY);
+CREATE TABLE t3 (i INT PRIMARY KEY);
+CREATE JSON DUALITY VIEW dv2 AS SELECT JSON_DUALITY_OBJECT(
+'_id' : parent.i,
+'k_t1' : (SELECT JSON_DUALITY_OBJECT(
+'k_t1i' : t1.i,
+'k_t3' : (SELECT JSON_DUALITY_OBJECT( 'k_t3i' : t3.i)
+FROM t3 WHERE t3.i = t1.i)
+) FROM t1 WHERE t1.i = parent.i),
+'k_t2' : (SELECT JSON_DUALITY_OBJECT(
+'k_t2i' : t2.i,
+'k_t3' : (SELECT JSON_DUALITY_OBJECT( 'k_t3i' : t3.i)
+FROM t3 WHERE t3.i = t2.i)
+) FROM t2 WHERE t2.i = parent.i)
+) FROM parent;
+# ORACLE DB assigns the following ids in this case:
+# parent:0, t1:1, t3:2, t2:3, t3:4
+SELECT TABLE_NAME, REFERENCED_TABLE_NAME, REFERENCED_TABLE_ID,
+REFERENCED_TABLE_PARENT_ID, REFERENCED_TABLE_PARENT_RELATIONSHIP  FROM
+INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE TABLE_NAME = 'dv2'
+ORDER BY REFERENCED_TABLE_ID;
+TABLE_NAME	REFERENCED_TABLE_NAME	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+dv2	parent	0	NULL	NULL
+dv2	t1	1	0	singleton
+dv2	t3	2	1	singleton
+dv2	t2	3	0	singleton
+dv2	t3	4	3	singleton
+DROP VIEW dv2;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE parent;

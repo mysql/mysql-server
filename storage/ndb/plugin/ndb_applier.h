@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class Ndb_applier {
   Relay_log_info *const m_rli;
   const std::string m_channel_name;
   std::unique_ptr<Ndb_apply_status_table> m_apply_status;
-  Ndb_replica::ChannelPtr m_channel;
+  const Ndb_replica::ChannelPtr m_channel;
   const Uint32 m_applier_id;
   const Uint32 m_own_server_id;
   const Uint32 m_source_server_id;

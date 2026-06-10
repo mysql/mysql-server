@@ -182,7 +182,7 @@ SELECT prio,error_code,subsystem
 # MY-010099: ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
 # MY-010101: ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
 # MY-011070: ER_DEPRECATE_MSG_NO_REPLACEMENT
-# MY-015590: ER_SERVER_STARTING_WITH_RESOURCE, emits vcpus count and memory which varies with system
+# MY-015603: ER_SERVER_STARTING_WITH_RESOURCE, emits vcpus count and memory which varies with system
 SELECT prio,error_code,subsystem,data
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -192,7 +192,7 @@ SELECT prio,error_code,subsystem,data
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
                          "MY-010108", "MY-012363", "MY-013711", "MY-013908",
                          "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-                         "MY-010099", "MY-011070", "MY-015590")
+                         "MY-010099", "MY-011070", "MY-015603")
  ORDER BY logged;
 
 --echo

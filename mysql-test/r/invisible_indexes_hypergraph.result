@@ -255,7 +255,7 @@ ERROR HY000: A primary key index cannot be invisible
 EXPLAIN
 SELECT * FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=1)
+-> Covering index scan on t1 using a  (rows=1)
 
 SELECT * FROM t1;
 a
@@ -334,7 +334,7 @@ WHERE ST_Within(g,
 ST_GeomFromText('Polygon((140 140,160 140,160 160,140 140))'));
 EXPLAIN
 -> Filter: st_within(t1.g,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 140))')))  (rows=1)
-    -> Table scan on t1  (rows=1)
+    -> Index scan on t1 using PRIMARY  (rows=1)
 
 DROP TABLE t1;
 #

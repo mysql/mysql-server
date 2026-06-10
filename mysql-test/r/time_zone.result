@@ -389,6 +389,7 @@ TIMEDIFF( '2000:01:01 00:00:00+02:00',
 '2000:01:01 00:00:00.000001+01:00' )
 -01:00:00.000001
 Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00+02:00' at row 1 is deprecated. Prefer the standard '-'.
 Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00.000001+01:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND );
 DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND )
@@ -454,6 +455,7 @@ TIMEDIFF( '2000:01:01 00:00:00+02:00',
 '2000:01:01 00:00:00.000001+01:00' )
 -01:00:00.000001
 Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00+02:00' at row 1 is deprecated. Prefer the standard '-'.
 Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00.000001+01:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND);
 DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1885,6 +1885,23 @@ class Dbdict : public SimulatedBlock {
     /*
       Return the "weight" of an operation state, used to determine
       the absolute order of operations.
+
+         Rollforward v      Rollback ^
+
+      0  OS_INITIAL (0)
+      1  OS_PARSE_MASTER (1)
+      2  OS_PARSING (2)
+      3                     OS_ABORTED_PARSE (9)
+      4                     OS_ABORTING_PARSE (8)
+      5  OS_PARSED  (3) -----------^
+      6  OS_PREPARING (4)          |
+      7                     OS_ABORTED_PREPARE (6)
+      8                     OS_ABORTING_PREPARE (7)
+      9  OS_PREPARED (5) -----------^
+      10 OS_COMMITTING (10)
+      11 OS_COMMITTED (11)
+      12 OS_COMPLETING (12)
+      13 OS_COMPLETED (13)
      */
     static Uint32 weight(Uint32 state) {
       switch ((OpState)state) {
@@ -2436,10 +2453,10 @@ class Dbdict : public SimulatedBlock {
   void runTransSlave(Signal *, SchemaTransPtr);
   void update_op_state(SchemaOpPtr);
   void sendTransConf(Signal *, SchemaOpPtr);
-  void sendTransConf(Signal *, SchemaTransPtr);
+  void sendTransConfImpl(Signal *, SchemaTransPtr);
   void sendTransConfRelease(Signal *, SchemaTransPtr);
   void sendTransRef(Signal *, SchemaOpPtr);
-  void sendTransRef(Signal *, SchemaTransPtr);
+  void sendTransRefImpl(Signal *, SchemaTransPtr);
 
   void slave_run_start(Signal *, const SchemaTransImplReq *);
   void slave_run_parse(Signal *, SchemaTransPtr, const SchemaTransImplReq *);
@@ -4506,6 +4523,9 @@ class Dbdict : public SimulatedBlock {
   void get_fk_index_column_orders(ForeignKeyRecPtr fk_ptr,
                                   Uint32 *parent_to_child,
                                   Uint32 *child_to_parent) const;
+
+  void dumpSchemaTransaction(SchemaTransPtr schemaTransPtr);
+  void validateSchemaTransaction(SchemaTransPtr schemaTransPtr);
 
  public:
   void send_drop_file(Signal *, Uint32, Uint32, DropFileImplReq::RequestInfo);

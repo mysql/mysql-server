@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -932,10 +932,13 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes) {
 
   Datetime_val dt;
   MYSQL_TIME_STATUS status;
-  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, "20170223", 8, &dt,
-                               static_cast<my_time_flags_t>(0), &status));
+  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, "2017-02-23 01:02:03",
+                               19, &dt, static_cast<my_time_flags_t>(0),
+                               &status));
 
   Time_val time{false, 17, 28, 25, 0};
+
+  Date_val date(2017, 02, 23);
 
   Json_dom *doms[] = {
       new (std::nothrow) Json_null,
@@ -954,7 +957,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes) {
       new (std::nothrow) Json_string("xyz"),
       new (std::nothrow) Json_decimal(decimal),
       new (std::nothrow) Json_datetime(dt, MYSQL_TYPE_DATETIME),
-      new (std::nothrow) Json_datetime(dt, MYSQL_TYPE_DATE),
+      new (std::nothrow) Json_date(date),
       new (std::nothrow) Json_datetime(dt, MYSQL_TYPE_TIMESTAMP),
       new (std::nothrow) Json_time(time),
       new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, 5, 'x'),
@@ -1642,9 +1645,9 @@ static void BM_JsonDateArrayToString(size_t num_iterations) {
   initializer.SetUp();
 
   Json_array_ptr array = create_dom_ptr<Json_array>();
-  MysqlTime date(2018, 11, 20);
+  Date_val date(2018, 11, 20);
   for (size_t i = 0; i < 1000; ++i) {
-    array->append_alias(create_dom_ptr<Json_datetime>(date, MYSQL_TYPE_DATE));
+    array->append_alias(create_dom_ptr<Json_date>(date));
   }
   Json_wrapper wrapper(std::move(array));
 

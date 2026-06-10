@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1487,39 +1487,36 @@ int ha_innopart::index_init(uint keynr, bool sorted) {
   }
 
   error = ph_index_init_setup(keynr, sorted);
-  if (error != 0) {
-    return error;
-  }
 
-  if (sorted) {
+  if (!error && sorted) {
     error = init_record_priority_queue();
-    if (error != 0) {
-      /* Needs cleanup in case it returns error. */
-      destroy_record_priority_queue();
-      return error;
+  }
+
+  if (!error) {
+    /* Disable prefetch for ordered scans.
+    The prefetch buffer is not partitioning aware, so it may return rows from a
+    different partition. This is relevant only when we interleave reads across
+    partitions (sorted/ordered scan with priority queue). */
+    if (sorted) {
+      m_prebuilt->m_no_prefetch = true;
     }
-    /* Disable prefetch.
-    The prefetch buffer is not partitioning aware, so it may return
-    rows from a different partition if either the prefetch buffer is
-    full, or it is non-empty and the partition is exhausted. */
-    m_prebuilt->m_no_prefetch = true;
+
+    /* For scan across partitions, the keys needs to be materialized */
+    m_prebuilt->m_read_virtual_key = true;
+
+    error = change_active_index(part_id, keynr);
+
+    DBUG_EXECUTE_IF("partition_fail_index_init",
+                    { error = HA_ERR_NO_PARTITION_FOUND; });
   }
 
-  /* For scan across partitions, the keys needs to be materialized */
-  m_prebuilt->m_read_virtual_key = true;
-
-  error = change_active_index(part_id, keynr);
-  if (error != 0) {
+  if (error) {
     destroy_record_priority_queue();
-    return error;
+    m_prebuilt->m_no_prefetch = false;
+    m_prebuilt->m_read_virtual_key = false;
   }
 
-  DBUG_EXECUTE_IF("partition_fail_index_init", {
-    destroy_record_priority_queue();
-    return HA_ERR_NO_PARTITION_FOUND;
-  });
-
-  return 0;
+  return error;
 }
 
 /** End index cursor.
@@ -1528,17 +1525,17 @@ int ha_innopart::index_end() {
   uint part_id = m_part_info->get_first_used_partition();
   DBUG_TRACE;
 
-  if (part_id == MY_BIT_NONE) {
-    /* Never initialized any index. */
-    active_index = MAX_KEY;
-    return 0;
-  }
-  if (m_ordered) {
+  if (m_queue) {
     destroy_record_priority_queue();
     m_prebuilt->m_no_prefetch = false;
   }
   m_prebuilt->m_read_virtual_key = false;
 
+  if (part_id == MY_BIT_NONE) {
+    /* Never initialized any index. */
+    active_index = MAX_KEY;
+    return 0;
+  }
   return ha_innobase::index_end();
 }
 

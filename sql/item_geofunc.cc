@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -420,28 +420,20 @@ bool Item_func_geometry_from_text::is_allowed_wkb_type(
  */
 String *Item_func_geometry_from_text::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   Geometry_buffer buffer;
   String arg_val;
   String *wkt = args[0]->val_str_ascii(&arg_val);
+  if (wkt == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   bool reverse = false;
   bool srid_default_ordering = true;
   bool is_geographic = false;
   bool lat_long = false;
-
-  if ((null_value = (args[0]->null_value))) {
-    assert(is_nullable());
-    return nullptr;
-  }
-
-  if (!wkt) {
-    /*
-      We've already found out that args[0]->null_value is false.
-      Therefore, wkt should never be null.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-  }
 
   Gis_read_stream trs(current_thd, wkt->charset(), wkt->ptr(), wkt->length());
   gis::srid_t srid = 0;
@@ -472,9 +464,8 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   if (arg_count == 3) {
     String axis_ordering_tmp;
     String *axis_order = args[2]->val_str_ascii(&axis_ordering_tmp);
-    null_value = (args[2]->null_value);
-    if (null_value) {
-      assert(is_nullable());
+    if (axis_order == nullptr) {
+      null_value = args[2]->null_value;
       return nullptr;
     }
     std::map<std::string, std::string> options;
@@ -672,6 +663,9 @@ bool Item_func_geometry_from_wkb::is_allowed_wkb_type(
  */
 String *Item_func_geometry_from_wkb::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   gis::srid_t srid = 0;
   bool reverse = false;
   bool srid_default_ordering = true;
@@ -707,9 +701,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
   if (arg_count == 3) {
     String axis_ordering_tmp;
     String *axis_order = args[2]->val_str_ascii(&axis_ordering_tmp);
-    null_value = (args[2]->null_value);
-    if (null_value) {
-      assert(is_nullable());
+    if (axis_order == nullptr) {
+      null_value = args[2]->null_value;
       return nullptr;
     }
     std::map<std::string, std::string> options;
@@ -747,11 +740,11 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
   }
 
   String *wkb = args[0]->val_str(&tmp_value);
-  String temp(SRID_SIZE);
-  if ((null_value = (!wkb || args[0]->null_value))) {
-    assert(is_nullable());
+  if (wkb == nullptr) {
+    null_value = args[0]->null_value;
     return nullptr;
   }
+  String temp(SRID_SIZE);
 
   Geometry_buffer buff;
   Geometry *g = Geometry::create_from_wkb(current_thd, &buff, wkb->ptr(),
@@ -2591,6 +2584,7 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg) {
 */
 bool Item_func_geohash::fill_and_check_fields() {
   longlong geohash_length_arg = -1;
+
   null_value = false;
 
   if (arg_count == 2) {
@@ -3153,20 +3147,20 @@ double Item_func_latlongfromgeohash::val_real() {
 String *Item_func_as_wkt::val_str_ascii(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   String swkb_tmp;
   String *swkb = args[0]->val_str(&swkb_tmp);
-
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   Geometry_buffer buffer;
   Geometry *g;
   bool reverse = false;
   bool srid_default_ordering = true;
   bool is_geographic = false;
   bool lat_long = false;
-
-  if ((null_value = args[0]->null_value)) {
-    assert(is_nullable());
-    return nullptr;
-  }
 
   // args[0]->val_str() may have returned a string that we shouldn't modify, and
   // it may have modified swkb_tmp in the process. We need a local copy of the
@@ -3200,9 +3194,8 @@ String *Item_func_as_wkt::val_str_ascii(String *str) {
   if (this->arg_count == 2) {
     String options_arg_tmp;
     String *options_arg = args[1]->val_str_ascii(&options_arg_tmp);
-    null_value = args[1]->null_value;
-    if (null_value) {
-      assert(is_nullable());
+    if (options_arg == nullptr) {
+      null_value = args[1]->null_value;
       return nullptr;
     }
 
@@ -3272,8 +3265,14 @@ bool Item_func_as_wkt::resolve_type(THD *thd) {
 String *Item_func_as_wkb::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   String swkb_tmp;
   String *swkb = args[0]->val_str(&swkb_tmp);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
 
   Geometry_buffer buffer;
   Geometry *g;
@@ -3281,11 +3280,6 @@ String *Item_func_as_wkb::val_str(String *str) {
   bool srid_default_ordering = true;
   bool is_geographic = false;
   bool lat_long = false;
-
-  if ((null_value = args[0]->null_value)) {
-    assert(is_nullable());
-    return nullptr;
-  }
 
   // args[0]->val_str() may have returned a string that we shouldn't modify, and
   // it may have modified swkb_tmp in the process. We need a local copy of the
@@ -3320,10 +3314,9 @@ String *Item_func_as_wkb::val_str(String *str) {
   if (this->arg_count == 2) {
     String options_arg_tmp;
     String *options_arg = args[1]->val_str_ascii(&options_arg_tmp);
-    null_value = args[1]->null_value;
-    if (null_value) {
-      assert(is_nullable());
-      return nullptr;
+    if (options_arg == nullptr) {
+      null_value = args[1]->null_value;
+      return error_str();
     }
 
     std::map<std::string, std::string> options;
@@ -3378,11 +3371,16 @@ String *Item_func_as_wkb::val_str(String *str) {
 
 String *Item_func_geometry_type::val_str_ascii(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String *swkb = args[0]->val_str(str);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return nullptr;
 
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -3400,9 +3398,11 @@ String *Item_func_geometry_type::val_str_ascii(String *str) {
 String *Item_func_validate::val_str(String *) {
   assert(fixed);
 
+  null_value = false;
+
   String *swkb = args[0]->val_str(&arg_val);
-  if (args[0]->null_value) {
-    null_value = true;
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return nullptr;
   }
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -3443,18 +3443,26 @@ Field::geometry_type Item_func_make_envelope::get_geometry_type() const {
 
 String *Item_func_make_envelope::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String arg_val1, arg_val2;
   String *pt1 = args[0]->val_str(&arg_val1);
+  if (pt1 == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   String *pt2 = args[1]->val_str(&arg_val2);
+  if (pt2 == nullptr) {
+    null_value = args[1]->null_value;
+    return error_str();
+  }
   Geometry_buffer buffer1, buffer2;
   Geometry *geom1 = nullptr, *geom2 = nullptr;
   gis::srid_t srid;
 
-  if ((null_value =
-           (!pt1 || !pt2 || args[0]->null_value || args[1]->null_value)))
-    return error_str();
-  if ((null_value = (!(geom1 = Geometry::construct(&buffer1, pt1)) ||
-                     !(geom2 = Geometry::construct(&buffer2, pt2))))) {
+  if (!(geom1 = Geometry::construct(&buffer1, pt1)) ||
+      !(geom2 = Geometry::construct(&buffer2, pt2))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
@@ -3588,16 +3596,18 @@ Field::geometry_type Item_func_envelope::get_geometry_type() const {
 
 String *Item_func_envelope::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String arg_val;
   String *swkb = args[0]->val_str(&arg_val);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
   gis::srid_t srid;
-
-  if ((null_value = (!swkb || args[0]->null_value))) {
-    assert(!swkb && args[0]->null_value);
-    return nullptr;
-  }
 
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -3611,7 +3621,7 @@ String *Item_func_envelope::val_str(String *str) {
   str->length(0);
   if (str->reserve(SRID_SIZE, 512)) return error_str();
   q_append(srid, str);
-  if ((null_value = geom->envelope(str))) {
+  if (geom->envelope(str)) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
@@ -3625,12 +3635,18 @@ Field::geometry_type Item_func_centroid::get_geometry_type() const {
 
 String *Item_func_centroid::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String arg_val;
   String *swkb = args[0]->val_str(&arg_val);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
 
-  if ((null_value = (!swkb || args[0]->null_value))) return nullptr;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3646,9 +3662,9 @@ String *Item_func_centroid::val_str(String *str) {
 
   // Use a local String here, since a BG_result_buf_mgr owns the buffer.
   String tmp_value;
-  null_value = bg_centroid<bgcs::cartesian>(geom, &tmp_value);
-  if (null_value) return error_str();
-
+  if (bg_centroid<bgcs::cartesian>(geom, &tmp_value)) {
+    return error_str();
+  }
   // Then copy the result to the output result argument.
   str->copy(tmp_value);
   return str;
@@ -3912,11 +3928,16 @@ Field::geometry_type Item_func_convex_hull::get_geometry_type() const {
 
 String *Item_func_convex_hull::val_str(String *str) {
   String arg_val;
+
+  null_value = false;
+
   String *swkb = args[0]->val_str(&arg_val);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return nullptr;
+  }
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return nullptr;
 
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -4088,20 +4109,18 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
 
 String *Item_func_st_simplify::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String *swkb = args[0]->val_str(str);
-  double max_distance = args[1]->val_real();
-
-  if ((null_value = (args[0]->null_value || args[1]->null_value)))
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return nullptr;
-
-  if (!swkb) {
-    /* purecov: begin inspected */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-    /* purecov: end */
   }
-
+  double max_distance = args[1]->val_real();
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return nullptr;
+  }
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -4135,13 +4154,19 @@ String *Item_func_st_simplify::val_str(String *str) {
 
 String *Item_func_spatial_decomp::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String arg_val;
   String *swkb = args[0]->val_str(&arg_val);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
   gis::srid_t srid;
 
-  if ((null_value = (!swkb || args[0]->null_value))) return nullptr;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -4179,18 +4204,23 @@ err:
 
 String *Item_func_spatial_decomp_n::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String arg_val;
   String *swkb = args[0]->val_str(&arg_val);
-  if (current_thd->is_error()) return error_str();
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   const long n = (long)args[1]->val_int();
-  if (current_thd->is_error()) return error_str();
-
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return error_str();
+  }
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
   gis::srid_t srid;
 
-  if ((null_value = (!swkb || args[0]->null_value || args[1]->null_value)))
-    return nullptr;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -4241,21 +4271,25 @@ Field::geometry_type Item_func_point::get_geometry_type() const {
 String *Item_func_point::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
   /*
     The coordinates of a point can't be another geometry, but other types
     are allowed as before.
   */
-  if ((null_value = (args[0]->data_type() == MYSQL_TYPE_GEOMETRY ||
-                     args[1]->data_type() == MYSQL_TYPE_GEOMETRY))) {
+  if (args[0]->data_type() == MYSQL_TYPE_GEOMETRY ||
+      args[1]->data_type() == MYSQL_TYPE_GEOMETRY) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
   }
 
   const double x = args[0]->val_real();
-  if (args[0]->null_value || current_thd->is_error()) return error_str();
+  if ((null_value = args[0]->null_value) || current_thd->is_error()) {
+    return error_str();
+  }
   const double y = args[1]->val_real();
-  if (args[1]->null_value || current_thd->is_error()) return error_str();
-
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return error_str();
+  }
   gis::srid_t srid = 0;
 
   if (str->mem_realloc(4 /*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2)) {
@@ -4331,8 +4365,10 @@ String *Item_func_pointfromgeohash::val_str(String *str) {
 
   String argument_value;
   String *geohash = args[0]->val_str_ascii(&argument_value);
-  if (geohash == nullptr) return error_str();
-
+  if (geohash == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
+  }
   gis::srid_t srid = 0;
 
   if (validate_srid_arg(args[1], &srid, func_name())) {
@@ -4410,6 +4446,9 @@ const char *Item_func_spatial_collection::func_name() const {
 
 String *Item_func_spatial_collection::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String arg_value;
   uint i;
   gis::srid_t srid = 0;
@@ -4428,11 +4467,14 @@ String *Item_func_spatial_collection::val_str(String *str) {
 
   for (i = 0; i < arg_count; ++i) {
     String *res = args[i]->val_str(&arg_value);
-    size_t len;
-
-    if (args[i]->null_value || ((len = res->length()) < WKB_HEADER_SIZE))
+    if (res == nullptr) {
+      null_value = args[i]->null_value;
+      return nullptr;
+    }
+    size_t len = res->length();
+    if (len < WKB_HEADER_SIZE) {
       goto err;
-
+    }
     if (coll_type == Geometry::wkb_geometrycollection) {
       /*
         In the case of GeometryCollection we don't need any checkings
@@ -4546,7 +4588,6 @@ String *Item_func_spatial_collection::val_str(String *str) {
     }
   }
 
-  null_value = false;
   return str;
 
 err:
@@ -4656,22 +4697,19 @@ Geometry *BG_geometry_collection::store(const Geometry *geo) {
 
 String *Item_func_st_union::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String temp_str1;
   String temp_str2;
   String *swkb1 = args[0]->val_str(&temp_str1);
-  String *swkb2 = args[1]->val_str(&temp_str2);
-
-  if (args[0]->null_value || args[1]->null_value) {
-    return null_return_str();
+  if (swkb1 == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
   }
-
-  if (!swkb1 || !swkb2) {
-    /*
-    We've already found out that args[0]->null_value and args[1]->null_value are
-    false. Therefore, this should never happen.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  String *swkb2 = args[1]->val_str(&temp_str2);
+  if (swkb2 == nullptr) {
+    null_value = args[1]->null_value;
     return error_str();
   }
 
@@ -4721,12 +4759,19 @@ String *Item_func_st_union::val_str(String *str) {
 
 longlong Item_func_isempty::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   String tmp;
   String *swkb = args[0]->val_str(&tmp);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_int();
+  }
+
   Geometry_buffer buffer;
   Geometry *g = nullptr;
 
-  if ((null_value = (!swkb || args[0]->null_value))) return 0;
   if (!(g = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
@@ -4741,24 +4786,14 @@ longlong Item_func_st_issimple::val_int() {
   DBUG_TRACE;
   assert(fixed);
 
+  null_value = false;
+
   String backing_arg_wkb;
   String *arg_wkb = args[0]->val_str(&backing_arg_wkb);
-  if (current_thd->is_error()) return error_int();
-
-  if (args[0]->null_value) {
-    null_value = true;
-    assert(is_nullable());
-    return 0;
-  }
-
-  if (!arg_wkb) {
-    // Item.val_str should not have returned nullptr if Item.null_value is
-    // false.
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (arg_wkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_int();
   }
-
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(
           current_thd->dd_client()));
@@ -4785,13 +4820,18 @@ longlong Item_func_st_issimple::val_int() {
 
 longlong Item_func_isclosed::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   String tmp;
   String *swkb = args[0]->val_str(&tmp);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_int();
+  }
   Geometry_buffer buffer;
   Geometry *geom;
   int isclosed = 0;  // In case of error
-
-  if ((null_value = (!swkb || args[0]->null_value))) return 0L;
 
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -4808,21 +4848,14 @@ longlong Item_func_isclosed::val_int() {
 longlong Item_func_isvalid::val_int() {
   assert(fixed);
 
+  null_value = false;
+
   String tmp;
   String *swkb = args[0]->val_str(&tmp);
-  if (current_thd->is_error()) return error_int();
-
-  if ((null_value = args[0]->null_value)) {
-    assert(is_nullable());
-    return 0;
-  }
-
   if (swkb == nullptr) {
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    null_value = args[0]->null_value;
     return error_int();
   }
-
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -4848,12 +4881,18 @@ longlong Item_func_isvalid::val_int() {
 
 longlong Item_func_dimension::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   uint32 dim = 0;  // In case of error
   String *swkb = args[0]->val_str(&value);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_int();
+  }
   Geometry_buffer buffer;
   Geometry *geom;
 
-  if ((null_value = (!swkb || args[0]->null_value))) return 0;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
@@ -4867,12 +4906,17 @@ longlong Item_func_dimension::val_int() {
 
 longlong Item_func_numinteriorring::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   uint32 num = 0;  // In case of error
   String *swkb = args[0]->val_str(&value);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_int();
+  }
   Geometry_buffer buffer;
   Geometry *geom;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return 0L;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
@@ -4886,12 +4930,17 @@ longlong Item_func_numinteriorring::val_int() {
 
 longlong Item_func_numgeometries::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   uint32 num = 0;  // In case of errors
   String *swkb = args[0]->val_str(&value);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_int();
+  }
   Geometry_buffer buffer;
   Geometry *geom;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return 0L;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
@@ -4905,12 +4954,17 @@ longlong Item_func_numgeometries::val_int() {
 
 longlong Item_func_numpoints::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   uint32 num = 0;  // In case of errors
   String *swkb = args[0]->val_str(&value);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
+    return error_int();
+  }
   Geometry_buffer buffer;
   Geometry *geom;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return 0L;
   if (!(geom = Geometry::construct(&buffer, swkb))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
@@ -4924,18 +4978,17 @@ longlong Item_func_numpoints::val_int() {
 
 String *Item_func_coordinate_mutator::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String *swkb = args[0]->val_str(str);
-  const double new_value = args[1]->val_real();
-
-  if ((null_value = (args[0]->null_value || args[1]->null_value)))
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return nullptr;
-
-  if (!swkb) {
-    /* purecov: begin inspected */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-    /* purecov: end */
+  }
+  const double new_value = args[1]->val_real();
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return nullptr;
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
@@ -4996,21 +5049,14 @@ String *Item_func_coordinate_mutator::val_str(String *str) {
 
 double Item_func_coordinate_observer::val_real() {
   assert(fixed);
+
+  null_value = false;
+
   String tmp_str;
   String *swkb = args[0]->val_str(&tmp_str);
-  if (current_thd->is_error()) return error_real();
-
-  if ((null_value = (args[0]->null_value))) {
-    assert(is_nullable());
-    return 0.0;
-  }
-
-  if (!swkb) {
-    /* purecov: begin inspected */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_real();
-    /* purecov: end */
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
@@ -5074,22 +5120,14 @@ int Item_func_st_y_observer::coordinate_number(
 
 String *Item_func_swap_xy::val_str(String *str) {
   assert(is_nullable());
-  String *swkb = args[0]->val_str(str);
 
-  if ((null_value = (args[0]->null_value))) {
+  null_value = false;
+
+  String *swkb = args[0]->val_str(str);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return nullptr;
   }
-
-  if (!swkb) {
-    /*
-      We've already found out that args[0]->null_value is false.
-      Therefore, swkb should never be null.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-  }
-
   Geometry *geom = nullptr;
   Geometry_buffer buffer;
   str->copy(*swkb);
@@ -5108,25 +5146,14 @@ String *Item_func_swap_xy::val_str(String *str) {
 double Item_func_st_area::val_real() {
   assert(fixed);
 
+  null_value = false;
+
   String backing_unparsed_geometry;
   String *unparsed_geometry = args[0]->val_str(&backing_unparsed_geometry);
-
-  null_value = args[0]->null_value;
-  if (null_value) {
-    assert(is_nullable());
+  if (unparsed_geometry == nullptr) {
+    null_value = args[0]->null_value;
     return 0.0;
   }
-
-  if (!unparsed_geometry) {
-    /* purecov: begin deadcode */
-    // Item.val_str should not have returned nullptr if Item.null_value is
-    // false.
-    assert(false);
-    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
-    return error_real();
-    /* purecov: end */
-  }
-
   const dd::Spatial_reference_system *srs;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(
@@ -5158,6 +5185,7 @@ double Item_func_st_area::val_real() {
 
 String *Item_func_st_buffer::val_str(String *str) {
   assert(fixed);
+
   null_value = false;
 
   gis::BufferStrategies strategies;
@@ -5165,19 +5193,22 @@ String *Item_func_st_buffer::val_str(String *str) {
   std::vector<String *> p_strats;
 
   String *swkb = args[0]->val_str(str);
-  strategies.distance = args[1]->val_real();
-
-  for (uint i = 0; i < arg_count; ++i) {
-    if (i > 1) p_strats.push_back(args[i]->val_str(&buf_strats[i - 2]));
-    if (args[i]->null_value) return null_return_str();
-  }
-
-  if (!swkb) {
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
   }
-
+  strategies.distance = args[1]->val_real();
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return error_str();
+  }
+  for (uint i = 2; i < arg_count; ++i) {
+    String *value = args[i]->val_str(&buf_strats[i - 2]);
+    if (value == nullptr) {
+      null_value = args[i]->null_value;
+      return error_str();
+    }
+    p_strats.push_back(value);
+  }
   if (std::isnan(strategies.distance) || std::isinf(strategies.distance)) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -5338,23 +5369,14 @@ static ConvertUnitResult ConvertUnit(Item *to_query_expression,
 
 double Item_func_st_length::val_real() {
   assert(fixed);
-  String *swkb = args[0]->val_str(&value);
 
-  if ((null_value = (args[0]->null_value))) {
-    assert(is_nullable());
+  null_value = false;
+
+  String *swkb = args[0]->val_str(&value);
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return 0.0;
   }
-
-  if (swkb == nullptr) {
-    /*
-    We've already found out that args[0]->null_value is false.
-    Therefore, swkb should never be null.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_real();
-  }
-
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -5393,22 +5415,15 @@ double Item_func_st_length::val_real() {
 
 longlong Item_func_st_srid_observer::val_int() {
   assert(fixed);
+
+  null_value = false;
+
   String tmp_str;
   String *swkb = args[0]->val_str(&tmp_str);
-
-  if ((null_value = (args[0]->null_value))) {
-    assert(is_nullable());
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return 0.0;
   }
-
-  if (!swkb) {
-    /* purecov: begin deadcode */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_int();
-    /* purecov: end */
-  }
-
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -5438,6 +5453,7 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
 
   String *swkb = args[0]->val_str(str);
   if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
   }
   gis::srid_t target_srid = 0;
@@ -5475,17 +5491,20 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
 double Item_func_st_frechet_distance::val_real() {
   assert(fixed);
 
+  null_value = false;
+
   String tmp_value1;
   String tmp_value2;
   String *res1 = args[0]->val_str(&tmp_value1);
-  String *res2 = args[1]->val_str(&tmp_value2);
-
-  if ((null_value =
-           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    assert(is_nullable());
+  if (res1 == nullptr) {
+    null_value = args[0]->null_value;
     return 0.0;
   }
-
+  String *res2 = args[1]->val_str(&tmp_value2);
+  if (res2 == nullptr) {
+    null_value = args[1]->null_value;
+    return 0.0;
+  }
   const dd::Spatial_reference_system *srs1 = nullptr;
   const dd::Spatial_reference_system *srs2 = nullptr;
   std::unique_ptr<gis::Geometry> g1;
@@ -5539,17 +5558,20 @@ double Item_func_st_frechet_distance::val_real() {
 double Item_func_st_hausdorff_distance::val_real() {
   assert(fixed);
 
+  null_value = false;
+
   String tmp_value1;
   String tmp_value2;
   String *res1 = args[0]->val_str(&tmp_value1);
-  String *res2 = args[1]->val_str(&tmp_value2);
-
-  if ((null_value =
-           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    assert(is_nullable());
+  if (res1 == nullptr) {
+    null_value = args[0]->null_value;
     return 0.0;
   }
-
+  String *res2 = args[1]->val_str(&tmp_value2);
+  if (res2 == nullptr) {
+    null_value = args[1]->null_value;
+    return 0.0;
+  }
   const dd::Spatial_reference_system *srs1 = nullptr;
   const dd::Spatial_reference_system *srs2 = nullptr;
   std::unique_ptr<gis::Geometry> g1;
@@ -5602,25 +5624,21 @@ double Item_func_st_hausdorff_distance::val_real() {
 
 String *Item_func_st_difference::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String temp_str1;
   String temp_str2;
   String *swkb1 = args[0]->val_str(&temp_str1);
-  String *swkb2 = args[1]->val_str(&temp_str2);
-
-  if (args[0]->null_value || args[1]->null_value) {
-    return null_return_str();
-  }
-
-  if (!swkb1 || !swkb2) {
-    /*
-    We've already found out that args[0]->null_value and args[1]->null_value are
-    false. Therefore, this should never happen.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (swkb1 == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
   }
-
+  String *swkb2 = args[1]->val_str(&temp_str2);
+  if (swkb2 == nullptr) {
+    null_value = args[1]->null_value;
+    return error_str();
+  }
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(
           current_thd->dd_client()));
@@ -5668,23 +5686,20 @@ String *Item_func_st_difference::val_str(String *str) {
 double Item_func_distance::val_real() {
   assert(fixed);
 
+  null_value = false;
+
   String tmp_value1;
   String tmp_value2;
   String *res1 = args[0]->val_str(&tmp_value1);
-  String *res2 = args[1]->val_str(&tmp_value2);
-
-  if ((null_value =
-           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
-    assert(is_nullable());
+  if (res1 == nullptr) {
+    null_value = args[0]->null_value;
     return 0.0;
   }
-
-  if (res1 == nullptr || res2 == nullptr) {
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_real();
+  String *res2 = args[1]->val_str(&tmp_value2);
+  if (res2 == nullptr) {
+    null_value = args[1]->null_value;
+    return 0.0;
   }
-
   const dd::Spatial_reference_system *srs1 = nullptr;
   const dd::Spatial_reference_system *srs2 = nullptr;
   std::unique_ptr<gis::Geometry> g1;
@@ -5736,28 +5751,20 @@ double Item_func_st_distance_sphere::val_real() {
   DBUG_TRACE;
   assert(fixed);
 
+  null_value = false;
+
   String backing_arg_wkb1;
   String *arg_wkb1 = args[0]->val_str(&backing_arg_wkb1);
-  if (current_thd->is_error()) return error_real();
-
-  String backing_arg_wkb2;
-  String *arg_wkb2 = args[1]->val_str(&backing_arg_wkb2);
-  if (current_thd->is_error()) return error_real();
-
-  if (args[0]->null_value || args[1]->null_value) {
-    null_value = true;
-    assert(is_nullable());
-    return 0.0;
-  }
-
-  if (!arg_wkb1 || !arg_wkb2) {
-    // Item.val_str should not have returned nullptr if Item.null_value is
-    // false.
-    assert(false);
-    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
+  if (arg_wkb1 == nullptr) {
+    null_value = args[0]->null_value;
     return error_real();
   }
-
+  String backing_arg_wkb2;
+  String *arg_wkb2 = args[1]->val_str(&backing_arg_wkb2);
+  if (arg_wkb2 == nullptr) {
+    null_value = args[1]->null_value;
+    return error_real();
+  }
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(
           current_thd->dd_client()));
@@ -5831,20 +5838,19 @@ double Item_func_st_distance_sphere::val_real() {
 
 String *Item_func_st_intersection::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String temp_str1;
   String temp_str2;
   String *swkb1 = args[0]->val_str(&temp_str1);
-  String *swkb2 = args[1]->val_str(&temp_str2);
-  if (args[0]->null_value || args[1]->null_value) {
-    return null_return_str();
+  if (swkb1 == nullptr) {
+    null_value = args[0]->null_value;
+    return error_str();
   }
-  if (!swkb1 || !swkb2) {
-    /*
-    We've already found out that args[0]->null_value and args[1]->null_value are
-    false. Therefore, this should never happen.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  String *swkb2 = args[1]->val_str(&temp_str2);
+  if (swkb2 == nullptr) {
+    null_value = args[1]->null_value;
     return error_str();
   }
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -5886,23 +5892,19 @@ String *Item_func_st_intersection::val_str(String *str) {
 }
 
 String *Item_func_lineinterpolate::val_str(String *str) {
+  assert(fixed);
+
+  null_value = false;
+
   String *swkb = args[0]->val_str(str);
-  const double distance = args[1]->val_real();
-
-  if (args[0]->null_value || args[1]->null_value) {
-    return null_return_str();
-  }
-
-  if (!swkb) {
-    /*
-    We've already found out that args[0]->null_value is false.
-    Therefore, this should never happen.
-    */
-    assert(false);
-    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
+  if (swkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
   }
-
+  const double distance = args[1]->val_real();
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return error_str();
+  }
   /*
   This class keeps a register of shared objects that are automatically released
   when the instance goes out of scope.
@@ -5958,25 +5960,21 @@ String *Item_func_lineinterpolate::val_str(String *str) {
 
 String *Item_func_st_symdifference::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String temp_str1;
   String temp_str2;
   String *swkb1 = args[0]->val_str(&temp_str1);
-  String *swkb2 = args[1]->val_str(&temp_str2);
-
-  if (args[0]->null_value || args[1]->null_value) {
-    return null_return_str();
-  }
-
-  if (!swkb1 || !swkb2) {
-    /*
-    We've already found out that args[0]->null_value and args[1]->null_value are
-    false. Therefore, this should never happen.
-    */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (swkb1 == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
   }
-
+  String *swkb2 = args[1]->val_str(&temp_str2);
+  if (swkb2 == nullptr) {
+    null_value = args[1]->null_value;
+    return error_str();
+  }
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(
           current_thd->dd_client()));
@@ -6023,20 +6021,18 @@ String *Item_func_st_symdifference::val_str(String *str) {
 
 String *Item_func_st_transform::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String *source_swkb = args[0]->val_str(str);
-  const gis::srid_t target_srid = args[1]->val_int();
-
-  if ((null_value = (args[0]->null_value || args[1]->null_value)))
-    return nullptr;
-
-  if (!source_swkb) {
-    /* purecov: begin inspected */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (source_swkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
-    /* purecov: end */
   }
-
+  const gis::srid_t target_srid = args[1]->val_int();
+  if ((null_value = args[1]->null_value) || current_thd->is_error()) {
+    return nullptr;
+  }
   const dd::Spatial_reference_system *source_srs = nullptr;
   std::unique_ptr<gis::Geometry> source_g;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -6091,16 +6087,14 @@ String *Item_func_st_transform::val_str(String *str) {
 
 String *Item_typecast_geometry::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String *source_swkb = args[0]->val_str(str);
-
-  if (args[0]->null_value) return null_return_str();
-
-  if (!source_swkb) {
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  if (source_swkb == nullptr) {
+    null_value = args[0]->null_value;
     return error_str();
   }
-
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> source_g;
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(

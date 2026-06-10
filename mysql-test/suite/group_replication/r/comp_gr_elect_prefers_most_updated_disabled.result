@@ -1,0 +1,131 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install component and bootstrap group with member M1
+[connection server1]
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 2. Join to group member M2 without component and increase
+#    to have highest priority on primary election
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*Members have different configurations.*on usage of most up-to-date method on primary failover, method will not be used.*");
+SET SESSION sql_log_bin = 1;
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+
+############################################################
+# 3. Force member to suspend applying transactions until
+#    sending an unblock signal
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+############################################################
+# 4. Join to group member M3 with component. It will log
+#    a message is configuration different from group
+[connection server3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*Members have different configurations.*on usage of most up-to-date method on primary failover, method will not be used.*");
+SET SESSION sql_log_bin = 1;
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+include/start_group_replication.inc
+include/assert_grep.inc [Member has different configuration from the group.]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 5. Insert transactions on the group and confirm twenty
+#    entries
+[connection server1]
+set sql_log_bin=0;
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+set sql_log_bin=1;
+CREATE TABLE t1(a int primary key);
+CREATE PROCEDURE dml_operations()
+BEGIN
+declare x INT;
+set x=1;
+while x<=48 do
+insert into t1 values (x);
+set x=x+1;
+end  while;
+end$$
+
+----call procedure----
+call dml_operations();
+
+[connection server_1]
+
+############################################################
+# 6. Force a failover primary election by restarting primary
+# killing
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+# restarting
+[connection server_1]
+include/rpl/reconnect.inc
+[connection server2]
+# check that there are 2 members in the group
+include/rpl/gr_wait_for_number_of_members.inc
+
+############################################################
+# 7. Unblock M2 from applying transactions
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+
+############################################################
+# 8. Assert M2 is primary
+[connection server2]
+include/gr_assert_primary_member.inc
+
+############################################################
+# 9. Server M3 will complain has most uptodate enable but
+#    is off on group
+[connection server3]
+include/assert_grep.inc [Member has different configuration from the group.]
+
+############################################################
+# 10. Confirm global status variables were not updated
+[connection server2]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+[connection server3]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_latest_primary_election_by_most_uptodate_member_timestamp	
+Gr_latest_primary_election_by_most_uptodate_members_trx_delta	0
+
+############################################################
+# 11. Confirm error log contain message that states member
+#     weight method was used to elect new primary
+[connection server2]
+include/assert_grep.inc [Server 2 used member weight method to elect new primary.]
+[connection server3]
+include/assert_grep.inc [Server 2 used member weight method to elect new primary.]
+
+############################################################
+# 12. Cleanup
+[connection server1]
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=ON;
+[connection server3]
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=ON;
+[connection server2]
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+DROP TABLE t1;
+DROP PROCEDURE dml_operations;
+include/group_replication_end.inc

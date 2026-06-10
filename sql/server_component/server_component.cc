@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -358,10 +358,10 @@ mysql_acquire_backup_lock,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, clone_protocol)
 mysql_clone_start_statement, mysql_clone_finish_statement,
     mysql_clone_get_charsets, mysql_clone_validate_charsets,
-    mysql_clone_get_configs, mysql_clone_validate_configs, mysql_clone_connect,
-    mysql_clone_send_command, mysql_clone_get_response, mysql_clone_kill,
-    mysql_clone_disconnect, mysql_clone_get_error, mysql_clone_get_command,
-    mysql_clone_send_response,
+    mysql_clone_get_configs, mysql_clone_validate_configs,
+    mysql_clone_validate_version, mysql_clone_connect, mysql_clone_send_command,
+    mysql_clone_get_response, mysql_clone_kill, mysql_clone_disconnect,
+    mysql_clone_get_error, mysql_clone_get_command, mysql_clone_send_response,
     mysql_clone_send_error END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_convert)
@@ -1057,6 +1057,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v3), */
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v4), */
     PROVIDES_SERVICE(performance_schema, psi_statement_v5),
+    PROVIDES_SERVICE(performance_schema, psi_statement_v6),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #include "plugin/group_replication/include/compatibility_module.h"
 #include "plugin/group_replication/include/plugin_constants.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 
@@ -137,32 +138,18 @@ bool Compatibility_module::do_all_versions_belong_to_the_same_lts(
     return false;
   }
 
-  // 8.4 LTS
-  bool is_8_4_lts = true;
-  for (const Member_version &version : all_members_versions) {
-    is_8_4_lts &= is_version_8_4_lts(version);
-    if (!is_8_4_lts) {
-      break;
-    }
-  }
-  if (is_8_4_lts) {
-    return true;
-  }
-
-  return false;
+  const auto &first = *all_members_versions.begin();
+  return std::all_of(
+      all_members_versions.begin(), all_members_versions.end(),
+      [&](const Member_version &version) {
+        return is_lts_version(version) &&
+               version.get_major_version() == first.get_major_version() &&
+               version.get_minor_version() == first.get_minor_version();
+      });
 }
 
-bool Compatibility_module::is_version_8_4_lts(const Member_version &version) {
-  const Member_version member_8_4_lts_version(MEMBER_8_4_LTS_VERSION);
-
-  if (version.get_major_version() ==
-          member_8_4_lts_version.get_major_version() &&
-      version.get_minor_version() ==
-          member_8_4_lts_version.get_minor_version()) {
-    return true;
-  }
-
-  return false;
+bool Compatibility_module::is_lts_version(const Member_version &version) {
+  return version.get_major_version() >= 9 && version.get_minor_version() == 7;
 }
 
 /* Compatibility_module is independent, we cannot use local_member_info or

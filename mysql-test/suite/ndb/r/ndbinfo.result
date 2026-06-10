@@ -98,9 +98,10 @@ table_id	table_name	comment
 50	threadblock_details	which blocks are run in which threads and some internal state details
 51	transporter_details	detailed transporter status
 52	transactions_full	transactions_full
+53	transporter_activity	Histogram over activity on heartbeated transporters
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-53
+54
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment	rows_estimate
 2	test	for testing	8000
@@ -153,6 +154,7 @@ table_id	table_name	comment
 50	threadblock_details	which blocks are run in which threads and some internal state details
 51	transporter_details	detailed transporter status
 52	transactions_full	transactions_full
+53	transporter_activity	Histogram over activity on heartbeated transporters
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment	rows_estimate
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -224,6 +226,7 @@ table_id	table_name
 13	transactions
 52	transactions_full
 4	transporters
+53	transporter_activity
 51	transporter_details
 
 SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
@@ -313,6 +316,7 @@ table_id
 50
 51
 52
+53
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only

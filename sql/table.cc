@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2493,6 +2493,17 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
 
   if (field && field->is_field_for_functional_index())
     val_generator_expr->allow_array_cast();
+
+  // Disable application of masking policies while resolving the expression.
+  // Masked columns aren't allowed in the value generator expressions in the
+  // first place, but we can't check for their presence until after the
+  // expression has been resolved. The purpose of the disabling is to get
+  // clearer error messages, as resolving the expression with masking applied is
+  // likely to fail with an error that does not explain the actual issue.
+  WalkItem(val_generator_expr, enum_walk::PREFIX, [](Item *item) {
+    item->disable_masking_policy();
+    return false;
+  });
 
   // Fix the fields for the value generator expression
   Item *new_func = val_generator_expr;
@@ -7811,8 +7822,7 @@ void warn_user_trimmed(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg) {
   append_query_string(thd, system_charset_info, &host, &account);
   account.append((char)0);
   push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_ACCOUNT_TRIMMED,
-                      ER_THD(thd, ER_WARN_ACCOUNT_TRIMMED), account.ptr(),
-                      account.ptr());
+                      ER_THD(thd, ER_WARN_ACCOUNT_TRIMMED), account.ptr());
 }
 
 LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd [[maybe_unused]],

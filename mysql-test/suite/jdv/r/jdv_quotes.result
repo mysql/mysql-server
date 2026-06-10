@@ -1,0 +1,66 @@
+################################################################################
+# Verify that quoted identifiers can be used in base tables.
+# Root object - Foreign Key  Table annotations: INSERT, UPDATE, DELETE
+# Sub-object - Primary Key   Table annotations: INSERT, UPDATE
+################################################################################
+CREATE TABLE `p t1` (`f 1` INT PRIMARY KEY, `f 2` INT);
+CREATE TABLE `p t2` (`f 3` INT PRIMARY KEY REFERENCES `p t1`(`f 1`), `f 4` INT);
+INSERT INTO `p t1` VALUES (1, 2);
+INSERT INTO `p t2` VALUES (1, 200);
+INSERT INTO `p t1` VALUES (3, 4);
+CREATE OR REPLACE JSON DUALITY VIEW `p dv1` AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : `f 3`,
+"f 4" : `f 4`,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"f 1" : `f 1`,
+"f 2" : `f 2`
+                                          ) FROM `p t1` WHERE `p t1`.`f 1` = `p t2`.`f 3`)
+) FROM `p t2`;
+SELECT * FROM `p dv1`;
+data
+{"_id": 1, "f 4": 200, "ChildNode": {"f 1": 1, "f 2": 2}, "_metadata": {"etag": "0c4b29ba200f905e444f642af2880243"}}
+INSERT INTO `p dv1` VALUES (
+' {
+     "_id" : 3,
+     "f 4" : 400,
+     "ChildNode" : {
+                      "f 1" : 3,
+                      "f 2" : 4
+                    }
+  } ');
+SELECT * FROM `p dv1`;
+data
+{"_id": 1, "f 4": 200, "ChildNode": {"f 1": 1, "f 2": 2}, "_metadata": {"etag": "0c4b29ba200f905e444f642af2880243"}}
+{"_id": 3, "f 4": 400, "ChildNode": {"f 1": 3, "f 2": 4}, "_metadata": {"etag": "5473d3fc187e7164c79bf326c8aa3a0f"}}
+SELECT * FROM `p t1`;
+f 1	f 2
+1	2
+3	4
+SELECT * FROM `p t2`;
+f 3	f 4
+1	200
+3	400
+UPDATE `p dv1` SET data = '{
+    "_id" : 3,
+    "f 4" : 500,
+    "_metadata": {"etag": "5473d3fc187e7164c79bf326c8aa3a0f"},
+    "ChildNode" : {
+                     "f 1" : 3,
+                     "f 2" : 7
+                   }}' WHERE JSON_EXTRACT(data, '$._id') = 3;
+SELECT * FROM `p dv1`;
+data
+{"_id": 1, "f 4": 200, "ChildNode": {"f 1": 1, "f 2": 2}, "_metadata": {"etag": "0c4b29ba200f905e444f642af2880243"}}
+{"_id": 3, "f 4": 500, "ChildNode": {"f 1": 3, "f 2": 7}, "_metadata": {"etag": "b30f4e2c09a896ccde87eefb88aa4d1e"}}
+SELECT * FROM `p t1`;
+f 1	f 2
+1	2
+3	7
+SELECT * FROM `p t2`;
+f 3	f 4
+1	200
+3	500
+DROP VIEW `p dv1`;
+DROP TABLE `p t2`;
+DROP TABLE `p t1`;

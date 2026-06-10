@@ -233,8 +233,6 @@ insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
 a
 http://www.foo.com/
-Warnings:
-Warning	1292	Truncated incorrect time value: '17540424:00:00'
 drop table t1;
 SET timestamp=DEFAULT;
 set sql_mode='traditional';

@@ -3,14 +3,14 @@ IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 #######################################################################
-## 2. Memory mechanism ok after filling the cache, fails after flush
+## 1.1. Memory mechanism ok after filling the cache, fails after flush
 ##
 ## when:
 ## * The cache is empty, the memory request is going to fail
 ## * plain auth is going to fill the cache (mysqlx_cache_cleaner installed)
 ## * The cache is filled, the memory auth request is going to be successful
 ## * FLUSH PRIVILEGES is going to clear the cache,
-##   the memory auth request is going to be successful
+##   the memory auth request is going to fail
 ##
 ## Requirements: F2, F4, F5, CI6
 #
@@ -112,16 +112,39 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+DROP USER xuser_cache2@'localhost';
+SET GLOBAL caching_sha2_password_storage_format="PBKDF2_SHA512";
+CREATE USER xuser_cache2@'localhost'
+IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
+GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 #######################################################################
-## 3. Memory mechanism fails after uninstall plugin
+## 2.1. Memory mechanism ok after filling the cache, fails after flush
 ##
 ## when:
-##  * plain auth is going to fill the cache
-##  * uninstall plugin mysqlx_cache_cleaner, disables the cache
+## * The cache is empty, the memory request is going to fail
+## * plain auth is going to fill the cache (mysqlx_cache_cleaner installed)
+## * The cache is filled, the memory auth request is going to be successful
+## * FLUSH PRIVILEGES is going to clear the cache,
+##   the memory auth request is going to fail
 ##
-## Requirements: F1
+## Requirements: F2, F4, F5, CI6
 #
+
+#######################################################################
+# Cache is empty, the sha256_memory request must fail
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error (one of: 1045 2510 )
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error (one of: 1045 2510 )
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 
 #######################################################################
 # Plain auth work as expected and it fill the cache
@@ -187,4 +210,23 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+#######################################################################
+# Cache is cleared by FLUSH SQL, thus auth-mech sha256_memory must fail
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error (one of: 1045 2510 )
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error (one of: 1045 2510 )
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 DROP USER xuser_cache2@'localhost';
+SET GLOBAL caching_sha2_password_storage_format='CRYPT5';

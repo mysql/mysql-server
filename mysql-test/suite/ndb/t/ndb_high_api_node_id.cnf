@@ -1,0 +1,6 @@
+!include ../my.cnf
+
+# The API node ID must be lower than 255,
+# since 255 is used by the test.
+[cluster_config.ndbapi.12.1]
+NodeId=250

@@ -1,0 +1,103 @@
+################################################################################
+# Validate that foreign key handling on SQL layer generates write set values
+# for cascade rules and its triggers.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Create tables with foreign key cascade rules, triggers
+#    and populate them.
+# 2. Update row in t1 and verify that it cascades to t2 and
+#    both tables triggers are activated, while a debug flag
+#    asserts the write sets values on server implementation.
+# 3. Delete row in t1 and verify that it cascades to t2 and
+#    both tables triggers are activated, while a debug flag
+#    asserts the write sets values on server implementation.
+# 4. Clean up.
+################################################################################
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Create tables with foreign key cascade rules, triggers
+--echo #    and populate them.
+# t1 - Parent table
+CREATE TABLE t1 (f1 BINARY(2) PRIMARY KEY);
+# t2(f1) -> t1(f1) - ON DELETE | UPDATE CASCADE
+CREATE TABLE t2 (f1 BINARY(2) PRIMARY KEY, f2 BINARY(2),
+FOREIGN KEY(f1) REFERENCES t1(f1) ON DELETE CASCADE ON UPDATE CASCADE);
+# logtable - triggers outcome
+CREATE TABLE logtable (id BINARY(1) PRIMARY KEY, action VARCHAR(128), oldval BINARY(2), newval BINARY(2));
+
+--echo
+INSERT INTO t1 VALUES (10), (20), (30);
+INSERT INTO t2 VALUES (10, 10), (20, 20), (30, 30);
+
+--echo
+delimiter //;
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+FOR EACH ROW BEGIN
+    INSERT INTO logtable VALUES (1, "t1-AFTER-DELETE", OLD.f1, 0);
+END//
+
+CREATE TRIGGER trg2 AFTER DELETE ON t2
+FOR EACH ROW BEGIN
+    INSERT INTO logtable VALUES (2, "t2-AFTER-DELETE", OLD.f2, 0);
+END//
+
+CREATE TRIGGER trg3 AFTER UPDATE ON t1
+FOR EACH ROW BEGIN
+    INSERT INTO logtable VALUES (3, "t1-AFTER-UPDATE", OLD.f1, NEW.f1);
+END//
+
+CREATE TRIGGER trg4 AFTER UPDATE ON t2
+FOR EACH ROW BEGIN
+    INSERT INTO logtable VALUES (4, "t2-AFTER-UPDATE", OLD.f2, NEW.f2);
+END//
+delimiter ;//
+
+--echo
+SELECT * FROM t1 ORDER BY f1;
+SELECT * FROM t2 ORDER BY f1;
+SELECT * FROM logtable ORDER by id;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Update row in t1 and verify that it cascades to t2 and
+--echo #    both tables triggers are activated, while a debug flag
+--echo #    asserts the write sets values on server implementation.
+SET enable_cascade_triggers = ON;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_update_fk_sql_triggers';
+UPDATE t1 SET f1=50 WHERE f1=20;
+SET @@GLOBAL.DEBUG= '-d,PKE_assert_single_primary_key_generated_update_fk_sql_triggers';
+
+--echo
+SELECT * FROM t1 ORDER BY f1;
+SELECT * FROM t2 ORDER BY f1;
+SELECT * FROM logtable ORDER by id;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Delete row in t1 and verify that it cascades to t2 and
+--echo #    both tables triggers are activated, while a debug flag
+--echo #    asserts the write sets values on server implementation.
+SET enable_cascade_triggers = ON;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_delete_fk_sql_triggers';
+DELETE FROM t1 WHERE f1=10;
+UPDATE t1 SET f1=50 where f1=20;
+SET @@GLOBAL.DEBUG= '-d,PKE_assert_single_primary_key_generated_delete_fk_sql_triggers';
+
+--echo
+SELECT * FROM t1 ORDER BY f1;
+SELECT * FROM t2 ORDER BY f1;
+SELECT * FROM logtable ORDER by id;
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+SET enable_cascade_triggers = DEFAULT;
+DROP TABLE logtable, t2, t1;

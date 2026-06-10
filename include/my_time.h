@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2026, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,8 @@
 #include "my_time_t.h"
 #include "mysql_time.h"  // struct MYSQL_TIME, shared with client code
 
+class Date_val;
+
 extern const unsigned long long int log_10_int[20];
 extern const unsigned char days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
@@ -81,29 +83,39 @@ constexpr const std::int64_t TYPE_TIMESTAMP_MAX_VALUE =
     std::numeric_limits<std::int32_t>::max();
 constexpr const std::int64_t TYPE_TIMESTAMP_MIN_VALUE = 1;
 
-/** Flags to str_to_datetime and number_to_datetime */
+/** Flags to str_to_datetime and int_to_datetime */
 using my_time_flags_t = unsigned int;
 
-/** Allow zero day and zero month */
-constexpr const my_time_flags_t TIME_FUZZY_DATE = 1;
+/** No flags: default behavior */
+constexpr const my_time_flags_t TIME_NO_FLAGS = 0x00;
 
 /** Only allow full datetimes. */
-constexpr const my_time_flags_t TIME_DATETIME_ONLY = 2;
+constexpr const my_time_flags_t TIME_DATETIME_ONLY = 0x01;
 
-constexpr const my_time_flags_t TIME_FRAC_TRUNCATE = 4;
-constexpr const my_time_flags_t TIME_NO_DATE_FRAC_WARN = 8;
+/** Whether to truncate or round fractional time component */
+constexpr const my_time_flags_t TIME_FRAC_TRUNCATE = 0x02;
+
+/** Whether to warn if a fractional time component is rounded or truncated */
+constexpr const my_time_flags_t TIME_NO_DATE_FRAC_WARN = 0x04;
 
 /** Don't allow zero day or zero month */
-constexpr const my_time_flags_t TIME_NO_ZERO_IN_DATE = 16;
+constexpr const my_time_flags_t TIME_NO_ZERO_IN_DATE = 0x08;
 
 /** Don't allow 0000-00-00 date */
-constexpr const my_time_flags_t TIME_NO_ZERO_DATE = 32;
+constexpr const my_time_flags_t TIME_NO_ZERO_DATE = 0x10;
 
-/** Allow 2000-02-31 */
-constexpr const my_time_flags_t TIME_INVALID_DATES = 64;
+/** Don't allow invalid dates like 2000-02-31 */
+constexpr const my_time_flags_t TIME_NO_INVALID_DATES = 0x20;
+
+/** Allow only valid dates, no zero date, no zero date component */
+constexpr const my_time_flags_t TIME_ONLY_VALID_DATES =
+    TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE | TIME_NO_INVALID_DATES;
 
 /** Allow only HH:MM:SS or MM:SS time formats */
-constexpr const my_time_flags_t TIME_STRICT_COLON = 128;
+constexpr const my_time_flags_t TIME_STRICT_COLON = 0x40;
+
+/** Allow exact dates only (or dates where time component is 00:00:00) */
+constexpr const my_time_flags_t TIME_EXACT_DATE_ONLY = 0x80;
 
 /** Conversion warnings */
 constexpr const int MYSQL_TIME_WARN_TRUNCATED = 1;
@@ -155,7 +167,7 @@ constexpr const int64_t MAX_DAY_NUMBER = 3652424;
 
 /**
   Structure to return status from
-    str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
+    str_to_datetime(), str_to_time(), int_to_datetime(), int_to_time()
     @note Implicit default constructor initializes all members to 0.
 */
 struct MYSQL_TIME_STATUS {
@@ -217,14 +229,14 @@ struct MYSQL_TIME_STATUS {
    but member variables are unsigned.
  */
 struct Interval {
-  unsigned long int year;
-  unsigned long int month;
-  unsigned long int day;
-  unsigned long int hour;
-  unsigned long long int minute;
-  unsigned long long int second;
-  unsigned long long int second_part;
-  bool neg;
+  unsigned long int year{0};
+  unsigned long int month{0};
+  unsigned long int day{0};
+  unsigned long int hour{0};
+  unsigned long long int minute{0};
+  unsigned long long int second{0};
+  unsigned long long int second_part{0};
+  bool neg{false};
 };
 
 void my_init_time();
@@ -260,9 +272,11 @@ bool check_date(const MYSQL_TIME &ltime, bool not_zero_date,
                 my_time_flags_t flags, int *was_cut);
 bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
                      my_time_flags_t flags, MYSQL_TIME_STATUS *status);
-long long int number_to_datetime(long long int nr, MYSQL_TIME *time_res,
-                                 my_time_flags_t flags, int *was_cut);
-bool number_to_time(long long int nr, MYSQL_TIME *ltime, int *warnings);
+long long int int_to_datetime(long long int nr, MYSQL_TIME *time_res,
+                              my_time_flags_t flags, int *was_cut);
+bool int_to_time(long long int nr, MYSQL_TIME *ltime, int *warnings);
+bool int_to_date(long long int nr, Date_val *date, my_time_flags_t,
+                 int *warnings);
 unsigned long long int TIME_to_ulonglong_datetime(const MYSQL_TIME &my_time);
 unsigned long long int TIME_to_ulonglong_date(const MYSQL_TIME &my_time);
 unsigned long long int TIME_to_ulonglong_time(const MYSQL_TIME &my_time);
@@ -355,11 +369,10 @@ inline long long int my_packed_time_get_frac_part(long long int i) {
 
 long long int year_to_longlong_datetime_packed(long year);
 long long int TIME_to_longlong_datetime_packed(const MYSQL_TIME &my_time);
-long long int TIME_to_longlong_date_packed(const MYSQL_TIME &my_time);
+long long int obs_TIME_to_longlong_date_packed(const MYSQL_TIME &my_time);
 long long int TIME_to_longlong_packed(const MYSQL_TIME &my_time);
 
 void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, long long int nr);
-void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, long long int nr);
 void TIME_set_yymmdd(MYSQL_TIME *ltime, unsigned int yymmdd);
 void TIME_set_hhmmss(MYSQL_TIME *ltime, unsigned int hhmmss);
 
@@ -419,7 +432,6 @@ int my_date_to_str(const MYSQL_TIME &my_time, char *to);
 int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 
-void my_date_to_binary(const MYSQL_TIME *ltime, unsigned char *ptr);
 int my_timeval_to_str(const my_timeval *tm, char *to, unsigned int dec);
 
 /**
@@ -520,14 +532,17 @@ inline void my_timeval_trunc(my_timeval *tv, unsigned int decimals) {
 /**
    Predicate for fuzzyness of date.
 
-   @param my_time time point to check
-   @param fuzzydate bitfield indicating if fuzzy dates are premitted
-   @retval true if TIME_FUZZY_DATE is unset and either month or day is 0
+   @param mt      datetime or date value to check
+   @param flags   bitfield indicating if fuzzy dates are premitted
+
+   @retval true if TIME_NO_ZERO_IN_DATE is set and either month or day is 0,
+                or TIME_NO_ZERO_DATE and all date fields are zero.
    @retval false otherwise
  */
-inline bool check_fuzzy_date(const MYSQL_TIME &my_time,
-                             my_time_flags_t fuzzydate) {
-  return !(fuzzydate & TIME_FUZZY_DATE) && (!my_time.month || !my_time.day);
+inline bool check_fuzzy_date(const MYSQL_TIME &mt, my_time_flags_t flags) {
+  return ((flags & TIME_NO_ZERO_IN_DATE) && (mt.month == 0 || mt.day == 0)) ||
+         ((flags & TIME_NO_ZERO_DATE) && mt.year == 0 && mt.month == 0 &&
+          mt.day == 0);
 }
 
 /**
@@ -564,6 +579,7 @@ inline void datetime_to_time(MYSQL_TIME *ltime) {
   ltime->year = 0;
   ltime->month = 0;
   ltime->day = 0;
+  ltime->time_zone_displacement = 0;
   ltime->time_type = MYSQL_TIMESTAMP_TIME;
 }
 
@@ -579,6 +595,7 @@ inline void datetime_to_date(MYSQL_TIME *ltime) {
   ltime->minute = 0;
   ltime->second = 0;
   ltime->second_part = 0;
+  ltime->time_zone_displacement = 0;
   ltime->time_type = MYSQL_TIMESTAMP_DATE;
 }
 

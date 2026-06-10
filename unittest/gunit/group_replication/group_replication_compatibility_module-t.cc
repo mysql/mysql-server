@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,107 +193,114 @@ TEST_F(CompatibilityModuleTest, Incompatibility) {
 }
 
 TEST_F(CompatibilityModuleTest, isLTS) {
-  Member_version const server_080037(0x080037);  // version: 8.0.37
-  Member_version const server_080300(0x080300);  // version: 8.3.0
-  Member_version const server_080400(0x080400);  // version: 8.4.0
-  Member_version const server_080401(0x080401);  // version: 8.4.1
-  Member_version const server_080499(0x080499);  // version: 8.4.99
-  Member_version const server_090000(0x090000);  // version: 9.0.0
+  Member_version const server_080400(0x080400);  // version:  8.4.0
+  Member_version const server_090600(0x090600);  // version:  9.6.0
+  Member_version const server_090700(0x090700);  // version:  9.7.0
+  Member_version const server_090701(0x090701);  // version:  9.7.1
+  Member_version const server_090799(0x090799);  // version:  9.7.99
+  Member_version const server_100000(0x100000);  // version: 10.0.0
+  Member_version const server_100700(0x100700);  // version: 10.7.0
 
   std::set<Member_version> all_versions;
-  all_versions.insert(server_080401);
-  all_versions.insert(server_080400);
-  all_versions.insert(server_080499);
+  all_versions.insert(server_090701);
+  all_versions.insert(server_090700);
+  all_versions.insert(server_090799);
   ASSERT_TRUE(Compatibility_module::do_all_versions_belong_to_the_same_lts(
       all_versions));
 
   all_versions.clear();
-  all_versions.insert(server_080300);
+  all_versions.insert(server_090600);
+  all_versions.insert(server_090700);
+  ASSERT_FALSE(Compatibility_module::do_all_versions_belong_to_the_same_lts(
+      all_versions));
+
+  all_versions.clear();
+  all_versions.insert(server_090700);
+  all_versions.insert(server_100000);
+  ASSERT_FALSE(Compatibility_module::do_all_versions_belong_to_the_same_lts(
+      all_versions));
+
+  all_versions.clear();
+  all_versions.insert(server_090700);
   all_versions.insert(server_080400);
   ASSERT_FALSE(Compatibility_module::do_all_versions_belong_to_the_same_lts(
       all_versions));
 
   all_versions.clear();
-  all_versions.insert(server_080400);
-  all_versions.insert(server_090000);
-  ASSERT_FALSE(Compatibility_module::do_all_versions_belong_to_the_same_lts(
-      all_versions));
-
-  all_versions.clear();
-  all_versions.insert(server_080400);
-  all_versions.insert(server_080037);
+  all_versions.insert(server_090700);
+  all_versions.insert(server_100700);
   ASSERT_FALSE(Compatibility_module::do_all_versions_belong_to_the_same_lts(
       all_versions));
 }
 
 TEST_F(CompatibilityModuleTest, LTSCompatibility) {
-  Member_version server_080300(0x080300);  // version: 8.3.0
-  Member_version server_080400(0x080400);  // version: 8.4.0
-  Member_version server_080401(0x080401);  // version: 8.4.1
-  Member_version server_080410(0x080410);  // version: 8.4.10
-  Member_version server_080420(0x080420);  // version: 8.4.20
-  Member_version server_080442(0x080442);  // version: 8.4.42
-  Member_version server_080499(0x080499);  // version: 8.4.99
-  Member_version server_090000(0x090000);  // version: 9.0.0
+  Member_version server_090600(0x090600);  // version:  9.6.0
+  Member_version server_090700(0x090700);  // version:  9.7.0
+  Member_version server_090701(0x090701);  // version:  9.7.1
+  Member_version server_090710(0x090710);  // version:  9.7.10
+  Member_version server_090720(0x090720);  // version:  9.7.20
+  Member_version server_090742(0x090742);  // version:  9.7.42
+  Member_version server_090799(0x090799);  // version:  9.7.99
+  Member_version server_100000(0x100000);  // version: 10.0.0
 
   /*
-    Group with 8.4.1
-    Try to add a 8.3.0
+    Group with 9.7.1
+    Try to add a 9.6.0
   */
   std::set<Member_version> all_versions;
-  all_versions.insert(server_080401);
-  all_versions.insert(server_080300);
+  all_versions.insert(server_090701);
+  all_versions.insert(server_090600);
   Compatibility_type ret = module->check_incompatibility(
-      server_080300, server_080401, true, all_versions);
+      server_090600, server_090701, true, all_versions);
   ASSERT_EQ(INCOMPATIBLE_LOWER_VERSION, ret);
 
   /*
-    Group with 8.4.1
-    Try to add a 8.4.0
+    Group with 9.7.1
+    Try to add a 9.7.0
   */
   all_versions.clear();
-  all_versions.insert(server_080401);
-  all_versions.insert(server_080400);
-  ret = module->check_incompatibility(server_080400, server_080401, true,
+  all_versions.insert(server_090701);
+  all_versions.insert(server_090700);
+  ret = module->check_incompatibility(server_090700, server_090701, true,
                                       all_versions);
   ASSERT_EQ(COMPATIBLE, ret);
 
   /*
-    Group with 8.4.20, 8.4.42, 8.4.99
-    Try to add a 8.4.10
+    Group with 9.7.20, 9.7.42, 9.7.99
+    Try to add a 9.7.10
   */
   all_versions.clear();
-  all_versions.insert(server_080420);
-  all_versions.insert(server_080442);
-  all_versions.insert(server_080499);
-  all_versions.insert(server_080410);
+  all_versions.insert(server_090720);
+  all_versions.insert(server_090742);
+  all_versions.insert(server_090799);
+  all_versions.insert(server_090710);
 
-  ret = module->check_incompatibility(server_080410, server_080420, true,
+  ret = module->check_incompatibility(server_090710, server_090720, true,
                                       all_versions);
   ASSERT_EQ(COMPATIBLE, ret);
 
-  ret = module->check_incompatibility(server_080410, server_080442, true,
+  ret = module->check_incompatibility(server_090710, server_090742, true,
                                       all_versions);
   ASSERT_EQ(COMPATIBLE, ret);
 
-  ret = module->check_incompatibility(server_080410, server_080499, true,
+  ret = module->check_incompatibility(server_090710, server_090799, true,
                                       all_versions);
   ASSERT_EQ(COMPATIBLE, ret);
 
   /*
-    Group with 8.4.1, 9.0.0
-    Try to add a 8.4.0
+    Group with 9.7.1, 10.0.0
+    Try to add a 9.7.0
   */
   all_versions.clear();
-  all_versions.insert(server_080401);
-  all_versions.insert(server_090000);
-  all_versions.insert(server_080400);
+  all_versions.insert(server_090701);
+  all_versions.insert(server_100000);
+  all_versions.insert(server_090700);
 
-  ret = module->check_incompatibility(server_080400, server_080401, true,
+  ret = module->check_incompatibility(server_090700, server_090701, true,
                                       all_versions);
   ASSERT_EQ(INCOMPATIBLE_LOWER_VERSION, ret);
 
-  ret = module->check_incompatibility(server_080400, server_090000, true,
+  ret = module->check_incompatibility(server_090700, server_100000, true,
                                       all_versions);
   ASSERT_EQ(INCOMPATIBLE_LOWER_VERSION, ret);
 }

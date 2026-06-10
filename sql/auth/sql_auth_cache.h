@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,11 +46,11 @@
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
+#include "my_temporal.h"  // Datetime_val
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/strings/m_ctype.h"
-#include "mysql_com.h"   // SCRAMBLE_LENGTH
-#include "mysql_time.h"  // MYSQL_TIME
+#include "mysql_com.h"  // SCRAMBLE_LENGTH
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"  // List_of_authid, Authid
 #include "sql/auth/partial_revokes.h"
@@ -254,7 +254,7 @@ class ACL_USER : public ACL_ACCESS {
   LEX_CSTRING plugin;
   bool password_expired;
   bool can_authenticate;
-  MYSQL_TIME password_last_changed;
+  Datetime_val password_last_changed;
   uint password_lifetime;
   bool use_default_password_lifetime;
   /**

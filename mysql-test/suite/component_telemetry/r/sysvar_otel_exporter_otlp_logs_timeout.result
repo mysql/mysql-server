@@ -1,0 +1,48 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_logs_timeout;
+@@global.telemetry.otel_exporter_otlp_logs_timeout
+10000
+SELECT @@session.telemetry.otel_exporter_otlp_logs_timeout;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_logs_timeout' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_logs_timeout';
+Variable_name	Value
+telemetry.otel_exporter_otlp_logs_timeout	10000
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_logs_timeout';
+Variable_name	Value
+telemetry.otel_exporter_otlp_logs_timeout	10000
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_logs_timeout';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_logs_timeout	10000
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_logs_timeout';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_logs_timeout	10000
+SET GLOBAL telemetry.otel_exporter_otlp_logs_timeout=15000;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_logs_timeout' is a read only variable
+SET SESSION telemetry.otel_exporter_otlp_logs_timeout=15000;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_logs_timeout' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_logs_timeout=15000;
+SELECT @@global.telemetry.otel_exporter_otlp_logs_timeout;
+@@global.telemetry.otel_exporter_otlp_logs_timeout
+15000
+SET PERSIST telemetry.otel_exporter_otlp_logs_timeout=20000;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_logs_timeout' is a read only variable
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_logs_timeout=20000;
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_logs_timeout;
+@@global.telemetry.otel_exporter_otlp_logs_timeout
+20000
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -256,7 +256,8 @@ class ErrConvString {
   ErrConvString(double nr);
   ErrConvString(const my_decimal *nr);
   ErrConvString(const MYSQL_TIME *ltime, uint dec);
-  ErrConvString(Time_val time, uint dec);
+  ErrConvString(const Time_val time, uint dec);
+  ErrConvString(const Date_val date);
 
   const char *ptr() const { return err_buffer; }
   size_t length() const { return buf_length; }

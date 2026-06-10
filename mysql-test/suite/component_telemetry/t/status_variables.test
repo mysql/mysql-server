@@ -1,0 +1,32 @@
+  
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+--echo # Telemetry status variables
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME LIKE 'telemetry%'
+  ORDER BY VARIABLE_NAME;
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install component
+INSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+

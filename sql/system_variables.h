@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -518,6 +518,12 @@ struct System_variables {
     @sa Sys_restrict_fk_on_non_standard_key
   */
   bool restrict_fk_on_non_standard_key;
+
+  /**
+    Activate child table trigger execution during SQL foreign key cascade.
+    @sa Sys_enable_cascade_triggers
+  */
+  bool enable_cascade_triggers;
 };
 
 static_assert(std::is_trivially_copyable<System_variables>::value);

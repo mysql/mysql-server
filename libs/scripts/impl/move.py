@@ -1,5 +1,5 @@
 #!/usr/bin/python3.11
-# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,8 @@ def fix_after_moving_header(
         it and require that it exists).
     :param fix_cmakelists: If True, will remove the file from CMakeLists.txt in
         the old location and add it on the new location.
-    :param fix_namespace: If True, will replace the namespace in the header.
+    :param fix_namespace: If True, will replace the namespace if the file
+        changed directory.
     '''
 
     if fix_cmakelists:
@@ -130,33 +131,37 @@ def fix_after_moving_header(
 def fix_after_moving_source(
         *, old: str, new: str,
         old_lib_path: str | None=None, new_lib_path: str | None=None,
-        fix_cmakelists: bool
+        fix_cmakelists: bool,
+        fix_namespace: bool
 ) -> None:
-    '''Fix namespace after moving a source file.
+    '''Fix namespace and cmakelists after moving a source file.
 
     Parameters
     ----------
     :param old: The old filename
     :param new: The new filename
     :param old_lib_path: The path to the library of *old*. Pass None to compute
-        it and require that it exists).
+        it and require that it exists.
     :param new_lib_path: The path to the library of *new*. Pass None to compute
-        it and require that it exists).
+        it and require that it exists.
     :param fix_cmakelists: If True, will remove the file from CMakeLists.txt in
         the old location and add it on the new location.
+    :param fix_namespace: If True, will replace the namespace if the file
+        changed directory.
     '''
 
     if fix_cmakelists:
         fix_cmakelists_after_moving_source_or_header(
             old=old, new=new, section='TARGET_SRCS'
         )
-    old_symbols = tp.file_symbols(path=old, lib_path=old_lib_path)
-    new_symbols = tp.file_symbols(path=new, lib_path=new_lib_path)
-    file_edit.multi_replace_in_file_from_dict_with_warning(
-        path=new, old_dict=old_symbols, new_dict=new_symbols,
-        keys=['namespace'],
-        message=True, words=True
-    )
+    if fix_namespace:
+        old_symbols = tp.file_symbols(path=old, lib_path=old_lib_path)
+        new_symbols = tp.file_symbols(path=new, lib_path=new_lib_path)
+        file_edit.multi_replace_in_file_from_dict_with_warning(
+            path=new, old_dict=old_symbols, new_dict=new_symbols,
+            keys=['namespace'],
+            message=True, words=True
+        )
 
 @trace
 def fix_after_moving_readme(
@@ -193,7 +198,8 @@ def fix_after_moving_readme(
 @trace
 def fix_after_moving_directory(
         *, old: str, new: str,
-        old_lib_path: str | None=None, new_lib_path: str | None=None
+        old_lib_path: str | None=None, new_lib_path: str | None=None,
+        fix_namespace,
 ) -> None:
     '''Fix namespaces in all files, after moving a directory.
 
@@ -205,20 +211,23 @@ def fix_after_moving_directory(
         it and require that it exists).
     :param new_lib_path: The path to the library of *new*. Pass None to compute
         it and require that it exists).
+    :param fix_namespace: If True, will replace the namespace. Otherwise do
+        nothing.
     '''
 
-    old_symbols = tp.file_symbols(path=old, lib_path=old_lib_path)
-    new_symbols = tp.file_symbols(path=new, lib_path=new_lib_path)
-    log_info(
-        f'Replacing {old_symbols["namespace"]!r} '
-        f'by {new_symbols["namespace"]!r} in all C++ files'
-    )
-    file_edit.replace_in_git_tree(
-        old=old_symbols['namespace'],
-        new=new_symbols['namespace'],
-        words=True,
-        file_patterns=file_edit.cpp_file_patterns
-    )
+    if fix_namespace:
+        old_symbols = tp.file_symbols(path=old, lib_path=old_lib_path)
+        new_symbols = tp.file_symbols(path=new, lib_path=new_lib_path)
+        log_info(
+            f'Replacing {old_symbols["namespace"]!r} '
+            f'by {new_symbols["namespace"]!r} in all C++ files'
+        )
+        file_edit.replace_in_git_tree(
+            old=old_symbols['namespace'],
+            new=new_symbols['namespace'],
+            words=True,
+            file_patterns=file_edit.cpp_file_patterns
+        )
 
 @trace
 def fix_after_moving_cmakelists(
@@ -237,7 +246,8 @@ def fix_after_moving_directory_tree(
         new_root: str,
         old_lib_path: str,
         new_lib_path: str,
-        fix_cmakelists: bool
+        fix_cmakelists: bool,
+        fix_namespace: bool,
 ):
     '''Fix all symbols in all files, after moving an entire directory tree.
 
@@ -258,6 +268,7 @@ def fix_after_moving_directory_tree(
         CMakeLists.txt at the old location, and add them to CMakeLists.txt at
         the new location. If False, will not do that. Usually, False should be
         used in case the CMakeLists.txt itself was moved.
+    :param fix_namespace: If True, will replace the namespace.
     '''
 
     if file_list is None:
@@ -274,7 +285,11 @@ def fix_after_moving_directory_tree(
             new_lib_path=new_lib_path
         )
         if file_type == file_name.Source:
-            fix_after_moving_source(**args, fix_cmakelists=fix_cmakelists)
+            fix_after_moving_source(
+                **args,
+                fix_cmakelists=fix_cmakelists,
+                fix_namespace=fix_namespace
+            )
         elif file_type == file_name.Header:
             # Do not fix the namespace, since fix_after_moving_directory does
             # it for the entire tree.
@@ -293,7 +308,8 @@ def fix_after_moving_directory_tree(
         old=old_root,
         new=new_root,
         old_lib_path=old_lib_path,
-        new_lib_path=new_lib_path
+        new_lib_path=new_lib_path,
+        fix_namespace=fix_namespace,
     )
     if unknown_type:
         log_warning(
@@ -301,7 +317,7 @@ def fix_after_moving_directory_tree(
             f'determined:\n'
             f'{unknown_type}'
             f'You may want to check if they contain any symbols that need to '
-            f'be moved.'
+            f'be renamed.'
         )
 
 @trace
@@ -310,14 +326,23 @@ def fix_after_moving_library(
         file_list: List[str] | None,
         old: str,
         new: str,
+        fix_namespace: bool,
 ):
+    '''
+    :param file_list: List of files that were moved.
+    :param old_root: The source library.
+    :param new_root: The target library.
+    :param fix_namespace: If True, will replace the namespace.
+    '''
+
     fix_after_moving_directory_tree(
         file_list=file_list,
         old_root=old,
         new_root=new,
         old_lib_path=old,
         new_lib_path=new,
-        fix_cmakelists=False
+        fix_cmakelists=False,
+        fix_namespace=fix_namespace,
     )
 
     # The library name may occur in CMakeLists.txt files
@@ -391,7 +416,7 @@ def move_file(*, old: str, new: str) -> None:
     file_system.rename(old=old, new=new)
 
 @trace
-def move_header(*, old: str, new: str) -> None:
+def move_header(*, old: str, new: str, fix_namespace: bool) -> None:
     '''Move a header file from *old* to *new*.
 
     - Target must be a non-existing header file in an existing directory within
@@ -401,13 +426,19 @@ def move_header(*, old: str, new: str) -> None:
     - Fix header guard
     - Fix CMakeLists.txt
     - Fix namespace in this file but not in files that may use it.
-    '''
+
+    Parameters
+    ----------
+    :param old: Old filename.
+    :param new: New filename.
+    :param fix_namespace: If True, will replace the namespace if the file
+        changed directory.    '''
 
     move_file(old=old, new=new)
     fix_after_moving_header(
-        old=old, new=new, fix_cmakelists=True, fix_namespace=True
+        old=old, new=new, fix_cmakelists=True, fix_namespace=fix_namespace
     )
-    if os.path.dirname(old) != os.path.dirname(new):
+    if os.path.dirname(old) != os.path.dirname(new) and fix_namespace:
         log_warning(
             f'If {old} contained a namespace, '
             f'the namespace was renamed in *this* file '
@@ -417,7 +448,7 @@ def move_header(*, old: str, new: str) -> None:
         )
 
 @trace
-def move_source(*, old: str, new: str) -> None:
+def move_source(*, old: str, new: str, fix_namespace: bool) -> None:
     '''Move a source file from *old* to *new*.
 
     - Target must be a non-existing source file in an existing directory within
@@ -431,25 +462,39 @@ def move_source(*, old: str, new: str) -> None:
     :param new: New filename
     :param old_lib_path: Path to library containing *old*. Omit it to compute
         it.
+    :param fix_namespace: If True, will replace the namespace if the file
+        changed directory.
     '''
 
     move_file(old=old, new=new)
-    fix_after_moving_source(old=old, new=new, fix_cmakelists=True)
+    fix_after_moving_source(
+        old=old, new=new, fix_cmakelists=True, fix_namespace=fix_namespace
+    )
 
 @trace
-def move_source_and_header(*, old: str, new: str) -> None:
-    '''Move a source and its header from *old* to *new*.'''
+def move_source_and_header(*, old: str, new: str, fix_namespace: bool) -> None:
+    '''Move a source and its header from *old* to *new*.
 
-    move_source(old=old, new=new)
+    Parameters
+    ----------
+    :param old: Old filename
+    :param old: New filename
+    :param fix_namespace: If True, will replace the namespace if the file
+    changed directory.
+    '''
+
+    move_source(old=old, new=new, fix_namespace=fix_namespace)
     for old_header, new_header in zip(
             file_name.source_to_headers(old),
             file_name.source_to_headers(new)
     ):
         if os.path.exists(old_header):
-            move_header(old=old_header, new=new_header)
+            move_header(
+                old=old_header, new=new_header, fix_namespace=fix_namespace
+            )
 
 @trace
-def move_directory_contents(*, old: str, new: str) -> None:
+def move_directory_contents(*, old: str, new: str, fix_namespace: bool) -> None:
     '''Move the contents of directory *old* to within directory *new*.
 
     - Target must be an existing directory within a library, and all files to be
@@ -457,6 +502,12 @@ def move_directory_contents(*, old: str, new: str) -> None:
     - Move all files within the directory and its
       subdirectories, one by one.
     - Fix all namespaces, doc sections, header guards, etc.
+
+    Parameters
+    ----------
+    :param old: Old directory name
+    :param old: New directory name
+    :param fix_namespace: If True, will replace the namespace.
     '''
 
     # Generate the file list by traversing the directory tree rooted at old,
@@ -492,12 +543,20 @@ def move_directory_contents(*, old: str, new: str) -> None:
         new_root=new,
         old_lib_path=old_lib_path,
         new_lib_path=new_lib_path,
-        fix_cmakelists=True
+        fix_cmakelists=True,
+        fix_namespace=fix_namespace,
     )
 
 @trace
-def move_library(*, old: str, new: str) -> None:
-    '''Move library *old* to *new*, updating all files accordingly.'''
+def move_library(*, old: str, new: str, fix_namespace: bool) -> None:
+    '''Move library *old* to *new*, updating all files accordingly.
+
+    Parameters
+    ----------
+    :param old: Old directory name
+    :param old: New directory name
+    :param fix_namespace: If True, will replace the namespace.
+    '''
 
     library_root = cm.require_library_path(old)
     if library_root != old:
@@ -514,26 +573,35 @@ def move_library(*, old: str, new: str) -> None:
         file_list=file_list,
         old=old,
         new=new,
+        fix_namespace=fix_namespace,
     )
 
 @trace
-def move_directory(*, old: str, new: str) -> None:
-    '''Move directory *old* to *new*, updating all files accordingly.'''
+def move_directory(*, old: str, new: str, fix_namespace: bool) -> None:
+    '''Move directory *old* to *new*, updating all files accordingly.
+
+    Parameters
+    ----------
+    :param old: Old directory name
+    :param old: New directory name
+    :param fix_namespace: If True, will replace the namespace.
+    '''
 
     cm.require_library_cmakelists(os.path.dirname(old))
     file_system.makedirs(path=new)
-    move_directory_contents(old=old, new=new)
+    move_directory_contents(old=old, new=new, fix_namespace=fix_namespace)
 
 @trace
-def move(*, type: str, old: str, new: str) -> None:
+def move(*, type: str, old: str, new: str, fix_namespace: bool) -> None:
     '''Move *old*, which is of type *type*, to *new*.
 
     Parameters
     ----------
-    :param old: The old file or directory name.
-    :param new: The new file or directory name.
     :param type: One of the strings "directory-contents", "source", "header",
         "directory", or "library".
+    :param old: The old file or directory name.
+    :param new: The new file or directory name.
+    :param fix_namespace: If True, will replace the namespace.
     '''
 
     old = file_name.normalize_path(old)
@@ -583,7 +651,7 @@ def move(*, type: str, old: str, new: str) -> None:
         'directory': move_directory,
         'library': move_library
     }
-    move_functions[type](old=old, new=new)
+    move_functions[type](old=old, new=new, fix_namespace=fix_namespace)
     if type in ('source', 'directory-contents', 'directory'):
         warn_if_moved_source_from_library(old=old, new=new)
 
@@ -610,13 +678,14 @@ def setup_argument_parser(
         help=f'What to move: "header" moves or renames a C++ header file, '
         f'updating the namespace, header guards and Doxygen section names, '
         f'updating other files that include the header, '
-        f'and updating {file_name.cmakelists_name} both at the old and the new place. '
+        f'and updating {file_name.cmakelists_name} both at the old and the new '
+        f'place. '
         f'It updates the namespace only in the moved file, '
         f'so you need to update it manually in other places it is used. '
         f'"source" moves or renames a C++ source file, '
         f'updating the namespace, '
-        f'updating {file_name.cmakelists_name} at both the old and the new place, '
-        f'and then moving its header as described before. '
+        f'updating {file_name.cmakelists_name} at both the old and the new '
+        f'place, and then moving its header as described before. '
         f'It only updates the namespace in the source and header file, '
         f'so you need to update it manually in other places it is used. '
         f'It deduces the header filename by replacing the extension. '
@@ -646,6 +715,8 @@ def setup_argument_parser(
         f'The "./libs/mysql/" prefix is not required.')
     arg('--force', action='store_true',
         help='Run even if the git status is unclean.')
+    arg('--preserve-namespaces', action='store_true',
+        help='Do not attempt to change any namespaces.')
 
     gra = parser.add_mutually_exclusive_group().add_argument
     gra('--trace', action='store_true',
@@ -697,6 +768,7 @@ def parse_arguments() -> argparse.Namespace:
 def pre_check(opt: argparse.Namespace) -> None:
     '''Verify that the git worktree and index are clean.'''
 
+    file_system.validate_current_directory()
     git.require_clean_git_workdir(
         force=opt.force, error_message='Use --force to run anyway.'
     )
@@ -706,7 +778,12 @@ def main() -> None:
 
     opt = parse_arguments()
     pre_check(opt)
-    move(type=opt.type, old=opt.old, new=opt.new)
+    move(
+        type=opt.type,
+        old=opt.old,
+        new=opt.new,
+        fix_namespace=not opt.preserve_namespaces,
+    )
 
 if __name__ == '__main__':
     main()

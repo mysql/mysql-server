@@ -9147,8 +9147,8 @@ SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
 )OVER())),'9236-05-27',0xe2a7d4))^(0x1109))
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '| !*c>*{/'
-Warning	1292	Incorrect datetime value: '| !*c>*{/'
+Warning	1292	Truncated incorrect date value: '| !*c>*{/'
+Warning	1292	Truncated incorrect date value: '| !*c>*{/'
 Warning	1292	Truncated incorrect INTEGER value: '9236-05-27'
 SELECT ((FIRST_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'))OVER())<=(1));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_patch; a JSON string or JSON type is required.
@@ -9586,7 +9586,7 @@ OVER()
 )
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	6527	DATE value is out of range in 'from_days(2486378174430980553)'
 SELECT (3.14 DIV (
 NTH_VALUE(
 FROM_DAYS(2486378174430980553), 1
@@ -9603,4 +9603,4 @@ OVER()
 )
 NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	6527	DATE value is out of range in 'from_days(2486378174430980553)'

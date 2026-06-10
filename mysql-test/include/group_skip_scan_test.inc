@@ -1207,6 +1207,7 @@ INSERT INTO t1 VALUES (1, 1, 1, 1), (1, 1, 1, 2), (1, 1, 1, 3), (1, 1, 1, 4);
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
+ANALYZE TABLE t1;
 
 #Should be non-empty
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
@@ -1334,6 +1335,7 @@ INSERT INTO t2 VALUES (1,1,1,1,1,1), (1,2,1,1,1,1), (1,3,1,1,1,1),
 INSERT INTO t2 SELECT a, b + 4, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 1, b, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
+ANALYZE TABLE t1,t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10

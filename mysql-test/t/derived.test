@@ -3510,5 +3510,66 @@ SELECT _latin1 'Ã¥' AS a UNION SELECT c FROM t;
 SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT c FROM t;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#38191248: Issue with NULL Detection for DATE-Type Columns in
+--echo #               Derived Tables after Derived Merge
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY, d DATE, t TIME, dt DATETIME);
+INSERT INTO t(id, d, t, dt) VALUES
+ (1, '2025-01-01', '00:00:00', '2025-01-01 00:00:00'),
+ (2, '2025-01-02', '01:02:03', '2025-01-02 01:02:03');
+
+let $date_query =
+SELECT ttt.b,
+       t.d,
+       COALESCE(NULL, t.d) AS c1,
+       COALESCE(ttt.b, t.d) AS c2,
+       COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+     (SELECT DATE'2024-01-03' AS b
+      FROM (SELECT 1) AS tt
+      WHERE FALSE) AS ttt
+     ON TRUE;
+
+let $time_query =
+SELECT ttt.b,
+       t.t,
+       COALESCE(NULL, t.t) AS c1,
+       COALESCE(ttt.b, t.t) AS c2,
+       COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+     (SELECT TIME'23:59:59' AS b
+      FROM (SELECT 1) AS tt
+      WHERE FALSE) AS ttt
+     ON TRUE;
+
+let $datetime_query =
+SELECT ttt.b,
+       t.dt,
+       COALESCE(NULL, t.dt) AS c1,
+       COALESCE(ttt.b, t.dt) AS c2,
+       COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+     (SELECT TIMESTAMP'2024-01-03 23:59:59' AS b
+      FROM (SELECT 1) AS tt
+      WHERE FALSE) AS ttt
+     ON TRUE;
+
+eval $date_query;
+eval $time_query;
+eval $datetime_query;
+
+SET optimizer_switch="derived_merge=off";
+
+eval $date_query;
+eval $time_query;
+eval $datetime_query;
+
+SET optimizer_switch=default;
+
+DROP TABLE t;
+
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

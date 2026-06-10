@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,8 @@ Query_event::Query_event(
       ddl_xid(INVALID_XID),
       default_collation_for_utf8mb4_number(0),
       sql_require_primary_key(0xff),
-      default_table_encryption(0xff) {}
+      default_table_encryption(0xff),
+      enable_cascade_triggers(0) {}
 
 /**
   Utility function for the Query_event constructor.
@@ -136,7 +137,8 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       ddl_xid(INVALID_XID),
       default_collation_for_utf8mb4_number(0),
       sql_require_primary_key(0xff),
-      default_table_encryption(0xff) {
+      default_table_encryption(0xff),
+      enable_cascade_triggers(0) {
   BAPI_ENTER("Query_event::Query_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
@@ -329,6 +331,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         break;
       case Q_DEFAULT_TABLE_ENCRYPTION:
         READER_TRY_SET(default_table_encryption, read<uint8_t>);
+        break;
+      case Q_ENABLE_CASCADE_TRIGGERS:
+        READER_TRY_SET(enable_cascade_triggers, read<uint8_t>);
         break;
       default:
         /* That's why you must write status vars in growing order of code */

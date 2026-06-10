@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -9971,8 +9971,8 @@ ER_WARN_DEPRECATED_WITH_NOTE
 ER_CANT_RUN_COMMAND_SERVICES_RECURSIVELY
   eng "Running recursive calls to SQL execution service is not supported"
 
-ER_WARN_SET_OPERATIONS_BUFFER
-  eng "System variable \"set_operations_buffer_size\" set too low for hashed set operation. Consult optimizer trace for recommendations."
+ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED
+  eng "The 'audit_log_filter_recovery_mode' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
 #
 #  End of 8.0 error messages (server-to-client).
@@ -10715,7 +10715,7 @@ ER_JDV_UNEXPECTED_JSON_TYPE
   eng "Path '%s' is not of type '%s'."
 
 ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
-  eng "Primary key column %s.%s must be provided as path '%s.%s' (this also applies to auto-generated columns)."
+  eng "Primary key column %s.%s must be provided as path '%s.%s'."
 
 ER_JDV_JOIN_CONDITION_NOT_SATISFIED
   eng "Join condition is not satisfied as path '%s' for child column %s.%s is not equal to path '%s' for parent column %s.%s."
@@ -10765,7 +10765,7 @@ ER_JDV_NULL_UPDATE_VALUE
 ER_JDV_UPDATE_VALUE_NOT_FIXED
   eng "Update values must be fixed (not require resolving)."
 
-ER_JDV_FEATURE_EDITION_LIMIT
+OBSOLETE_ER_JDV_FEATURE_EDITION_LIMIT
   eng "Feature not available in this edition."
 
 ER_JDV_CANNOT_BE_USED_WITH
@@ -10922,6 +10922,75 @@ ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXIST_USER
 ER_LH_CUSTOM_DATA_PLACEMENT_OVERRIDES
   eng "Custom data placement set for '%s.%s' table overrides %s data placement."
 
+ER_LH_AVRO_FILES_DATA_TYPE_MISMATCH
+  eng "File %s: Col '%s' has different data type compared to other Avro files."
+
+ER_AUDIT_LOG_COMPONENT_INVALID_FILTER_ABORT
+  eng "The '%s' filter is invalid: %s The operation has been aborted. Please fix the filter using the '%s' UDF, or change the '%s' variable as required."
+
+ER_AUDIT_LOG_COMPONENT_JSON_INVALID_FILTER_CANNOT_BE_USED
+  eng "The '%s' filter is invalid and cannot be used until corrected. Please apply the '%s' UDF to resolve the issue."
+
+ER_WARN_AUDIT_LOG_FILTERS_INVALID
+ eng "Some filters are invalid. Details have been logged in the error log."
+
+ER_JDV_GENERATED_AND_EXPLICIT_PKS_NOT_ALLOWED
+  eng "Paths %s and %s use generated and explicit values for the same primary key, which is not allowed."
+
+ER_MASKING_POLICY_COMPONENT_ERROR
+  eng "MASKING POLICY component error: %s."
+
+ER_MASKING_POLICY_ALREADY_EXISTS 42000
+  eng "MASKING POLICY '%s' already exists."
+
+ER_MASKING_POLICY_EXPECTS_CASE 42000
+  eng "MASKING POLICY must use CASE."
+
+ER_MASKING_POLICY_EXPECTS_CASE_WHEN 42000
+  eng "MASKING POLICY must use CASE WHEN <gatekeeper_expr>."
+
+ER_MASKING_POLICY_MISSING_ELSE 42000
+  eng "MASKING POLICY must have an ELSE clause."
+
+ER_MASKING_POLICY_ONE_WHEN_REQUIRED 42000
+  eng "MASKING POLICY must have exactly one WHEN clause."
+
+ER_MASKING_POLICY_MUST_RETURN_ARGUMENT 42000
+  eng "MASKING POLICY must return the unmasked value in THEN or ELSE."
+
+ER_MASKING_POLICY_INVALID_GATEKEEPER 42000
+  eng "MASKING POLICY gatekeeper must be CURRENT_USER_IN or CURRENT_ROLE_IN."
+
+ER_MASKING_POLICY_NON_LITERAL_GATEKEEPER_ARG 42000
+  eng "MASKING POLICY gatekeeper arguments must be string literals."
+
+ER_MASKING_POLICY_DISALLOWED_CONSTRUCT 42000
+  eng "MASKING POLICY references a disallowed construct: %s."
+
+ER_MASKING_POLICY_INVALID_COLUMN_REFERENCE 42000
+  eng "MASKING POLICY expression may only reference its argument '%s' (found '%s')."
+
+ER_MASKING_POLICY_INCOMPATIBLE_COLUMN_FEATURE 42000
+  eng "Column '%s' cannot have a MASKING POLICY and %s."
+
+ER_MASKING_POLICY_INCOMPATIBLE_TYPES 42000
+  eng "MASKING POLICY expression has an incompatible type."
+
+ER_MASKING_POLICY_NON_DETERMINISTIC_FUNC 42000
+  eng "MASKING POLICY expression is non-deterministic."
+
+ER_FK_MAX_TABLES_IN_CASCADE_CHAIN_EXCEEDED
+  eng "Foreign key cascade delete/update exceeds max tables limit of %d."
+
+ER_FK_CASCADE_TRIGGER_UPDATING_FK_COLUMNS_NOT_SUPPORTED
+  eng "Updating a foreign key column in a child-table trigger during a foreign key cascade operation is not allowed."
+
+ER_CANT_UPDATE_USED_TABLE_IN_FK_CASCADE
+  eng "Can not update table '%-.192s' in a foreign key cascade action induced by a stored function/trigger because the table is already used in foreign key cascade handling."
+
+ER_WARN_SET_OPERATIONS_BUFFER
+  eng "System variable \"set_operations_buffer_size\" set too low for hashed set operation. Consult optimizer trace for recommendations."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
@@ -10939,4 +11008,3 @@ ER_LH_CUSTOM_DATA_PLACEMENT_OVERRIDES
 # same directory as this file for more
 # information.
 ################################################################################
-

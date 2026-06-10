@@ -1,0 +1,212 @@
+# ==== Purpose ====
+#
+# Testing the all the columns of
+#  - replication_applier_progress_by_worker
+#
+# ==== Requirements ====
+#
+# R1. When installed, after the channel is restarted, the table
+#     replication_applier_progress_by_worker allows you access to several
+#     transaction metrics for all replication workers
+#
+# ==== Implementation ====
+#
+# 1. Install the plugin in the replica server
+#    Create 2 tables
+# 2. Execute 2 queries, one of them locks, the other waiting on commit order
+# 3. Block an ALTER TABLE (DDL) during execution in the replica
+# 4. Check transaction progress
+# 5. Cleanup
+#
+# ==== References ====
+#
+# WL#15620:  MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test scenarios need to control the numbers and sizes of events.
+--source include/have_binlog_format_row.inc
+
+# Test scenarios are constructed assuming replica_preserve_commit_order=1.
+--source include/have_replica_preserve_commit_order.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Install the plugin in the replica server
+--echo #    Create 2 tables
+
+--source include/rpl/connection_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t1(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+CREATE TABLE t2(c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Execute 2 queries, one of them locks, the other waiting on commit order
+
+--source include/rpl/connection_replica1.inc
+
+LOCK TABLE t1 WRITE;
+
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 VALUES (1, REPEAT('a', 100));
+INSERT INTO t2 VALUES (1, REPEAT('a', 100));
+
+--let $count = SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker WHERE
+--let $from_ch = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--source include/rpl/connection_replica.inc
+
+### Check the transaction size tracking
+
+--let $assert_text = Eventually, both active workers increment ONGOING_TRANSACTION_APPLIED_SIZE_BYTES
+--let $assert_cond = [$count ONGOING_TRANSACTION_APPLIED_SIZE_BYTES] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, both active workers increment ONGOING_TRANSACTION_FULL_SIZE_BYTES
+--let $assert_cond = [$count ONGOING_TRANSACTION_FULL_SIZE_BYTES > 0] = 2
+--source include/assert_eventually.inc
+
+### Check the type of the transaction
+
+--let $assert_text = Eventually, both active workers set ONGOING_TRANSACTION_TYPE = 'DML'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'DML'] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Both inactive workers leave ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'] = 2
+--source include/assert.inc
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $assert_text = Eventually, workers increment TRANSACTIONS_COMMITTED_COUNT to 4
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 4
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, all workers set ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'] = 4
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, all workers decrease ONGOING_TRANSACTION_FULL_SIZE_BYTES to 0
+--let $assert_cond = [$count ONGOING_TRANSACTION_FULL_SIZE_BYTES = 0] = 4
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, all workers decrease ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to 0
+--let $assert_cond = [$count ONGOING_TRANSACTION_APPLIED_SIZE_BYTES = 0] = 4
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Block an ALTER TABLE (DDL) during execution in the replica
+
+BEGIN;
+INSERT INTO t1 VALUES (2, REPEAT('a', 1));
+
+--source include/rpl/connection_source.inc
+
+ALTER TABLE t1 ADD c INT;
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, a worker sets ONGOING_TRANSACTION_TYPE = 'DDL'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'DDL'] = 1
+--source include/assert_eventually.inc
+
+--source include/rpl/connection_replica1.inc
+
+ROLLBACK;
+
+--let $assert_text = Eventually, the worker increments TRANSACTIONS_COMMITTED_COUNT to 5
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 5
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, the worker resets ONGOING_TRANSACTION_TYPE to 'UNASSIGNED'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'] = 4
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Check transaction progress
+
+--source include/rpl/connection_replica1.inc
+
+LOCK TABLE t1 WRITE;
+
+--source include/rpl/connection_source.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000), 4);
+INSERT INTO t2 VALUES (4, REPEAT('a', 1000));
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, the worker increments ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to nonzero
+--let $assert_cond = [$count ONGOING_TRANSACTION_APPLIED_SIZE_BYTES > 0] = 1
+--source include/assert_eventually.inc
+
+--let $applied_size_1 = `SELECT ONGOING_TRANSACTION_APPLIED_SIZE_BYTES FROM performance_schema.replication_applier_progress_by_worker WHERE ONGOING_TRANSACTION_APPLIED_SIZE_BYTES > 0`
+--let $full_size = `SELECT ONGOING_TRANSACTION_FULL_SIZE_BYTES FROM performance_schema.replication_applier_progress_by_worker WHERE ONGOING_TRANSACTION_APPLIED_SIZE_BYTES > 0`
+
+--let $assert_text = APPLIED_SIZE < FULL_SIZE
+--let $assert_cond = $applied_size_1 < $full_size
+--source include/assert.inc
+
+# Acquire lock on t2 before we release lock on t1.
+--source include/rpl/connection_replica.inc
+LOCK TABLE t2 WRITE;
+
+--source include/rpl/connection_replica1.inc
+UNLOCK TABLES;
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, the worker increments ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to a value greater than the previous value
+--let $assert_cond = [$count ONGOING_TRANSACTION_APPLIED_SIZE_BYTES > $applied_size_1] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = APPLIED_SIZE < FULL_SIZE
+--let $applied_size_2 = `SELECT ONGOING_TRANSACTION_APPLIED_SIZE_BYTES FROM performance_schema.replication_applier_progress_by_worker WHERE ONGOING_TRANSACTION_APPLIED_SIZE_BYTES > 0`
+--let $assert_cond = $applied_size_2 < $full_size
+--source include/assert.inc
+
+UNLOCK TABLES;
+
+--let $assert_text = Eventually, the worker increases TRANSACTIONS_COMMITTED_COUNT
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 6
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 5. Cleanup
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/connection_source.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/rpl/deinit.inc

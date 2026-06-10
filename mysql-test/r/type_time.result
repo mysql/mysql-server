@@ -3015,6 +3015,8 @@ a
 SELECT * FROM t WHERE a IN ('08:00:00', '');
 a
 08:00:00
+Warnings:
+Warning	1292	Truncated incorrect time value: ''
 SELECT * FROM t WHERE a IN ('08:00:00', '07:59:59');
 a
 08:00:00

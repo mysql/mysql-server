@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1921,6 +1921,14 @@ int NdbDictionary::ForeignKey::getChildColumnNo(unsigned no) const {
     return (int)m_impl.m_child_columns[no];
   }
   return -1;
+}
+
+bool NdbDictionary::ForeignKey::isParentTable(const Table *table) const {
+  return ((int)m_impl.m_references[0].m_objectId == table->getObjectId());
+}
+
+bool NdbDictionary::ForeignKey::isChildTable(const Table *table) const {
+  return ((int)m_impl.m_references[1].m_objectId == table->getObjectId());
 }
 
 /*****************************************************************

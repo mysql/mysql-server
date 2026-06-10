@@ -1,5 +1,5 @@
 #!/usr/bin/python3.11
-# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -143,3 +143,10 @@ def remove_file(file: str) -> None:
     log_info(f'Removing {file}')
     os.remove(file)
     return prune_empty_dirs(os.path.dirname(file))
+
+@trace
+def validate_current_directory() -> None:
+    '''Stop the program if current directory is not root of a mysql tree.'''
+
+    if not os.path.exists('libs/scripts/create.sh'):
+        log_error('This script must run in the root directory of a mysql tree.')

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2025, Oracle and/or its affiliates.
+  Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -125,9 +125,10 @@ inline void check_input_parameters(
     const rapidjson::Document &doc) {
   for (auto el : helper::json::member_iterator(doc)) {
     auto key = el.first;
-    if (!helper::container::has_if(param_fields, [key](const auto &v) {
-          return v.mode != database::entry::Field::modeOut && v.name == key;
-        })) {
+    if (!mysql_harness::utility::container::has_if(
+            param_fields, [key](const auto &v) {
+              return v.mode != database::entry::Field::modeOut && v.name == key;
+            })) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not allowed parameter:" + std::string{key});
     }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -625,6 +625,7 @@ static const std::array required{
     "io",
     "connection_pool",
     "destination_status",
+    "host_cache",
 };
 
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,

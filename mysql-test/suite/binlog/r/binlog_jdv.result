@@ -1,0 +1,221 @@
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+include/rpl/save_binlog_file_position.inc
+SET SESSION binlog_row_image='FULL';
+# Create a JSON duality view
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'f4':`p_t2`.`f4`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*CREATE.*OR.*REPLACE.*JSON.*DUALITY.*VIEW.*p_dv1.*AS.*SELECT.*JSON_DUALITY_OBJECT.*]
+include/rpl/save_binlog_file_position.inc
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*INSERT INTO p_dv1.*)|(Table_map # Write_rows # Table_map # Write_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+UPDATE p_dv1 SET data = '{
+    "f4": 400,
+    "_id": 2,
+    "ChildNode": {
+        "f1": 2,
+        "f2": 400
+    },
+    "_metadata": {
+        "etag": "aa5116936fc25283af51df31f4cbe0f7"
+    }
+}';
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*UPDATE p_dv1 SET data.*)|(Table_map # Update_rows # Table_map # Update_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 2;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*DELETE FROM p_dv1.*)|(Table_map # Delete_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+SELECT * from p_dv1;
+data
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*ALTER.*JSON.*DUALITY.*VIEW.*p_dv1.*]
+include/rpl/save_binlog_file_position.inc
+DROP VIEW p_dv1;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*DROP VIEW p_dv1.*]
+include/rpl/save_binlog_file_position.inc
+TRUNCATE TABLE p_t1;
+TRUNCATE TABLE p_t2;
+include/rpl/save_binlog_file_position.inc
+# No I_S views contents on the server
+SET SESSION binlog_row_image='MINIMAL';
+# Create a JSON duality view
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'f4':`p_t2`.`f4`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*CREATE.*OR.*REPLACE.*JSON.*DUALITY.*VIEW.*p_dv1.*AS.*SELECT.*JSON_DUALITY_OBJECT.*]
+include/rpl/save_binlog_file_position.inc
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*INSERT INTO p_dv1.*)|(Table_map # Write_rows # Table_map # Write_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+UPDATE p_dv1 SET data = '{
+    "f4": 400,
+    "_id": 2,
+    "ChildNode": {
+        "f1": 2,
+        "f2": 400
+    },
+    "_metadata": {
+        "etag": "aa5116936fc25283af51df31f4cbe0f7"
+    }
+}';
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*UPDATE p_dv1 SET data.*)|(Table_map # Update_rows # Table_map # Update_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 2;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*DELETE FROM p_dv1.*)|(Table_map # Delete_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+SELECT * from p_dv1;
+data
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*ALTER.*JSON.*DUALITY.*VIEW.*p_dv1.*]
+include/rpl/save_binlog_file_position.inc
+DROP VIEW p_dv1;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*DROP VIEW p_dv1.*]
+include/rpl/save_binlog_file_position.inc
+TRUNCATE TABLE p_t1;
+TRUNCATE TABLE p_t2;
+include/rpl/save_binlog_file_position.inc
+# No I_S views contents on the server
+SET SESSION binlog_row_image='NOBLOB';
+# Create a JSON duality view
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'f4':`p_t2`.`f4`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*CREATE.*OR.*REPLACE.*JSON.*DUALITY.*VIEW.*p_dv1.*AS.*SELECT.*JSON_DUALITY_OBJECT.*]
+include/rpl/save_binlog_file_position.inc
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*INSERT INTO p_dv1.*)|(Table_map # Write_rows # Table_map # Write_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+UPDATE p_dv1 SET data = '{
+    "f4": 400,
+    "_id": 2,
+    "ChildNode": {
+        "f1": 2,
+        "f2": 400
+    },
+    "_metadata": {
+        "etag": "aa5116936fc25283af51df31f4cbe0f7"
+    }
+}';
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*UPDATE p_dv1 SET data.*)|(Table_map # Update_rows # Table_map # Update_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+DELETE FROM p_dv1 WHERE json_value(data, '$._id') = 2;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # (Query/use.*DELETE FROM p_dv1.*)|(Table_map # Delete_rows) # !Commit]
+include/rpl/save_binlog_file_position.inc
+SELECT * from p_dv1;
+data
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*ALTER.*JSON.*DUALITY.*VIEW.*p_dv1.*]
+include/rpl/save_binlog_file_position.inc
+DROP VIEW p_dv1;
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Query/use.*DROP VIEW p_dv1.*]
+include/rpl/save_binlog_file_position.inc
+TRUNCATE TABLE p_t1;
+TRUNCATE TABLE p_t2;
+include/rpl/save_binlog_file_position.inc
+# No I_S views contents on the server
+SET SESSION binlog_row_image='FULL';;
+DROP TABLE p_t1, p_t2;

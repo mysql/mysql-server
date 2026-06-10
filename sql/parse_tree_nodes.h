@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4543,6 +4543,24 @@ class PT_alter_table_set_default final : public PT_alter_table_action {
   Item *m_expr;
 };
 
+class PT_alter_table_set_masking_policy_name final
+    : public PT_alter_table_action {
+  typedef PT_alter_table_action super;
+
+ private:
+  const char *m_name;
+  LEX_CSTRING m_policy_name;
+
+ public:
+  PT_alter_table_set_masking_policy_name(const POS &pos, const char *col_name,
+                                         LEX_CSTRING policy_name)
+      : super{pos, Alter_info::ALTER_COLUMN_MASKING},
+        m_name{col_name},
+        m_policy_name{policy_name} {}
+
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
+};
+
 class PT_alter_table_column_visibility final : public PT_alter_table_action {
   typedef PT_alter_table_action super;
 
@@ -5927,6 +5945,50 @@ class PT_jdv_name_value_list : public Parse_tree_node {
   Mem_root_array<LEX_STRING> *name_list() { return &m_name_list; }
   PT_item_list *name_value_list() { return m_name_value_list; }
   Mem_root_array<uint> *col_tags_list() { return &m_jdv_col_tags_list; }
+};
+
+class PT_create_masking_policy_stmt final : public Parse_tree_root {
+ public:
+  PT_create_masking_policy_stmt(const POS &pos, bool if_not_exists,
+                                LEX_CSTRING policy_name, LEX_CSTRING arg_name,
+                                Item *expr)
+      : Parse_tree_root{pos},
+        m_if_not_exists{if_not_exists},
+        m_policy_name{policy_name},
+        m_argument_name{arg_name},
+        m_expr{expr} {}
+
+  Sql_cmd *make_cmd(THD *) override;
+
+ private:
+  bool m_if_not_exists;
+  LEX_CSTRING m_policy_name;
+  LEX_CSTRING m_argument_name;
+  Item *m_expr;
+};
+
+class PT_drop_masking_policy_stmt final : public Parse_tree_root {
+ public:
+  PT_drop_masking_policy_stmt(const POS &pos, bool if_exists,
+                              LEX_CSTRING policy_name)
+      : Parse_tree_root{pos}, m_cmd{if_exists, policy_name} {}
+
+  Sql_cmd *make_cmd(THD *) override { return &m_cmd; }
+
+ private:
+  Sql_cmd_drop_masking_policy m_cmd;
+};
+
+class PT_show_create_masking_policy final : public PT_show_base {
+ public:
+  PT_show_create_masking_policy(const POS &pos, LEX_CSTRING policy_name)
+      : PT_show_base{pos, SQLCOM_SHOW_CREATE_MASKING_POLICY},
+        m_policy_name{policy_name} {}
+
+  Sql_cmd *make_cmd(THD *) override;
+
+ private:
+  LEX_CSTRING m_policy_name;
 };
 
 /**

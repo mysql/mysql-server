@@ -1092,6 +1092,7 @@ CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO SET @a = 1;
 
 --echo
 
+--sorted_result
 SELECT
   event_name,
   last_executed IS NULL,

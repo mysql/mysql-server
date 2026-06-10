@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,6 +226,9 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   privilege, 0 otherwise
   - is_skip_grants_user bool      *  true if user account has skip-grants
   privilege, false otherwise
+    - password_expired bool       *  true if user account has expired password,
+  false otherwise
+
 
   @param[in]  ctx   The handle of the security context to read from
   @param[in]  name  The option name to read
@@ -264,6 +267,8 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
         *((my_svc_bool *)inout_pvalue) = checked ? MY_SVC_TRUE : MY_SVC_FALSE;
       } else if (!strcmp(name, "is_skip_grants_user")) {
         *((bool *)inout_pvalue) = ctx->is_skip_grants_user();
+      } else if (!strcmp(name, "password_expired")) {
+        *((bool *)inout_pvalue) = ctx->password_expired();
       } else
         return MY_SVC_TRUE; /* invalid option */
     }
@@ -292,6 +297,9 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
   0 otherwise
   - privilege_execute my_svc_bool *  1 if the user account has execute
   privilege, 0 otherwise
+  - password_expired my_svc_bool *  1 forces expired password for user account,
+  0 is ignored
+
 
   @param[in]  ctx   The handle of the security context to set into
   @param[in]  name  The option name to set
@@ -335,6 +343,9 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
         ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else
         ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL));
+    } else if (!strcmp(name, "password_expired")) {
+      const my_svc_bool value = *(my_svc_bool *)pvalue;
+      if (value) ctx->set_password_expired(true);
     } else
       return MY_SVC_TRUE; /* invalid option */
     return MY_SVC_FALSE;

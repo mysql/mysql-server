@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,13 +177,10 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %type <hint_param_table>
   hint_param_table
   hint_param_table_ext
-  hint_param_table_empty_qb
 
 %type <hint_param_table_list>
   hint_param_table_list
   opt_hint_param_table_list
-  hint_param_table_list_empty_qb
-  opt_hint_param_table_list_empty_qb
 
 %type <lexer.hint_string>
   HINT_ARG_IDENT
@@ -283,26 +280,6 @@ hint_param_table_list:
           }
         ;
 
-opt_hint_param_table_list_empty_qb:
-          %empty { $$.init(thd->mem_root); }
-        | hint_param_table_list_empty_qb
-        ;
-
-hint_param_table_list_empty_qb:
-          hint_param_table_empty_qb
-          {
-            $$.init(thd->mem_root);
-            if ($$.push_back($1))
-              YYABORT; // OOM
-          }
-        | hint_param_table_list_empty_qb ',' hint_param_table_empty_qb
-          {
-            if ($1.push_back($3))
-              YYABORT; // OOM
-            $$= $1;
-          }
-        ;
-
 opt_hint_param_index_list:
           %empty { $$.init(thd->mem_root); }
         | hint_param_index_list
@@ -325,14 +302,6 @@ hint_param_index_list:
 
 hint_param_index:
           HINT_ARG_IDENT
-        ;
-
-hint_param_table_empty_qb:
-          HINT_ARG_IDENT
-          {
-            $$.table= $1;
-            $$.opt_query_block= NULL_CSTR;
-          }
         ;
 
 hint_param_table:
@@ -386,7 +355,7 @@ qb_level_hint:
               YYABORT; // OOM
           }
           |
-          JOIN_PREFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          JOIN_PREFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list ')'
           {
             $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_PREFIX_HINT_ENUM, $4);
             if ($$ == nullptr)
@@ -400,7 +369,7 @@ qb_level_hint:
               YYABORT; // OOM
           }
           |
-          JOIN_SUFFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          JOIN_SUFFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list ')'
           {
             $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_SUFFIX_HINT_ENUM, $4);
             if ($$ == nullptr)
@@ -414,7 +383,7 @@ qb_level_hint:
               YYABORT; // OOM
           }
           |
-          JOIN_ORDER_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          JOIN_ORDER_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list ')'
           {
             $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_ORDER_HINT_ENUM, $4);
             if ($$ == nullptr)
@@ -463,7 +432,7 @@ table_level_hint:
               YYABORT; // OOM
           }
         | table_level_hint_type_on
-          '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          '(' HINT_ARG_QB_NAME opt_hint_param_table_list ')'
           {
             $$= NEW_PTN PT_table_level_hint($3, $4, true, $1);
             if ($$ == nullptr)
@@ -476,7 +445,7 @@ table_level_hint:
               YYABORT; // OOM
           }
         | table_level_hint_type_off
-          '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          '(' HINT_ARG_QB_NAME opt_hint_param_table_list ')'
           {
             $$= NEW_PTN PT_table_level_hint($3, $4, false, $1);
             if ($$ == nullptr)

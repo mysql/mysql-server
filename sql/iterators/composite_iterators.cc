@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,7 @@
 #include "sql/handler.h"
 #include "sql/immutable_string.h"
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
@@ -93,7 +94,32 @@
 using pack_rows::TableCollection;
 using std::any_of;
 
+bool FilterIterator::DoInit() {
+  // If any conjunct (AND-term) of the condition is constant for execution
+  // and evaluates to false or NULL, the entire WHERE is unsatisfiable.
+  // Skip source initialization entirely and return no rows.
+  // This handles both simple constant conditions (e.g. an uncorrelated
+  // subquery) and mixed conjunctions like
+  //   WHERE 0 = (SELECT COUNT(*) FROM t) AND x IS NULL
+  // where only one AND-term is constant-false.
+  m_no_rows = false;
+  WalkConjunction(m_condition, [&](Item *item) {
+    if (item->const_for_execution()) {
+      if (!item->val_int()) {
+        m_no_rows = true;
+        return true;  // Stop walking: found a false/NULL conjunct.
+      }
+    }
+    return false;
+  });
+  if (thd()->is_error()) return true;
+  if (m_no_rows) return false;
+  return m_source->Init();
+}
+
 int FilterIterator::DoRead() {
+  if (m_no_rows) return -1;
+
   for (;;) {
     int err = m_source->Read();
     if (err != 0) return err;

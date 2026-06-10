@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 
 #include <cassert>
 
-#include "helper/container/generic.h"
 #include "helper/json/rapid_json_iterator.h"
 #include "helper/json/serializer_to_text.h"
 #include "helper/json/text_to.h"
@@ -37,6 +36,7 @@
 #include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/container/generic.h"
 #include "mysqld_error.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -72,7 +72,7 @@ HttpResult HandlerAuthorizeUser::handle_put(RequestContext *ctxt) {
 
   const std::vector<std::string> allowed_members{"email"};
   for (auto kv : helper::json::member_iterator(doc)) {
-    if (!helper::container::has(allowed_members, kv.first))
+    if (!mysql_harness::utility::container::has(allowed_members, kv.first))
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not supported member: "s + kv.first);
   }

@@ -1,0 +1,48 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_blrp_max_queue_size;
+@@global.telemetry.otel_blrp_max_queue_size
+2048
+SELECT @@session.telemetry.otel_blrp_max_queue_size;
+ERROR HY000: Variable 'telemetry.otel_blrp_max_queue_size' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_blrp_max_queue_size';
+Variable_name	Value
+telemetry.otel_blrp_max_queue_size	2048
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_blrp_max_queue_size';
+Variable_name	Value
+telemetry.otel_blrp_max_queue_size	2048
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_blrp_max_queue_size';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_blrp_max_queue_size	2048
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_blrp_max_queue_size';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_blrp_max_queue_size	2048
+SET GLOBAL telemetry.otel_blrp_max_queue_size=1024;
+ERROR HY000: Variable 'telemetry.otel_blrp_max_queue_size' is a read only variable
+SET SESSION telemetry.otel_blrp_max_queue_size=1024;
+ERROR HY000: Variable 'telemetry.otel_blrp_max_queue_size' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_blrp_max_queue_size=1024;
+SELECT @@global.telemetry.otel_blrp_max_queue_size;
+@@global.telemetry.otel_blrp_max_queue_size
+1024
+SET PERSIST telemetry.otel_blrp_max_queue_size=900;
+ERROR HY000: Variable 'telemetry.otel_blrp_max_queue_size' is a read only variable
+SET PERSIST_ONLY telemetry.otel_blrp_max_queue_size=900;
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_blrp_max_queue_size;
+@@global.telemetry.otel_blrp_max_queue_size
+896
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

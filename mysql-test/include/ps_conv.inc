@@ -1065,11 +1065,11 @@ execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 
 
 ######## INSERT into .. date/time columns values(DOUBLE(m,n),DOUBLE) ########
-set @arg00= 1.0e+10 ;
+set @arg00= 1.0e+9 ;
 insert into t9
   ( c1, c13, c14, c15, c16, c17 )
 values
-  ( 50, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10 ) ;
+  ( 50, 1.0e+9, 1.0e+9, 1.0e+9, 1.0e+9, 1.0e+9 ) ;
 insert into t9
   ( c1, c13, c14, c15, c16, c17 )
 values
@@ -1077,7 +1077,7 @@ values
 prepare stmt1 from "insert into t9
   ( c1, c13, c14, c15, c16, c17 )
 values
-  ( 52, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10 )" ;
+  ( 52, 1.0e+9, 1.0e+9, 1.0e+9, 1.0e+9, 1.0e+9 )" ;
 execute stmt1 ;
 prepare stmt2 from "insert into t9
   ( c1, c13, c14, c15, c16, c17 )

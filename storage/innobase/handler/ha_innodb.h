@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -474,6 +474,10 @@ class ha_innobase : public handler {
   @param[in] thd user session
   @return true iff bulk load can be done on the table. */
   bool bulk_load_check(THD *thd) const override;
+
+  /** Check the table for any foreign key constraint violations.
+  @return 0 when there are no violations (success) */
+  int check_foreign_constraints(THD *thd, size_t n_threads) const override;
 
   /** Used during bulk load on a non-empty table, called after the CSV file
   input is exhausted and we need to copy any existing data from the original

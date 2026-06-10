@@ -154,3 +154,26 @@ SET TIMESTAMP = UNIX_TIMESTAMP('2025-10-11 00:00:00');
 DO ADDTIME(TIME_FORMAT('-250:07:38.935647', '1974-10-18 08:57:35.681107'), 1);
 
 SET TIMESTAMP = DEFAULT;
+
+--echo #
+--echo # Bug#38177766: ADDDATE with date in year zero yields incorrect result
+--echo #
+
+set @d='0000-01-01';
+
+prepare sd from "SELECT ADDDATE(?, INTERVAL 1 DAY)";
+execute sd using @d;
+deallocate prepare sd;
+
+--echo #
+--echo # Bug#39027029: Assert in Date_val::day_number with DATEDIFF
+--echo #
+
+SELECT DATEDIFF(CURRENT_TIMESTAMP -
+                    INTERVAL(TO_SECONDS(CURRENT_TIMESTAMP)) DAY_SECOND,
+                DATE'1000-01-01');
+
+--disable_warnings
+SELECT DATEDIFF(SUBDATE(CURRENT_TIMESTAMP, TO_DAYS(CURRENT_TIMESTAMP)),
+                DATE'1000-01-01');
+--enable_warnings

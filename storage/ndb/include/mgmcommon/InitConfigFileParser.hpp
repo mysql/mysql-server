@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,6 @@ class InitConfigFileParser {
    *   Constructor
    */
   InitConfigFileParser();
-  ~InitConfigFileParser();
 
   /**
    *   Reads the initial configuration file, checks syntax and semantic
@@ -132,7 +131,7 @@ class InitConfigFileParser {
   /**
    *   Information about parameters (min, max values etc)
    */
-  ConfigInfo *m_info;
+  const ConfigInfo *m_info;
 
   bool handle_mycnf_defaults(Vector<struct my_option> &options,
                              InitConfigFileParser::Context &ctx,

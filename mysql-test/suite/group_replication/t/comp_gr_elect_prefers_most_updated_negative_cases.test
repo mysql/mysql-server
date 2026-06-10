@@ -1,0 +1,256 @@
+################################################################################
+#  This test validates if most uptodate method is not enable one of the members
+#  of the group, the method most_uptodate will not be used.
+#
+# Test:
+# 0. The test requires three servers: M1,M2 and M3.
+# 1. Install component on all 3 servers and bootstrap
+#    group with member M1
+# 2. Assert group_replication_elect_prefers_most_updated is
+#    enabled by default
+# 3. Uninstall component and verify ER_GRP_PREFER_MOST_UPDATED_
+#     CONFIG_DIFFER_ON_FAILOVER
+# 4. Confirm error log contain message that states most
+#     uptodate method was not used to elect new primary
+# 5. Disable group_replication_elect_prefers_most_updated
+#     and verify ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+# 6. Confirm error log contain message that states most
+#     uptodate method was not used to elect new primary
+# 7. Cleanup
+################################################################################
+
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/have_gr_replication_elect_prefers_most_updated.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Install component on all 3 servers and bootstrap group with member M1
+--echo
+--echo ############################################################
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $server2_uuid= `SELECT @@server_uuid`
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+
+--source include/start_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+--let $server3_uuid= `SELECT @@server_uuid`
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/start_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--echo
+--echo ############################################################
+--echo # 2. Assert group_replication_elect_prefers_most_updated is enabled by default
+--echo
+--echo ############################################################
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+--let $assert_text= 'group_replication_elect_prefers_most_updated is enabled by default'
+--let $assert_cond= [SELECT @@group_replication_elect_prefers_most_updated.enabled] = 1
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Uninstall component and verify ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+--echo
+--echo ############################################################
+
+# Uninstall component on server2
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+
+# Kill server1
+--echo # killing
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+
+--source include/kill_and_restart_mysqld.inc
+--echo # restarting
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+# Needed as we are not using rpl/restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl/reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+# Wait until group has only 2 members, that is, server3 death is detected by
+# the group.
+--echo # check that there are 2 members in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 4. Confirm error log contain message that states most
+--echo #     uptodate method was not used to elect new primary
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_elect_prefers_most_updated_service_fail
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_select= Members have different configurations \(option group_replication_elect_prefers_most_updated.enabled\)
+--let $assert_count= 1
+--let $assert_text= Server 2 did not use most uptodate method.
+--source include/assert_grep.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Disable group_replication_elect_prefers_most_updated
+--echo      and verify ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+--echo
+--echo ############################################################
+
+# Start GR on server1
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/start_group_replication.inc
+
+# Re-install component on server2
+--let $rpl_connection_name= server2
+--source include/connection.inc
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+show variables like '%most_updated%';
+SET @@GLOBAL.group_replication_elect_prefers_most_updated.enabled=0;
+
+# Kill primary (server2)
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+
+--echo # killing
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+
+--source include/kill_and_restart_mysqld.inc
+--echo # restarting
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+# Needed as we are not using rpl/restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl/reconnect.inc
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+# Wait until group has only 2 members, that is, server1 death is detected by
+# the group.
+--echo # check that there are 2 members in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo ############################################################
+--echo # 6. Confirm error log contain message that states most
+--echo #     uptodate method was not used to elect new primary
+--echo
+--echo ############################################################
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_elect_prefers_most_updated_service_fail
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_select= Members have different configurations
+--let $assert_count= 1
+--let $assert_text= Server 1 did not use most uptodate method.
+--source include/assert_grep.inc
+
+--echo
+--echo ############################################################
+--echo # 7. Cleanup
+--echo
+--echo ############################################################
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/stop_group_replication.inc
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+set session sql_log_bin=0;
+call mtr.add_suppression(".*Members have different configurations.*");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+#SET GLOBAL group_replication_member_weight= @member_weight2_save;
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Fatal error during the primary election process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression(".*Members have different configurations.*");
+set session sql_log_bin=1;
+SET GLOBAL SUPER_READ_ONLY=ON;
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Fatal error during the primary election process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression(".*Members have different configurations.*");
+
+set session sql_log_bin=1;
+SET GLOBAL SUPER_READ_ONLY=ON;
+
+--source include/group_replication_end.inc

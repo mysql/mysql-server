@@ -1,0 +1,51 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Create 2 tables on the source.
+#    Force some rotations between executed transactions
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 (a) VALUES(0);
+INSERT INTO t2 (a) VALUES(0);
+INSERT INTO t1 (a) VALUES(1);
+INSERT INTO t1 (a) VALUES(2);
+INSERT INTO t1 (a) VALUES(3);
+INSERT INTO t1 (a) VALUES(4);
+include/rpl/sync_to_replica_received.inc
+
+##############################################################
+# 2. Block execution of the last relay log on the replica
+#    Install the metric component and start the replica
+#    Check that metrics for pending transactions are not available
+[connection slave1]
+include/rpl/stop_receiver.inc
+LOCK TABLE t2 WRITE;
+[connection slave]
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+include/assert_eventually.inc [Eventually, TRANSACTIONS_PENDING_COUNT is 5 if gtid_mode=ON, NULL if gtid_mode=OFF]
+include/assert_eventually.inc [Eventually, the column TRANSACTIONS_PENDING_SIZE_BYTES_SUM is NULL]
+
+##############################################################
+# 3. Unlock the table
+#    Pending metrics should now be available
+[connection slave1]
+UNLOCK TABLES;
+include/assert_eventually.inc [Eventually, workers change TRANSACTIONS_PENDING_COUNT to non-NULL, value 0]
+include/assert_eventually.inc [Eventually, workers change TRANSACTIONS_PENDING_SIZE_BYTES_SUM to non-NULL, value 0]
+
+##############################################################
+# 4. Cleanup
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/deinit.inc

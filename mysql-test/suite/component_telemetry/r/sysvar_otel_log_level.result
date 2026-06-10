@@ -1,0 +1,46 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_log_level;
+@@global.telemetry.otel_log_level
+info
+SELECT @@session.telemetry.otel_log_level;
+ERROR HY000: Variable 'telemetry.otel_log_level' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_log_level';
+Variable_name	Value
+telemetry.otel_log_level	info
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_log_level';
+Variable_name	Value
+telemetry.otel_log_level	info
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_log_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_log_level	info
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_log_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_log_level	info
+SET GLOBAL telemetry.otel_log_level='error';
+SET SESSION telemetry.otel_log_level='error';
+ERROR HY000: Variable 'telemetry.otel_log_level' is a GLOBAL variable and should be set with SET GLOBAL
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_log_level='warning';
+SELECT @@global.telemetry.otel_log_level;
+@@global.telemetry.otel_log_level
+warning
+SET PERSIST telemetry.otel_log_level='debug';
+SET PERSIST_ONLY telemetry.otel_log_level='debug';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_log_level;
+@@global.telemetry.otel_log_level
+debug
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

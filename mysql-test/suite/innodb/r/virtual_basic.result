@@ -1406,7 +1406,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE COLUMN c5 c5 INT(1) GENERATED ALWAYS AS(c2 -
 c4)VIRTUAL AFTER c3,ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE COLUMN c7c c7c INT(1) GENERATED ALWAYS AS(c3)
 VIRTUAL AFTER c5,ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.

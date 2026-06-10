@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/12/2025
+.\"      Date: 03/25/2026
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 9.6
+.\"    Source: MySQL 9.7
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "12/12/2025" "MySQL 9\&.6" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "03/25/2026" "MySQL 9\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -3400,6 +3400,31 @@ option works only in the case of missing blob parts tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-skip\-fk\-checks\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-fk-checks
+T}
+.TE
+.sp 1
+This option modifies the behavior of
+\fBndb_restore\fR
+\fB\-\-rebuild\-indexes\fR
+so that, when foreign keys are re\-enabled, the existing data in the table is not checked for consistency\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-skip\-table\-check\fR,
 \fB\-s\fR
 .TS
@@ -3874,7 +3899,7 @@ START REPLICA\&. This is a known issue in NDB Cluster\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2025, Oracle and/or its affiliates.
+Copyright \(co 1997, 2026, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

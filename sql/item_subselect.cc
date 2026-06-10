@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1088,8 +1088,9 @@ bool Query_result_max_min_subquery::cmp_int() {
 */
 bool Query_result_max_min_subquery::cmp_decimal() {
   Item *maxmin = ((Item_singlerow_subselect *)item)->element_index(0);
-  my_decimal cval, *cvalue = cache->val_decimal(&cval);
-  my_decimal mval, *mvalue = maxmin->val_decimal(&mval);
+  my_decimal cval, mval;
+  my_decimal *cvalue = cache->val_decimal(&cval);
+  my_decimal *mvalue = maxmin->val_decimal(&mval);
   if (cache->null_value || maxmin->null_value)
     return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
   return (fmax) ? (my_decimal_cmp(cvalue, mvalue) > 0)
@@ -1270,7 +1271,7 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value) {
     return retval;
   } else {
     reset();
-    return error_decimal(decimal_value);
+    return nullptr;
   }
 }
 
@@ -1893,7 +1894,9 @@ String *Item_exists_subselect::val_str(String *str) {
 
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value) {
   const longlong val = val_bool();
-  if (null_value) return nullptr;
+  if (null_value || current_thd->is_error()) {
+    return nullptr;
+  }
   int2my_decimal(E_DEC_FATAL_ERROR, val, false, decimal_value);
   return decimal_value;
 }
@@ -2233,6 +2236,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
     Item_bool_func *item = new_comparison_func(
         m_pos, func, m_injected_left_expr, ref_null, all_predicate);
     if (item == nullptr) return true;
+    m_injected_left_expr->real_item()->increment_ref_count();
 
     item->set_created_by_in2exists();
 
@@ -2302,6 +2306,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
       Item_bool_func *item = new_comparison_func(
           m_pos, func, m_injected_left_expr, orig_item, all_predicate);
       if (item == nullptr) return true;
+      m_injected_left_expr->real_item()->increment_ref_count();
+      orig_item->real_item()->increment_ref_count();
       /*
         We may soon add a 'OR inner IS NULL' to 'item', but that may later be
         removed if 'inner' is not nullable, so the in2exists mark must be on
@@ -2311,6 +2317,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
       if (process_nulls() && orig_item->is_nullable()) {
         Item_bool_func *having = new Item_is_not_null_test(this, orig_item);
         if (having == nullptr) return true;
+        orig_item->real_item()->increment_ref_count();
         having->set_created_by_in2exists();
         if (left_expr->is_nullable()) {
           having = new Item_func_trig_cond(
@@ -2337,6 +2344,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
         select->having_fix_field = false;
         item = new Item_cond_or(item, new Item_func_isnull(orig_item));
         if (item == nullptr) return true;
+        orig_item->real_item()->increment_ref_count();
         item->set_created_by_in2exists();
       }
       /*
@@ -2381,6 +2389,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
                                    &select->base_ref_items[0]),
           all_predicate);
       if (new_having == nullptr) return true;
+      m_injected_left_expr->real_item()->increment_ref_count();
 
       new_having->set_created_by_in2exists();
       if (process_nulls() && left_expr->is_nullable()) {

@@ -1,0 +1,78 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#########################################################
+# 1. Install component group_replication_resource_manager on M3.
+#    Start group replication on M1, M2 and M3.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/gr_autorejoin_monitoring.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Member exiting group: memory used.*");
+call mtr.add_suppression("Member threshold exceeded: memory used of .*% exceeded tolerance threshold configured to 1%. However, since it joined .* seconds ago and the quarantine period is configured to 3600 seconds, the member will not leave the group.");
+SET SESSION sql_log_bin= 1;
+INSTALL COMPONENT 'file://component_group_replication_resource_manager';
+SET @quarantine_time= @@global.group_replication_resource_manager.quarantine_time;
+SET GLOBAL group_replication_resource_manager.quarantine_time = 0;
+include/start_group_replication.inc
+
+#########################################################
+# 2. Assert Gr_resource_manager_memory_eviction_timestamp
+#    and Gr_resource_manager_memory_threshold_hits
+#    are not set.
+[connection server3]
+include/assert.inc ['Eviction timestamp is not set.']
+include/assert.inc ['There are no memory used hits.']
+include/assert.inc ['Memory status is visible.']
+
+#########################################################
+# 3. M3 is ONLINE. Since memory_used_limit = 0, disables the feature.
+SET @memory_limit= @@global.group_replication_resource_manager.memory_used_limit;
+SET @@GLOBAL.group_replication_resource_manager.memory_used_limit=0;
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+include/gr_wait_for_member_state.inc
+
+#########################################################
+# 4. Set memory_used_limit to 1 and quarantine_time=3600.
+#    Secondary will not leave the group since it joined
+#    less than 1 hour ago.
+SET GLOBAL group_replication_resource_manager.quarantine_time = 3600;
+SET @@GLOBAL.group_replication_resource_manager.memory_used_limit=1;
+include/gr_wait_for_member_state.inc
+
+#########################################################
+# 5. Set memory_used_limit to 1 and quarantine_time=0.
+#    M3 will leave the group and rejoin.
+SET GLOBAL group_replication_resource_manager.quarantine_time = 0;
+SET @@GLOBAL.group_replication_resource_manager.memory_used_limit=1;
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.group_replication_resource_manager.memory_used_limit=0;
+include/assert.inc [Auto-rejoin should be running]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+include/gr_wait_for_member_state.inc
+
+#########################################################
+# 6. Assert Gr_resource_manager_memory_eviction_timestamp
+#    and Gr_resource_manager_memory_threshold_hits
+#    are set.
+'Eviction timestamp is set.'
+include/assert.inc ['There are memory threshold hits.']
+include/assert.inc ['Memory status is visible.']
+############################################################
+# 7. Cleanup
+[connection server3]
+include/stop_group_replication.inc
+SET @@global.group_replication_resource_manager.memory_used_limit = @memory_limit;
+SET @@global.group_replication_resource_manager.quarantine_time = @quarantine_time;
+UNINSTALL COMPONENT 'file://component_group_replication_resource_manager';
+include/gr_end_autorejoin_monitoring.inc
+include/group_replication_end.inc

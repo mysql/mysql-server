@@ -1,0 +1,155 @@
+# Test file contains cases to verify affected rows state after DML
+# operations on JSON duality view.
+
+CREATE TABLE t1(f1 INT KEY, f2 INT);
+CREATE TABLE t2(f11 INT KEY, f12 INT);
+
+--echo #
+--echo # Verify affected_rows state for duality view with only root object.
+--echo #
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                             "_id" : f1,
+                             "f2"  : f2
+         ) FROM t1;
+--enable_info
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1}');
+SELECT * FROM dv1;
+
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 2}';
+SELECT * FROM dv1;
+
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 1;
+SELECT * FROM dv1;
+--disable_info
+
+
+--echo #
+--echo # Verify affected_rows state for duality view with read-only singleton
+--echo # sub-object.
+--echo #
+
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                             "_id" : f1,
+                             "f2"  : f2,
+                             "child" : (SELECT JSON_DUALITY_OBJECT(
+                                                 "f11" : f11,
+                                                 "f12" : f12
+                                               ) FROM t2 WHERE t2.f11 = t1.f2)
+         ) FROM t1;
+
+--enable_info
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1}');
+SELECT * FROM dv1;
+
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 2, "child" : {"f11": 2, "f12" : 2}}';
+SELECT * FROM dv1;
+
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 1;
+SELECT * FROM dv1;
+SELECT * FROM t2;
+--disable_info
+
+TRUNCATE TABLE t2;
+
+
+--echo #
+--echo # Verify affected_rows state for duality view with singleton
+--echo # sub-object.
+--echo #
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                             "_id" : f1,
+                             "f2"  : f2,
+                             "child" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+                                                 "f11" : f11,
+                                                 "f12" : f12
+                                               ) FROM t2 WHERE t2.f11 = t1.f1)
+         ) FROM t1;
+
+--enable_info
+--echo # Inserting rows into root object's table and sub-object's table.
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1, "child" : { "f11" : 1, "f12" : 1 }}');
+SELECT * FROM dv1;
+
+--echo # Updating row of root object's table only.
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 2, "child" : {"f11": 1, "f12" : 1}}';
+SELECT * FROM dv1;
+
+--echo # Updating rows of root object's table and sub-object's table.
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 3, "child" : {"f11": 1, "f12" : 2}}';
+SELECT * FROM dv1;
+
+--echo # Updating row of sub-object's table only.
+UPDATE dv1 SET data = '{"_id" : 1, "f2" : 3, "child" : {"f11": 1, "f12" : 3}}';
+SELECT * FROM dv1;
+
+--echo # Deleting rows from root object's table and sub-object's table.
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 1;
+SELECT * FROM dv1;
+--disable_info
+
+TRUNCATE TABLE t2;
+
+
+--echo #
+--echo # Verify affected_rows state for duality view with nested
+--echo # sub-object.
+--echo #
+
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                             "_id" : f1,
+                             "f2"  : f2,
+                             "child" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                                                 "f11" : f11,
+                                                 "f12" : f12
+                                               ) ABSENT ON NULL) FROM t2 WHERE t2.f12 = t1.f1)
+         ) FROM t1;
+
+
+--enable_info
+--echo # Inserting row into root object's table only.
+INSERT INTO dv1 VALUES('{"_id" : 1, "f2" : 1, "child" : []}');
+SELECT * FROM dv1;
+
+--echo # Inserting rows into root object's table and sub-object's table.
+INSERT INTO dv1 VALUES('{"_id" : 2, "f2" : 2, "child" : [{"f11" : 2, "f12" : 2}]}');
+SELECT * FROM dv1;
+
+--echo # Inserting row into root object's table and multiple rows into sub-object's table.
+INSERT INTO dv1 VALUES('{"_id" : 3, "f2" : 3, "child" : [{"f11" : 3, "f12" : 3}, {"f11" : 4, "f12" : 3}]}');
+SELECT * FROM dv1;
+
+--echo # Inserting row into only sub-object's table only.
+UPDATE dv1 set data = '{"_id" : 1, "f2" : 1, "child" : [{"f11" : 1, "f12" : 1}]}' WHERE JSON_VALUE(data, '$._id') = 1;
+SELECT * FROM dv1;
+
+--echo # Updating row of only root object.
+UPDATE dv1 SET data = '{ "_id" : 1, "f2" : 3, "child" : [ {"f11" : 1, "f12" : 1} ] }' WHERE JSON_VALUE(data, '$._id') = 1;
+SELECT * FROM dv1;
+
+--echo # Updating only child. Deleting existing sub-object and inserting new sub-object.
+SELECT * FROM t2 WHERE f12 = 1;
+UPDATE dv1 SET data = '{ "_id" : 1, "f2" : 3, "child" : [ {"f11" : 5, "f12" : 1} ] }' WHERE JSON_VALUE(data, '$._id') = 1;
+SELECT * FROM dv1;
+SELECT * FROM t2 WHERE f12 = 1;
+
+--echo # Deleting 2 sub-objects as part of UPDATE operation.
+UPDATE dv1 SET data = '{ "_id" : 3, "f2" : 3, "child" : [] }' WHERE JSON_VALUE(data, '$._id') = 3;
+SELECT * FROM dv1;
+
+--echo # Deleting rows from root object's table and sub-object's table.
+DELETE FROM dv1 WHERE JSON_VALUE(data, "$._id") = 2;
+SELECT * FROM dv1;
+--disable_info
+
+DROP VIEW dv1;
+DROP TABLE t2;
+DROP TABLE t1;

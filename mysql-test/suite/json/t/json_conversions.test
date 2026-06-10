@@ -5576,6 +5576,8 @@ drop table at;
 
 drop function get_json_weight;
 
+--enable_query_log
+
 --echo #
 --echo # Bug #34416304 WriteRowToChunk : Assertion `!thd->is_error()' failed
 --echo #
@@ -5601,5 +5603,38 @@ COLUMNS(
    EXISTS PATH '$.ba'
  )
 ) q;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#38980997: Assertion 'mtime.time_type == MYSQL_TIMESTAMP_DATE
+--echo #               in JSON expressions
+--echo #
+
+SELECT MONTHNAME(CAST('"5480-11-13"' AS JSON));
+
+SELECT MONTHNAME(CAST('"5480-11-13 14:08:10.287786"' AS JSON));
+
+SELECT MONTHNAME(CAST('"14:08:10.287786"' AS JSON));
+
+--echo #
+--echo # Bug#38998827: Assert in Date_val::day_number
+--echo #
+
+CREATE TABLE t (d DATE, dt DATETIME);
+
+INSERT IGNORE INTO t VALUES('0000-00-00', '0000-00-00 00:00:00');
+
+SELECT DATEDIFF(
+         JSON_REPLACE('{"a":[3],"a":"\'{a:[0,0],a:3}\'","a":false,"c":[0,4]}',
+                      '$', d),
+         CURRENT_DATE) AS col
+FROM t;
+
+SELECT DATEDIFF(
+         JSON_REPLACE('{"a":[3],"a":"\'{a:[0,0],a:3}\'","a":false,"c":[0,4]}',
+                      '$', dt),
+         CURRENT_TIMESTAMP) AS col
+FROM t;
 
 DROP TABLE t;

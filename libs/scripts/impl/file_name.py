@@ -1,5 +1,5 @@
 #!/usr/bin/python3.11
-# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ def split_existing_nonexisting_path(path: str) -> Tuple[str, str]:
     '''
     suffix = ''
     prefix = path
-    while not os.path.exists(prefix):
+    while prefix != '' and not os.path.exists(prefix):
         prefix, part = os.path.split(prefix)
         if suffix:
             suffix = os.path.join(part, suffix)
@@ -69,8 +69,10 @@ def validate_path(path: str) -> None:
         )
     _, nonexisting = split_existing_nonexisting_path(path)
     if not nonexisting: return
+    allowed_extensions = ('cc', 'h', 'cpp', 'hpp')
     if not string.re_fullmatch(
-        pattern=r'(/[a-z][a-z0-9]*(_[a-z0-9]+)*)*(\.cc|\.h)?',
+        pattern=r'(/[a-z][a-z0-9]*(_[a-z0-9]+)*)*' +
+        '(' + '|'.join([r'\.' + e for e in allowed_extensions]) + ')?',
         string=f'/{nonexisting}',
     ):
         log_error(
@@ -82,7 +84,9 @@ def validate_path(path: str) -> None:
             'Each word must contain one or more letters, all from the set '
             '[a-z0-9]. '
             'The first letter of the first word in each path component must '
-            'be in the set [a-z].'
+            'be in the set [a-z]. '
+            'The extension must be one of the following: '
+            + ', '.join([f'.{e}' for e in allowed_extensions]) + '.'
         )
 
 def normalize_path(path: str) -> str:

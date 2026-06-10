@@ -1,0 +1,86 @@
+-- source include/rpl/init_source_replica.inc
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+--echo # WL#17024 Activate triggers on child table during FK cascade
+--echo # FR 10 Replication with FK cascade triggers
+
+--echo # FR 10.1: In Row Based Replication mode, triggers must not be executed on
+--echo # the replica as a consequence of cascades applied by the applier thread.
+
+--echo # FR 10.2: In Statement Based Replication mode, the binlog applier thread
+--echo # in replica node must use the source setting of enable_cascade_triggers
+--echo # variable.
+
+--echo #Source
+--echo #t1 - Parent table
+eval CREATE TABLE t1 (f1 INT PRIMARY KEY);
+--echo #t2(f1) -> t1(f1) -  ON DELETE | UPDATE CASCADE
+eval CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f1) REFERENCES t1(f1) ON DELETE CASCADE ON UPDATE CASCADE);
+
+eval CREATE TABLE logtable (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, action VARCHAR(128), oldval INT, newval INT);
+
+SHOW VARIABLES LIKE 'enable_cascade_triggers';
+
+INSERT INTO t1 VALUES (10), (20), (30);
+INSERT INTO t2 VALUES (10, 10), (20, 20), (30, 30);
+SELECT * FROM t1 ORDER BY f1;
+SELECT * FROM t2 ORDER BY f1;
+
+delimiter //;
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+FOR EACH ROW BEGIN
+    INSERT INTO logtable(action,oldval,newval) VALUES("t1-AFTER-DELETE", OLD.f1, 0);
+END//
+
+CREATE TRIGGER trg2 AFTER DELETE ON t2
+FOR EACH ROW BEGIN
+    INSERT INTO logtable(action,oldval,newval) VALUES("t2-AFTER-DELETE", OLD.f2, 0);
+END//
+
+CREATE TRIGGER trg3 AFTER UPDATE ON t1
+FOR EACH ROW BEGIN
+    INSERT INTO logtable(action,oldval,newval) VALUES("t1-AFTER-UPDATE", OLD.f1, NEW.f1);
+END//
+
+CREATE TRIGGER trg4 AFTER UPDATE ON t2
+FOR EACH ROW BEGIN
+    INSERT INTO logtable(action,oldval,newval) VALUES("t2-AFTER-UPDATE", OLD.f2, NEW.f2);
+END//
+delimiter ;//
+
+--disable_warnings
+--echo # Update row in t1 and verify that it cascades to t2 correctly on
+--echo # both the master and replica.
+UPDATE t1 SET f1=50 where f1=20;
+--echo # Delete a row from t1 and verify that it cascades to t2 correctly on
+--echo # both the master and replica.
+DELETE FROM t1 where f1=10;
+--enable_warnings
+
+SELECT * FROM t1 ORDER BY f1;
+SELECT * FROM t2 ORDER BY f1;
+SELECT * FROM logtable;
+
+--source include/rpl/sync_to_replica.inc
+--echo #Replica
+
+SHOW VARIABLES LIKE 'enable_cascade_triggers';
+
+SELECT * FROM t1 ORDER BY f1;
+SELECT * FROM t2 ORDER BY f1;
+SELECT * FROM logtable;
+
+connection master;
+
+--let $diff_tables = master:t1, slave:t1
+--source include/diff_tables.inc
+
+--let $diff_tables = master:t2, slave:t2
+--source include/diff_tables.inc
+
+--let $diff_tables = master:logtable, slave:logtable
+--source include/diff_tables.inc
+
+drop table logtable, t2, t1;
+--source include/rpl/deinit.inc

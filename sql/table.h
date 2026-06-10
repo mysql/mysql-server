@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -956,6 +956,8 @@ struct TABLE_SHARE {
   uint vfields{0};
   /// Number of fields having the default value generated
   uint gen_def_field_count{0};
+  /// Number of fields having a masking policy.
+  uint masking_policy_field_count{0};
   bool system{false};            /* Set if system table (one record) */
   bool db_low_byte_first{false}; /* Portable row format */
   bool crashed{false};
@@ -1236,6 +1238,10 @@ struct TABLE_SHARE {
   bool is_missing_primary_key() const {
     assert(primary_key <= MAX_KEY);
     return primary_key == MAX_KEY;
+  }
+
+  bool has_masking_policy_columns() const {
+    return masking_policy_field_count != 0;
   }
 
   uint find_first_unused_tmp_key(const Key_map &k);

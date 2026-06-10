@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,11 @@
 #include <memory>
 #include <string>
 #include <thread>
+
 #include "collector/mysql_fixed_pool_manager.h"
-#include "helper/wait_variable.h"
+
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/utility/wait_variable.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
@@ -44,6 +46,7 @@ class MysqlTaskMonitor {
   using PoolManager = collector::MysqlFixedPoolManager;
   using PoolManagerRef = std::shared_ptr<PoolManager>;
 
+ public:
   ~MysqlTaskMonitor();
 
   void call_async(
@@ -59,6 +62,9 @@ class MysqlTaskMonitor {
   void reset();
 
  private:
+  template <typename T>
+  using WaitableVariable = mysql_harness::utility::WaitableVariable<T>;
+
   struct Task {
     // holds a ref to the pool that owns session, so it's not released
     // while the Task is executing in another thread
@@ -77,6 +83,7 @@ class MysqlTaskMonitor {
   enum State { k_initializing, k_running, k_check_tasks, k_stopped };
 
   std::thread thread_;
+
   WaitableVariable<State> state_{k_initializing};
 
   std::mutex tasks_mutex_;

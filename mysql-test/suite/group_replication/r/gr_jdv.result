@@ -1,0 +1,160 @@
+################################################
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+################################################
+# Make sure server1 is primary
+include/assert.inc [Verify server1 is primary]
+# Create tables and a JSON duality view on the primary
+[connection server1]
+use test;
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4"  : f4,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+# Insert new row in the JSON duality view (on the primary)
+# In effect, it should enter values in the underlying tables.
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+# Compute checksum for I_S views
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+# Sync to secondaries
+include/rpl/sync.inc
+################################################
+# Connect to secondary server2
+[connection server2]
+# Set server2 as primary.
+SELECT group_replication_set_as_primary("SERVER2_UUID");
+group_replication_set_as_primary("SERVER2_UUID")
+Primary server switched to: SERVER2_UUID
+include/gr_assert_primary_member.inc
+# Print the view definition stored on the replica
+# This makes sure that view exists on the replica
+# and has the same definition as source.
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'f4':`p_t2`.`f4`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+# Verify checksum for I_S views
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+# SELECT the data from JSON duality view on
+# replica.
+# This makes sure that INSERT was replicated
+# successfully (on the replica).
+include/diff_tables.inc [server1:p_t1, server2:p_t1, server3:p_t1]
+include/diff_tables.inc [server1:p_t2, server2:p_t2, server3:p_t2]
+# Server2 is acting as primary,
+# hence we are allowed to ALTER the view
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"ChildNode" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"f1" : f1,
+"f2" : f2
+)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3
+)
+) FROM p_t2;
+# Compute new checksum for I_S views
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+# It must generate below output:
+# {
+#    "_id": 2,
+#    "ChildNode": {"f1": 2, "f2": 300},
+#    "_metadata": {"etag": "b0cf66f4ef72fc205c0b9b874842a7ca"}
+# }
+SELECT * FROM p_dv1 WHERE JSON_EXTRACT(data, "$._id") = 2;
+data
+{"_id": 2, "ChildNode": {"f1": 2, "f2": 300}, "_metadata": {"etag": "b0cf66f4ef72fc205c0b9b874842a7ca"}}
+# Sync to secondaries
+include/rpl/sync.inc
+################################################
+# Connect to secondary server3
+[connection server3]
+# Set server3 as primary
+SELECT group_replication_set_as_primary("SERVER3_UUID");
+group_replication_set_as_primary("SERVER3_UUID")
+Primary server switched to: SERVER3_UUID
+include/gr_assert_primary_member.inc
+# Print the view definition stored on the replica
+# This makes sure that view exists on the replica
+# and has the same definition as source.
+SHOW CREATE VIEW p_dv1;
+View	Create View	character_set_client	collation_connection
+p_dv1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `p_dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE) '_id':`p_t2`.`f3`,'ChildNode':(select json_duality_object( WITH (INSERT,UPDATE) 'f1':`p_t1`.`f1`,'f2':`p_t1`.`f2`) from `p_t1` where (`p_t1`.`f1` = `p_t2`.`f3`))) AS `Name_exp_1` from `p_t2`	utf8mb4	utf8mb4_0900_ai_ci
+# Verify checksum for I_S views
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+# Setting ChildNode.f2 = 400,
+# using the same etag which was generated on server2
+# when it was primary.
+UPDATE p_dv1 SET data = '
+{
+"_id": 2,
+"ChildNode": {"f1": 2, "f2": 400},
+"_metadata": {"etag": "b0cf66f4ef72fc205c0b9b874842a7ca"}
+}';
+# Sync to secondaries
+include/rpl/sync.inc
+################################################
+# Connect to secondary server1
+[connection server1]
+# SELECT data from view to make sure that the data
+# got UPDATE-d (on the replica)
+include/diff_tables.inc [server3:p_t1, server1:p_t1, server3:p_t1]
+include/diff_tables.inc [server3:p_t2, server1:p_t2, server3:p_t2]
+# Set server1 as primary
+SELECT group_replication_set_as_primary("SERVER1_UUID");
+group_replication_set_as_primary("SERVER1_UUID")
+Primary server switched to: SERVER1_UUID
+include/gr_assert_primary_member.inc
+DELETE FROM p_dv1
+WHERE json_value(data, '$._id') = 2;
+################################################
+# Connect to secondary server2
+[connection server2]
+# SELECT data from view to make sure that the data
+# got DELETE-d (on the replica)
+include/diff_tables.inc [server3:p_t1, server1:p_t1, server3:p_t1]
+include/diff_tables.inc [server3:p_t2, server1:p_t2, server3:p_t2]
+################################################
+# Cleanup
+# Connect to server1
+[connection server1]
+DROP VIEW p_dv1;
+DROP TABLE p_t1, p_t2;
+include/rpl/sync.inc
+include/group_replication_end.inc
+################################################

@@ -1,0 +1,1360 @@
+#################################################################################
+# Verify warning messages aggregation for JSON duality view object update.
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"f1" : f1,
+"f2" : f2)
+FROM p_t1
+WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "1ec721700727fedd824e5146fad497e5"}}
+UPDATE p_dv1 SET data = ' { "_id" : 1, "f4" : 4, "ChildNode" : {"f1" : 1, "f2" : 4 }, "_metadata": {"etag": "1ec721700727fedd824e5146fad497e5"} }';
+SELECT * FROM p_dv1;
+data
+{"f4": 4, "_id": 1, "ChildNode": {"f1": 1, "f2": 4}, "_metadata": {"etag": "15f0c4620a62701681233686506898a9"}}
+UPDATE p_dv1 SET data = JSON_SET(data, '$.f4', 5);
+SELECT * FROM p_dv1;
+data
+{"f4": 5, "_id": 1, "ChildNode": {"f1": 1, "f2": 4}, "_metadata": {"etag": "5b02ec9cc10b96a4e4d9cfa3fe12d718"}}
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode = 0;
+UPDATE p_dv1 SET data = ' { "_id" : 1, "f4" : "123abcd", "ChildNode" : {"f1" : 1, "f2" : "123abcd" }, "_metadata": {"etag": "5b02ec9cc10b96a4e4d9cfa3fe12d718"} }';
+Warnings:
+Warning	1265	Data truncated for column 'f2' at row 1
+Warning	1265	Data truncated for column 'f4' at row 1
+SET @@sql_mode = @orig_sql_mode;
+SELECT * FROM p_dv1;
+data
+{"f4": 123, "_id": 1, "ChildNode": {"f1": 1, "f2": 123}, "_metadata": {"etag": "11d233c5b6686156ff0a867b0f47fa97"}}
+DROP TABLE p_t1;
+DROP TABLE p_t2;
+################################################################################
+# Updating new Root object. (No Sub-object for view)
+# Root object - Primary key   Table annotations: READ_ONLY
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"_id" : f1,
+"f2" : f2
+) FROM p_t1;
+UPDATE p_dv1 SET data = '{ "_id" : 1, "f2" : 1 } ';
+ERROR HY000: Missing UPDATE tag on `test`.`p_t1`.f2, path '$.f2'.
+DROP TABLE p_t1;
+################################################################################
+# Updating new Root object.
+# Root object - Primary key   Table annotations: UPDATE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f1,
+"f2" : f2
+) FROM p_t1 ;
+UPDATE p_dv1 SET data = '{}';
+ERROR HY000: Primary key column `test`.`p_t1`.f1 must be provided as path '$._id'.
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"}}
+UPDATE p_dv1 SET data = NULL;
+ERROR HY000: NULL is not allowed when updating a JSON DUALITY VIEW.
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"}}
+UPDATE p_dv1 SET data = '{ "_id" : 1 } ';
+ERROR HY000: Value was not provided for path '$' and could not be inferred for column `test`.`p_t1`.f2.
+UPDATE p_dv1 SET data = '{ "_id" : 1, "f2" : 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"} } ';
+SELECT * FROM p_dv1;
+data
+{"f2": 1, "_id": 1, "_metadata": {"etag": "fc3fdd8d9eaced542d9a5fcc7f9f57bc"}}
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object's Primary Key column.
+# Root object - Foreign Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: UPDATE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH UPDATE
+'f1' : f1,
+'f2' : f2
+)) FROM p_t1
+WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 2}], "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 4,
+    "f12" : 2,
+    "childN" : [{
+                "f1" : 1,
+                "f2" : 30
+               }]
+} ';
+ERROR HY000: Join condition is not satisfied as path '$.childN[0].f1' for child column `test`.`p_t1`.f1 is not equal to path '$._id' for parent column `test`.`p_t2`.f11.
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 2}], "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object's non-primary Key columns. No changes to Sub-object.
+# Root object - Foreign Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: UPDATE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'f1' : f1,
+'f2' : f2
+) FROM p_t1  WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": {"f1": 1, "f2": 2}, "_metadata": {"etag": "fc4814ef839b66d33df1a52c8dc67d60"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f12" : 3,
+    "childN" : {
+                "f1" : 1,
+                "f2" : 2
+               },
+    "_metadata": {"etag": "fc4814ef839b66d33df1a52c8dc67d60"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 3, "childN": {"f1": 1, "f2": 2}, "_metadata": {"etag": "1b23707df3c704896964da3741288a9a"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object's and Sub-object's non-primary Key columns.
+## Root object - Foreign Key  Table annotations: UPDATE
+## Sub-object - Primary Key   Table annotations: READ_ONLY
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+'f1' : f1,
+'f2' : f2
+)) FROM p_t1 WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 2}], "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f12" : 3,
+    "childN" : [{
+                "f1" : 1,
+                "f2" : 333
+               }]
+} ';
+ERROR HY000: Missing UPDATE tag on `test`.`p_t1`.f2, path '$.childN[0].f2'.
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 2}], "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+## Root object - Foreign Key  Table annotations: UPDATE
+## Sub-object - Primary Key   Table annotations: UPDATE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH UPDATE
+'f1' : f1,
+'f2' : f2
+)) FROM p_t1
+WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 2}], "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f12" : 3,
+    "childN" : [{
+                "f1" : 1,
+                "f2" : 333
+               }],
+    "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 3, "childN": [{"f1": 1, "f2": 333}], "_metadata": {"etag": "e1941295649b8d56485a7511d191f453"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+## Root object - Foreign Key  Table annotations: READ ONLY
+## Sub-object - Primary Key   Table annotations: UPDATE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+'_id' : f11,
+'f12' : f12,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH UPDATE
+'f1' : f1,
+'f2' : f2
+)) FROM p_t1
+WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 2}], "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f12" : 2,
+    "childN" : [{
+                "f1" : 1,
+                "f2" : 333
+               }],
+    "_metadata": {"etag": "8a7cd20305686a6f0127bbf08749fcfe"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "f12": 2, "childN": [{"f1": 1, "f2": 333}], "_metadata": {"etag": "0d067698dba10fce7b1c1c35e69a978b"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and inserting Sub-object.
+## Root object - Primary Key  Table annotations: UPDATE
+## Sub-object - Primary Key   Table annotations: READ ONLY
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+'f11' : f11,
+'f12' : f12
+) FROM p_t2 WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : {"f11" : 1, "f12" : 1 }
+} ';
+ERROR HY000: Missing INSERT tag on table `test`.`p_t2`, path '$.childN'.
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+## Root object - Primary Key  Table annotations: UPDATE
+## Sub-object - Primary Key   Table annotations: INSERT
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2' : f2,
+'childN' : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+'f11' : f11,
+'f12' : f12
+) FROM p_t2  WHERE p_t1.f1 = p_t2.f11)
+) FROM p_t1 ;
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : {"f11" : 1, "f12" : 1 },
+      "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 222, "_id": 1, "childN": {"f11": 1, "f12": 1}, "_metadata": {"etag": "95b0f91e9ac9a7d00b3ca4c981091033"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and no changes to Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: NO INSERT, NO UPDATE, NO DELETE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY REFERENCES p_t1(f1), f12 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, NO DELETE)
+'f11' : f11,
+'f12' : f12
+)) FROM p_t2  WHERE p_t2.f11 = p_t1.f1
+)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 333,
+      "childN" : [{"f11" : 1, "f12":2}],
+      "_metadata": {"etag": "073a8c14e558c59d028bc2a64d9aad2d"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 333, "_id": 1, "childN": [{"f11": 1, "f12": 2}], "_metadata": {"etag": "297e96564809e4310b2acdbb9100e25f"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and Inserting Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: READ ONLY
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2 WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+     "f2" : 222,
+     "childN" : [ {"f11" : 1, "f13":333} ]
+} ';
+ERROR HY000: Missing INSERT tag on table `test`.`p_t2`, path '$.childN[0]'.
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and Inserting Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+     "childN" : [ {"f11" : 1, "f13":333} ]
+} ';
+ERROR HY000: Value was not provided for path '$' and could not be inferred for column `test`.`p_t1`.f2.
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+     "f2" : 222,
+     "childN" : [ {"f11" : 1, "f13":333} ],
+     "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 222, "_id": 1, "childN": [{"f11": 1, "f13": 333}], "_metadata": {"etag": "0bcb47346407705b7ec72cf5c228455d"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object and existing Sub-object elements
+# are not modified.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}], "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : [ {"f11" : 1, "f13":1 }, {"f11" : 2, "f13" : 2 } ],
+      "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 222, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 2}], "_metadata": {"etag": "a800b1861beb9f1a3e90b40788707946"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object, deleting Sub-object element
+# and remaining Sub-object elements are not modified.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT, DELETE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 11);
+INSERT INTO p_t2 VALUES (3, 1, 111);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, DELETE)
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 11}, {"f11": 3, "f13": 111}], "_metadata": {"etag": "e5cb81a89db490b991f6ac00d3755ef6"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : [ {"f11" : 2, "f13":11}, {"f11" : 3, "f13":111}, {"f11" : 4, "f13" : 1111} ],
+      "_metadata": {"etag": "e5cb81a89db490b991f6ac00d3755ef6"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 222, "_id": 1, "childN": [{"f11": 2, "f13": 11}, {"f11": 3, "f13": 111}, {"f11": 4, "f13": 1111}], "_metadata": {"etag": "f74c27ab5c3c78bd1d6ca22657988679"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object, deleting Sub-object element
+# modifying sub-object element and remaining Sub-object elements are not modified.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 11);
+INSERT INTO p_t2 VALUES (3, 1, 111);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 11}, {"f11": 3, "f13": 111}], "_metadata": {"etag": "e5cb81a89db490b991f6ac00d3755ef6"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : [ {"f11" : 2, "f13":99}, {"f11" : 3, "f13":111}, {"f11" : 4, "f13" : 1111} ],
+      "_metadata": {"etag": "e5cb81a89db490b991f6ac00d3755ef6"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 222, "_id": 1, "childN": [{"f11": 2, "f13": 99}, {"f11": 3, "f13": 111}, {"f11": 4, "f13": 1111}], "_metadata": {"etag": "8ad7de4215e6f636a7d44540ccf2eb9a"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and inserting Sub-objects with same PK value and
+# different non-PK values.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}], "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : [ {"f11" : 1, "f13":222}, {"f11" : 1, "f13":111} ]
+} ';
+ERROR HY000: Path '$.childN[1]' is a duplicate for primary key column `test`.`p_t2`.f11 but has conflicting values for column f13: path '$.childN[1].f13' vs path '$.childN[0].f13'
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}], "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and inserting Sub-objects with same PK value and
+# same non-PK values.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}], "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : [ {"f11" : 1, "f13":222}, {"f11" : 1, "f13":222} ],
+      "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}
+} ';
+ERROR HY000: Missing UPDATE tag on `test`.`p_t2`.f13, path '$.childN[0].f13'.
+SELECT * FROM p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}], "_metadata": {"etag": "70237a28cb5ac90c8fef4f093eb6bd4d"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object, deleting Sub-object element
+# modifying sub-object element and remaining Sub-object elements are not modified.
+# Test verifies trigger execution.
+# Triggers:
+#     For UPDATE event on Root table.
+#     For INSERT, UPDATE, DELETE event on Sub-object's  table.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: INSERT, UPDATE, DELETE
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f11 INT PRIMARY KEY, f12 INT REFERENCES p_t1(f1), f13 INT);
+INSERT INTO p_t1 VALUES (1, 2);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+INSERT INTO p_t2 VALUES (2, 1, 11);
+INSERT INTO p_t2 VALUES (3, 1, 111);
+CREATE TABLE p_t1_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t1_trigger1 BEFORE UPDATE ON p_t1
+FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("BEFORE UPDATE EVENT");
+CREATE TRIGGER p_t1_trigger2 AFTER UPDATE ON p_t1
+FOR EACH ROW INSERT INTO p_t1_trigger_tbl VALUES("AFTER UPDATE EVENT");
+CREATE TABLE p_t2_trigger_tbl(msg VARCHAR(500));
+CREATE TRIGGER p_t2_trigger1 BEFORE INSERT ON p_t2
+FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("BEFORE INSERT EVENT");
+CREATE TRIGGER p_t2_trigger2 AFTER INSERT ON p_t2
+FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("AFTER INSERT EVENT");
+CREATE TRIGGER p_t2_trigger3 BEFORE UPDATE ON p_t2
+FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("BEFORE UPDATE EVENT");
+CREATE TRIGGER p_t2_trigger4 AFTER UPDATE ON p_t2
+FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("AFTER UPDATE EVENT");
+CREATE TRIGGER p_t2_trigger5 BEFORE DELETE ON p_t2
+FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("BEFORE DELETE EVENT");
+CREATE TRIGGER p_t2_trigger6 AFTER DELETE ON p_t2
+FOR EACH ROW INSERT INTO p_t2_trigger_tbl VALUES("AFTER DELETE EVENT");
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : f1,
+'f2'  : f2,
+'childN' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'f11' : f11,
+'f13' : f13
+)) FROM p_t2  WHERE p_t2.f12 = p_t1.f1)
+) FROM p_t1 ;
+SELECT * FROM  p_dv1;
+data
+{"f2": 2, "_id": 1, "childN": [{"f11": 1, "f13": 1}, {"f11": 2, "f13": 11}, {"f11": 3, "f13": 111}], "_metadata": {"etag": "e5cb81a89db490b991f6ac00d3755ef6"}}
+UPDATE p_dv1 SET data = ' {
+     "_id" : 1,
+      "f2" : 222,
+      "childN" : [ {"f11" : 2, "f13":99}, {"f11" : 3, "f13":111}, {"f11" : 4, "f13" : 1111} ],
+      "_metadata": {"etag": "e5cb81a89db490b991f6ac00d3755ef6"}
+} ';
+SELECT * FROM p_dv1;
+data
+{"f2": 222, "_id": 1, "childN": [{"f11": 2, "f13": 99}, {"f11": 3, "f13": 111}, {"f11": 4, "f13": 1111}], "_metadata": {"etag": "8ad7de4215e6f636a7d44540ccf2eb9a"}}
+SELECT * FROM p_t1_trigger_tbl;
+msg
+BEFORE UPDATE EVENT
+AFTER UPDATE EVENT
+SELECT * FROM p_t2_trigger_tbl;
+msg
+BEFORE DELETE EVENT
+AFTER DELETE EVENT
+BEFORE UPDATE EVENT
+AFTER UPDATE EVENT
+BEFORE UPDATE EVENT
+AFTER UPDATE EVENT
+BEFORE INSERT EVENT
+AFTER INSERT EVENT
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP TABLE p_t1_trigger_tbl;
+DROP TABLE p_t2_trigger_tbl;
+################################################################################
+# Updating Root table and replacing sub-object with an existing object.
+# Root object - Primary Key  Table annotations: INSERT, UPDATE, DELETE
+# Sub-object - Foreign Key   Table annotations: NO INSERT, NO UPDATE, NO DELETE
+CREATE TABLE p_department(dept_id INT PRIMARY KEY, dname VARCHAR(100));
+CREATE TABLE p_student(suid INT PRIMARY KEY, sname VARCHAR(100), dept_id INT REFERENCES p_department(dept_id));
+INSERT INTO p_department VALUES (1, 'ENGLISH');
+INSERT INTO p_department VALUES (2, 'MATHS');
+INSERT INTO p_student VALUES (101, 'Manu', 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
+JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'_id' : suid,
+'name' : sname,
+'department': (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+'dept_id'  : dept_id,
+'dname' : dname
+) FROM p_department WHERE p_department.dept_id = p_student.dept_id
+)
+) FROM p_student ;
+SELECT * FROM p_dv1;
+data
+{"_id": 101, "name": "Manu", "_metadata": {"etag": "0e7e5ac91ef6886a02a3798ecb2dc3f2"}, "department": {"dname": "ENGLISH", "dept_id": 1}}
+SELECT * FROM p_student;
+suid	sname	dept_id
+101	Manu	1
+# Replacing department to MATHS from ENGLISH.
+UPDATE p_dv1 SET data = '
+ {
+   "_id" : 101,
+   "name" : "Manu",
+   "_metadata": {"etag": "0e7e5ac91ef6886a02a3798ecb2dc3f2"},
+   "department" : { "dept_id" : 2, "dname" : "MATHS" }
+ } ';
+SELECT * FROM p_dv1;
+data
+{"_id": 101, "name": "Manu", "_metadata": {"etag": "facb6f663968defdf0ffb06cf12cd028"}, "department": {"dname": "MATHS", "dept_id": 2}}
+SELECT * FROM p_student;
+suid	sname	dept_id
+101	Manu	2
+DROP TABLE p_student;
+DROP TABLE p_department;
+################################################################################
+# Updating root object and Sub object using table with self referencing FK.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: UPDATE
+CREATE TABLE p_employee (empid INT PRIMARY KEY,
+name VARCHAR(100),
+mgrid INT REFERENCES p_employee(empid));
+INSERT INTO p_employee VALUES(1, "M1", NULL);
+INSERT INTO p_employee VALUES(2, "Mgr", 1);
+INSERT INTO p_employee VALUES(10, "FirstEmployee", 2);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : empid,
+'name' : name,
+'mgr' : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'empid': empid,
+'name' : name,
+'mgr' : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'empid' : empid,
+'name'  : name
+) FROM p_employee MM  WHERE MM.empid = M.mgrid)
+) FROM p_employee M  WHERE M.empid = emp.mgrid)
+) FROM p_employee emp ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "mgr": null, "name": "M1", "_metadata": {"etag": "26effffef01d310bd6952a0fcfdcaba5"}}
+{"_id": 2, "mgr": {"mgr": null, "name": "M1", "empid": 1}, "name": "Mgr", "_metadata": {"etag": "b8aae78c7bd9b32d3b46e0678191a5a9"}}
+{"_id": 10, "mgr": {"mgr": {"name": "M1", "empid": 1}, "name": "Mgr", "empid": 2}, "name": "FirstEmployee", "_metadata": {"etag": "c751d860368bbae08179c07e686f2d07"}}
+UPDATE p_dv1 SET data = '
+{
+  "_id" : 10,
+  "name"  : "Manu",
+  "_metadata": {"etag": "c751d860368bbae08179c07e686f2d07"},
+  "mgr"   : {
+              "empid" : 2,
+              "name"  : "Manager",
+              "mgr"   : {
+                           "empid" : 1,
+                           "name"  : "SeniorManager"
+                        }
+            }
+} ' WHERE JSON_EXTRACT(data, "$._id") = 10;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "mgr": null, "name": "SeniorManager", "_metadata": {"etag": "6074cbf636b3ec6fdecd6197e7fd430c"}}
+{"_id": 2, "mgr": {"mgr": null, "name": "SeniorManager", "empid": 1}, "name": "Manager", "_metadata": {"etag": "b81a45812037ea6023f3cdee1d4afff3"}}
+{"_id": 10, "mgr": {"mgr": {"name": "SeniorManager", "empid": 1}, "name": "Manager", "empid": 2}, "name": "Manu", "_metadata": {"etag": "d305180c5c8efc7097c2c596ada3bf86"}}
+SELECT * FROM p_employee;
+empid	name	mgrid
+1	SeniorManager	NULL
+2	Manager	1
+10	Manu	2
+DROP TABLE p_employee;
+################################################################################
+# Updating Root object and Sub object using table with circular referecing.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Foreign Key   Table annotations: UPDATE
+CREATE TABLE p_department (deptid INT PRIMARY KEY,
+name varchar(100),
+mgrid INT);
+CREATE TABLE p_employee (empid INT PRIMARY KEY,
+name VARCHAR(100),
+deptid INT REFERENCES p_department(deptid));
+INSERT INTO p_department VALUES(888, 'IMPACT', 1);
+INSERT INTO p_employee VALUES(1, "M1", NULL), (10, "FirstEmployee", 888);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'_id' : empid,
+'name' : name,
+'dept' : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'deptid' : deptid,
+'name'   : name,
+'dept_mgr' : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+'empid' : empid,
+'name'  : name
+) FROM p_employee DM
+WHERE DM.empid = D.mgrid)
+) FROM p_department D  where D.deptid = E.deptid)
+) FROM p_employee E ;
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "dept": null, "name": "M1", "_metadata": {"etag": "b9bdc63f2cbbca0aa44276bf63acf318"}}
+{"_id": 10, "dept": {"name": "IMPACT", "deptid": 888, "dept_mgr": {"name": "M1", "empid": 1}}, "name": "FirstEmployee", "_metadata": {"etag": "2338fc6b6d7415894ca1c839fc558fc3"}}
+SELECT * FROM p_department;
+deptid	name	mgrid
+888	IMPACT	1
+SELECT * FROM p_employee;
+empid	name	deptid
+1	M1	NULL
+10	FirstEmployee	888
+UPDATE p_dv1 SET data =
+' {
+    "_id" : 10,
+    "name" : "Manu",
+    "dept" : { "deptid" : 888,
+               "name"   : "ACT",
+               "dept_mgr" : {
+                              "empid" : 1,
+                              "name"  : "SeniorManager"
+                            }
+              }
+    }' WHERE JSON_EXTRACT(data, '$._id') = 10;
+Warnings:
+Warning	6493	ETAG missing for updated value
+SELECT * FROM p_dv1;
+data
+{"_id": 1, "dept": null, "name": "SeniorManager", "_metadata": {"etag": "3e895939b0ce10df827d11f03293756c"}}
+{"_id": 10, "dept": {"name": "ACT", "deptid": 888, "dept_mgr": {"name": "SeniorManager", "empid": 1}}, "name": "Manu", "_metadata": {"etag": "f7d17d56fa2fae95c277a85a0bf3e32a"}}
+SELECT * FROM p_department;
+deptid	name	mgrid
+888	ACT	1
+SELECT * FROM p_employee;
+empid	name	deptid
+1	SeniorManager	NULL
+10	Manu	888
+DROP TABLE p_employee;
+DROP TABLE p_department;
+################################################################################
+# Updating Root Object's non-primary Key columns. No changes to Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: READ ONLY
+# Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 200);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "33863249072731430253fae08f2c9a7e"},
+    "ChildNode" : [{
+                    "f1" : 1,
+                    "f2" : 1
+                  }]
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 222, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "ea487e7aae4b2fcf130639f4f19fb121"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and inserting Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: INSERT
+# Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t2 VALUES (1, 200);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1  WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 200, "_id": 1, "ChildNode": null, "_metadata": {"etag": "8db031f6428efb0a1f8efda851919f4d"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "8db031f6428efb0a1f8efda851919f4d"},
+    "ChildNode" : [{
+                    "f1" : 1,
+                    "f2" : 1
+                  }]
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 222, "_id": 1, "ChildNode": [{"f1": 1, "f2": 1}], "_metadata": {"etag": "ea487e7aae4b2fcf130639f4f19fb121"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and no changes to referencing Sub-objects.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: READ ONLY
+# Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}], "_metadata": {"etag": "c9f3ba13ff2804c2097f68695316928a"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "c9f3ba13ff2804c2097f68695316928a"},
+    "ChildNode" : [{
+                    "f1" : 2,
+                    "f2" : 1
+                   }]
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 222, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}], "_metadata": {"etag": "ebf42829f134767425299dbf2ae83f5a"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object and existing Sub-object elements
+# are not modified.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: READ ONLY
+# Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t1 VALUES (3, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1 WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "ChildNode" : [{
+                    "f1" : 3,
+                    "f2" : 1
+                   },
+                   {
+                    "f1" : 2,
+                    "f2" : 1
+                   },
+                   {
+                    "f1" : 4,
+                    "f2" : 1
+                   }]
+} ';
+ERROR HY000: Missing INSERT tag on table `test`.`p_t1`, path '$.ChildNode[2]'.
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+## Root object - Primary Key  Table annotations: UPDATE
+## Sub-object - Primary Key   Table annotations: INSERT
+## Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t1 VALUES (3, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1  WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"},
+    "ChildNode" : [{
+                    "f1" : 3,
+                    "f2" : 1
+                   },
+                   {
+                    "f1" : 2,
+                    "f2" : 1
+                   },
+                   {
+                    "f1" : 4,
+                    "f2" : 1
+                   }]
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 222, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}, {"f1": 4, "f2": 1}], "_metadata": {"etag": "4c2793fcc538b21a0ea2798250d15504"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object, deleting Sub-object element
+# and remaining Sub-object elements are not modified
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: INSERT, DELETE
+# Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t1 VALUES (3, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, DELETE)
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1  WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"},
+    "ChildNode" : [{
+                    "f1" : 33,
+                    "f2" : 1
+                   },
+                   {
+                    "f1" : 4,
+                    "f2" : 1
+                   },
+                   {
+                    "f1" : 5,
+                    "f2" : 1
+                   }
+                   ]
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 222, "_id": 1, "ChildNode": [{"f1": 4, "f2": 1}, {"f1": 5, "f2": 1}, {"f1": 33, "f2": 1}], "_metadata": {"etag": "34923125a9f42c5e1d283daf2f84b2d9"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object, inserting Sub-object, deleting Sub-object element
+# and remaining Sub-object elements are not modified without specifying
+# value for column used in join condition.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: INSERT, DELETE
+# Join_condition - Root object.PK = sub_object.non_pk_column
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (2, 1);
+INSERT INTO p_t1 VALUES (3, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, DELETE)
+"f1" : f1,
+"f2" : f2
+)) FROM p_t1  WHERE p_t1.f2 = p_t2.f3)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": [{"f1": 2, "f2": 1}, {"f1": 3, "f2": 1}], "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 222,
+    "_metadata": {"etag": "3710d2dcdbdc9eb3af57a53dc3fd2a27"},
+    "ChildNode" : [{
+                    "f1" : 33
+                   },
+                   {
+                    "f1" : 4
+                   },
+                   {
+                    "f1" : 5
+                   }
+                   ]
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 222, "_id": 1, "ChildNode": [{"f1": 4, "f2": 1}, {"f1": 5, "f2": 1}, {"f1": 33, "f2": 1}], "_metadata": {"etag": "34923125a9f42c5e1d283daf2f84b2d9"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object's Primary Key column.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: READ ONLY
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+"f1" : f1,
+"f2" : f2
+) FROM p_t1
+WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "1ec721700727fedd824e5146fad497e5"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 10,
+    "f4" : 200,
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 1
+                  }
+} ';
+ERROR HY000: Join condition is not satisfied as path '$.ChildNode.f1' for child column `test`.`p_t1`.f1 is not equal to path '$.f4' for parent column `test`.`p_t2`.f4.
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 200,
+    "ChildNode" : {
+                    "f1" : 10,
+                    "f2" : 1
+                  }
+} ';
+ERROR HY000: Join condition is not satisfied as path '$.ChildNode.f1' for child column `test`.`p_t1`.f1 is not equal to path '$.f4' for parent column `test`.`p_t2`.f4.
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "1ec721700727fedd824e5146fad497e5"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object's non-primary Key columns. No changes to Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: READ ONLY
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT, f5 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"f5" : f5,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 1,
+    "f5" : 111,
+    "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"},
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 1
+                  }
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 111, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "798eb6e887425cd518227bd7918e1a1f"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and inserting Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: INSERT
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT, f5 INT);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"f5" : f5,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"f1" : f1,
+"f2" : f2
+) FROM p_t1
+WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 1, "_id": 1, "ChildNode": null, "_metadata": {"etag": "b4c0cac67b1be69177ca806527b12512"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 1,
+    "f5" : 111,
+    "_metadata": {"etag": "b4c0cac67b1be69177ca806527b12512"},
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 1
+                  }
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 111, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "798eb6e887425cd518227bd7918e1a1f"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and no changes to referencing Sub-objects.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: NO INSERT, NO UPDATE, NO DELETE
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT, f5 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"f5" : f5,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1
+WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 1,
+    "f5" : 111,
+    "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"},
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 1
+                  }
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 111, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "798eb6e887425cd518227bd7918e1a1f"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: UPDATE
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT, f5 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"f5" : f5,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"f1" : f1,
+"f2" : f2
+) FROM p_t1
+WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 1,
+    "f5" : 5,
+    "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"},
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 22
+                  }
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 5, "_id": 1, "ChildNode": {"f1": 1, "f2": 22}, "_metadata": {"etag": "a99c542508a229c84e11e08748ce88f5"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and Sub-objects. Sub-object is referenced by multiple
+# objects.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: UPDATE
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (2, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"f1" : f1,
+"f2" : f2
+) FROM p_t1
+WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "1ec721700727fedd824e5146fad497e5"}}
+{"f4": 1, "_id": 2, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "6fe15f19d9dbe7156be9edcb6a81f2ec"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 2,
+    "f4" : 1,
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 22
+                  }
+} ';
+ERROR HY000: Cannot update primary key column `test`.`p_t2`.f3 from path '$._id'.
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "1ec721700727fedd824e5146fad497e5"}}
+{"f4": 1, "_id": 2, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "6fe15f19d9dbe7156be9edcb6a81f2ec"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+################################################################################
+# Updating Root Object and updating Sub-object.
+# Root object - Primary Key  Table annotations: UPDATE
+# Sub-object - Primary Key   Table annotations: UPDATE
+# Join_condition - Root object.non_pk_column = sub_object.PK
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT, f5 INT);
+INSERT INTO p_t1 VALUES (1, 1);
+INSERT INTO p_t2 VALUES (1, 1, 1);
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"_id" : f3,
+"f4" : f4,
+"f5" : f5,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(WITH UPDATE
+"f1" : f1,
+"f2" : f2
+) FROM p_t1
+WHERE p_t1.f1 = p_t2.f4)
+) FROM p_t2 ;
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 1, "_id": 1, "ChildNode": {"f1": 1, "f2": 1}, "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"}}
+UPDATE p_dv1 SET data = ' {
+    "_id" : 1,
+    "f4" : 1,
+    "f5" : 5,
+    "_metadata": {"etag": "26bda267a4b0d79a0f56c1a8dd88f9b4"},
+    "ChildNode" : {
+                    "f1" : 1,
+                    "f2" : 22
+                  }
+} ';
+SELECT * FROM p_dv1;
+data
+{"f4": 1, "f5": 5, "_id": 1, "ChildNode": {"f1": 1, "f2": 22}, "_metadata": {"etag": "a99c542508a229c84e11e08748ce88f5"}}
+DROP TABLE p_t2;
+DROP TABLE p_t1;
+DROP VIEW p_dv1;
+################################################################################

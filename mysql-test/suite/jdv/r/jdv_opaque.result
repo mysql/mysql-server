@@ -1,0 +1,52 @@
+#
+# Testing new function FROM_BASE64_NO_NULL() which
+# always report error for failed decoding (instead of returning NULL)
+#
+SELECT FROM_BASE64();
+ERROR 42000: Incorrect parameter count in the call to native function 'FROM_BASE64'
+SELECT FROM_BASE64(NULL);
+FROM_BASE64(NULL)
+NULL
+SELECT FROM_BASE64(0);
+FROM_BASE64(0)
+NULL
+SELECT FROM_BASE64('foo');
+FROM_BASE64('foo')
+NULL
+SELECT FROM_BASE64(TO_BASE64('This is a string'));
+FROM_BASE64(TO_BASE64('This is a string'))
+This is a string
+################################################################################
+# Verify that it is possible to insert values which are base64 encoded
+# and into a BLOB column, and that invalid base64 is detected.
+################################################################################
+CREATE TABLE t1 (i INT PRIMARY KEY, name LONGBLOB);
+INSERT INTO t1 VALUES (1, 'Johnson');
+CREATE OR REPLACE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : i,
+"name_key" : name) FROM t1;
+SELECT JSON_VALID(data->'$.name_key'), JSON_TYPE(data->'$.name_key') FROM dv1;
+JSON_VALID(data->'$.name_key')	JSON_TYPE(data->'$.name_key')
+1	BLOB
+SELECT data FROM dv1;
+data
+{"_id": 1, "name_key": "base64:type251:Sm9obnNvbg==", "_metadata": {"etag": "fb3a810b2a01de42c5b94230740abf4d"}}
+INSERT INTO dv1 VALUES('{"_id": 2, "name_key": "base64:type251:Zm9vYmFy"}');
+INSERT INTO dv1 VALUES('{"_id": 3, "name_key": "Some random string value"}');
+ERROR HY000: Path '$.name_key' is mapped to a binary column, but its value does not have a valid base64 type header.
+INSERT INTO dv1 VALUES('{"_id": 4, "name_key": "base64:type, some random string value which happens to start with base64:type"}');
+ERROR HY000: Path '$.name_key' is mapped to a binary column, but its value does not have a valid base64 type header.
+# Test an invalid bas64-encoding
+INSERT INTO dv1 VALUES('{"_id": 2, "name_key": "base64:type251:Zm9_$_vYmFy"}');
+ERROR HY000: Decoding of base64 string failed
+SELECT * FROM dv1;
+data
+{"_id": 1, "name_key": "base64:type251:Sm9obnNvbg==", "_metadata": {"etag": "fb3a810b2a01de42c5b94230740abf4d"}}
+{"_id": 2, "name_key": "base64:type251:Zm9vYmFy", "_metadata": {"etag": "be4aceefd6e77e02a2506d1e1b30f5fd"}}
+SELECT * FROM t1;
+i	name
+1	Johnson
+2	foobar
+DROP VIEW dv1;
+DROP TABLE t1;

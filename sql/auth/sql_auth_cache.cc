@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1586,7 +1586,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
     get_default_roles(authid, default_roles);
     List_of_auth_id_refs::iterator it = default_roles.begin();
     for (; it != default_roles.end(); ++it) {
-      if (sctx->activate_role(it->first, it->second)) {
+      if (sctx->activate_role(it->first, it->second, false)) {
         sctx->clear_active_roles();
         break;
       }
@@ -2879,7 +2879,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      Access_bitmask privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
-                     const MYSQL_TIME &password_change_time,
+                     const Datetime_val &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
                      acl_table::Pod_user_what_to_update &what_to_update,
                      uint failed_login_attempts, int password_lock_time,
@@ -3041,7 +3041,7 @@ void acl_users_add_one(const char *user, const char *host,
                        USER_RESOURCES *mqh, Access_bitmask privileges,
                        const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
                        const LEX_CSTRING &second_auth,
-                       const MYSQL_TIME &password_change_time,
+                       const Datetime_val &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
                        Restrictions &restrictions, uint failed_login_attempts,
                        int password_lock_time, const I_multi_factor_auth *mfa,
@@ -3154,7 +3154,7 @@ void acl_insert_user(THD *thd [[maybe_unused]], const char *user,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      Access_bitmask privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
-                     const MYSQL_TIME &password_change_time,
+                     const Datetime_val &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
                      uint failed_login_attempts, int password_lock_time,
                      const I_multi_factor_auth *mfa) {

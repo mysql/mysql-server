@@ -192,9 +192,6 @@ DROP DATABASE B35205310;
 --echo #   all table indices instead of just the primary key
 --echo #
 
-# The hypergraph generates an error even with the right query. See bug#38473156
-SET @saved_optimizer_switch = @@global.optimizer_switch;
-SET GLOBAL optimizer_switch = 'hypergraph_optimizer=off';
 CREATE DATABASE B38284832;
 
 CREATE TABLE B38284832.foo (
@@ -214,7 +211,6 @@ INSERT INTO B38284832.foo (`col1`, `col2`, `data`)
 
 DROP DATABASE B38284832;
 --remove_file $MYSQLTEST_VARDIR/tmp/b38284832.sql
-SET GLOBAL optimizer_switch = @saved_optimizer_switch;
 
 
 --echo # End of 8.4 tests

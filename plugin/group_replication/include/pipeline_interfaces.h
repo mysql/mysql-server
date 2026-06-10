@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -472,6 +472,13 @@ class Pipeline_event {
   */
   int convert_packet_to_log_event() {
     uint event_len = uint4korr(((uchar *)(packet->payload)) + EVENT_LEN_OFFSET);
+
+    if (event_len > packet->len) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_PACKET_TO_EVENT,
+                   "invalid event length.");
+      return 1;
+    }
+
     Binlog_read_error binlog_read_error = binlog_event_deserialize(
         packet->payload, event_len, format_descriptor, true, &log_event);
 

@@ -89,7 +89,7 @@ include/gr_assert_secondary_member.inc
 ############################################################
 #  9. Try to add server3 that is from a lower LTS patch version.
 #     It will not be allowed to join because not all group members
-#     are LTS version.
+#     are of the same LTS version.
 [connection server3]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member version is incompatible with the group.");

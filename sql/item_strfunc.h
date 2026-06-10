@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
+#include "sql/auth/auth_common.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
@@ -1893,6 +1894,52 @@ class Item_func_internal_get_dd_column_extra final : public Item_str_func {
   String *val_str(String *) override;
 };
 
+class Item_func_current_auth_id_type_in : public Item_bool_func {
+  typedef Item_bool_func super;
+
+ public:
+  Item_func_current_auth_id_type_in(const POS &pos, Item *a)
+      : Item_bool_func(pos, a) {}
+
+  bool check_function_as_value_generator(uchar *checker_args) final {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
+    func_arg->banned_function_name = func_name();
+    return ((func_arg->source >= VGS_GENERATED_COLUMN) &&
+            (func_arg->source <= VGS_CHECK_CONSTRAINT));
+  }
+
+  longlong val_int() final;
+
+  bool do_itemize(Parse_context *pc, Item **res) final;
+
+  table_map get_initial_pseudo_tables() const final { return INNER_TABLE_BIT; }
+
+ private:
+  /**
+    Used to pass a security context to the resolver functions.
+    Only used for definer views. In all other contexts, the security context
+    passed here is nullptr and is instead looked up dynamically at run time
+    from the current THD.
+  */
+  Name_resolution_context *m_name_resolution_ctx = nullptr;
+
+#ifndef NDEBUG
+  // Keeps track of whether this function has been called. For testing only.
+  bool m_called = false;
+#endif
+
+  /**
+    Checks if the user or role in the security context is part of the
+    comma-separated list. Subclasses override this to check for correct auth ID
+    type (either user or role).
+  */
+  virtual bool auth_id_in(
+      const Security_context &sctx,
+      std::string_view comma_separated_auth_id_list) const = 0;
+};
+
 inline void tohex(char *to, uint64_t from, uint len) {
   to += len;
   while (len--) {
@@ -1900,5 +1947,31 @@ inline void tohex(char *to, uint64_t from, uint len) {
     from >>= 4;
   }
 }
+
+class Item_func_current_role_in final
+    : public Item_func_current_auth_id_type_in {
+ public:
+  Item_func_current_role_in(const POS &pos, Item *a)
+      : Item_func_current_auth_id_type_in{pos, a} {}
+  const char *func_name() const override { return "current_role_in"; }
+  enum Functype functype() const override { return CURRENT_ROLE_IN_FUNC; }
+
+ private:
+  bool auth_id_in(const Security_context &sctx,
+                  std::string_view comma_separated_auth_id_list) const override;
+};
+
+class Item_func_current_user_in final
+    : public Item_func_current_auth_id_type_in {
+ public:
+  Item_func_current_user_in(const POS &pos, Item *a)
+      : Item_func_current_auth_id_type_in{pos, a} {}
+  const char *func_name() const override { return "current_user_in"; }
+  enum Functype functype() const override { return CURRENT_USER_IN_FUNC; }
+
+ private:
+  bool auth_id_in(const Security_context &sctx,
+                  std::string_view comma_separated_auth_id_list) const override;
+};
 
 #endif /* ITEM_STRFUNC_INCLUDED */

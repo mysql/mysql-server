@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2025, Oracle and/or its affiliates.
+Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2145,18 +2145,6 @@ void fil_tablespace_open_init_for_recovery(bool recovery);
 @return true if the space ID is known. */
 [[nodiscard]] bool fil_tablespace_lookup_for_recovery(space_id_t space_id);
 
-/** Compare and update space name and dd path for partitioned table. Uniformly
-converts partition separators and names to lower case.
-@param[in]      space_id        tablespace ID
-@param[in]      fsp_flags       tablespace flags
-@param[in]      update_space    update space name
-@param[in,out]  space_name      tablespace name
-@param[in,out]  dd_path         file name with complete path
-@return true, if names are updated. */
-bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
-                               bool update_space, std::string &space_name,
-                               std::string &dd_path);
-
 /** Add tablespace to the set of tablespaces to be updated in DD.
 @param[in]      dd_object_id    Server DD tablespace ID
 @param[in]      space_id        Innodb tablespace ID
@@ -2215,14 +2203,14 @@ already be known.
 [[nodiscard]] dberr_t fil_tablespace_open_for_recovery(space_id_t space_id);
 
 /** Replay a file rename operation for ddl replay.
-@param[in]      page_id         Space ID and first page number in the file
+@param[in]      space_id        Space ID
 @param[in]      old_name        old file name
 @param[in]      new_name        new file name
 @return whether the operation was successfully applied
 (the name did not exist, or new_name did not exist and
 name was successfully renamed to new_name)  */
-bool fil_op_replay_rename_for_ddl(const page_id_t &page_id,
-                                  const char *old_name, const char *new_name);
+bool fil_op_replay_rename_for_ddl(space_id_t space_id, const char *old_name,
+                                  const char *new_name);
 
 /** Free the Tablespace_files instance.
 @param[in]      read_only_mode  true if InnoDB is started in read only mode.

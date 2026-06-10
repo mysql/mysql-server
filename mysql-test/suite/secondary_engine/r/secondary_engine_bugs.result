@@ -91,3 +91,40 @@ DROP TABLE t|
 x
 x
 SET @@session.secondary_engine_cost_threshold = @start_value;
+#
+# Bug#37173479: ORDER BY reduction should be reflected in EXPLAIN Note 1003
+#
+CREATE TABLE t_order_reduce(pk INT PRIMARY KEY, a INT, b INT)
+SECONDARY_ENGINE=mock;
+INSERT INTO t_order_reduce VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+ALTER TABLE t_order_reduce SECONDARY_LOAD;
+ANALYZE TABLE t_order_reduce;
+Table	Op	Msg_type	Msg_text
+test.t_order_reduce	analyze	status	OK
+SET secondary_engine_cost_threshold = 0;
+# Complete ORDER BY elision: pk=1 makes a,b constant via PK FD.
+# Note 1003 should not contain ORDER BY in hypergraph optimizer.
+EXPLAIN SELECT * FROM t_order_reduce WHERE pk = 1 ORDER BY a, b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_order_reduce	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_order_reduce`.`pk` AS `pk`,`test`.`t_order_reduce`.`a` AS `a`,`test`.`t_order_reduce`.`b` AS `b` from `test`.`t_order_reduce` where (`test`.`t_order_reduce`.`pk` = 1) order by `test`.`t_order_reduce`.`a`,`test`.`t_order_reduce`.`b`
+# Partial ORDER BY reduction with join: pk=1 makes a,b constant,
+# but t2.x is not. Note 1003 should only show ORDER BY t2.x in hypergraph optimizer.
+CREATE TABLE t_order_extra(x INT) SECONDARY_ENGINE=mock;
+INSERT INTO t_order_extra VALUES (1), (2), (3);
+ALTER TABLE t_order_extra SECONDARY_LOAD;
+ANALYZE TABLE t_order_extra;
+Table	Op	Msg_type	Msg_text
+test.t_order_extra	analyze	status	OK
+EXPLAIN SELECT t_order_reduce.a, t_order_extra.x
+FROM t_order_reduce JOIN t_order_extra
+WHERE t_order_reduce.pk = 1
+ORDER BY t_order_reduce.a, t_order_extra.x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_order_reduce	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using temporary; Using filesort; Using secondary engine MOCK
+1	SIMPLE	t_order_extra	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_order_reduce`.`a` AS `a`,`test`.`t_order_extra`.`x` AS `x` from `test`.`t_order_reduce` join `test`.`t_order_extra` where (`test`.`t_order_reduce`.`pk` = 1) order by `test`.`t_order_reduce`.`a`,`test`.`t_order_extra`.`x`
+SET secondary_engine_cost_threshold = default;
+DROP TABLE t_order_reduce, t_order_extra;

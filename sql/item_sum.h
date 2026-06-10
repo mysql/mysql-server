@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -650,6 +650,7 @@ class Item_sum : public Item_func {
   bool has_aggregate_ref_in_group_by(uchar *arg) override;
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
+  bool check_function_as_value_generator(uchar *) override;
 
   Item *set_arg(THD *thd, uint i, Item *new_val) override;
   /// @todo delete this when we no longer support temporary transformations
@@ -1731,7 +1732,8 @@ class Item_sum_hybrid : public Item_sum {
   */
   void min_max_update_str_field();
   void min_max_update_time_field();
-  void min_max_update_temporal_field();
+  void min_max_update_date_field();
+  void min_max_update_datetime_field();
   void min_max_update_json_field();
   void min_max_update_real_field();
   void min_max_update_int_field();
@@ -2751,6 +2753,7 @@ class Item_func_grouping : public Item_int_func {
   void update_used_tables() override;
   bool aggregate_check_distinct(uchar *arg) override;
   bool check_args_found_in_group_by() const;
+  bool check_function_as_value_generator(uchar *) override;
 
  private:
   /// The query block in which this function is called.

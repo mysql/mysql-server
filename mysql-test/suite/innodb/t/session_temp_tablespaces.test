@@ -298,7 +298,7 @@ let $wl6737_auto_inc = auto_increment;
 
 if ($hypergraph_is_active) {
   # temp_9.ibt has different size with hypergraph.
-  --replace_result 131072 163840
+  --replace_result 147456 163840
 }
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;

@@ -25,14 +25,14 @@ INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 CALL sys.ps_truncate_all_tables(false);
 summary
 Truncated 49 tables
-SELECT i, j, RAND() FROM test.t WHERE j = 12;
+SELECT /*+ NO_INDEX(t) */ i, j, RAND() FROM test.t WHERE j = 12;
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
 object_schema	object_name	rows_full_scanned
 test	t	768
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 object_schema	object_name	rows_full_scanned
 test	t	768
-SELECT i, j, RAND() FROM test.t WHERE j = 12;
+SELECT /*+ NO_INDEX(t) */ i, j, RAND() FROM test.t WHERE j = 12;
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
 object_schema	object_name	rows_full_scanned
 test	t	1536

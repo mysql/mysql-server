@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,6 +165,7 @@ inline std::unique_ptr<T> create_dom_ptr(Args &&...args) {
          Json_null
          Json_temporal
            Json_time
+           Json_date
            Json_datetime
          Json_opaque
        Json_container (abstract)
@@ -926,8 +927,8 @@ class Json_null final : public Json_scalar {
   Represents a MySQL temporal value (DATE, TIME, DATETIME or TIMESTAMP) -
   an extension to the ECMA set of JSON scalar types, types J_DATE, J_TIME,
   J_DATETIME and J_TIMESTAMP respectively. The method field_type identifies
-  which of the four it is. Currently, this is an abstract class with two
-  child classes: Json_datetime and Json_time.
+  which of the four it is. This is an abstract class with three child classes:
+  Json_datetime, Json_time and Json_date.
 */
 class Json_temporal : public Json_scalar {
  public:
@@ -947,7 +948,7 @@ class Json_temporal : public Json_scalar {
 class Json_time final : public Json_temporal {
  public:
   /**
-    Constructs a object to hold a MySQL time value.
+    Constructs an object to hold a MySQL time value.
 
     @param time   the time value
   */
@@ -960,11 +961,7 @@ class Json_time final : public Json_temporal {
   /// @returns the time value.
   Time_val value() const { return m_time; }
 
-  /**
-    Return what kind of temporal value this object holds.
-    @return One of MYSQL_TYPE_TIME, MYSQL_TYPE_DATE, MYSQL_TYPE_DATETIME
-            or MYSQL_TYPE_TIMESTAMP.
-  */
+  /// @returns kind of temporal value this object holds: MYSQL_TYPE_TIME
   enum_field_types field_type() const override { return MYSQL_TYPE_TIME; }
 
   /**
@@ -996,22 +993,68 @@ class Json_time final : public Json_temporal {
   Time_val m_time;
 };
 
+/// MySQL DATE value
+class Json_date final : public Json_temporal {
+ public:
+  /**
+    Constructs an object to hold a MySQL date value.
+
+    @param date   the date value
+  */
+  explicit Json_date(const Date_val date) : Json_temporal(), m_date(date) {}
+
+  enum_json_type json_type() const override { return enum_json_type::J_DATE; }
+
+  Json_dom_ptr clone() const override;
+
+  /// @returns the date value.
+  const Date_val value() const { return m_date; }
+
+  /// @returns kind of temporal value this object holds: MYSQL_TYPE_DATE
+  enum_field_types field_type() const override { return MYSQL_TYPE_DATE; }
+
+  /**
+    Convert the DATE value to the packed format used for storage.
+    @param dest the destination buffer to write the packed date value to
+    (must at least have size PACKED_SIZE)
+  */
+  void to_packed(char *dest) const;
+
+  /**
+    Convert a packed date back to a date value.
+    @param from the buffer to read from (must have at least PACKED_SIZE bytes)
+    @param to   the date field to write the value to
+  */
+  static void from_packed(const char *from, Date_val *to);
+
+#ifdef MYSQL_SERVER
+  /**
+    Convert a packed date value to key string for indexing by SE
+    @param from the buffer to read from
+    @param to   the destination buffer
+  */
+  static void from_packed_to_key(const char *from, uchar *to);
+#endif
+ private:
+  /// Holds the date value
+  Date_val m_date;
+};
+
 /**
-  MySQL temporal value that is represented by a MYSQL_TIME struct, ie.
-  a DATETIME, TIMESTAMP or DATE value.
+  MySQL temporal value that represents a DATETIME or TIMESTAMP value.
 */
 class Json_datetime final : public Json_temporal {
  public:
   /**
-    Constructs a object to hold a MySQL date/time value.
+    Constructs an object to hold a MySQL datetime value.
 
-    @param[in] t   the date/time value
-    @param[in] ft  the field type: must be one of MYSQL_TYPE_DATE,
-                   MYSQL_TYPE_DATETIME or MYSQL_TYPE_TIMESTAMP.
+    @param[in] t   the datetime value
+    @param[in] ft  field type: either MYSQL_TYPE_DATETIME or
+                   MYSQL_TYPE_TIMESTAMP.
   */
   Json_datetime(const Datetime_val &t, enum_field_types ft)
       : Json_temporal(), m_t(t), m_field_type(ft) {
-    assert(ft != MYSQL_TYPE_TIME);
+    assert(ft != MYSQL_TYPE_TIME && ft != MYSQL_TYPE_DATE);
   }
 
   enum_json_type json_type() const override;
@@ -1249,8 +1292,8 @@ class Json_wrapper {
     datetime (may or may not be the same as buffer)
   */
   const char *get_datetime_packed(char *buffer) const;
-
   const char *get_time_packed(char *buffer) const;
+  const char *get_date_packed(char *buffer) const;
 
   /**
     Create an empty wrapper. Cf #empty().
@@ -1547,7 +1590,7 @@ class Json_wrapper {
   ulonglong get_uint() const;
 
   /**
-    Get the value of a JSON date/time value.  Valid for J_DATETIME, J_DATE
+    Get the value of a JSON date/time value.  Valid for J_DATETIME
     and J_TIMESTAMP. Calling this method if the type is not one of those
     will give undefined results.
 
@@ -1559,9 +1602,17 @@ class Json_wrapper {
     Get the value of a JSON time value. Valid for J_TIME.
     Calling this method if the type is not J_TIME will give undefined results.
 
-    @param[out] t  the date/time value
+    @param[out] time  the time value
   */
-  void get_time(Time_val *t) const;
+  void get_time(Time_val *time) const;
+
+  /**
+    Get the value of a JSON date value. Valid for J_DATE.
+    Calling this method if the type is not J_DATE will give undefined results.
+
+    @param[out] date  the date value
+  */
+  void get_date(Date_val *date) const;
 
   /**
     Get a boolean value (a JSON true or false literal).
@@ -1992,6 +2043,7 @@ class Json_scalar_holder {
     Json_boolean m_boolean;
     Json_null m_null;
     Json_time m_time;
+    Json_date m_date;
     Json_datetime m_datetime;
     Json_opaque m_opaque;
     /// Constructor which initializes the union to hold a Json_null value.

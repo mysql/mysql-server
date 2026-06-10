@@ -1,0 +1,167 @@
+# ==== Purpose ====
+#
+# Testing that applier metrics are reset,
+# but still measured after server restart.
+# Check also the behavior of RESET REPLICA.
+#
+# ==== Requirements ====
+#
+# R1. When restarted, if replication starts on server boot
+#     it should collect statistics from this starting point.
+#
+# R2. RESET REPLICA shall reset all metrics but keep the info
+#     on the applier total execution time and last start
+#
+# ==== Implementation ====
+#
+# 1. Install the plugin in the replica server
+#    Create 2 tables, add some data and check metrics are correct
+# 2. Restart the replica
+#    Check metrics are working for both tables
+# 3. Test RESET REPLICA
+# 4. Cleanup
+#
+# ==== References ====
+#
+# WL#15620:  MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test scenarios need to control the numbers and sizes of events.
+--source include/have_binlog_format_row.inc
+
+# Test scenarios are constructed assuming replica_preserve_commit_order=1.
+--source include/have_replica_preserve_commit_order.inc
+
+# When GTID_ONLY=1, the coordinator does not track the position in the relay
+# log. Restarting the applier will make the coordinator read the same relay log
+# again, from the file start, and schedule all transactions to workers. It
+# relies on the server's GTID auto-skip feature to prevent transcations from
+# being applied twice. Therefore, those transactions will contribute to the
+# transaction count/size metrics twice, which this test does not expect.
+--source include/not_rpl_gtid_only.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Install the plugin in the replica server
+--echo #    Create 2 tables, add some data and check metrics are correct
+
+--source include/rpl/connection_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+
+INSERT INTO t1 (a) VALUES(1);
+
+--source include/rpl/sync_to_replica.inc
+
+--let $from_ch = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+--let $count = SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker WHERE
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_COMMITTED_COUNT to 3
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 3
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Restart the replica
+--echo #    Check metrics are working for both tables
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip-replica-start=0
+--source include/rpl/restart_server.inc
+
+--let $assert_text = After server restart, TRANSACTIONS_COMMITTED_COUNT = 0
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--source include/rpl/connection_replica1.inc
+
+# block the update to t1
+LOCK TABLE t1 WRITE;
+
+--source include/rpl/connection_source.inc
+
+# First transaction in the applier always blocks other transactions
+INSERT INTO t2 (a) VALUES(22);
+INSERT INTO t1 (a) VALUES(11);
+INSERT INTO t2 (a) VALUES(222);
+
+--source include/rpl/connection_replica.inc
+
+--let $assert_text = Eventually, a worker commits the first transaction and increments TRANSACTIONS_COMMITTED_COUNT to 1
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, 2 workers increase ONGOING_TRANSACTION_FULL_SIZE_BYTES to nonzero
+--let $assert_cond = [$count ONGOING_TRANSACTION_FULL_SIZE_BYTES > 0] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_ONGOING_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, 2 workers set ONGOING_TRANSACTION_TYPE = 'DML'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'DML'] = 2
+--source include/assert_eventually.inc
+
+--source include/rpl/connection_replica1.inc
+
+UNLOCK TABLES;
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_COMMITTED_COUNT to 3
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 3
+--source include/assert_eventually.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Test RESET REPLICA
+
+--source include/rpl/stop_replica.inc
+
+RESET REPLICA;
+
+# Since metrics in this table are cleared when the applier stops, RESET has no impact, but we still check it
+--let $assert_text = All 4 workers have ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'UNASSIGNED'] = 4
+--source include/assert.inc
+
+--let $assert_text = TRANSACTIONS_COMMITTED_COUNT = 0
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--let $assert_text = TOTAL_ACTIVE_TIME_DURATION = 0
+--let $assert_cond = [SELECT TOTAL_ACTIVE_TIME_DURATION $from_ch] = 0
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,6 +359,13 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
 
   while ((payload != payload_end) && !error) {
     uint event_len = uint4korr(((uchar *)payload) + EVENT_LEN_OFFSET);
+
+    if (event_len > data_packet->len) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                   "Invalid event length while applying data packet on group "
+                   "replication applier pipeline.");
+      return 1;
+    }
 
     Data_packet *new_packet =
         new Data_packet(payload, event_len, key_transaction_data);

@@ -1,0 +1,15 @@
+# Configuration for running ndbcrunch on a large server (e.g., 1TB RAM)
+# Usage:
+# mtr --suite=ndbcrunch --defaults-extra-file=suite/ndbcrunch/large.cnf
+
+[cluster_config]
+DataMemory=128G
+NoOfFragmentLogFiles=256
+SendBufferMemory=256M
+LockPagesInMainMemory=1
+
+# Allow many bytes in each roundtrip to NDB
+ndb_batch_size = 256M
+
+# Allow many bytes also for writing blobs
+ndb_blob_write_batch_bytes = 256M

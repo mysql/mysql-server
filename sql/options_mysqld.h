@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,8 @@ enum options_mysqld {
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_PFS_METER,
   OPT_PFS_LOGGER,
-  OPT_INNODB_FOREIGN_KEYS
+  OPT_INNODB_FOREIGN_KEYS,
+  OPT_CASCADE_TRIGGERS,
 };
 
 #endif  // OPTIONS_MYSQLD_INCLUDED

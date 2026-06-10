@@ -1,0 +1,20 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+# Telemetry status variables
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME LIKE 'telemetry%'
+  ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Telemetry_logs_supported	ON
+Telemetry_metrics_supported	ON
+Telemetry_traces_supported	ON
+telemetry.live_sessions	1
+telemetry.run_level	READY
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';

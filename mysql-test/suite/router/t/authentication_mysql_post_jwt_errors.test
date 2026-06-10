@@ -1,0 +1,98 @@
+# Verifies that MySQL authentication handles various errors correctly when
+# authenticating using the REST endpoint.
+#
+# The test covers different scenarios related to invalid JSON payloads and
+# credential validation.
+#
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
+
+
+--source ../include/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/svc1"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic1
+--let $mrs_add_schema_auth=TRUE
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/o1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=default authentication-1
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/svc1
+--source ../include/mrs/auth_app/add.inc
+
+--source ../include/mrs/end_object_definition.inc
+
+## Test starts here
+
+--echo
+--echo
+--echo ## I. Test authentication endpoint with invalid JSON payloads
+--echo #
+--echo # 1. Send a request with an empty JSON object
+--echo # 2. Send a request with a non-JSON payload
+--echo # 3. Send a request with invalid JSON object
+--echo # 4. Send a request with JSON object containing a typo after the username
+--echo #    and password fields (partial valid JSON rejected).
+
+--echo
+--echo # Shows that authentication with JSON object with valid data works.
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_path='/svc1/authentication/login'
+--let $mrs_client_arg_payload='{"username":"user_valid", "password":"pwd", "sessionType":"bearer"}'
+--let $mrs_client_arg_expected_status=Ok
+--let $mrs_client_arg_display=none
+--let $mrs_client_arg_json_pointer=/accessToken
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo # I.1.
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_path='/svc1/authentication/login'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_content_type="application/json"
+--let $mrs_client_arg_expected_status=Unauthorized
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo # I.2.
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_path='/svc1/authentication/login'
+--let $mrs_client_arg_payload="not json"
+--let $mrs_client_arg_expected_status=BadRequest
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo # I.3.
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_path='/svc1/authentication/login'
+--let $mrs_client_arg_payload='{"field1":"user_valid",. "fielt2":"pwd"}'
+--let $mrs_client_arg_expected_status=BadRequest
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo # I.4.
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_path='/svc1/authentication/login'
+--let $mrs_client_arg_payload='{"username":"user_valid", "password":"pwd",. "sessionType":"bearer"}'
+--let $mrs_client_arg_expected_status=BadRequest
+--source ../include/mrs/mrs_client.inc
+
+# Cleanup
+DROP USER user_valid@'%';
+--source ../include/mrs/cleanup.inc
+
+

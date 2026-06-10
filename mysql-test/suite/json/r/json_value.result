@@ -485,7 +485,7 @@ DEFAULT 'asdf' ON EMPTY);
 ERROR 22007: Truncated incorrect DOUBLE value: 'asdf'
 SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING DATE
 DEFAULT 'asdf' ON EMPTY);
-ERROR 22007: Incorrect datetime value: 'asdf'
+ERROR 22007: Truncated incorrect date value: 'asdf'
 SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING TIME
 DEFAULT 'asdf' ON EMPTY);
 ERROR 22007: Truncated incorrect time value: 'asdf'
@@ -517,7 +517,7 @@ DEFAULT 'asdf' ON ERROR);
 ERROR 22007: Truncated incorrect DOUBLE value: 'asdf'
 SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING DATE
 DEFAULT 'asdf' ON ERROR);
-ERROR 22007: Incorrect datetime value: 'asdf'
+ERROR 22007: Truncated incorrect date value: 'asdf'
 SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING TIME
 DEFAULT 'asdf' ON ERROR);
 ERROR 22007: Truncated incorrect time value: 'asdf'
@@ -731,7 +731,7 @@ ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
 SELECT JSON_VALUE('{}', '$.a' RETURNING UNSIGNED DEFAULT '-1' ON EMPTY) v;
 ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
 SELECT JSON_VALUE('{}', '$.a' RETURNING DATE DEFAULT 'abc' ON EMPTY) v;
-ERROR 22007: Incorrect datetime value: 'abc'
+ERROR 22007: Truncated incorrect date value: 'abc'
 SELECT JSON_VALUE('{}', '$.a' RETURNING TIME DEFAULT 'abc' ON EMPTY) v;
 ERROR 22007: Truncated incorrect time value: 'abc'
 SELECT JSON_VALUE('{}', '$.a' RETURNING TIME(2)
@@ -771,31 +771,31 @@ ERROR 22003: YEAR value is out of range in 'json_value'
 SELECT JSON_VALUE('{}', '$.a' RETURNING YEAR DEFAULT 'xyz' ON EMPTY) v;
 ERROR 22007: Truncated incorrect YEAR value: 'xyz'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON EMPTY);
-ERROR 22007: Incorrect datetime value: '0000-00-00'
+ERROR 22007: Truncated incorrect date value: '0000-00-00'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON ERROR);
-ERROR 22007: Incorrect datetime value: '0000-00-00'
+ERROR 22007: Truncated incorrect date value: '0000-00-00'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-01-00' ON EMPTY);
-ERROR 22007: Incorrect datetime value: '2000-01-00'
+ERROR 22007: Truncated incorrect date value: '2000-01-00'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-00-01' ON ERROR);
-ERROR 22007: Incorrect datetime value: '2000-00-01'
+ERROR 22007: Truncated incorrect date value: '2000-00-01'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON EMPTY);
-ERROR 22007: Incorrect datetime value: '2004-02-31'
+ERROR 22007: Truncated incorrect date value: '2004-02-31'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON ERROR);
-ERROR 22007: Incorrect datetime value: '2004-02-31'
+ERROR 22007: Truncated incorrect date value: '2004-02-31'
 SET @saved_sql_mode = @@sql_mode;
 SET sql_mode = 'ALLOW_INVALID_DATES';
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON EMPTY);
-ERROR 22007: Incorrect datetime value: '0000-00-00'
+ERROR 22007: Truncated incorrect date value: '0000-00-00'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON ERROR);
-ERROR 22007: Incorrect datetime value: '0000-00-00'
+ERROR 22007: Truncated incorrect date value: '0000-00-00'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-01-00' ON EMPTY);
-ERROR 22007: Incorrect datetime value: '2000-01-00'
+ERROR 22007: Truncated incorrect date value: '2000-01-00'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-00-01' ON ERROR);
-ERROR 22007: Incorrect datetime value: '2000-00-01'
+ERROR 22007: Truncated incorrect date value: '2000-00-01'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON EMPTY);
-ERROR 22007: Incorrect datetime value: '2004-02-31'
+ERROR 22007: Truncated incorrect date value: '2004-02-31'
 SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON ERROR);
-ERROR 22007: Incorrect datetime value: '2004-02-31'
+ERROR 22007: Truncated incorrect date value: '2004-02-31'
 SET sql_mode = @saved_sql_mode;
 SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING SIGNED) AS c1,
 REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING SIGNED), 10) AS c2,

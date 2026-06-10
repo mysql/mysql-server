@@ -1,0 +1,146 @@
+# Basic JDV functionality test.
+
+CREATE TABLE departments (name VARCHAR(32) PRIMARY KEY, building VARCHAR(32));
+INSERT INTO departments VALUES
+('Mathematics', 'Matrix Mansion'),
+('Computer Science', 'Compiler Complex'),
+('Physics', 'Proton Palace'),
+('Economics', 'Ebitda Emporium'),
+('History', 'Humaities Hall');
+
+CREATE TABLE faculty (name VARCHAR(32) PRIMARY KEY, department VARCHAR(32),
+office INT, FOREIGN KEY (department) REFERENCES departments(name));
+INSERT INTO faculty VALUES
+('Abel', 'Mathematics', 101),
+('Von Neuman', 'Computer Science', 201),
+('Heisenberg', 'Physics', 301),
+('Greenspan', 'Economics', 401),
+('Harari','History', 501);
+
+CREATE TABLE courses (name VARCHAR(32) PRIMARY KEY, lecturer VARCHAR(32), level VARCHAR(32), FOREIGN KEY (lecturer) REFERENCES faculty(name));
+INSERT INTO courses VALUES ('Abstract Algebra', 'Abel', 'PhD'),
+('Operating Systems', 'Von Neuman', 'Master'),
+('Quantum Mechanics', 'Heisenberg', 'PhD'),
+('Macroeconomics', 'Greenspan', 'Bachelor'),
+('Ancient Civilizations','Harari', 'Master');
+
+CREATE TABLE students (name VARCHAR(32) PRIMARY KEY, phone INT, major VARCHAR(32),
+FOREIGN KEY (major) REFERENCES departments(name));
+INSERT INTO students VALUES
+('John', 12345678, 'Mathematics'),
+('Melissa', 87654321, 'Computer Science'),
+('Peter', NULL, 'Economics'),
+('Karen', 56761234, 'Physics');
+
+CREATE TABLE registrations (student VARCHAR(32), course VARCHAR(32),
+  PRIMARY KEY (student, course), FOREIGN KEY (student) REFERENCES
+  students(name), FOREIGN KEY (course) REFERENCES courses(name));
+INSERT INTO registrations VALUES
+('John', 'Abstract Algebra'), ('John', 'Macroeconomics'),
+('Melissa', 'Macroeconomics'), ('Melissa', 'Operating Systems'),
+('Peter', 'Quantum Mechanics'), ('Peter', 'Ancient Civilizations'),
+('Karen', 'Ancient Civilizations'), ('Karen', 'Abstract Algebra');
+
+
+SELECT * FROM departments ORDER BY name;
+
+CREATE JSON DUALITY VIEW dv_departments AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+    '_id' : departments.name,
+    'blding' : departments.building)
+FROM departments;
+
+SELECT data FROM dv_departments;
+
+UPDATE dv_departments SET data = JSON_REPLACE(data, '$.blding', 'Compiler Cathedral')
+WHERE JSON_EXTRACT(data, '$._id') = 'Computer Science';
+SELECT data FROM dv_departments WHERE JSON_EXTRACT(data, '$._id') = 'Computer Science';
+
+INSERT INTO dv_departments VALUES ('{"_id": "Philosophy", "blding": "Pantheon Place" }');
+SELECT data FROM dv_departments;
+SELECT * FROM departments WHERE name = 'Philosophy';
+
+UPDATE dv_departments SET data = '{"_id": "Philosophy", "blding": "Pantheon Plaza", "_metadata": {"etag": "e6ffbf92fc1cd6a0d3830258aebcba58"}}'
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+SELECT data FROM dv_departments;
+SELECT * FROM departments WHERE name = 'Philosophy';
+
+CREATE JSON DUALITY VIEW dv_faculty AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+    '_id': faculty.name,
+    'dn' : faculty.department,
+    'dept' : ( SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+       'nam' : departments.name,
+       'blding' : departments.building
+    ) FROM departments WHERE departments.name = faculty.department),
+    'office' : faculty.office
+) FROM faculty;
+
+SELECT data FROM dv_faculty;
+
+# Inserting new faculty member
+INSERT INTO dv_faculty VALUES ('{"_id": "Kant", "dept": {"nam": "Philosophy"}, "office": 601 }');
+SELECT data FROM dv_faculty;
+SELECT * FROM faculty WHERE name = 'Kant';
+
+CREATE JSON DUALITY VIEW dv_deparment_agg_faculty AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+    '_id' : departments.name,
+    'faculty members' : ( SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+       'nam' : faculty.name,   # Included due to requirement. Not required by Oracle 23ai
+       'office' : faculty.office,
+       'dep' : faculty.department
+    )) FROM faculty WHERE faculty.department = departments.name),
+    'building' : departments.building
+) FROM departments;
+
+SELECT data FROM dv_deparment_agg_faculty;
+
+# Inserting new department with faculty members
+INSERT INTO dv_deparment_agg_faculty VALUES ('{
+    "_id": "Chemistry",
+    "faculty members": [
+        { "nam": "Curie", "office": 1001, "dep": "Chemistry" },
+        { "nam": "Avogadro", "office": 1101, "dep": "Chemistry" }
+        ],
+    "building": "Chemnitz Castle"
+}');
+
+SELECT * FROM faculty f, departments d WHERE f.department = d.name ORDER BY
+d.name, f.name;
+SELECT * FROM dv_deparment_agg_faculty;
+
+# Update a department and its faculty members
+UPDATE dv_deparment_agg_faculty SET data = '{
+    "_id": "Philosophy",
+    "faculty members": [
+        {"nam":"Kant", "office": 1201,"dep": "Philosophy"},
+        {"nam":"Hegel", "office": 1301, "dep": "Philosophy"}],
+    "building": "Pantheon Plaza", "_metadata": {"etag": "b8a195461f6ab80c0d1c3a564b376d6d"}
+}' WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+
+SELECT * FROM faculty f, departments d WHERE f.department = d.name ORDER BY
+d.name, f.name;
+
+SELECT data FROM dv_deparment_agg_faculty
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+
+# Update information information about factulty members of a department
+UPDATE dv_deparment_agg_faculty SET data = JSON_REPLACE(data,
+'$."faculty members"[0].office',
+10000)
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+
+SELECT * FROM faculty WHERE office = 10000;
+SELECT data FROM dv_deparment_agg_faculty
+WHERE JSON_EXTRACT(data, '$._id') = 'Philosophy';
+
+DROP VIEW dv_deparment_agg_faculty;
+DROP VIEW dv_faculty;
+DROP VIEW dv_departments;
+
+DROP TABLE registrations;
+DROP TABLE students;
+DROP TABLE courses;
+DROP TABLE faculty;
+DROP TABLE departments;

@@ -3913,7 +3913,7 @@ ERROR 22007: Truncated incorrect INTEGER value: 'bad'
 INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS DECIMAL(10,4)));
 ERROR 22007: Truncated incorrect DECIMAL value: 'bad'
 INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS DATE));
-ERROR 22007: Incorrect datetime value: 'bad'
+ERROR 22007: Truncated incorrect date value: 'bad'
 INSERT INTO sink SELECT 'x'= JSON_ARRAY(CAST('bad' AS DOUBLE));
 ERROR 22007: Truncated incorrect DOUBLE value: 'bad'
 INSERT INTO sink SELECT 'x'= JSON_ARRAY(ST_GEOMFROMTEXT('MULTIPOINT(1 2 3 4)'));

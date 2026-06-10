@@ -163,15 +163,15 @@ EXPLAIN
     -> Remove duplicates from input grouped on t1.a  (...)
         -> Covering index scan on t1 using ka  (...)
     -> Hash
-        -> Table scan on t2  (...)
+        -> Index scan on t2 using PRIMARY  (...)
 
 # No rewrite to inner join.
 EXPLAIN FORMAT=TREE SELECT * FROM t2 WHERE a IN (SELECT a FROM t2);
 EXPLAIN
 -> Hash semijoin (FirstMatch) (t2.a = t2.a)  (...)
-    -> Table scan on t2  (...)
+    -> Index scan on t2 using PRIMARY  (...)
     -> Hash
-        -> Table scan on t2  (...)
+        -> Index scan on t2 using PRIMARY  (...)
 
 DROP TABLE t1, t2;
 DROP VIEW num_1e4;

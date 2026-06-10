@@ -1,0 +1,620 @@
+#
+# Test file containing cases to test information schema views
+# for the  JSON duality view feature.
+#
+
+
+--echo #
+--echo # Basic JSON duality views.
+--echo #
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f1) REFERENCES t1(f1));
+
+CREATE JSON DUALITY VIEW dv1 AS SELECT JSON_DUALITY_OBJECT("_id": t1.f1) FROM t1;
+CREATE JSON RELATIONAL DUALITY VIEW dv2 AS SELECT JSON_DUALITY_OBJECT("_id": t1.f1) FROM t1;
+CREATE JSON DUALITY VIEW dv3 AS SELECT JSON_DUALITY_OBJECT("_id": t1.f1) FROM t1;
+CREATE OR REPLACE JSON DUALITY VIEW dv3 AS SELECT JSON_DUALITY_OBJECT("_id": t2.f1) FROM t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+DROP VIEW dv1, dv2, dv3;
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Child's PK is also FK to parent.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY, c2 INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, c2 INT, FOREIGN KEY (pk) REFERENCES t1(pk));
+CREATE TABLE t3 (pk INT PRIMARY KEY, c2 INT, FOREIGN KEY (pk) REFERENCES t2(pk));
+
+CREATE JSON DUALITY VIEW dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": t1.pk,
+       "c2": t1.c2
+) FROM t1;
+
+CREATE JSON DUALITY VIEW dv2 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": t1.pk,
+       "c2": t1.c2,
+       "t2s": (
+              SELECT JSON_ARRAYAGG(
+                     JSON_DUALITY_OBJECT(
+                            "pk": t2.pk,
+                            "c2": t2.c2
+                     )
+              ) FROM t2 WHERE t1.pk = t2.pk
+       )
+) FROM t1;
+
+CREATE JSON DUALITY VIEW dv3 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": t2.pk,
+       "c2": t2.c2,
+       "t1s": (
+              SELECT JSON_DUALITY_OBJECT(
+                     "pk": t1.pk,
+                     "c2": t1.c2
+              )
+              FROM t1 WHERE t2.pk = t1.pk
+       )
+) FROM t2;
+
+CREATE JSON DUALITY VIEW dv4 AS
+SELECT JSON_DUALITY_OBJECT(
+       "_id": t1.pk,
+       "c2": t1.c2,
+       "t2s": (
+              SELECT JSON_ARRAYAGG(
+                     JSON_DUALITY_OBJECT(
+                            "pk": t2.pk,
+                            "c2": t2.c2,
+                            "t3s": (
+                                   SELECT JSON_ARRAYAGG(
+                                          JSON_DUALITY_OBJECT(
+                                                 "pk": t3.pk,
+                                                 "c2": t3.c2
+                                          )
+                                   ) FROM t3 WHERE t2.pk = t3.pk
+                            )
+                     )
+              ) FROM t2 WHERE t1.pk = t2.pk
+       )
+) FROM t1;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+DROP VIEW dv1, dv2, dv3, dv4;
+DROP TABLE t1, t2, t3;
+
+
+--echo #
+--echo # Child having non-PK which is FK to parent.
+--echo #
+CREATE TABLE t1(pk INT,
+  CONSTRAINT t1_pk PRIMARY KEY (pk));
+
+CREATE TABLE t2(pk INT, fk int,
+  CONSTRAINT t2_pk PRIMARY KEY (pk),
+  CONSTRAINT t2_fk FOREIGN KEY (fk) REFERENCES t1 (pk));
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1, 2), (2, 2), (3, 3);
+
+CREATE JSON RELATIONAL DUALITY VIEW dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE) '_id': t1.pk)
+    FROM t1;
+
+CREATE JSON RELATIONAL DUALITY VIEW dv2 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+               '_id': t1.pk,
+               't2s': (
+                 SELECT JSON_ARRAYAGG(
+                   JSON_DUALITY_OBJECT('pk': t2.pk)
+                 ) FROM t2 WHERE t2.fk = t1.pk
+               )
+             )
+    FROM t1;
+
+CREATE JSON RELATIONAL DUALITY VIEW dv3 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+               '_id': t2.pk,
+               't1s': (
+                 SELECT JSON_ARRAYAGG(
+                   JSON_DUALITY_OBJECT('pk': t1.pk)
+                 ) FROM t1 WHERE t2.pk = t1.pk
+               )
+             )
+    FROM t2;
+
+CREATE JSON RELATIONAL DUALITY VIEW dv4 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+               '_id': t2.pk,
+               't1s': (
+                 SELECT JSON_DUALITY_OBJECT('pk': t1.pk)
+                 FROM t1 WHERE t2.fk = t1.pk
+               )
+             )
+    FROM t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+DROP VIEW dv1, dv2, dv3, dv4;
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Parent and child with no relationship.
+--echo #
+CREATE TABLE t1(pk INT,
+  CONSTRAINT t1_pk PRIMARY KEY (pk));
+
+CREATE TABLE t2(pk INT, i INT,
+  CONSTRAINT t2_pk PRIMARY KEY (pk));
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1, 2), (3, 4), (5, 6);
+
+# Oracle lists _id as read only because it is a PK.
+CREATE JSON RELATIONAL DUALITY VIEW dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                             '_id': t1.pk)
+  FROM t1;
+
+# Oracle rejects updates to keys and does not allow this view to be created.
+CREATE JSON RELATIONAL DUALITY VIEW dv2 AS
+# TODO: Support for column level tags was removed.
+# SELECT JSON_DUALITY_OBJECT('_id': t1.pk WITH UPDATE)
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+                             '_id': t1.pk)
+    FROM t1;
+
+CREATE JSON RELATIONAL DUALITY VIEW dv3 AS
+  SELECT JSON_DUALITY_OBJECT(
+    '_id': t1.pk,
+    't2s': (
+      SELECT JSON_ARRAYAGG(
+        JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+          'pk': t2.pk,
+          'i': t2.i)
+      ) FROM t2 WHERE t2.pk = t1.pk
+    )
+  ) FROM t1;
+
+# Oracle tags table t2 as "updatable" in the view ALL_JSON_DUALITY_VIEW_TABS.
+CREATE JSON RELATIONAL DUALITY VIEW dv4 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+    '_id': t1.pk,
+    't2s': (
+      SELECT JSON_ARRAYAGG(
+        JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+          'pk': t2.pk,
+# Column level tags not supported
+#         'i': t2.i WITH UPDATE)
+          'i': t2.i)
+      ) FROM t2 WHERE t2.pk = t1.pk
+    )
+  ) FROM t1;
+
+# Oracle tags table t2 as "updatable" in the view ALL_JSON_DUALITY_VIEW_TABS.
+CREATE JSON RELATIONAL DUALITY VIEW dv5 AS
+  SELECT JSON_DUALITY_OBJECT(
+    '_id': t1.pk,
+    't2s': (
+      SELECT JSON_ARRAYAGG(
+        JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+          'pk': t2.pk,
+# Column level tags not supported
+#         'i': t2.i WITH UPDATE)
+          'i': t2.i)
+      ) FROM t2 WHERE t2.pk = t1.pk
+    )
+  ) FROM t1;
+
+CREATE JSON RELATIONAL DUALITY VIEW dv6 AS
+  SELECT JSON_DUALITY_OBJECT(
+    '_id': t1.pk,
+    't2s': (
+      SELECT JSON_ARRAYAGG(
+        JSON_DUALITY_OBJECT(
+          'pk': t2.pk,
+          'i': t2.i)
+      ) FROM t2 WHERE t2.pk = t1.pk
+    )
+  ) FROM t1;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+DROP VIEW dv1, dv2, dv3, dv4, dv5, dv6;
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Tables with aliases and self referencing keys.
+--echo #
+--echo # Self-referencing FK
+CREATE TABLE p_employee (empid INT PRIMARY KEY,
+                         name VARCHAR(100),
+                         mgrid INT REFERENCES p_employee(empid));
+
+INSERT INTO p_employee VALUES (0, 'M0', NULL);
+CREATE JSON DUALITY VIEW p_dv1 AS
+  SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+    '_id': empid,
+    'name': name,
+    'mgr': (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+        'empid': empid,
+        'name': name,
+        'mgr': (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+            'empid': empid,
+            'name': name)
+            FROM p_employee MM WHERE MM.empid = M.mgrid)
+        ) FROM p_employee M WHERE M.empid = emp.mgrid)
+ ) FROM p_employee emp;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+--echo #
+--echo # Invalid view - drop the table created above,
+--echo # I_S view should then show warning.
+--echo #
+
+DROP TABLE p_employee;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+DROP VIEW p_dv1;
+
+--echo # INFORMATION_SCHEMA.JSON_DUALITY_VIEWS with granular tags
+
+--echo # 1. The ALLOW_INSERT, ALLOW_UPDATE and ALLOW_DELETE fields in the
+--echo # JSON_DUALITY_VIEWS view should be set to 1 if any projected
+--echo # table in the view hierarchy (root or child) is explicitly
+--echo # tagged to allow INSERT, UPDATE and DELETE, respectively.
+
+--echo # 2. The READ_ONLY field must be set to 1 if none of the
+--echo # INSERT, UPDATE, or DELETE operations are permitted
+--echo # in any of the projected table.
+
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY REFERENCES p_t1(f1), f4 INT);
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, NO UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, UPDATE, NO DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (NO INSERT, NO UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : f3,
+"f4" : f4,
+"ChildNode" : (SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, NO DELETE)
+"f1" : f1,
+"f2" : f2
+) FROM p_t1 WHERE p_t1.f1 = p_t2.f3)
+) FROM p_t2;
+
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS;
+
+DROP VIEW p_dv1;
+DROP TABLE p_t1, p_t2;
+
+--echo #
+--echo # Test visibility of duality views, tables and columns that are
+--echo # not accessible by the current user. We also define an ordinary
+--echo # SQL view for comparison to verify the behavior is the same for
+--echo # both view types.
+--echo #
+
+CREATE SCHEMA jdv;
+CREATE TABLE jdv.t1(c1 int primary key);
+CREATE TABLE jdv.t2(c2 int primary key);
+CREATE VIEW jdv.v1 AS SELECT * FROM jdv.t1, jdv.t2 WHERE jdv.t1.c1 = jdv.t2.c2;
+
+CREATE JSON RELATIONAL DUALITY VIEW jdv.dv1 AS
+  SELECT JSON_DUALITY_OBJECT(
+    '_id': jdv.t1.c1,
+    't2s': (
+      SELECT JSON_ARRAYAGG(
+        JSON_DUALITY_OBJECT(
+          'pk': jdv.t2.c2)
+      ) FROM jdv.t2 WHERE jdv.t2.c2 = jdv.t1.c1
+    )
+  ) FROM jdv.t1;
+
+--echo # Create user having no access.
+CREATE USER 'jdvuser'@'localhost';
+
+--echo # When nothing is accessible, nothing is listed from I_S.views, view_table_usage, json_*.
+--connect (usrconn, localhost, jdvuser, ,)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Grant access to the views only, not to the underlying tables. The views are listed in
+--echo # I_S.views with the view definition. The view is listed in JSON_DUALITY_VIEWS with hidden
+--echo # root table name. Nothing is listed in  the other jdv I_S views.
+--connection default
+GRANT ALL ON jdv.v1 TO 'jdvuser'@'localhost';
+GRANT ALL ON jdv.dv1 TO 'jdvuser'@'localhost';
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS WHERE ROOT_TABLE_NAME=''`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Grant access to table t1. Only t1 will be listed in the view_table_usage
+--echo # and jdv I_S views. Nothing listed in the links view since t2 is inaccessible.
+--connection default
+GRANT ALL ON jdv.t1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE REFERENCED_TABLE_NAME != 't1'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE REFERENCED_TABLE_NAME = 't1'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Grant access also to table t2. Both accessible tables will be listed in
+--echo # the view_table_usage and jdv I_S views.
+--connection default
+GRANT ALL ON jdv.t2 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=4 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE REFERENCED_TABLE_NAME = 't1'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE REFERENCED_TABLE_NAME = 't2'`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Revoke access to t1. Only t2 will be listed in the view_table_usage and jdv I_S views.
+--echo # Note that dv1 is listed in I_S.JSON_DUALITY_VIEW with the root table hidden because the
+--echo # root table t1 is not accessible.
+--connection default
+REVOKE ALL ON jdv.t1 FROM 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS WHERE ROOT_TABLE_NAME=''`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE REFERENCED_TABLE_NAME !='t2'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE REFERENCED_TABLE_NAME ='t2'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Revoke all access to table t2 too. Grant DROP access to t1 and t2 (no select access).
+--echo # Revoke view access and grant DROP access to the views as well. Both views are listed
+--echo # in I_S.VIEWS, and the duality view is listed in I_S.JSON_DUALITY_VIEWS with the root
+--echo # table name hidden.
+--connection default
+REVOKE ALL ON jdv.t2 FROM 'jdvuser'@'localhost';
+REVOKE ALL ON jdv.v1 FROM 'jdvuser'@'localhost';
+REVOKE ALL ON jdv.dv1 FROM 'jdvuser'@'localhost';
+GRANT DROP ON jdv.t1 TO 'jdvuser'@'localhost';
+GRANT DROP ON jdv.t2 TO 'jdvuser'@'localhost';
+GRANT DROP ON jdv.v1 TO 'jdvuser'@'localhost';
+GRANT DROP ON jdv.dv1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv' AND VIEW_DEFINITION=''`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS WHERE ROOT_TABLE_NAME=''`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Grant full view access and keep the tables having DROP access.
+--echo # This means we have table access, but not column access. Hence, both t1 and t2 are listed,
+--echo # but the jdv I_S views for columns and links are empty because the columns are inaccessible.
+--connection default
+REVOKE DROP ON jdv.v1 FROM 'jdvuser'@'localhost';
+REVOKE DROP ON jdv.dv1 FROM 'jdvuser'@'localhost';
+GRANT ALL ON jdv.v1 TO 'jdvuser'@'localhost';
+GRANT ALL ON jdv.dv1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=4 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Grant select access to column c1.t1. Now, the output is the same as in the
+--echo # previous test case, except we will have c1.t1 listed in the jdv columns view.
+--connection default
+GRANT SELECT(c1) ON jdv.t1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=4 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS WHERE REFERENCED_COLUMN_NAME = 'c1'`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS WHERE REFERENCED_COLUMN_NAME != 'c1'`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Revoke select access to column c1.t1. Grant select access to column c2.t2.
+--echo # The output is the same as in the previous test case, except we will have
+--echo # c2.t2 listed in the jdv columns view instead of c1.t1.
+--connection default
+REVOKE SELECT(c1) ON jdv.t1 FROM 'jdvuser'@'localhost';
+GRANT SELECT(c2) ON jdv.t2 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=4 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS WHERE REFERENCED_COLUMN_NAME = 'c2'`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS WHERE REFERENCED_COLUMN_NAME != 'c2'`)
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Finally, we grant select access to column c1.t1, making both source tables and
+--echo # columns accessible. The output is the same as in the previous test case, except
+--echo # we will now have both c1.t1 and c2.t2 listed in the jdv columns view, and we will
+--echo # have one entry listed in the links view.
+--connection default
+GRANT SELECT(c1) ON jdv.t1 TO 'jdvuser'@'localhost';
+FLUSH PRIVILEGES;
+
+--connection usrconn
+--assert(`SELECT COUNT(*)=4 FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA='jdv' ORDER BY VIEW_NAME`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='jdv'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`)
+--assert(`SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS WHERE REFERENCED_COLUMN_NAME = 'c1'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS WHERE REFERENCED_COLUMN_NAME = 'c2'`)
+--assert(`SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`)
+
+--echo # Cleanup
+--disconnect usrconn
+--connection default
+
+DROP VIEW jdv.dv1;
+DROP VIEW jdv.v1;
+DROP TABLE jdv.t2, jdv.t1;
+DROP SCHEMA jdv;
+DROP USER 'jdvuser'@'localhost';
+
+
+--echo #
+--echo # Bug#38624596: Table ids reported in I_S do not match those reported
+--echo # by ORACLE DB
+--echo #
+
+CREATE TABLE parent (i INT PRIMARY KEY);
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (i INT PRIMARY KEY);
+CREATE TABLE t3 (i INT PRIMARY KEY);
+
+CREATE JSON DUALITY VIEW dv2 AS SELECT JSON_DUALITY_OBJECT(
+'_id' : parent.i,
+'k_t1' : (SELECT JSON_DUALITY_OBJECT(
+    'k_t1i' : t1.i,
+    'k_t3' : (SELECT JSON_DUALITY_OBJECT( 'k_t3i' : t3.i)
+              FROM t3 WHERE t3.i = t1.i)
+    ) FROM t1 WHERE t1.i = parent.i),
+
+'k_t2' : (SELECT JSON_DUALITY_OBJECT(
+    'k_t2i' : t2.i,
+    'k_t3' : (SELECT JSON_DUALITY_OBJECT( 'k_t3i' : t3.i)
+              FROM t3 WHERE t3.i = t2.i)
+    ) FROM t2 WHERE t2.i = parent.i)
+) FROM parent;
+
+--echo # ORACLE DB assigns the following ids in this case:
+--echo # parent:0, t1:1, t3:2, t2:3, t3:4
+
+SELECT TABLE_NAME, REFERENCED_TABLE_NAME, REFERENCED_TABLE_ID,
+REFERENCED_TABLE_PARENT_ID, REFERENCED_TABLE_PARENT_RELATIONSHIP  FROM
+INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES WHERE TABLE_NAME = 'dv2'
+ORDER BY REFERENCED_TABLE_ID;
+
+DROP VIEW dv2;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE parent;
+
+
+

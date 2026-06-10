@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1279,6 +1279,7 @@ bool opt_log_replica_updates = false;
 char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = true;
 bool opt_collect_replica_applier_metrics = false;
+bool opt_replica_allow_higher_version_source = true;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -4273,6 +4274,10 @@ SHOW_VAR com_status_vars[] = {
     {"create_library",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CREATE_LIBRARY]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"create_masking_policy",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_CREATE_MASKING_POLICY]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"create_procedure",
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_CREATE_PROCEDURE]),
@@ -4332,6 +4337,10 @@ SHOW_VAR com_status_vars[] = {
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"drop_library",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_DROP_LIBRARY]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"drop_masking_policy",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_DROP_MASKING_POLICY]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"drop_procedure",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_DROP_PROCEDURE]),
@@ -4525,6 +4534,10 @@ SHOW_VAR com_status_vars[] = {
     {"show_create_library",
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_SHOW_CREATE_LIBRARY]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"show_create_masking_policy",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_MASKING_POLICY]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_create_proc",
      (char *)offsetof(System_status_var,
@@ -13163,6 +13176,9 @@ bool mysqld_get_one_option(int optid,
     case OPT_INNODB_FOREIGN_KEYS:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--innodb_native_foreign_keys");
+      break;
+    case OPT_CASCADE_TRIGGERS:
+      push_deprecated_warn_no_replacement(nullptr, "--enable_cascade_triggers");
       break;
   }
   return false;

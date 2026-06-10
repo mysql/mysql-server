@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,5 +37,7 @@ MYSQL_ADD_PLUGIN(clone
   src/clone_os.cc
   src/clone_hton.cc
   MODULE_ONLY
+  LINK_LIBRARIES
+    extra::rapidjson
   MODULE_OUTPUT_NAME "mysql_clone"
   )

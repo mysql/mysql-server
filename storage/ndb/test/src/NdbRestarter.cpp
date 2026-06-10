@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1061,6 +1061,63 @@ int NdbRestarter::getNodeStatus(int nodeid) {
     if (ndbNodes[n].node_id == nodeid) return ndbNodes[n].node_status;
   }
   return -1;
+}
+
+int compInt(const void *a, const void *b) {
+  Uint64 va = *((const int *)a);
+  Uint64 vb = *((const int *)b);
+  return va - vb;
+}
+
+int NdbRestarter::getUndefinedNodeId() {
+  if (!isConnected()) return -1;
+
+  if (getStatus() != 0) return -1;
+
+  int allClusterNodes[MAX_NODES];
+  unsigned int nodeIdx = 0;
+
+  // Collecting all node ids allocated in the cluster
+  for (unsigned n = 0; n < ndbNodes.size(); n++) {
+    allClusterNodes[nodeIdx] = ndbNodes[n].node_id;
+    nodeIdx++;
+  }
+
+  for (unsigned n = 0; n < mgmNodes.size(); n++) {
+    allClusterNodes[nodeIdx] = mgmNodes[n].node_id;
+    nodeIdx++;
+  }
+
+  for (unsigned n = 0; n < apiNodes.size(); n++) {
+    allClusterNodes[nodeIdx] = apiNodes[n].node_id;
+    nodeIdx++;
+  }
+
+  const unsigned int numberOfClusterNodes = nodeIdx;
+  if (numberOfClusterNodes == MAX_NODES) {
+    // The number of node ids allocated in the cluster is
+    // equal to the maximum number of nodes, so there is
+    // not a single node id available.
+    return -1;
+  }
+
+  // Sorting the allocated node ids
+  qsort(allClusterNodes, numberOfClusterNodes, sizeof(int), compInt);
+
+  // Picking the first available node id. Since node ids
+  // are sorted, we go though the values until finding the
+  // first gap. If there is none, we return the last node id
+  // plus one.
+  int attemptNodeId = 1;
+
+  for (unsigned n = 0; n < numberOfClusterNodes; n++) {
+    const int nodeId = allClusterNodes[n];
+    if (attemptNodeId < nodeId) {
+      break;
+    }
+    attemptNodeId++;
+  }
+  return attemptNodeId;
 }
 
 static uint urandom(uint m) {

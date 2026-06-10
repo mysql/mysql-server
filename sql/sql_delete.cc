@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -283,8 +283,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   bool no_rows =
       limit == 0 || is_empty_query() || table->all_partitions_pruned_away;
 
-  Item *conds = nullptr;
-  if (!no_rows && query_block->get_optimizable_conditions(thd, &conds, nullptr))
+  Item **conds = thd->mem_root->ArrayAlloc<Item *>(1);
+  if (conds == nullptr) return true;
+  *conds = nullptr;
+  if (!no_rows && query_block->get_optimizable_conditions(thd, conds, nullptr))
     return true; /* purecov: inspected */
 
   /*
@@ -295,11 +297,12 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     it here for now, to keep it consistent with how multi-table
     deletes are optimized in JOIN::optimize().
   */
-  if (conds || order)
-    static_cast<void>(substitute_gc(thd, query_block, conds, nullptr, order));
-
-  const bool const_cond = conds == nullptr || conds->const_item();
-  const bool const_cond_result = const_cond && (!conds || conds->val_int());
+  if (*conds != nullptr || order != nullptr) {
+    static_cast<void>(substitute_gc(thd, query_block, *conds, nullptr, order));
+  }
+  const bool const_cond = *conds == nullptr || (*conds)->const_item();
+  const bool const_cond_result =
+      const_cond && (*conds == nullptr || (*conds)->val_int());
   if (thd->is_error())  // Error during val_int()
     return true;        /* purecov: inspected */
   /*
@@ -371,11 +374,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     /* Handler didn't support fast delete; Delete rows one by one */
   }
 
-  if (conds != nullptr) {
+  if (*conds != nullptr) {
     COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
 
-    if (optimize_cond(thd, &conds, &cond_equal,
+    if (optimize_cond(thd, conds, &cond_equal,
                       query_block->m_current_table_nest, &result))
       return true;
     if (result == Item::COND_FALSE)  // Impossible where
@@ -390,17 +393,18 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         return err;
       }
     }
-    if (conds) {
-      conds = substitute_for_best_equal_field(thd, conds, cond_equal, nullptr);
-      if (conds == nullptr) return true;
+    if (*conds != nullptr) {
+      *conds =
+          substitute_for_best_equal_field(thd, *conds, cond_equal, nullptr);
+      if (*conds == nullptr) return true;
 
-      conds->update_used_tables();
+      (*conds)->update_used_tables();
     }
   }
 
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
   if (table->part_info && !no_rows) {
-    if (prune_partitions(thd, table, query_block, conds)) return true;
+    if (prune_partitions(thd, table, query_block, *conds)) return true;
     if (table->all_partitions_pruned_away) {
       no_rows = true;
       if (lex->is_explain()) {
@@ -424,16 +428,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
   table->covering_keys.clear_all();
 
-  if (conds &&
+  if (*conds != nullptr &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    table->file->cond_push(conds);
+    table->file->cond_push(*conds);
   }
 
   {  // Enter scope for optimizer trace wrapper
     Opt_trace_object wrapper(&thd->opt_trace);
     wrapper.add_utf8_table(delete_table_ref);
 
-    if (!no_rows && conds != nullptr) {
+    if (!no_rows && *conds != nullptr) {
       const Key_map keys_to_use(Key_map::ALL_BITS);
       Key_map needed_reg_dummy;
       MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
@@ -441,7 +445,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       no_rows = test_quick_select(
                     thd, thd->mem_root, &temp_mem_root, keys_to_use, 0, 0,
                     limit, safe_update, ORDER_NOT_RELEVANT, table,
-                    /*skip_records_in_range=*/false, conds, &needed_reg_dummy,
+                    /*skip_records_in_range=*/false, *conds, &needed_reg_dummy,
                     table->force_index, query_block, &range_scan) < 0;
     }
     if (thd->is_error())  // test_quick_select() has improper error propagation
@@ -480,9 +484,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
   }
 
-  if (order) {
-    if (conds != nullptr) table->update_const_key_parts(conds);
-    order = simple_remove_const(order, conds);
+  if (order != nullptr) {
+    if (*conds != nullptr) table->update_const_key_parts(*conds);
+    order = simple_remove_const(order, *conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY, /*const_optimized=*/true);
     usable_index = get_index_for_order(&order_src, table, limit, range_scan,
                                        &need_sort, &reverse);
@@ -499,15 +503,15 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     ha_rows rows;
     if (range_scan)
       rows = range_scan->num_output_rows();
-    else if (!conds && !need_sort && limit != HA_POS_ERROR)
+    else if (*conds == nullptr && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
       delete_table_ref->fetch_number_of_rows();
       rows = table->file->stats.records;
     }
-    const Modification_plan plan(thd, MT_DELETE, table, type, range_scan, conds,
-                                 usable_index, limit, false, need_sort, false,
-                                 rows);
+    const Modification_plan plan(thd, MT_DELETE, table, type, range_scan,
+                                 *conds, usable_index, limit, false, need_sort,
+                                 false, rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
     if (lex->is_explain()) {
@@ -538,8 +542,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (need_sort) {
       assert(usable_index == MAX_KEY);
 
-      if (conds != nullptr) {
-        path = NewFilterAccessPath(thd, path, conds);
+      if (*conds != nullptr) {
+        path = NewFilterAccessPath(thd, path, *conds);
       }
 
       fsort.reset(new (thd->mem_root) Filesort(
@@ -560,7 +564,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
       */
-      conds = nullptr;
+      *conds = nullptr;
     } else {
       iterator = CreateIteratorFromAccessPath(thd, path, &join,
                                               /*eligible_for_batch_mode=*/true);
@@ -603,8 +607,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       assert(!thd->is_error());
       thd->inc_examined_row_count(1);
 
-      if (conds != nullptr) {
-        const bool skip_record = conds->val_int() == 0;
+      if (*conds != nullptr) {
+        const bool skip_record = (*conds)->val_int() == 0;
         if (thd->is_error()) {
           error = 1;
           break;

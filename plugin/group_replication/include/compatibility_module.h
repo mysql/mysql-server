@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,13 +147,13 @@ class Compatibility_module {
       incompatibilities;
 
   /**
-    Checks if the version is 8.4.X.
+    Checks if the version is a LTS release.
     @param version  A server version
 
-      @retval true   The version is 8.4.X
+      @retval true   The version is a LTS release
       @retval false  Otherwise
   */
-  static bool is_version_8_4_lts(const Member_version &version);
+  static bool is_lts_version(const Member_version &version);
 };
 
 #endif /* COMPATIBILITY_MODULE_INCLUDED */

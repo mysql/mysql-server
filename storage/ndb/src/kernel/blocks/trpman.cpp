@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@
 */
 
 #include "trpman.hpp"
+#include "EventLogger.hpp"
 #include "TransporterRegistry.hpp"
+#include "mt.hpp"
 #include "portlib/NdbTCP.h"
+#include "portlib/NdbTick.h"
 #include "signaldata/CloseComReqConf.hpp"
 #include "signaldata/DisconnectRep.hpp"
 #include "signaldata/DumpStateOrd.hpp"
@@ -72,6 +75,7 @@ Trpman::Trpman(Block_context &ctx, Uint32 instanceno)
   addRecSignal(GSN_NDB_TAMPER, &Trpman::execNDB_TAMPER, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trpman::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trpman::execDBINFO_SCANREQ);
+  addRecSignal(GSN_TIME_SIGNAL, &Trpman::execTIME_SIGNAL);
   m_distribution_handler_inited = false;
 }
 
@@ -98,6 +102,34 @@ bool Trpman::handles_this_trp(TrpId trpId) {
  */
 TrpId Trpman::get_the_only_base_trp(NodeId nodeId) const {
   return globalTransporterRegistry.get_the_only_base_trp(nodeId);
+}
+
+void Trpman::set_db_hb_sender(NodeId dbHbSender) {
+  jam();
+  if (dbHbSender == ZNIL || dbHbSender == 0) {
+    jam();
+    m_dbHbSender = 0;
+    m_dbHbSenderTrp = 0;
+  } else {
+    jam();
+    // On which transporter will we receive heartbeat from other data node
+    BlockReference recvRef = numberToRef(QMGR, getOwnNodeId());
+    BlockReference sendRef = numberToRef(QMGR, dbHbSender);
+    TrpId dbHbSenderTrp =
+        globalTransporterRegistry.get_recv_trp(recvRef, sendRef);
+    m_dbHbSender = dbHbSender;
+    ndbrequire(dbHbSenderTrp != 0);
+    if (m_dbHbSenderTrp != dbHbSenderTrp) {
+      jam();
+      m_dbHbSenderTrp = dbHbSenderTrp;
+      /*
+       * Skip late heartbeat detection for next receive.
+       * As an acceptable side effect activity histogram will skip count next
+       * receive.
+       */
+      NdbTick_Invalidate(&m_trp_activity[m_dbHbSenderTrp].last_recv);
+    }
+  }
 }
 
 void Trpman::execOPEN_COMORD(Signal *signal) {
@@ -134,6 +166,8 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
       signal->theData[0] = NDB_LE_CommunicationOpened;
       signal->theData[1] = tStartingNode;
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+      // Clear last receive left from earlier connections
+      NdbTick_Invalidate(&m_trp_activity[trpId].last_recv);
       //-----------------------------------------------------
     }
   } else {
@@ -158,6 +192,8 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
         signal->theData[0] = NDB_LE_CommunicationOpened;
         signal->theData[1] = i;
         sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+        // Clear last receive left from earlier connections
+        NdbTick_Invalidate(&m_trp_activity[trpId].last_recv);
       }
     }
   }
@@ -237,6 +273,7 @@ void Trpman::execCLOSE_COMREQ(Signal *signal) {
   // Close communication with the node and halt input/output from
   // other blocks than QMGR
   jamEntry();
+  ndbrequire(signal->getLength() >= CloseComReqConf::SignalLengthDB);
 
   CloseComReqConf *const closeCom = (CloseComReqConf *)&signal->theData[0];
 
@@ -244,6 +281,7 @@ void Trpman::execCLOSE_COMREQ(Signal *signal) {
   Uint32 requestType = closeCom->requestType;
   Uint32 failNo = closeCom->failNo;
   Uint32 noOfNodes = closeCom->noOfNodes;
+  Uint32 dbHbSender = closeCom->m_dbHbSender;
   Uint32 found_nodes = 0;
 
   if (closeCom->failedNodeId == 0) {
@@ -279,6 +317,8 @@ void Trpman::execCLOSE_COMREQ(Signal *signal) {
   }
   ndbrequire(noOfNodes == found_nodes);
 
+  set_db_hb_sender(dbHbSender);
+
   if (requestType != CloseComReqConf::RT_NO_REPLY) {
     ndbassert(
         (requestType == CloseComReqConf::RT_API_FAILURE) ||
@@ -288,13 +328,14 @@ void Trpman::execCLOSE_COMREQ(Signal *signal) {
     closeComConf->xxxBlockRef = userRef;
     closeComConf->requestType = requestType;
     closeComConf->failNo = failNo;
+    closeComConf->m_dbHbSender = 0;  // ignored
 
     /* Note assumption that noOfNodes and theNodes
      * bitmap is not trampled above
      * signals received from the remote node.
      */
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMCONF, signal,
-               CloseComReqConf::SignalLength, JBA);
+               CloseComReqConf::SignalLengthDB, JBA);
   }
 }
 
@@ -305,8 +346,9 @@ void Trpman::execCLOSE_COMREQ(Signal *signal) {
 */
 void Trpman::execCLOSE_COMCONF(Signal *signal) {
   jamEntry();
-  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, CloseComReqConf::SignalLength,
-             JBA);
+  ndbrequire(signal->getLength() >= CloseComReqConf::SignalLengthDB);
+  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal,
+             CloseComReqConf::SignalLengthDB, JBA);
 }
 
 void Trpman::enable_com_node(Signal *signal, NodeId nodeId) {
@@ -344,6 +386,7 @@ void Trpman::execENABLE_COMREQ(Signal *signal) {
   BlockReference senderRef = enableComReq->m_senderRef;
   Uint32 senderData = enableComReq->m_senderData;
   Uint32 enableNodeId = enableComReq->m_enableNodeId;
+  Uint32 dbHbSender = enableComReq->m_dbHbSender;
 
   /* Enable communication with all our NDB blocks to these nodes. */
   if (enableNodeId == 0) {
@@ -367,10 +410,13 @@ void Trpman::execENABLE_COMREQ(Signal *signal) {
     enable_com_node(signal, enableNodeId);
   }
 
+  set_db_hb_sender(dbHbSender);
+
   EnableComConf *enableComConf = (EnableComConf *)signal->getDataPtrSend();
   enableComConf->m_senderRef = reference();
   enableComConf->m_senderData = senderData;
   enableComConf->m_enableNodeId = enableNodeId;
+  enableComConf->m_dbHbSender = 0;  // ignored
   sendSignal(senderRef, GSN_ENABLE_COMCONF, signal, EnableComConf::SignalLength,
              JBA);
 }
@@ -466,6 +512,7 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
       jam();
       TrpId trpId = cursor->data[0];
 
+      NDB_TICKS now = NdbTick_getCurrentTicks();
       while (trpId <= globalTransporterRegistry.get_transporter_count()) {
         if (globalTransporterRegistry.get_transporter(trpId) == nullptr ||
             globalTransporterRegistry.is_inactive_trp(trpId) ||
@@ -526,6 +573,23 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
 
         /* Transporter type */
         row.write_uint32(globalTransporterRegistry.get_transporter_type(trpId));
+
+        /* Heartbeat interval (ms) */
+        const NodeInfo::NodeType type = getNodeInfo(nodeId).getType();
+        bool is_db = (type == NodeInfo::DB);
+        if (!is_db || trpId == m_dbHbSenderTrp) {
+          Uint32 heartbeat_interval = is_db ? m_hbDbDb : m_hbDbApi;
+          row.write_uint32(heartbeat_interval);
+        } else {
+          row.write_null();  // heartbeat_interval
+        }
+
+        /* Last receive (us) */
+        NDB_TICKS last_recv = globalTransporterRegistry.get_last_recv(trpId);
+        if (NdbTick_IsValid(last_recv))
+          row.write_uint64(NdbTick_Elapsed(last_recv, now).microSec());
+        else
+          row.write_null();  // last_recv
 
         ndbinfo_send_row(signal, req, row, rl);
         trpId++;
@@ -664,8 +728,67 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
           return;
         }
       }
+      break;
     }
+    case Ndbinfo::TRANSPORTER_ACTIVITY_TABLEID: {
+      jam();
+      Uint32 restore = cursor->data[0];
+      TrpId trpId = restore & 0xFFFF;
+      Uint32 bin_index = restore >> 16;
 
+      while (trpId <= globalTransporterRegistry.get_transporter_count()) {
+        if (bin_index >= TRP_ACTIVITY_HIST_BIN_COUNT ||
+            globalTransporterRegistry.get_transporter(trpId) == nullptr ||
+            globalTransporterRegistry.is_inactive_trp(trpId) ||
+            !handles_this_trp(trpId)) {
+          trpId++;
+          bin_index = 0;
+          continue;
+        }
+        const NodeId nodeId =
+            globalTransporterRegistry.get_transporter_node_id(trpId);
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());  // node_id
+        row.write_uint32(instance());      // block_instance
+        row.write_uint32(trpId);           // trp_id
+        row.write_uint32(nodeId);          // remote_node_id
+        row.write_uint32(globalTransporterRegistry.get_connect_count(
+            trpId));  // connect_count
+
+        const NodeInfo::NodeType type = getNodeInfo(nodeId).getType();
+        bool is_db = (type == NodeInfo::DB);
+
+        if (!is_db || trpId == m_dbHbSenderTrp) {
+          Uint32 heartbeat_interval = is_db ? m_hbDbDb : m_hbDbApi;
+          row.write_uint32(heartbeat_interval);
+        } else {
+          row.write_null();  // heartbeat_interval
+        }
+
+        Uint64 upper_bound = is_db ? m_hbDbDb_bin_bounds[bin_index]
+                                   : m_hbDbApi_bin_bounds[bin_index];
+        if (upper_bound < UINT32_MAX)
+          row.write_uint64(upper_bound);
+        else
+          row.write_null();  // upper_bound
+        Uint64 activity = m_trp_activity[trpId].hist_bins[bin_index];
+        row.write_uint64(activity);
+
+        ndbinfo_send_row(signal, req, row, rl);
+        bin_index++;
+        if (bin_index == (is_db ? m_hbDbDb_bin_count : m_hbDbApi_bin_count)) {
+          trpId++;
+          bin_index = 0;
+        }
+        if (rl.need_break(req)) {
+          jam();
+          Uint32 save = (bin_index << 16) | trpId;
+          ndbinfo_send_scan_break(signal, req, rl, save);
+          return;
+        }
+      }
+      break;
+    }
     default:
       break;
   }
@@ -684,11 +807,229 @@ void Trpman::execNODE_START_REP(Signal *signal) {
 #endif
 }
 
+unsigned Trpman::calculate_histogram_bin_limits(
+    unsigned hb_interval, std::span<unsigned> bin_limits) {
+  const unsigned sample_interval = TRP_TIME_SIGNAL_DELAY;
+  const unsigned max_bin_count = TRP_ACTIVITY_HIST_BIN_COUNT;
+  const unsigned min_bin_width = 2 * sample_interval;
+  const unsigned half_hb_interval_dn = hb_interval / 2;
+  const unsigned half_hb_interval_up = (hb_interval + 1) / 2;
+
+  assert(bin_limits.size() >= max_bin_count);
+
+  /*
+   * There are four parts of bins of the histogram. The first part uses bins
+   * with minimal width. The second increases the bin width exponentially. And
+   * the third part will use same size for remaining bins to have histogram
+   * cover 5 heartbeat intervals. Finally there is the last bin with infinite
+   * bound.
+   *
+   * In part 3 there can be 9 bins for 1 HBinterval to 5 HB interval with half
+   * HB interval steps. Part four always have one infinite bin.
+   * The rest can be used by part 1 and 2.
+   */
+  constexpr unsigned max_bin_count_part3_4 = 9 + 1;
+  constexpr unsigned max_bin_count_part1_2 =
+      max_bin_count - max_bin_count_part3_4;
+  /*
+   * There can be up to 11 bins covering the heartbeat interval. Up to 10 in
+   * part 1 and 2 the bin covering last part of heartbeat interval belongs to
+   * part 3.
+   */
+  const unsigned count =
+      std::min(hb_interval / min_bin_width, max_bin_count_part1_2 + 1);
+  unsigned bin_index = 0;
+
+  /*
+   * Part 1 with minimal sized bins.
+   *
+   * Use minimal sized bins until a suitable scaling factor is found for
+   * exponential part or that bin for heartbeat interval is next.
+   */
+  double factor;                   // calculated during part 1, used in part 2
+  unsigned first_part2_limit = 0;  // 0 indicates no value
+  unsigned first_part3_limit = 0;
+  unsigned bin_limit = min_bin_width;
+  while (bin_index + 1 < count) {
+    bin_limits[bin_index] = bin_limit;
+    bin_index++;
+    if (bin_index == count - 1) {
+      bin_limit += min_bin_width;
+      break;
+    }
+
+    const double ratio = 1.0 * hb_interval / bin_limit;
+    factor = std::pow(ratio, 1.0 / (count - bin_index));
+    /*
+     * If factor > 2.0 that would cause width of last bin before heartbeat
+     * interval bin to be wider than half heartbeat interval, that we do not
+     * allow since then it would be wider than bins in part 3. To come around
+     * that we use half heartbeat interval as limit of that bin and
+     * recalculate factor against that. In this case it is ok with a factor
+     * > 2.0 since bins below half heartbeat interval can not that wide.
+     */
+    bool bad_factor = false;
+    if (factor <= 2.0) {
+    } else if (bin_index < count - 1) {
+      const double ratio = 1.0 * half_hb_interval_dn / bin_limit;
+      factor = std::pow(ratio, 1.0 / (count - bin_index - 1));
+    } else
+      bad_factor = true;
+
+    if (!bad_factor) {
+      const unsigned part2_limit = std::round(bin_limit * factor);
+      if (part2_limit - bin_limit >= min_bin_width) {
+        first_part2_limit = bin_limit = part2_limit;
+        if (factor > 2.0)
+          first_part3_limit = half_hb_interval_dn;
+        else
+          first_part3_limit = hb_interval;
+        break;
+      }
+    }
+    bin_limit += min_bin_width;
+    if (bin_limit >= hb_interval) {
+      break;
+    }
+  }
+
+  /*
+   * Part 2 with exponentially increasing bin widths.
+   *
+   * Widths of each bin will be scaled from previous bin width with a factor.
+   * If factor is 2 or greater last width will be less than half the heartbeat
+   * interval else less than the heartbeat interval. The special handling of
+   * big scaling factor is to ensure the last bin width in exponential part
+   * will be less than half heartbeat interval since that will be used as bin
+   * width in next part and bin widths may not decrease.
+   */
+  if (first_part2_limit > 0) {  // std::isfinite(factor)) {
+    assert(first_part2_limit == bin_limit);
+    while (bin_limit < first_part3_limit &&
+           (bin_limit - bin_limits[bin_index - 1]) + bin_limit <
+               first_part3_limit) {
+      bin_limits[bin_index] = bin_limit;
+      bin_index++;
+      bin_limit = std::round(bin_limit * factor);
+    }
+  }
+
+  /*
+   * Part 3 with fixed sized bins covering 5 HB intervals.
+   *
+   * For small heartbeat intervals this part will fill up with bins of minimal
+   * size until bins cover 5 heartbeat intervals.
+   * For bigger heartbeat intervals bins will be added using half heartbeat
+   * interval as with until bins cover 5 heartbeat intervals. In this case the
+   * heartbeat interval will be the boundary of a bin. If heartbeat interval is
+   * odd the interval will be rounded up to ensure the bin will be wider than
+   * last bin in exponential part.
+   */
+  unsigned bin_width = half_hb_interval_up;
+  if (first_part3_limit == 0) {
+    unsigned prev_bin_limit = (bin_index > 0 ? bin_limits[bin_index - 1] : 0);
+    unsigned prev_bin_width [[maybe_unused]] =
+        (bin_index > 1 ? prev_bin_limit - bin_limits[bin_index - 2]
+                       : prev_bin_limit);
+    if ((half_hb_interval_up <= min_bin_width) ||
+        (hb_interval - prev_bin_limit > half_hb_interval_up)) {
+      /*
+       * If half hb_interval is too small, or, if width of bin with hb_interval
+       * as limit would be to large, continue with smallest bin width.
+       */
+      assert(prev_bin_width == 0 || prev_bin_width == min_bin_width);
+      bin_width = min_bin_width;
+    } else {
+      /*
+       * All looks good, go one with next bin using hb_interval as limit with
+       * half hb_interval as bin widths.
+       */
+      bin_limit = hb_interval;
+    }
+  } else {
+    bin_limit = first_part3_limit;
+  }
+  unsigned stop = 5 * hb_interval + bin_width;
+  while (bin_index < max_bin_count - 1 && bin_limit < stop) {
+    bin_limits[bin_index] = bin_limit;
+    bin_index++;
+    bin_limit += bin_width;
+  }
+
+  /*
+   * Part 4 with the last infinity bin.
+   */
+  bin_limits[bin_index] = UINT_MAX;
+  bin_index++;
+
+  return bin_index;
+}
+
+unsigned Trpman::verify_histogram(unsigned interval,
+                                  const std::span<unsigned> bin_limits) {
+  const unsigned sample_interval = TRP_TIME_SIGNAL_DELAY;
+  const unsigned min_bin_width = 2 * sample_interval;
+  const size_t bin_count = bin_limits.size();
+  const unsigned high_interval = 5 * interval;
+  unsigned ret = 0;
+
+  if (interval == 0) {
+    ret |= 1;
+  }
+  if (min_bin_width == 0) {
+    ret |= 2;
+  }
+  if (bin_count < 2) {
+    ret |= 4;
+  } else if (high_interval > bin_limits[bin_count - 2]) {
+    ret |= 8;
+  }
+  if (bin_count > 1 && bin_limits[bin_count - 1] != UINT_MAX) {
+    ret |= 16;
+  }
+  unsigned prev_width = bin_limits[0];
+  if (prev_width != min_bin_width) {
+    ret |= 32;
+  }
+  for (unsigned i = 1; i < bin_count; i++) {
+    unsigned width = bin_limits[i] - bin_limits[i - 1];
+    if (prev_width > width) {
+      ret |= 64;
+    }
+    prev_width = width;
+  }
+
+  return ret;
+}
+
 void Trpman::execREAD_CONFIG_REQ(Signal *signal) {
   jamEntry();
   const ReadConfigReq *req = (ReadConfigReq *)signal->getDataPtr();
   Uint32 ref = req->senderRef;
   Uint32 senderData = req->senderData;
+
+  m_dbHbSender = 0;
+  m_dbHbSenderTrp = 0;
+
+  const ndb_mgm_configuration_iterator *p =
+      m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  m_hbDbDb = 5000;  // ms
+  ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &m_hbDbDb);
+  m_hbDbDb_bin_count =
+      calculate_histogram_bin_limits(m_hbDbDb, m_hbDbDb_bin_bounds);
+  ndbassert(verify_histogram(m_hbDbDb,
+                             {m_hbDbDb_bin_bounds, m_hbDbDb_bin_count}) == 0);
+
+  m_hbDbApi = 1500;  // ms
+  ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL, &m_hbDbApi);
+  m_hbDbApi_bin_count =
+      calculate_histogram_bin_limits(m_hbDbApi, m_hbDbApi_bin_bounds);
+  ndbassert(verify_histogram(m_hbDbApi,
+                             {m_hbDbApi_bin_bounds, m_hbDbApi_bin_count}) == 0);
+
+  memset(m_trp_activity, 0, sizeof(m_trp_activity));
 
   ReadConfigConf *conf = (ReadConfigConf *)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -701,7 +1042,17 @@ void Trpman::execSTTOR(Signal *signal) {
   jamEntry();
   Uint32 theStartPhase = signal->theData[1];
 
-  jamEntry();
+  if (theStartPhase == 1) {
+    jam();
+    Uint32 tmp[25];
+    Uint32 len = signal->getLength();
+    memcpy(tmp, signal->theData, len << 2);
+
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    sendTIME_SIGNAL(signal, now, TRP_TIME_SIGNAL_DELAY);
+
+    memcpy(signal->theData, tmp, len << 2);
+  }
   if (theStartPhase == 8) {
 #ifdef ERROR_INSERT
     if (ERROR_INSERTED(9004)) {
@@ -1072,6 +1423,15 @@ void Trpman::execACTIVATE_TRP_REQ(Signal *signal) {
   Uint32 node_id = req->nodeId;
   Uint32 trp_id = req->trpId;
   BlockReference ret_ref = req->senderRef;
+
+  /* Switch from node transporter to multi transporter for heartbeat. Work will
+   * redundantly be done for signal for each new multi transporter while only
+   * needed to be done once for node. */
+  if (m_dbHbSender == node_id) {
+    ndbrequire(m_dbHbSenderTrp != 0);
+    set_db_hb_sender(m_dbHbSender);  // recalculates transporter for dbHbSender
+  }
+
   /**
    * Note similarity with ::enable_com_node(), which enable the
    * *node* communication. Now we enable an addition transporter
@@ -1131,6 +1491,67 @@ void Trpman::execUPD_QUERY_DIST_ORD(Signal *signal) {
   calculate_distribution_signal(dist_handle);
 }
 
+void Trpman::execTIME_SIGNAL(Signal *signal) {
+  jam();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  sendTIME_SIGNAL(signal, now, TRP_TIME_SIGNAL_DELAY);
+
+  for (unsigned trp_id = m_recv_data.find_first();
+       trp_id != m_recv_data.NotFound;
+       trp_id = m_recv_data.find_next(trp_id + 1)) {
+    ndbassert(handles_this_trp(trp_id));
+    if (!globalTransporterRegistry.is_connected(trp_id)) continue;
+
+    NDB_TICKS trp_last_recv = globalTransporterRegistry.get_last_recv(trp_id);
+    if (likely(NdbTick_IsValid(m_trp_activity[trp_id].last_recv))) {
+      NodeId node_id =
+          globalTransporterRegistry.get_transporter_node_id(trp_id);
+      bool is_db = (getNodeInfo(node_id).getType() == NODE_TYPE_DB);
+      /*
+       * We only know the time for the current last receive, not the first
+       * receive in the last 50ms after a period of no data. By that elapsed_ms
+       * may be an overestimate by up to 50ms.
+       */
+      Uint64 elapsed_ms =
+          NdbTick_Elapsed(m_trp_activity[trp_id].last_recv, trp_last_recv)
+              .milliSec();
+
+      // Update activity histogram
+      unsigned hist_bin_index = 0;
+      unsigned hist_bin_count;
+      const Uint32 *hist_bin_bounds;
+      if (is_db) {
+        hist_bin_count = m_hbDbDb_bin_count;
+        hist_bin_bounds = m_hbDbDb_bin_bounds;
+      } else {
+        hist_bin_count = m_hbDbApi_bin_count;
+        hist_bin_bounds = m_hbDbApi_bin_bounds;
+      }
+      while (hist_bin_index < hist_bin_count &&
+             hist_bin_bounds[hist_bin_index] < elapsed_ms)
+        hist_bin_index++;
+      m_trp_activity[trp_id].hist_bins[hist_bin_index]++;
+
+      // Log late heartbeat
+      if (!is_db || trp_id == m_dbHbSenderTrp) {
+        Uint32 heartbeat_interval = is_db ? m_hbDbDb : m_hbDbApi;
+        /*
+         * Since elapsed_ms may be an overestimate and not to report
+         * late heartbeat when it was in time add TRP_TIME_SIGNAL_DELAY.
+         */
+        if (elapsed_ms > heartbeat_interval + TRP_TIME_SIGNAL_DELAY) {
+          signal->theData[0] = NDB_LE_LateHeartbeat;
+          signal->theData[1] = node_id;
+          signal->theData[2] = elapsed_ms;
+          sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+        }
+      }
+    }
+    m_trp_activity[trp_id].last_recv = trp_last_recv;
+  }
+  m_recv_data.clear();
+}
+
 TrpmanProxy::TrpmanProxy(Block_context &ctx) : LocalProxy(TRPMAN, ctx) {
   addRecSignal(GSN_OPEN_COMORD, &TrpmanProxy::execOPEN_COMORD);
   addRecSignal(GSN_ENABLE_COMREQ, &TrpmanProxy::execENABLE_COMREQ);
@@ -1168,6 +1589,7 @@ void TrpmanProxy::execOPEN_COMORD(Signal *signal) {
 
 void TrpmanProxy::execCLOSE_COMREQ(Signal *signal) {
   jamEntry();
+  ndbrequire(signal->getLength() >= CloseComReqConf::SignalLengthDB);
   Ss_CLOSE_COMREQ &ss = ssSeize<Ss_CLOSE_COMREQ>();
   const CloseComReqConf *req = (const CloseComReqConf *)signal->getDataPtr();
   ss.m_req = *req;
@@ -1191,11 +1613,12 @@ void TrpmanProxy::sendCLOSE_COMREQ(Signal *signal, Uint32 ssId,
   req->xxxBlockRef = reference();
   req->failNo = ssId;
   sendSignalNoRelease(workerRef(ss.m_worker), GSN_CLOSE_COMREQ, signal,
-                      CloseComReqConf::SignalLength, JBB, handle);
+                      CloseComReqConf::SignalLengthDB, JBB, handle);
 }
 
 void TrpmanProxy::execCLOSE_COMCONF(Signal *signal) {
   const CloseComReqConf *conf = (const CloseComReqConf *)signal->getDataPtr();
+  ndbrequire(signal->getLength() >= CloseComReqConf::SignalLengthDB);
   Uint32 ssId = conf->failNo;
   jamEntry();
   Ss_CLOSE_COMREQ &ss = ssFind<Ss_CLOSE_COMREQ>(ssId);
@@ -1213,8 +1636,8 @@ void TrpmanProxy::sendCLOSE_COMCONF(Signal *signal, Uint32 ssId) {
 
   CloseComReqConf *conf = (CloseComReqConf *)signal->getDataPtrSend();
   *conf = ss.m_req;
-  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, CloseComReqConf::SignalLength,
-             JBB);
+  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal,
+             CloseComReqConf::SignalLengthDB, JBB);
   ssRelease<Ss_CLOSE_COMREQ>(ssId);
 }
 

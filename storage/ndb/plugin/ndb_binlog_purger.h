@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,6 +80,9 @@ class Ndb_binlog_purger : public Ndb_component {
   // Compares the files referenced in ndb_binlog_index table with the current
   // binary log files, then submits those referencing orphan files for removal.
   void find_and_delete_orphan_purged_rows();
+
+  // Wait until the ndb binlog is no longer using the specified binlog file.
+  bool wait_until_not_using(const std::string &filename);
 
   static constexpr time_t DELETE_SLICE_DELAY_MILLIS = 100;
 

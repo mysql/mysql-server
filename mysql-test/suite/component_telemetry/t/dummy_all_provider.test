@@ -1,0 +1,84 @@
+
+--source include/linux.inc
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("telemetry: Failed to acquire service <telemetry_resource_provider.component_test_telemetry_resource_provider>, will wait");
+call mtr.add_suppression("telemetry: Failed to acquire service <telemetry_secret_provider.component_test_telemetry_secret_provider>, will wait");
+
+-- echo # Install a resource and secret provider before telemetry
+
+-- echo # 1) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+
+-- echo # 2) Install dummy secret provider
+INSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+
+-- echo # 3) Install component with dummy resource and secret provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider',
+    telemetry.secret_provider='component_test_telemetry_secret_provider',
+    telemetry.otel_exporter_otlp_traces_secret_headers = "secret-1234",
+    telemetry.otel_exporter_otlp_metrics_secret_headers = "secret-5678",
+    telemetry.otel_exporter_otlp_logs_secret_headers = "secret-90ab";
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+SELECT "Resource / secret provider loaded" as message;
+
+UNINSTALL COMPONENT 'file://component_telemetry';
+UNINSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+
+-- echo # Install telemetry before a resource and secret provider
+
+-- echo # 1) Install component with (unloaded) dummy resource and secret provider
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.resource_provider='component_test_telemetry_resource_provider',
+    telemetry.secret_provider='component_test_telemetry_secret_provider',
+    telemetry.otel_exporter_otlp_traces_secret_headers = "secret-1234",
+    telemetry.otel_exporter_otlp_metrics_secret_headers = "secret-5678",
+    telemetry.otel_exporter_otlp_logs_secret_headers = "secret-90ab";
+
+SELECT "Resource provider missing" as message;
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+-- echo # 2) Install dummy resource provider
+INSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+
+SELECT "Resource provider loading" as message;
+
+# Wait for the component_telemetry init thread to read resource.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'DECODE_SECRET';
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+SELECT "Resource provider loaded" as message;
+
+SELECT "Secret provider missing" as message;
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+-- echo # 2) Install dummy secret provider
+INSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+
+SELECT "Secret provider loading" as message;
+
+# Wait for the component_telemetry init thread to complete.
+let $wait_condition=  SELECT count(*) = 1
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level' AND VARIABLE_VALUE = 'READY';
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE "telemetry.run_level";
+
+SELECT "Secret provider loaded" as message;
+
+UNINSTALL COMPONENT 'file://component_test_telemetry_secret_provider';
+UNINSTALL COMPONENT 'file://component_test_telemetry_resource_provider';
+UNINSTALL COMPONENT 'file://component_telemetry';

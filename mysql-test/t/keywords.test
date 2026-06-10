@@ -163,3 +163,19 @@ call p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 38974036 - In MySQL 9.6.0, Reserved is set 0 for SETS
+--echo #
+
+SELECT * FROM information_schema.keywords where word IN ('SETS');
+
+CREATE TABLE sets (col1 INT);
+CREATE TABLE t1 (sets INT);
+SELECT 1 AS sets;
+
+CREATE TABLE t2 (sets INT, data VARCHAR(50));
+INSERT INTO t2 VALUES (1, 'test');
+SELECT * FROM t2 WHERE sets = 1;
+
+DROP TABLE sets, t1, t2;

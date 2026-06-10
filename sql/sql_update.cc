@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -430,9 +430,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   assert(!(table->all_partitions_pruned_away || m_empty_query));
 
-  Item *conds = nullptr;
+  Item **conds = thd->mem_root->ArrayAlloc<Item *>(1);
+  if (conds == nullptr) return true;
+  *conds = nullptr;
   ORDER *order = query_block->order_list.first;
-  if (!no_rows && query_block->get_optimizable_conditions(thd, &conds, nullptr))
+  if (!no_rows && query_block->get_optimizable_conditions(thd, conds, nullptr))
     return true; /* purecov: inspected */
 
   /*
@@ -443,10 +445,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     it here for now, to keep it consistent with how multi-table
     updates are optimized in JOIN::optimize().
   */
-  if (conds || order)
-    static_cast<void>(substitute_gc(thd, query_block, conds, nullptr, order));
+  if (*conds != nullptr || order != nullptr)
+    static_cast<void>(substitute_gc(thd, query_block, *conds, nullptr, order));
 
-  if (conds != nullptr) {
+  if (*conds != nullptr) {
     if (table_list->check_option) {
       // See the explanation in multi-table UPDATE code path
       // (Query_result_update::prepare).
@@ -455,7 +457,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
     COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
-    if (optimize_cond(thd, &conds, &cond_equal,
+    if (optimize_cond(thd, conds, &cond_equal,
                       query_block->m_current_table_nest, &result))
       return true;
 
@@ -469,11 +471,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         return err;
       }
     }
-    if (conds != nullptr) {
-      conds = substitute_for_best_equal_field(thd, conds, cond_equal, nullptr);
-      if (conds == nullptr) return true;
+    if (*conds != nullptr) {
+      *conds =
+          substitute_for_best_equal_field(thd, *conds, cond_equal, nullptr);
+      if (*conds == nullptr) return true;
 
-      conds->update_used_tables();
+      (*conds)->update_used_tables();
     }
   }
 
@@ -482,7 +485,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     stored programs can be evaluated.
   */
   if (table->part_info && !no_rows) {
-    if (prune_partitions(thd, table, query_block, conds))
+    if (prune_partitions(thd, table, query_block, *conds))
       return true; /* purecov: inspected */
     if (table->all_partitions_pruned_away) {
       no_rows = true;
@@ -519,23 +522,23 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     filesort_free_buffers(table, true);
   });
 
-  if (conds &&
+  if (*conds != nullptr &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    table->file->cond_push(conds);
+    table->file->cond_push(*conds);
   }
 
   {  // Enter scope for optimizer trace wrapper
     Opt_trace_object wrapper(&thd->opt_trace);
     wrapper.add_utf8_table(update_table_ref);
 
-    if (!no_rows && conds != nullptr) {
+    if (!no_rows && *conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                              thd->variables.range_alloc_block_size);
       no_rows = test_quick_select(
                     thd, thd->mem_root, &temp_mem_root, keys_to_use, 0, 0,
                     limit, safe_update, ORDER_NOT_RELEVANT, table,
-                    /*skip_records_in_range=*/false, conds, &needed_reg_dummy,
+                    /*skip_records_in_range=*/false, *conds, &needed_reg_dummy,
                     table->force_index, query_block, &range_scan) < 0;
       if (thd->is_error()) return true;
     }
@@ -579,9 +582,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   if (query_block->has_ft_funcs() && init_ftfuncs(thd, query_block))
     return true; /* purecov: inspected */
 
-  if (conds != nullptr) table->update_const_key_parts(conds);
+  if (*conds != nullptr) table->update_const_key_parts(*conds);
 
-  order = simple_remove_const(order, conds);
+  order = simple_remove_const(order, *conds);
   bool need_sort;
   bool reverse = false;
   bool used_key_is_modified = false;
@@ -636,14 +639,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     ha_rows rows;
     if (range_scan)
       rows = range_scan->num_output_rows();
-    else if (!conds && !need_sort && limit != HA_POS_ERROR)
+    else if (*conds == nullptr && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
       update_table_ref->fetch_number_of_rows();
       rows = table->file->stats.records;
     }
     DEBUG_SYNC(thd, "before_single_update");
-    Modification_plan plan(thd, MT_UPDATE, table, type, range_scan, conds,
+    Modification_plan plan(thd, MT_UPDATE, table, type, range_scan, *conds,
                            used_index, limit,
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
@@ -674,8 +677,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             thd, table, range_scan, /*table_ref=*/nullptr,
             /*position=*/nullptr, /*count_examined_rows=*/true);
 
-        if (conds != nullptr) {
-          path = NewFilterAccessPath(thd, path, conds);
+        if (*conds != nullptr) {
+          path = NewFilterAccessPath(thd, path, *conds);
         }
 
         // Force filesort to sort by position.
@@ -702,7 +705,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           ::destroy_at(range_scan);
           range_scan = nullptr;
         }
-        conds = nullptr;
+        *conds = nullptr;
       } else {
         /*
           We are doing a search on a key that is updated. In this case
@@ -774,8 +777,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           assert(!thd->is_error());
           thd->inc_examined_row_count(1);
 
-          if (conds != nullptr) {
-            const bool skip_record = conds->val_int() == 0;
+          if (*conds != nullptr) {
+            const bool skip_record = (*conds)->val_int() == 0;
             if (thd->is_error()) {
               error = 1;
               /*
@@ -833,7 +836,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           ::destroy_at(range_scan);
           range_scan = nullptr;
         }
-        conds = nullptr;
+        *conds = nullptr;
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
@@ -888,8 +891,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       error = iterator->Read();
       if (error || thd->killed) break;
       thd->inc_examined_row_count(1);
-      if (conds != nullptr) {
-        const bool skip_record = conds->val_int() == 0;
+      if (*conds != nullptr) {
+        const bool skip_record = (*conds)->val_int() == 0;
         if (thd->is_error()) {
           error = 1;
           break;

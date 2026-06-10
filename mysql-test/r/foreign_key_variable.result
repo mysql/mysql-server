@@ -50,6 +50,58 @@ DROP TABLE t1, t2;
 # restart with innodb_native_foreign_keys default value
 # restart: --innodb_native_foreign_keys=OFF
 Pattern "The syntax '--innodb_native_foreign_keys' is deprecated and will be removed" found
+# FR 2: Test new system variable enable_cascade_triggers
+CREATE TABLE logtable (id INT PRIMARY KEY AUTO_INCREMENT, tbl_name VARCHAR(16), operation VARCHAR(16), val int);
+CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t2 (f1 INT UNIQUE REFERENCES t1(f1) ON DELETE CASCADE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
+CREATE TRIGGER t2_ad AFTER DELETE ON t2
+FOR EACH ROW INSERT INTO logtable(tbl_name, operation, val)
+VALUES ('t2', 'DELETE', OLD.f1);
+# FR 2.1: When innodb_native_foreign_keys = ON, enable_cascade_triggers
+# variable must not have any effect; foreign keys and cascades remain
+# handled inside InnoDB with no SQL-layer cascade-trigger firing
+# restart with innodb_native_foreign_keys = ON
+# restart: --innodb_native_foreign_keys=ON
+SET enable_cascade_triggers = OFF;
+Warnings:
+Warning	4166	'enable_cascade_triggers' is deprecated and will be removed in a future release. Triggers on child table will not fire during foreign key cascade.
+DELETE FROM t1 WHERE f1 = 1;
+SELECT * FROM logtable;
+id	tbl_name	operation	val
+DELETE FROM logtable;
+SET enable_cascade_triggers = ON;
+Warnings:
+Warning	4166	'enable_cascade_triggers' is deprecated and will be removed in a future release. Enabling trigger execution on child table is supported only with SQL Foreign Key handling (i.e with innodb_native_foreign_keys = OFF).
+DELETE FROM t1 WHERE f1 = 2;
+SELECT * FROM logtable;
+id	tbl_name	operation	val
+DELETE FROM logtable;
+# FR 2.2: When innodb_native_foreign_keys = OFF and
+# enable_cascade_triggers = ON, triggers on rows affected by SQL-layer
+# FK cascades must be fired.
+# restart with innodb_native_foreign_keys default value
+# restart: --innodb_native_foreign_keys=OFF
+SET enable_cascade_triggers = ON;
+Warnings:
+Warning	1681	'enable_cascade_triggers' is deprecated and will be removed in a future release.
+DELETE FROM t1 WHERE f1 = 3;
+SELECT * FROM logtable;
+id	tbl_name	operation	val
+1	t2	DELETE	3
+DELETE FROM logtable;
+# FR 2.3: When innodb_native_foreign_keys = OFF and
+# enable_cascade_triggers = OFF, child table triggers must not fire
+# during cascade changes
+SET enable_cascade_triggers = OFF;
+Warnings:
+Warning	4166	'enable_cascade_triggers' is deprecated and will be removed in a future release. Triggers on child table will not fire during foreign key cascade.
+DELETE FROM t1 WHERE f1 = 4;
+SELECT * FROM logtable;
+id	tbl_name	operation	val
+DELETE FROM logtable;
+DROP TABLE logtable, t1, t2;
 # cleanup: restart without innodb_native_foreign_keys variable
 # restart:
 # After cleanup restart

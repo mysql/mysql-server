@@ -1,5 +1,5 @@
 /***********************************************************************
-Copyright (c) 1995, 2025, Oracle and/or its affiliates.
+Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted

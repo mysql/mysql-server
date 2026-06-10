@@ -264,13 +264,13 @@ EXPLAIN
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
 -> Filter: (match t.x against ('abc'))  (rows=0.444)
-    -> Table scan on t  (rows=4)
+    -> Index scan on t using PRIMARY  (rows=4)
 
 DROP TABLE t;
 CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
 EXPLAIN SELECT /*+ NO_JOIN_INDEX (t1) */ f1 FROM t1 WHERE f1 = 578;
 EXPLAIN
 -> Filter: (t1.f1 = 578)  (cost=0.353..0.353 rows=1)
-    -> Table scan on t1  (cost=0.295..0.295 rows=1)
+    -> Covering index scan on t1 using PRIMARY  (cost=0.295..0.295 rows=1)
 
 DROP TABLE t1;

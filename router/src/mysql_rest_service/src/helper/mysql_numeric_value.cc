@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,12 @@
 #define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_HELPER_MYSQL_NUMERIC_VALUE_CC_
 
 #include "helper/mysql_numeric_value.h"
-#include "helper/container/generic.h"
+#include "mysql/harness/utility/container/generic.h"
 
 namespace helper {
 
 DataTypeInText get_type_inside_text(const std::string &value) {
-  using namespace helper::container;
+  using namespace mysql_harness::utility::container;
 
   auto it = value.begin();
 

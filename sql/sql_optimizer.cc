@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -4006,6 +4006,14 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       field_item->unsigned_flag != const_item->unsigned_flag) {
     return false;
   }
+  /*
+    DECIMAL constants must not have larger fraction than field.
+    Unless the excess fraction is zero, the substitution cannot be correct.
+  */
+  if (field_item->result_type() == DECIMAL_RESULT &&
+      const_item->decimals > field_item->decimals) {
+    return false;
+  }
   if (field_item->result_type() == STRING_RESULT) {
     const CHARSET_INFO *cs = field_item->field->charset();
     if (item == nullptr) {
@@ -4745,11 +4753,10 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
       head_field->set_item_equal_all_join_nests(item_equal);
     }
     eq_item = new Item_func_eq(item_field, head);
+    if (eq_item == nullptr) return nullptr;
 
-    if (!eq_item || down_cast<Item_func_eq *>(eq_item)->set_cmp_func())
-      return nullptr;
+    if (eq_item->fix_fields(thd, &eq_item)) return nullptr;
 
-    eq_item->quick_fix_field();
     if (item_const != nullptr) {
       eq_item->apply_is_true();
       Item::cond_result res;
@@ -6318,15 +6325,26 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
 
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization()) {
+    table_map prev_tables = 0;
+    table_map read_tables = 0;
+    if (JOIN *join = tab->join(); join != nullptr) {
+      table_map const_tables = join->found_const_table_map;
+      // Const tables are always available before any non‑const table.
+      prev_tables = const_tables;
+      // During execution we can read from all previously joined tables; in
+      // the optimization phase only const tables have been read.
+      read_tables = join->is_executed()
+                        ? (tab->prefix_tables() & ~tab->added_tables())
+                        : const_tables;
+    }
     AccessPath *range_scan;
     Key_map keys_to_use = tab->const_keys;
     keys_to_use.merge(tab->skip_scan_keys);
     MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                            thd->variables.range_alloc_block_size);
     const int error = test_quick_select(
-        thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
-        0,  // empty table_map
-        limit,
+        thd, thd->mem_root, &temp_mem_root, keys_to_use, prev_tables,
+        read_tables, limit,
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
         condition, &tab->needed_reg, tab->table()->force_index,

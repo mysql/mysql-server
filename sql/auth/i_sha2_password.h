@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef I_SHA2_PASSWORD_INCLUDED
 #define I_SHA2_PASSWORD_INCLUDED
 
+#include <atomic>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -32,6 +34,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/plugin.h"           /* MYSQL_PLUGIN */
 #include "mysql/psi/mysql_rwlock.h" /* mysql_rwlock_t */
 #include "sql/auth/i_sha2_password_common.h"
+
+#include <openssl/evp.h>
 
 /**
   @file sql/auth/i_sha2_password.h
@@ -42,6 +46,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @defgroup auth_caching_sha2_auth caching_sha2_authentication information
   @{
 */
+
+namespace sha2_password_unittest {
+class SHA256_digestTest;
+}  // namespace sha2_password_unittest
+
 namespace sha2_password {
 /* fast digest rounds */
 const unsigned int MIN_FAST_DIGEST_ROUNDS = 2;
@@ -75,9 +84,18 @@ const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH = MAX_PLAINTEXT_LENGTH;
 /* Maximum supported passwords */
 const unsigned int MAX_PASSWORDS = 2;
 
+const size_t PBKDF2_DIGEST_LENGTH = SHA512_DIGEST_LENGTH;
+/*
+  Padded base64 length: 4*ceil(n/3) = 4*((n+2)/3)
+*/
+constexpr size_t STORED_PBKDF2_DIGEST_LENGTH =
+    4 * ((PBKDF2_DIGEST_LENGTH + 2) / 3);
+
 typedef struct sha2_cache_entry {
   unsigned char digest_buffer[MAX_PASSWORDS][CACHING_SHA2_DIGEST_LENGTH];
 } sha2_cache_entry;
+
+enum class Stored_digest_info { CRYPT5 = 0, PBKDF2_SHA512, LAST };
 
 /**
   Password cache used for caching_sha2_authentication
@@ -113,12 +131,14 @@ class Caching_sha2_password {
  public:
   Caching_sha2_password(
       MYSQL_PLUGIN plugin_handle, size_t stored_digest_rounds,
+      Stored_digest_info digest_type = Stored_digest_info::CRYPT5,
       unsigned int fast_digest_rounds = DEFAULT_FAST_DIGEST_ROUNDS,
-      Digest_info digest_type = Digest_info::SHA256_DIGEST);
+      bool enforce_storage_format = false);
   ~Caching_sha2_password();
   std::pair<bool, bool> authenticate(const std::string &authorization_id,
                                      const std::string_view *serialized_string,
-                                     const std::string &plaintext_password);
+                                     const std::string &plaintext_password,
+                                     bool &set_password_expired_flag);
   std::pair<bool, bool> fast_authenticate(const std::string &authorization_id,
                                           const unsigned char *random,
                                           unsigned int random_length,
@@ -126,35 +146,69 @@ class Caching_sha2_password {
                                           bool check_second);
   void remove_cached_entry(const std::string &authorization_id);
   bool deserialize(const std::string_view &serialized_string,
-                   Digest_info &digest_type, std::string &salt,
+                   Stored_digest_info &digest_type, std::string &salt,
                    std::string &digest, size_t &iterations);
-  bool serialize(std::string &serialized_string, const Digest_info &digest_type,
-                 const std::string &salt, const std::string &digest,
-                 size_t iterations);
+  bool serialize(std::string &serialized_string,
+                 const Stored_digest_info &digest_type, const std::string &salt,
+                 const std::string &digest, size_t iterations);
   bool generate_fast_digest(const std::string &plaintext_password,
                             sha2_cache_entry &digest, unsigned int loc);
-  bool generate_sha2_multi_hash(const std::string &src,
-                                const std::string &random, std::string &digest,
-                                unsigned int iterations);
+  std::pair<bool, bool> compare_against_stored(
+      const std::string &src, const std::string_view &stored,
+      const std::optional<std::string> &authorization_id,
+      Stored_digest_info &digest_type);
+  bool generate_stored_digest(const std::string &src,
+                              std::string &serialized_string);
   size_t get_cache_count();
   void clear_cache();
+
   bool validate_hash(const std::string &serialized_string);
-  Digest_info get_digest_type() const { return m_digest_type; }
-  size_t get_digest_rounds() { return m_stored_digest_rounds; }
+
+  Stored_digest_info get_stored_digest_type() const {
+    return m_stored_digest_type.load();
+  }
+  void set_stored_digest_type(Stored_digest_info digest_type) {
+    m_stored_digest_type.store(digest_type);
+    clear_cache();
+  }
+
+  size_t get_stored_digest_rounds() { return m_stored_digest_rounds.load(); }
+  void set_stored_digest_rounds(size_t stored_digest_rounds) {
+    m_stored_digest_rounds.store(stored_digest_rounds);
+    clear_cache();
+  }
+
+  bool get_enforce_storage_format() { return m_enforce_storage_format.load(); }
+  void set_enforce_storage_format(bool value) {
+    m_enforce_storage_format.store(value);
+    clear_cache();
+  }
+
+  unsigned int get_fast_digest_rounds() { return m_fast_digest_rounds.load(); }
+
+  friend class sha2_password_unittest::SHA256_digestTest;
+
+ protected:
+  bool generate_crypt5(const std::string &source, const std::string &salt,
+                       std::string &digest, unsigned int iterations);
+  bool generate_pbkdf2(const std::string &source, const std::string &salt,
+                       std::string &digest, unsigned int iterations);
 
  private:
   /** Plugin handle */
   MYSQL_PLUGIN m_plugin_info;
   /** Number of rounds for stored digest */
-  size_t m_stored_digest_rounds;
+  std::atomic<size_t> m_stored_digest_rounds;
+  /** Stored digest type */
+  std::atomic<Stored_digest_info> m_stored_digest_type;
   /** Number of rounds for fast digest */
-  unsigned int m_fast_digest_rounds;
-  /** Digest type */
-  Digest_info m_digest_type;
+  std::atomic_uint m_fast_digest_rounds;
   /** Lock to protect @c m_cache */
   mysql_rwlock_t m_cache_lock;
   /** user=>password cache */
   SHA2_password_cache m_cache;
+  /* Enforce storage format */
+  std::atomic_bool m_enforce_storage_format;
 };
 }  // namespace sha2_password
 

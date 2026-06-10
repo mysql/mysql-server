@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -320,7 +320,7 @@ public class I18NHelper {
         for (int i=0; i<msgArgs.length; i++) {
             if (msgArgs[i] == null) msgArgs[i] = ""; // NOI18N
         }
-        MessageFormat formatter = new MessageFormat(messages.getString(messageKey));
+        MessageFormat formatter = new MessageFormat(messages.getString(messageKey), messages.getLocale());
         return formatter.format(msgArgs);
     }
     

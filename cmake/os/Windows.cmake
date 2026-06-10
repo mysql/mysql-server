@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -226,8 +226,8 @@ IF(MSVC)
   # extern C functions never throw a C++ exception.
   FORCE_CMAKE_COMPILER_FLAG(CMAKE_CXX_FLAGS "/EHsc")
 
-  # Turn on c++20 mode explicitly so that using c++23 features is disabled.
-  STRING_PREPEND(CMAKE_CXX_FLAGS "/std:c++20 ")
+  # Turn on c++23 mode explicitly.
+  STRING_PREPEND(CMAKE_CXX_FLAGS "/std:c++23preview ")
 
   OPTION(WIN_INCREMENTAL_LINK "Enable incremental linking on Windows" OFF)
 

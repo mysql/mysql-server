@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,22 +231,19 @@ bool Singleton<Time_val>::add_value_json_bucket(const Time_val &value,
 }
 
 template <>
+bool Singleton<Date_val>::add_value_json_bucket(const Date_val &value,
+                                                Json_array *json_bucket) {
+  const Json_date json_value(value);
+  if (json_bucket->append_clone(&json_value))
+    return true; /* purecov: inspected */
+  return false;
+}
+
+template <>
 bool Singleton<Datetime_val>::add_value_json_bucket(const Datetime_val &value,
                                                     Json_array *json_bucket) {
-  enum_field_types field_type;
-  switch (value.time_type) {
-    case MYSQL_TIMESTAMP_DATE:
-      field_type = MYSQL_TYPE_DATE;
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      field_type = MYSQL_TYPE_DATETIME;
-      break;
-    default:
-      /* purecov: begin deadcode */
-      assert(false);
-      return true;
-      /* purecov: end */
-  }
+  assert(value.time_type == MYSQL_TIMESTAMP_DATETIME);
+  enum_field_types field_type = MYSQL_TYPE_DATETIME;
 
   const Json_datetime json_value(value, field_type);
   if (json_bucket->append_clone(&json_value))
@@ -445,6 +442,7 @@ template class Singleton<String>;
 template class Singleton<ulonglong>;
 template class Singleton<longlong>;
 template class Singleton<Time_val>;
+template class Singleton<Date_val>;
 template class Singleton<Datetime_val>;
 template class Singleton<my_decimal>;
 

@@ -604,8 +604,8 @@ info: Records: 1  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE b b int(11) after c;
-affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 1
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method

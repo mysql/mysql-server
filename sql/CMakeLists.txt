@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -430,6 +430,7 @@ SET(SQL_SHARED_SOURCES
   json_duality_view/dml.cc
   json_duality_view/i_s.cc
   json_duality_view/option_usage.cc
+  json_duality_view/ostream_utils.cc
   json_duality_view/utils.cc
   join_optimizer/access_path.cc
   join_optimizer/build_interesting_orders.cc
@@ -589,6 +590,7 @@ SET(SQL_SHARED_SOURCES
   sql_load.cc
   sql_locale.cc
   sql_manager.cc
+  sql_masking_policy.cc
   sql_optimizer.cc
   sql_parse.cc
   sql_partition.cc
@@ -675,12 +677,6 @@ IF(BUILD_IS_SINGLE_CONFIG)
       debug_sync.cc
       )
   ENDIF()
-ENDIF()
-
-IF (WITH_INTERNAL)
-  LIST(REMOVE_ITEM SQL_SHARED_SOURCES
-      json_duality_view/dml.cc
-      )
 ENDIF()
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
@@ -950,9 +946,6 @@ IF(DEFINED WITH_HYPERGRAPH_OPTIMIZER)
     TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE
       WITH_HYPERGRAPH_OPTIMIZER=1)
   ENDIF()
-ELSEIF(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT STREQUAL "default")
-  TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE
-    $<$<CONFIG:Debug>:WITH_HYPERGRAPH_OPTIMIZER=1>)
 ENDIF()
 IF(ENABLE_HYPERGRAPH_OPTIMIZER)
   TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE

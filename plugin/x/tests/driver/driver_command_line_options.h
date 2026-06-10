@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -45,12 +45,13 @@ class Driver_command_line_options : public Command_line_options {
   void print_help();
 
  public:
-  bool m_run_without_auth;
+  bool m_run_without_auth{false};
   std::string m_run_file;
-  bool m_has_file;
-  bool m_cap_expired_password;
-  bool m_client_interactive;
-  bool m_connect_attrs;
+  bool m_has_file{false};
+  bool m_cap_expired_password{false};
+  bool m_client_interactive{false};
+  bool m_connect_attrs{true};
+  bool m_import_env{false};
 
   Execution_context::Options m_context_options;
   Console::Options m_console_options;
@@ -58,7 +59,7 @@ class Driver_command_line_options : public Command_line_options {
   std::map<std::string, std::string> m_variables;
 
   std::string m_uri;
-  bool m_daemon;
+  bool m_daemon{false};
   std::string m_sql;
   int m_expected_error_code{0};
 

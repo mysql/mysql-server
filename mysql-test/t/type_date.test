@@ -628,3 +628,134 @@ DROP TABLE t;
 --echo #
 
 SELECT IFNULL(LAST_DAY('201:34:36.298754'), FROM_DAYS(0)) AS c;
+
+--echo #
+--echo # Bug#38475846: Sig11 at Date_val::to_string|mysys/my_temporal.cc
+--echo #
+
+CREATE TABLE t1(d DATE, vc VARCHAR(10));
+
+INSERT INTO t1 VALUES(DATE'2025-09-25', '2025-09-24');
+
+SELECT d
+FROM t1 AS ot
+WHERE EXISTS (SELECT it.d
+              FROM t1 AS it
+              WHERE LEAST(it.d, it.vc) <= ot.vc
+             );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38460273: Assertion (*left)->data_type() == MYSQL_TYPE_DATE ||
+--echo #                         (*left)->data_type() == MYSQL_TYPE_NULL
+--echo #
+
+CREATE TABLE dates (d DATE);
+CREATE TABLE times (t TIME);
+
+SELECT * FROM dates WHERE d >= d AND d = '1994-02-15';
+
+SELECT * FROM times WHERE t >= t AND t = '11:12:13';
+
+DROP TABLE dates, times;
+
+--echo #
+--echo # Bug#38882825: Assertion 'month() != 0 && day() != 0'
+--echo #
+
+SELECT TO_DAYS(FROM_DAYS(6) + INTERVAL 1933116476 SECOND_MICROSECOND);
+
+--echo #
+--echo # Bug#38043311: Copying a DATE value into an INTEGER field: wrong value
+--echo #
+
+CREATE TABLE t1(d DATE);
+INSERT INTO t1 VALUES(DATE'1000-01-01'), (DATE'9999-12-31');
+
+CREATE TABLE t2(i BIGINT);
+INSERT INTO t2(i) SELECT d FROM t1;
+SELECT * FROM t2;
+
+ALTER TABLE t1 ADD gcv BIGINT AS (d), ADD gcs BIGINT AS (d) STORED;
+SELECT * FROM t1;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#32019977: Date arithmetic has poor overflow handling
+--echo #
+
+SELECT DATE'0000-01-02' - INTERVAL 1 DAY;
+
+SELECT DATE'0000-01-02' - INTERVAL 2 DAY;
+
+SELECT DATE'0001-01-02' - INTERVAL 1 DAY;
+
+SELECT DATE'0001-01-02' - INTERVAL 2 DAY;
+
+SELECT DATE'9999-12-31' + INTERVAL 1 DAY;
+
+--echo #
+--echo # Bug#22353325: After UPDATE t1 SET B(BIGINT) = A(DATE), 000000 appended
+--echo #
+
+CREATE TABLE t1(a DATE, b BIGINT, c BIGINT);
+INSERT INTO t1(a) VALUES (DATE'2015-01-01');
+
+UPDATE t1 SET b = a, c = CAST(a AS SIGNED);
+
+SELECT a, b, c, a + 1 FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#20583945: No warning when, under ALLOW_INVALID_DATES,
+--echo #               an invalid date is discarded
+--echo #
+
+set sql_mode = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES';
+
+SELECT DATE '2014-02-31';
+
+SELECT DATE '2014-01-31';
+
+SELECT DATE '2014-02-31' + 1;
+
+SELECT DATE '2014-01-31' + 1;
+
+SELECT DATE(DATE '2014-02-31');
+
+SELECT DATE_FORMAT(DATE '2014-02-31', '%Y%b%e');
+
+SELECT DATE_FORMAT(DATE '2014-01-31', '%Y%b%e');
+
+set sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug#39053803: failing in Item_func_str_to_temporal::eval_datetime
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT STR_TO_DATE(EXP(11463), '%S  %S   ');
+--error ER_DATA_OUT_OF_RANGE
+SELECT STR_TO_DATE(COT(IS_IPV6(UUID_TO_BIN(UUID()))), COMPRESS('_&?_[$'));
+SET @a = NULL;
+SELECT STR_TO_DATE(COT(IS_UUID(@a)), 0x85);
+--error ER_DATA_OUT_OF_RANGE
+SELECT STR_TO_DATE(COT(' ;D( c+%'), sleep(0));
+--error ER_DATA_OUT_OF_RANGE
+SELECT STR_TO_DATE(EXP(9223372036854775808), 1);
+
+--echo #
+--echo # Bug#39038617: CAST asserts: Item_typecast_unsigned::val_int()
+--echo #
+
+SELECT CAST(FROM_DAYS(-11797) AS UNSIGNED) ^ SLEEP(0);
+
+SELECT CAST(CAST(FROM_DAYS(CURRENT_DATE()) AS UNSIGNED) AS SIGNED INTEGER);
+
+SELECT CAST((FROM_DAYS(-9223372036854775807)) AS SIGNED INTEGER);
+
+SELECT INET6_NTOA((SELECT CONVERT(FROM_DAYS(-15050), SIGNED)));
+SELECT STD(CONVERT(FROM_DAYS("-479:27:44.090745"), SIGNED INTEGER));

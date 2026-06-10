@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,16 +24,19 @@
  */
 
 #include "mrs/database/query_rest_task.h"
+
 #include <map>
 #include <vector>
-#include "helper/container/generic.h"
+
 #include "helper/json/rapid_json_iterator.h"
 #include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/sqlstring_utils.h"
 #include "mrs/database/helper/sp_function_query.h"
 #include "mrs/http/error.h"
+
 #include "mysql/harness/string_utils.h"
+#include "mysql/harness/utility/container/generic.h"
 #include "mysql/harness/utility/string.h"
 #include "mysqlrouter/utils_sqlstring.h"
 

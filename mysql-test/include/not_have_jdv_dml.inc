@@ -1,2 +1,0 @@
---let $skip_if_jdv_dml_supported= 1
---source include/have_jdv_dml.inc

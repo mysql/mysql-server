@@ -1,5 +1,7 @@
 ## Test cases for authorization plugins
 
+--let SAVED_PASSWORD_STORAGE_FORMAT=`SELECT @@global.caching_sha2_password_storage_format`
+
 --let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
@@ -26,78 +28,23 @@ EOF
 --let $plain_login_ok= --file=$MYSQL_TMP_DIR/login_using_plain.xpl
 
 
-# Create and configure xuser_* accounts that use native, sha256 and
-# cache_sha2 authentication plugins.
-
---source ../include/create_mysql_accounts_for_xplugin_tests.inc
-
-GRANT ALL ON *.* TO xuser_cache2@localhost;
-
-
 #
 ## Test starts here
 #
 
---echo
---echo #######################################################################
---echo ## 2. Memory mechanism ok after filling the cache, fails after flush
---echo ##
---echo ## when:
---echo ## * The cache is empty, the memory request is going to fail
---echo ## * plain auth is going to fill the cache (mysqlx_cache_cleaner installed)
---echo ## * The cache is filled, the memory auth request is going to be successful
---echo ## * FLUSH PRIVILEGES is going to clear the cache,
---echo ##   the memory auth request is going to be successful
---echo ##
---echo ## Requirements: F2, F4, F5, CI6
---echo #
+# Run the test with standard configuration of caching_sha2_password_storage_format.
+--let $test_param_run=1
+--source ../include/test_connection_auth_mechanism_memory.inc
 
---echo
---echo #######################################################################
---echo # Cache is empty, the sha256_memory request must fail
-exec $MYSQLXTEST $memory_login_fail 2>&1;
-
---echo
---echo #######################################################################
---echo # Plain auth work as expected and it fill the cache
-exec $MYSQLXTEST $plain_login_ok 2>&1;
-
---echo
---echo #######################################################################
---echo # Plain filled the cache, thus auth-mech sha256_memory must be successful
-exec $MYSQLXTEST $memory_login_ok 2>&1;
-
---echo
---echo #######################################################################
---echo # Cache is cleared by FLUSH SQL, thus auth-mech sha256_memory must fail
-FLUSH PRIVILEGES;
-exec $MYSQLXTEST $memory_login_fail 2>&1;
-
-
---echo
---echo #######################################################################
---echo ## 3. Memory mechanism fails after uninstall plugin
---echo ##
---echo ## when:
---echo ##  * plain auth is going to fill the cache
---echo ##  * uninstall plugin mysqlx_cache_cleaner, disables the cache
---echo ##
---echo ## Requirements: F1
---echo #
-
---echo
---echo #######################################################################
---echo # Plain auth work as expected and it fill the cache
-exec $MYSQLXTEST $plain_login_ok 2>&1;
-
---echo
---echo #######################################################################
---echo # Plain filled the cache, thus auth-mech sha256_memory must be successful
-exec $MYSQLXTEST $memory_login_ok 2>&1;
+# Run the test with PBKDF2_SHA512 configuration set in caching_sha2_password_storage_format.
+SET GLOBAL caching_sha2_password_storage_format="PBKDF2_SHA512";
+--let $test_param_run=2
+--source ../include/test_connection_auth_mechanism_memory.inc
 
 
 #
 # Postamble
 #
+--eval SET GLOBAL caching_sha2_password_storage_format='$SAVED_PASSWORD_STORAGE_FORMAT'
+
 --source ../include/xplugin_cleanup.inc
---source ../include/remove_mysql_accounts_for_xplugin_tests.inc

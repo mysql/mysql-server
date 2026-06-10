@@ -1,0 +1,407 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Connection con1
+# Connection con2
+# Connection con3
+# Connection con4
+# Connection con5
+# Connection con6
+# Connection otel
+# Connection ctrl
+
+# State before install
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con2	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con5	NO
+NAME	TELEMETRY_ACTIVE
+con6	NO
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+0
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+# Install component
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.trace_enabled = 'ON',
+telemetry.otel_exporter_otlp_traces_endpoint = 'http://localhost:4318/v1/traces';
+
+# State after install
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con2	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con5	NO
+NAME	TELEMETRY_ACTIVE
+con6	NO
+NAME	TELEMETRY_ACTIVE
+otel	YES
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	1
+SELECT "Con2 now detects telemetry" as MARKER;
+MARKER
+Con2 now detects telemetry
+# Connection con7
+# Connection con8
+# Connection con9
+# Connection con10
+
+# State after con2(W), con7(C), con8(C), con9(C), con10(C)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con2	YES
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con5	NO
+NAME	TELEMETRY_ACTIVE
+con6	NO
+NAME	TELEMETRY_ACTIVE
+con7	YES
+NAME	TELEMETRY_ACTIVE
+con8	YES
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+otel	YES
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+6
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	6
+SELECT "Con3 now detects telemetry" as MARKER;
+MARKER
+Con3 now detects telemetry
+SELECT "Con6 now detects telemetry" as MARKER;
+MARKER
+Con6 now detects telemetry
+SELECT "Con8 now detects telemetry" as MARKER;
+MARKER
+Con8 now detects telemetry
+
+# State after con3(W), con5(D), con6(W), con7(D), con8(W)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con2	YES
+NAME	TELEMETRY_ACTIVE
+con3	YES
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con6	YES
+NAME	TELEMETRY_ACTIVE
+con8	YES
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+otel	YES
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+7
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	7
+
+# State after con6(D), con8(D)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con2	YES
+NAME	TELEMETRY_ACTIVE
+con3	YES
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+otel	YES
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+5
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	5
+SELECT "ctrl now detects telemetry" as MARKER;
+MARKER
+ctrl now detects telemetry
+# Uninstall component, will block
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+# Enforce UNINSTALL is blocked
+
+# State after UNLOAD(B)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con2	YES
+NAME	TELEMETRY_ACTIVE
+con3	YES
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+4
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	4
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+stage/telemetry/session	2	5	tm_notification.cc:
+
+# State after CON2(D)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con3	YES
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+3
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	3
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+stage/telemetry/session	3	5	tm_notification.cc:
+SELECT "Con3 now detects telemetry" as MARKER;
+MARKER
+Con3 now detects telemetry
+
+# State after CON3(W), detects component is unloading
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+2
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	2
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+stage/telemetry/session	4	5	tm_notification.cc:
+# Connection con11
+
+# State after CON11(C) while UNLOAD is still blocked
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con9	YES
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+con11	NO
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+2
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	2
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+stage/telemetry/session	4	5	tm_notification.cc:
+
+# State after CON9(D)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con10	YES
+NAME	TELEMETRY_ACTIVE
+con11	NO
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	1
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+stage/telemetry/session	5	5	tm_notification.cc:
+select "CON10 performing work";
+CON10 performing work
+CON10 performing work
+
+# State after CON10(W)
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con10	NO
+NAME	TELEMETRY_ACTIVE
+con11	NO
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+0
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.live_sessions	0
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+stage/telemetry/session	6	5	tm_notification.cc:
+
+# Enforce UNINSTALL is complete
+
+# State after CON10(D), UNLOAD completed
+
+NAME	TELEMETRY_ACTIVE
+con1	NO
+NAME	TELEMETRY_ACTIVE
+con3	NO
+NAME	TELEMETRY_ACTIVE
+con4	NO
+NAME	TELEMETRY_ACTIVE
+con11	NO
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+0
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+VARIABLE_NAME	VARIABLE_VALUE
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+
+# State after CON1(D), CON3(D), CON4(D), CON11(D)
+
+NAME	TELEMETRY_ACTIVE
+otel	NO
+NAME	TELEMETRY_ACTIVE
+ctrl	NO
+SELECT COUNT(*) FROM performance_schema.threads
+WHERE TELEMETRY_ACTIVE = 'YES';
+COUNT(*)
+0
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';

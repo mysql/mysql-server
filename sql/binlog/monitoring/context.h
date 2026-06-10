@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define BINLOG_MONITORING_CONTEXT_H
 
 #include <map>
+#include <memory>
 
 #include <sql/log_event.h>
 #include <sql/rpl_gtid.h>
@@ -254,7 +255,7 @@ class Transaction_compression {
 
     @param stats the container to fill in with copies of the stats in the probe.
    */
-  void get_stats(std::vector<Compression_stats *> &stats);
+  void get_stats(std::vector<std::unique_ptr<Compression_stats>> &stats);
 
   /**
     Gets the number of stats in the probe. Each combination of log_type and

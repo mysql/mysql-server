@@ -1,0 +1,188 @@
+# ==== Purpose ====
+#
+# Test that event sizes are reported correctly in
+# replication_applier_progress_by_worker.
+#
+# ==== Requirements ====
+#
+# R1. When the applier is in the middle of a transaction, the correct size of
+#     events applied up to the current event must be reported.
+#
+# ==== Implementation ====
+#
+# 1. Replica: Install the plugin.
+# 2.  Source: Create two tables: t1 and t2.
+# 3. Replica: Block updates on t1.
+# 4.  Source: Commit a transcation that inserts first a row in t1, then a row in
+#             t2. Compute the size of the transaction up to the event that
+#             inserts in t1, and the size of the transaction up to the event
+#             that inserts in t2.
+# 5. Replica: Wait until applier has blocked, and verify that the reported
+#             size equals the size up to the row event inserting into t1.
+# 6. Replica: Block updates on t2, unblock updates on t1.
+# 7. Replica: Wait until applier has progressed, and verify that the reported
+#             size equals the size up to the row event inserting into t2.
+# 8.  Source: Cleanup the scenario: drop t1 and t2.
+# 9. Repeat steps 2..8 with binlog compression enabled. (The decompressed event
+#    sizes in a compressed transaction cannot be queried. But since the
+#    transaction is identical to that in the previous scenario, we assume that
+#    the previous values can be reused. This works, if we subtract the size
+#    of event checksums, since compressed events do not have checksums.)
+# 10. Replica: Uninstall the plugin.
+#
+# ==== References ====
+#
+# WL#15620:  MTA: extended apply statistics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test scenarios need to control the numbers and sizes of events.
+--source include/have_binlog_format_row.inc
+
+# The test needs special cases for compression disabled, hence sets
+# compression explicitly in the test. So we run it only with compression
+# disabled.
+--source include/not_binlog_transaction_compression_on.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--echo ##############################################################
+--echo #### SETUP
+
+--echo ==== 1. Install component ====
+
+--source include/rpl/connection_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+
+--let $binlog_compression_enabled = 0
+while ($binlog_compression_enabled != 2) {
+  --echo ##############################################################
+  --echo #### binlog_compression = $binlog_compression_enabled
+
+  --echo ==== 2. Create tables ====
+
+  --source include/rpl/connection_source.inc
+
+  CREATE TABLE t1 (a INT PRIMARY KEY);
+  CREATE TABLE t2 (a INT PRIMARY KEY);
+
+  --source include/rpl/sync_to_replica.inc
+
+  # Find the transaction that is ongoing for the default channel
+  --let $from_worker = FROM performance_schema.replication_applier_progress_by_worker WHERE CHANNEL_NAME = ''
+
+  --echo ==== 3. Block updates on t1 ====
+
+  --source include/rpl/connection_replica.inc
+  LOCK TABLE t1 READ;
+
+  --echo ==== 4. Commit transaction ====
+
+  --source include/rpl/connection_source.inc
+
+  --let $base_offset = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+  --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+  BEGIN;
+  INSERT INTO t1 VALUES (1);
+  INSERT INTO t2 VALUES (2);
+  COMMIT;
+
+  # In the first iteration of the loop, binlog compression is disabled, and we
+  # can read the event sizes. In the second iteration, binlog compression is
+  # enabled, and then there is no way to read event sizes. But since the
+  # transaction is identical, we assume that the sizes of inner events are
+  # identical and reuse the values computed in the previous iteration.
+  # The sizes of GTID events may differ (because the GTID event contains a
+  # transaction length encoded using variable-length integer, and the
+  # transaction length may differ significantly), so we compute the offsets
+  # relative to the GTID event.
+  --let $gtid_offset = query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $base_offset, Pos, 2)
+  --expr $gtid_size = $gtid_offset - $base_offset
+  if ($binlog_compression_enabled == 0) {
+    # The transaction will have the following events:
+    #
+    # 1. GTID
+    # 2. Query(BEGIN)
+    # 3. Table_map(t1)
+    # 4. Write_rows(t1)
+    # 5. Table_map(t2)
+    # 6. Write_rows(t2)
+    # 7. COMMIT
+    #
+    # When we lock t1, the applier will block before 4.
+    # When we lock t2, the applier will block before 6.
+    --let $first_offset = query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $base_offset, Pos, 4)
+    --let $second_offset = query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $base_offset, Pos, 6)
+    --expr $first_offset = $first_offset - $gtid_offset
+    --expr $second_offset = $second_offset - $gtid_offset
+  }
+  if ($binlog_compression_enabled == 1) {
+    # With binlog compression, event checksums are skipped. Therefore
+    # each compressed event is 4 bytes smaller. So we subtract 2*4 from the
+    # first size and 4*4 from the second size.
+    # Unfortunately mtr can only do arithmetic on variables, not constants.
+    --let $eight = 8
+    --let $sixteen = 16
+    --expr $first_offset = $first_offset - $eight
+    --expr $second_offset = $second_offset - $sixteen
+  }
+
+  --echo ==== 5. Wait until transaction is blocked and verify the reported progress is as expected ====
+
+  # Before the condition is met, there is a time when the worker has not even
+  # picked up the transcation. Hence we don't use a WHERE clasue that "selects
+  # the active worker", because that could return an empty result set, which
+  # would result in SQL syntax error while evaluating the outer condition.
+  # Instead we use MAX to get the largest size among all workers (possibly 0).
+  --source include/rpl/connection_replica.inc
+  --let $assert_text = Eventually, worker increments APPLIED_SIZE_BYTES to the size up to the insert into t1
+  --let $assert_cond = [SELECT MAX(ONGOING_TRANSACTION_APPLIED_SIZE_BYTES) $from_worker] = $gtid_size + $first_offset
+  --source include/assert_eventually.inc
+
+  --echo ==== 6. Block updates on t2, unblock updates on t1 ====
+
+  --source include/rpl/connection_replica1.inc
+  LOCK TABLE t2 READ;
+  --source include/rpl/connection_replica.inc
+  UNLOCK TABLES;
+
+  --echo ==== 7. Wait until transaction is blocked again and verify the reported progress is as expected ====
+
+  --let $assert_text = Eventually, worker increments APPLIED_SIZE_BYTES to the size up to the insert into t2
+  --let $assert_cond = [SELECT MAX(ONGOING_TRANSACTION_APPLIED_SIZE_BYTES) $from_worker] = $gtid_size + $second_offset
+  --source include/assert_eventually.inc
+
+  --echo ==== 8. Clean up ====
+
+  --source include/rpl/connection_replica1.inc
+  UNLOCK TABLES;
+  --source include/rpl/connection_source.inc
+  DROP TABLE t1;
+  DROP TABLE t2;
+  --source include/rpl/sync_to_replica.inc
+
+  --echo ==== 9. Repeat with binlog compression enabled ====
+
+  --source include/rpl/connection_source.inc
+  SET @@session.binlog_transaction_compression = 1;
+  --inc $binlog_compression_enabled
+}
+
+--echo ==== 10. Uninstall plugin ====
+
+--source include/rpl/connection_replica.inc
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/deinit.inc

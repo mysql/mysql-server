@@ -31,7 +31,7 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<3000;
 EXPLAIN
 -> Filter: (t1.a < 3000)  (...)
-    -> Table scan on t1  (...)
+    -> Index scan on t1 using PRIMARY  (...)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.pk<10 AND x1.b=x2.a;
 EXPLAIN
@@ -42,14 +42,14 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.pk<1000 AND x1.b=x2.a;
 EXPLAIN
 -> Inner hash join (x1.b = x2.a)  (...)
-    -> Table scan on x2  (...)
+    -> Index scan on x2 using PRIMARY  (...)
     -> Hash
         -> Index range scan on x1 using PRIMARY over (pk < 1000)  (...)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.pk<3000 AND x1.b=x2.a;
 EXPLAIN
 -> Inner hash join (x1.b = x2.a)  (...)
-    -> Table scan on x2  (...)
+    -> Index scan on x2 using PRIMARY  (...)
     -> Hash
         -> Index range scan on x1 using PRIMARY over (pk < 3000)  (...)
 

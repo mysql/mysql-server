@@ -1,0 +1,176 @@
+# === Purpose ===
+#
+# This test tests the applier metrics component with Group Replication
+#
+# ==== Requirements ====
+#
+# R1. When installed the user can query performance statistics for the GR applier channel
+# R2. When installed the user can query performance statistics for GR workers
+#
+# === Implementation ====
+#
+# 1. Install the component on both members
+# 2. Create some transactions on the group
+# 3. Confirm the transactions are received on server 2
+# 4. Check the applier channel metrics on ongoing, transaction sizes and waits
+# 5. Check also the worker table
+# 6. Cleanup
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Install the component on both members
+
+--let $rpl_connection_name = server1
+--source include/connection.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/connection.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Create some transactions on the group
+
+--let $rpl_connection_name = server1
+--source include/connection.inc
+
+CREATE TABLE test.table (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO test.table VALUES (1);
+
+--source include/rpl/sync.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Confirm the transactions are received on server 2
+
+--let $rpl_connection_name = server2
+--source include/connection.inc
+
+--let $from_ch = FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = 'group_replication_applier'
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_COMMITTED_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, workers increase TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM to nonzero
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_SIZE_BYTES_SUM $from_ch] > 0
+--source include/assert_eventually.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Check GR applier channel metrics
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+
+LOCK TABLE test.table WRITE;
+
+--let $rpl_connection_name = server2
+--source include/connection.inc
+
+INSERT INTO test.table VALUES (2);
+INSERT INTO test.table VALUES (3);
+
+--let $rpl_connection_name = server1
+--source include/connection.inc
+
+--let $assert_text = Eventually, receiver increases TRANSACTIONS_PENDING_COUNT to 2
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT $from_ch] = 2
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_ONGOING_COUNT to 1
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = TRANSACTIONS_COMMITTED_COUNT remains 0
+--let $assert_cond = [SELECT TRANSACTIONS_COMMITTED_COUNT $from_ch] = 0
+--source include/assert.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM to nonzero
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_FULL_SIZE_BYTES_SUM $from_ch] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, worker increases TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM to nonzero
+--let $assert_cond = [SELECT TRANSACTIONS_ONGOING_PROGRESS_SIZE_BYTES_SUM $from_ch] > 0
+--source include/assert_eventually.inc
+
+# The first transactions in a channel is always non concurrent, so schedule dependency is called
+
+--let $assert_text = Eventually, coordinator increases WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT to > 1
+--let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch] > 1
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, coordinator increases WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME to nonzero
+--let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME $from_ch] > 1
+--source include/assert_eventually.inc
+
+--let $assert_text = replication_applier_metrics contains 2 rows, one per GR channel
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_metrics] = 2
+--source include/assert_eventually.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Check also the worker table
+
+--let $extra_debug_table = performance_schema.replication_applier_progress_by_worker
+
+--let $count = SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker WHERE
+
+--let $assert_text = One worker has set ONGOING_TRANSACTION_TYPE = 'DML'
+--let $assert_cond = [$count ONGOING_TRANSACTION_TYPE = 'DML'] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = One worker has incremented ONGOING_TRANSACTION_APPLIED_SIZE_BYTES to nonzero
+--let $assert_cond = [$count ONGOING_TRANSACTION_APPLIED_SIZE_BYTES > 0] = 1
+--source include/assert_eventually.inc
+
+--let $assert_text = replication_applier_progress_by_worker contains 4 rows, 2 per GR channel
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_progress_by_worker] = 4
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Cleanup
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+
+UNLOCK TABLES;
+
+--let $wait_condition = SELECT COUNT(*) = 3 FROM test.table
+--source include/wait_condition.inc
+
+--let $rpl_connection_name = server1
+--source include/connection.inc
+DROP TABLE test.table;
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--let $rpl_connection_name = server2
+--source include/connection.inc
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/group_replication_end.inc

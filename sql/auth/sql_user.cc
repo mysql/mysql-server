@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -606,17 +606,17 @@ static bool auth_verify_password_history(
 
   /* iterate over the password history rows for the user */
   while (!error) {
-    Date_val ts_val;
+    Date_val date;
     char outbuf[MAX_FIELD_WIDTH] = {0};
     long ts_day, date_diff;
     String cred_val(&outbuf[0], sizeof(outbuf), &my_charset_bin);
     int is_error = 0;
 
     /* fetch the recorded time */
-    if (ts_field->val_date(&ts_val, 0)) goto get_next_row;
+    if (ts_field->val_date(&date, 0)) goto get_next_row;
 
     /* convert to a day number */
-    ts_day = calc_daynr(ts_val.year, ts_val.month, ts_val.day);
+    ts_day = calc_daynr(date.year(), date.month(), date.day());
 
     /* get the difference in days */
     date_diff = now_day - ts_day;

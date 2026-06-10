@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +311,8 @@ const Plugin_data router_plugins[]{
         "router_openssl",
         "io",
         "connection_pool",
-        "destination_status"
+        "destination_status",
+        "host_cache"
     )",
      ""},
     {"metadata_cache",

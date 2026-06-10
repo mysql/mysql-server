@@ -1,4 +1,4 @@
-/*  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "helper/container/generic.h"
 #include "mrs/gtid_manager.h"
+
+#include "mysql/harness/utility/container/generic.h"
 
 using UID = mrs::database::GTIDuuid;
 using Gtid = mrs::database::Gtid;

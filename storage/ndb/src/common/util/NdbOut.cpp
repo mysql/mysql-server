@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -255,7 +255,8 @@ void NdbOut_Init() {
   new (&ndbouts_fileoutputstream) FileOutputStream(stdout);
   new (&ndbout) NdbOut(ndbouts_fileoutputstream);
 
-  new (&ndberrs_fileoutputstream) FileOutputStream(stderr);
+  new (&ndberrs_fileoutputstream)
+      FileOutputStream(stderr, &ndbouts_fileoutputstream, true);
   new (&ndberr) NdbOut(ndberrs_fileoutputstream);
 }
 

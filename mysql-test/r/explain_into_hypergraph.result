@@ -55,15 +55,18 @@ SELECT @v1, JSON_VALID(@v1);
       {
         "inputs": [
           {
-            "operation": "Table scan on t1",
+            "covering": false,
+            "operation": "Index scan on t1 using PRIMARY",
+            "index_name": "PRIMARY",
             "table_name": "t1",
-            "access_type": "table",
+            "access_type": "index",
             "schema_name": "test",
             "used_columns": [
               "i1",
               "i2"
             ],
             "estimated_rows": 3.0,
+            "index_access_type": "index_scan",
             "estimated_total_cost": "elided",
             "estimated_first_row_cost": "elided"
           }
@@ -190,9 +193,11 @@ SELECT @v1, JSON_VALID(@v1);
       {
         "inputs": [
           {
-            "operation": "Table scan on t1",
+            "covering": false,
+            "operation": "Index scan on t1 using PRIMARY",
+            "index_name": "PRIMARY",
             "table_name": "t1",
-            "access_type": "table",
+            "access_type": "index",
             "actual_rows": 3.0,
             "schema_name": "test",
             "actual_loops": 1,
@@ -201,6 +206,7 @@ SELECT @v1, JSON_VALID(@v1);
               "i2"
             ],
             "estimated_rows": 3.0,
+            "index_access_type": "index_scan",
             "actual_last_row_ms": "elided",
             "actual_first_row_ms": "elided",
             "estimated_total_cost": "elided",

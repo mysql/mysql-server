@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1159,7 +1159,7 @@ static my_decimal *val_decimal_from_json(Item_func *item,
                                          my_decimal *decimal_value) {
   Json_wrapper wr;
   if (item->val_json(&wr)) {
-    return item->error_decimal(decimal_value);
+    return nullptr;
   }
   if (item->null_value) return nullptr;
   return wr.coerce_decimal(JsonCoercionWarnHandler{item->func_name()},
@@ -1256,7 +1256,6 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
 
       break;
     }
-    case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP: {
       const longlong dt = arg->val_date_temporal();
@@ -1269,6 +1268,15 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
       if (create_scalar<Json_datetime>(scalar, &dom, t, field_type))
         return true; /* purecov: inspected */
 
+      break;
+    }
+    case MYSQL_TYPE_DATE: {
+      Date_val date;
+      if (arg->val_date(&date, 0)) {
+        return current_thd->is_error();
+      }
+      if (create_scalar<Json_date>(scalar, &dom, date))
+        return true; /* purecov: inspected */
       break;
     }
     case MYSQL_TYPE_TIME: {
@@ -1284,9 +1292,7 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
     case MYSQL_TYPE_NEWDECIMAL: {
       my_decimal m;
       my_decimal *r = arg->val_decimal(&m);
-      if (current_thd->is_error()) return true;
-      if (arg->null_value) return false;
-      assert(r != nullptr);
+      if (r == nullptr) return current_thd->is_error();
 
       if (create_scalar<Json_decimal>(scalar, &dom, *r))
         return true; /* purecov: inspected */
@@ -4118,8 +4124,6 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       break;
     }
     case STRING_RESULT: {
-      Datetime_val dt;
-      bool date_time_handled = false;
       /*
         Here we explicitly check for DATE/TIME to reduce overhead by
         avoiding encoding data into string in JSON code and decoding it
@@ -4128,29 +4132,47 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
         Ensure that date is saved to a date column, and time into time
         column. Don't mix.
       */
-      if (is_temporal_type_with_date(field->type())) {
-        switch (w->type()) {
-          case enum_json_type::J_DATE:
-          case enum_json_type::J_DATETIME:
-          case enum_json_type::J_TIMESTAMP:
+      bool date_time_handled = false;
+      switch (field->type()) {
+        case MYSQL_TYPE_TIME: {
+          if (w->type() == enum_json_type::J_TIME) {
+            Time_val time;
+            err = w->coerce_time(error_handler,
+                                 JsonCoercionDeprecatedDefaultHandler{}, &time);
+            if (err) break;
+            err = field->store_time(time, DATETIME_MAX_DECIMALS);
             date_time_handled = true;
+          }
+          break;
+        }
+        case MYSQL_TYPE_DATE: {
+          if (w->type() == enum_json_type::J_DATE) {
+            Date_val date;
+            err = w->coerce_date(error_handler,
+                                 JsonCoercionDeprecatedDefaultHandler{}, &date);
+            if (err) break;
+            err = field->store_date(date);
+            date_time_handled = true;
+          }
+          break;
+        }
+        case MYSQL_TYPE_DATETIME:
+        case MYSQL_TYPE_TIMESTAMP: {
+          if (w->type() == enum_json_type::J_DATETIME) {
+            Datetime_val dt;
             err = w->coerce_datetime(error_handler,
                                      JsonCoercionDeprecatedDefaultHandler{},
                                      &dt, DatetimeConversionFlags(current_thd));
-            break;
-          default:
-            break;
+            if (err) break;
+            err = field->store_time(&dt);
+            date_time_handled = true;
+          }
+          break;
         }
-      } else if (field->type() == MYSQL_TYPE_TIME &&
-                 w->type() == enum_json_type::J_TIME) {
-        date_time_handled = true;
-        Time_val time;
-        err = w->coerce_time(error_handler,
-                             JsonCoercionDeprecatedDefaultHandler{}, &time);
-        *implicit_cast<MYSQL_TIME *>(&dt) = MYSQL_TIME(time);
+        default:
+          break;
       }
       if (date_time_handled) {
-        err |= field->store_time(&dt) != TYPE_OK;
         break;
       }
       // Initialize with an explicit empty string pointer,
@@ -4165,7 +4187,6 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       } else {
         err = w->to_string(&str, false, "JSON_TABLE", JsonDepthErrorHandler);
       }
-
       if (!err && (field->store(str.ptr(), str.length(), str.charset()) >=
                    TYPE_WARN_OUT_OF_RANGE))
         err = true;
@@ -4316,7 +4337,8 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       break;
     }
     case ITEM_CAST_DATE: {
-      if (item->val_date(&default_value->date_default, 0)) return nullptr;
+      if (item->val_date(&default_value->date_default, TIME_ONLY_VALID_DATES))
+        return nullptr;
       assert(!thd->is_error());
       break;
     }
@@ -4355,7 +4377,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
     }
     case ITEM_CAST_DATETIME: {
       if (item->val_datetime(&default_value->datetime_default,
-                             TIME_DATETIME_ONLY)) {
+                             TIME_ONLY_VALID_DATES | TIME_DATETIME_ONLY)) {
         return nullptr;
       }
       assert(!thd->is_error());
@@ -4399,7 +4421,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       my_decimal *buffer = new (mem_root) my_decimal;
       if (buffer == nullptr) return nullptr;
       const my_decimal *value = item->val_decimal(buffer);
-      if (thd->is_error()) return nullptr;
+      if (value == nullptr) return nullptr;
       if (!decimal_within_range(this, value) || value->frac > decimals) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "DECIMAL DEFAULT", func_name());
         return nullptr;
@@ -4888,8 +4910,9 @@ my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
     case ITEM_CAST_YEAR:
       return val_decimal_from_int(value);
     case ITEM_CAST_DATE:
-    case ITEM_CAST_DATETIME:
       return val_decimal_from_date(value);
+    case ITEM_CAST_DATETIME:
+      return val_decimal_from_datetime(value);
     case ITEM_CAST_TIME:
       return val_decimal_from_time(value);
     case ITEM_CAST_CHAR:
@@ -4931,7 +4954,54 @@ my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
 }
 
 bool Item_func_json_value::val_date(Date_val *date, my_time_flags_t flags) {
-  return val_datetime(date, flags);
+  assert(fixed);
+  switch (m_cast_target) {
+    case ITEM_CAST_SIGNED_INT:
+    case ITEM_CAST_UNSIGNED_INT:
+      return get_date_from_int(date, flags);
+    case ITEM_CAST_DATE:
+    case ITEM_CAST_YEAR:
+      return extract_date_value(date);
+    case ITEM_CAST_DATETIME:
+      return extract_date_value(date);
+    case ITEM_CAST_TIME:
+      return get_date_from_time(date);
+    case ITEM_CAST_CHAR:
+      return get_date_from_string(date, flags);
+    case ITEM_CAST_DECIMAL:
+      return get_date_from_decimal(date, flags);
+    case ITEM_CAST_JSON:
+      return get_date_from_json(this, date, flags);
+    case ITEM_CAST_FLOAT:
+    case ITEM_CAST_DOUBLE:
+      return get_date_from_real(date, flags);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return true;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return true;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return true;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return true;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return true;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return true;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return true;
+      /* purecov: end */
+  }
+  assert(false); /* purecov: deadcode */
+  return true;
 }
 
 bool Item_func_json_value::val_datetime(Datetime_val *dt,
@@ -4943,7 +5013,7 @@ bool Item_func_json_value::val_datetime(Datetime_val *dt,
       return get_datetime_from_int(dt, flags);
     case ITEM_CAST_DATE:
     case ITEM_CAST_YEAR:
-      return extract_date_value((Date_val *)(dt));
+      return get_datetime_from_date(dt, flags);
     case ITEM_CAST_DATETIME:
       return extract_datetime_value(dt);
     case ITEM_CAST_TIME:
@@ -5181,7 +5251,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
-    return error_decimal(value);
+    return nullptr;
   }
 
   if (return_default != nullptr) {
@@ -5195,7 +5265,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
 
   if (handle_json_value_conversion_error(m_on_error, "DECIMAL", this) ||
       null_value) {
-    return error_decimal(value);
+    return nullptr;
   }
 
   *value = *m_default_error->decimal_default;

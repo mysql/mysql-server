@@ -638,3 +638,16 @@ SELECT /*+ MERGE(t) */ x, y, CAST(y AS DOUBLE), y = 0 FROM t;
 --sorted_result
 WITH t AS (SELECT x, x/100000 AS y FROM (VALUES ROW(4), ROW(5), ROW(6)) AS v(x))
 SELECT /*+ NO_MERGE(t) */ x, y, CAST(y AS DOUBLE), y = 0 FROM t;
+
+--echo #
+--echo # Bug#38831745: IN operator returns unexpected result when one of
+--echo #                values in the list is NULL
+--echo #
+
+CREATE TABLE t1(c0 DECIMAL);
+INSERT INTO t1(c0) VALUES(123);
+SELECT c0 IN (1, - (NULL > CAST(-1147964344 AS DECIMAL))) FROM t1;
+SELECT c0 IN (1, - (NULL > -1147964344)) FROM t1;
+SELECT c0 IN (1, - (NULL > 1.0E0)) FROM t1;
+
+DROP TABLE t1;

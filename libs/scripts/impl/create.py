@@ -1,5 +1,5 @@
 #!/usr/bin/python3.11
-# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ import cmakelists as cm
 from   debug import trace
 import file_edit
 import file_name
+import file_system
 import git
 from   messages import *
 import readme_warning
@@ -266,6 +267,7 @@ def parse_arguments() -> argparse.Namespace:
 def pre_check(opt: argparse.Namespace) -> None:
     '''Check that the git tree is clean.'''
 
+    file_system.validate_current_directory()
     git.require_clean_git_workdir(
         force=opt.force, error_message='Use --force to run anyway.'
     )

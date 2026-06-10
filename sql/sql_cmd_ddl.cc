@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,23 +23,39 @@
 
 #include "sql/sql_cmd_ddl.h"
 
+#include <string>
+#include <utility>
+
 #include "lex_string.h"
+#include "my_alloc.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/components/my_service.h"
+#include "mysql/components/service.h"
 #include "mysql/components/services/defs/mysql_string_defs.h"
 #include "mysql/components/services/language_service.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_authorization.h"  // check_valid_definer
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/mysqld.h"
+#include "sql/parser_yystype.h"
+#include "sql/psi_memory_key.h"
 #include "sql/sp.h"
 #include "sql/sp_head.h"  // close_thread_tables
-#include "sql/sp_pcontext.h"
-#include "sql/sql_base.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_masking_policy.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_table.h"  // write_bin_log
 #include "sql_string.h"
+#include "string_with_len.h"
 
 namespace {
 bool check_supported_languages(
@@ -230,4 +246,36 @@ bool Sql_cmd_drop_library::execute(THD *thd) {
       my_error(ER_SP_DROP_FAILED, MYF(0), "LIBRARY", m_name->m_qname.str);
       return true;
   }
+}
+
+bool Sql_cmd_create_masking_policy::execute(THD *thd) {
+  if (check_masking_policy_manage_privilege(thd)) return true;
+
+  Sql_masking_policy_spec masking_policy_spec;
+  masking_policy_spec.policy_name = m_policy_name;
+  masking_policy_spec.argument_name = m_argument_name;
+
+  StringBuffer<1024> str;
+  m_masking_expr->print(
+      thd, &str,
+      enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS));
+  masking_policy_spec.masking_expression = str.lex_cstring();
+
+  if (create_masking_policy(thd, m_if_not_exists, masking_policy_spec)) {
+    return true;
+  }
+
+  my_ok(thd);
+  return false;
+}
+
+bool Sql_cmd_drop_masking_policy::execute(THD *thd) {
+  if (check_masking_policy_manage_privilege(thd)) return true;
+
+  if (drop_masking_policy(thd, m_policy_name, m_if_exists)) {
+    return true;
+  }
+
+  my_ok(thd);
+  return false;
 }

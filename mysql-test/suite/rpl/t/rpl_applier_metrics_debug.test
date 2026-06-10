@@ -1,0 +1,109 @@
+# ==== Purpose ====
+#
+# Test properties of replication metrics tables which require debug symbols.
+#
+# ==== Requirements ====
+#
+# R1. The feature should work correctly when the optimizer invokes the handler
+#     function rnd_pos.
+#
+# R2. The component should work when the service API sends a packet where some
+#     field is missing.
+#
+# ==== Implementation ====
+#
+# 1. Install the plugin in the replica and replicate one table.
+# 2. Cover all handler interface functions.
+# 3. Check that the table works even if a field is missing in the packet
+#    received from the service interface.
+# 4. Cleanup
+#
+# ==== References ====
+#
+# WL#15620: MTA: extended apply statistics
+# - Worklog implementing metrics
+#
+
+# Requires that the component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+# Test is agnostic to binlog_format
+--source include/have_binlog_format_row.inc
+
+# Uses add_debug_point.inc
+--source include/have_debug.inc
+
+# Make show_debug_info.inc more helpful
+--let $extra_debug_table = performance_schema.replication_applier_metrics
+
+# Make assert.inc work as expected when $assert_cond contains quote characters
+--let $assert_escape = 1
+
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init_source_replica.inc
+
+--echo ##############################################################
+--echo # 1. Install the plugin on the replica, replicate one statement
+
+--source include/rpl/connection_replica.inc
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t (a INT);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Cover table handler interface
+
+# The handler interface function rnd_pos is only called in unusual corner cases.
+# To cover these tables' implementations of it, we use a debug symbol that
+# forces optimizer to use filesort.
+--let $debug_point = filesort_force_sort_row_ids
+--source include/add_debug_point.inc
+
+--echo # Expect one row.
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_metrics ORDER BY CHANNEL_NAME;
+--echo # Expect four rows.
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_progress_by_worker ORDER BY CHANNEL_NAME;
+
+--let $debug_point = filesort_force_sort_row_ids
+--source include/remove_debug_point.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Truncated packet
+
+--let $assert_text = Eventually, the worker increases EVENTS_COMMITTED_COUNT to nonzero.
+--let $assert_cond = [SELECT EVENTS_COMMITTED_COUNT FROM performance_schema.replication_applier_metrics] > 0
+--source include/assert_eventually.inc
+
+--let $assert_text = Eventually, the worker sets TRANSACTIONS_PENDING_COUNT to zero.
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT FROM performance_schema.replication_applier_metrics] = 0
+--source include/assert_eventually.inc
+
+--let $debug_point = replication_applier_metrics_truncate_packet
+--source include/add_debug_point.inc
+
+--let $assert_text = When a field is omitted from a service API packet, the value should display as 0
+--let $assert_cond = [SELECT EVENTS_COMMITTED_COUNT FROM performance_schema.replication_applier_metrics] = 0
+--source include/assert.inc
+
+--let $assert_text = When a nullness field is omitted from a service API packet, the value should display as not NULL.
+--let $assert_cond = [SELECT TRANSACTIONS_PENDING_COUNT FROM performance_schema.replication_applier_metrics] = 0
+--source include/assert_eventually.inc
+
+--source include/remove_debug_point.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+UNINSTALL COMPONENT "file://component_replication_applier_metrics";
+
+--source include/rpl/connection_source.inc
+
+DROP TABLE t;
+
+--source include/rpl/deinit.inc

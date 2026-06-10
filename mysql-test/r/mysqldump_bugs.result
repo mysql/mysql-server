@@ -251,8 +251,6 @@ DROP DATABASE B35205310;
 # Bug#38284832: mysqldump --order-by-primary is sorting by
 #   all table indices instead of just the primary key
 #
-SET @saved_optimizer_switch = @@global.optimizer_switch;
-SET GLOBAL optimizer_switch = 'hypergraph_optimizer=off';
 CREATE DATABASE B38284832;
 CREATE TABLE B38284832.foo (
 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -267,7 +265,6 @@ INSERT INTO B38284832.foo (`col1`, `col2`, `data`)
 VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
 # Test: should not produce an execution error
 DROP DATABASE B38284832;
-SET GLOBAL optimizer_switch = @saved_optimizer_switch;
 # End of 8.4 tests
 #
 # Bug #37353658: Contribution: Remove whitespace between INSERT/REPLACE and IGNORE

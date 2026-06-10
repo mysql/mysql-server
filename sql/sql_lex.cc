@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1235,6 +1235,10 @@ Common_table_expr_parser_state::Common_table_expr_parser_state()
 
 Derived_expr_parser_state::Derived_expr_parser_state()
     : Parser_state(GRAMMAR_SELECTOR_DERIVED_EXPR), result(nullptr) {}
+
+Masking_policy_expr_parser_state::Masking_policy_expr_parser_state()
+    : Parser_state{GRAMMAR_SELECTOR_MASKING_EXPR} {}
+
 /*
 ** Calc type of integer; long integer, longlong integer or real.
 ** Returns smallest type that match the string.
@@ -1386,6 +1390,39 @@ int my_sql_parser_lex(MY_SQL_PARSER_STYPE *yacc_yylval, POS *yylloc, THD *thd) {
   if (thd->is_error()) {
     if (thd->get_parser_da()->has_sql_condition(ER_CAPACITY_EXCEEDED))
       return ABORT_SYM;
+  }
+
+  /*
+    For large queries (>1MB), check if the session has been killed or
+    the client has disconnected. Terminate execution as soon as possible
+    after a forced disconnect — without these checks the parser would
+    continue consuming memory on a dead connection.
+
+    The is_killed() check is a cheap atomic read (~1ns), checked on every
+    token. The is_connected() check involves syscalls (poll + ioctl), so we
+    only call it every 64KB of query text to amortize the cost.
+
+    Both checks are gated on query length to avoid interfering with normal
+    query processing — small queries parse quickly and don't need early
+    abort. This also avoids returning ER_QUERY_INTERRUPTED during server
+    shutdown for short status queries used by test infrastructure.
+  */
+  static constexpr size_t LARGE_QUERY_THRESHOLD = 1024 * 1024;
+  static constexpr size_t CONNECTED_CHECK_BYTES = 64 * 1024;
+
+  if (thd->query().length > LARGE_QUERY_THRESHOLD) {
+    if (thd->is_killed()) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      return ABORT_SYM;
+    }
+    size_t pos = lip->get_ptr() - lip->get_buf();
+    if (pos >= lip->m_next_connected_check_pos) {
+      lip->m_next_connected_check_pos = pos + CONNECTED_CHECK_BYTES;
+      if (!thd->is_connected()) {
+        my_error(ER_QUERY_INTERRUPTED, MYF(0));
+        return ABORT_SYM;
+      }
+    }
   }
 
   if (lip->lookahead_token >= 0) {
@@ -4920,6 +4957,8 @@ bool Query_block::walk(Item_processor processor, enum_walk walk, uchar *arg) {
       }
     }
   }
+
+  if (qualify_cond() && qualify_cond()->walk(processor, walk, arg)) return true;
   return false;
 }
 

@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -361,7 +361,9 @@ class Item_func : public Item_result_field {
     JSON_SEARCH_FUNC,
     JSON_SCHEMA_VALIDATION_REPORT_FUNC,
     JSON_SCHEMA_VALID_FUNC,
-    ETAG_FUNC
+    ETAG_FUNC,
+    CURRENT_USER_IN_FUNC,
+    CURRENT_ROLE_IN_FUNC,
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -1643,9 +1645,7 @@ class Item_func_min_max : public Item_func_numhybrid {
   double real_op() override;
   my_decimal *decimal_op(my_decimal *) override;
   String *str_op(String *) override;
-  bool date_op(Date_val *date, my_time_flags_t flags) override {
-    return datetime_op(date, flags);
-  }
+  bool date_op(Date_val *date, my_time_flags_t flags) override;
   bool time_op(Time_val *time) override;
   bool datetime_op(Datetime_val *dt, my_time_flags_t flags) override;
   enum_field_types default_data_type() const override {
@@ -1662,11 +1662,10 @@ class Item_func_min_max : public Item_func_numhybrid {
     return a number in format YYMMDDhhmmss.
   */
   enum Item_result cast_to_int_type() const override {
-    return compare_as_dates() ? INT_RESULT : result_type();
+    return m_eval_type == MYSQL_TYPE_DATETIME || m_eval_type == MYSQL_TYPE_DATE
+               ? INT_RESULT
+               : result_type();
   }
-
-  /// Returns true if arguments to this function should be compared as dates.
-  bool compare_as_dates() const;
 
   /// Returns true if at least one of the arguments was of temporal type.
   bool has_temporal_arg() const { return temporal_item; }
@@ -1675,7 +1674,14 @@ class Item_func_min_max : public Item_func_numhybrid {
   /// True if LEAST function, false if GREATEST.
   const bool m_is_least_func;
   String m_string_buf;
-  /*
+  /**
+    Evaluation type, ie. the data type that the comparison function uses.
+    This is the same as the data_type(), except in the case where the result
+    type is a string type and at least one of the arguments is a DATE
+    or DATETIME temporal value, in which it is a derived temporal type.
+  */
+  enum_field_types m_eval_type;
+  /**
     Used for determining whether one of the arguments is of temporal type and
     for converting arguments to a common output format if arguments are
     compared as dates and result type is character string. For example,
@@ -1692,22 +1698,31 @@ class Item_func_min_max : public Item_func_numhybrid {
   /**
     Compare arguments as datetime values.
 
-    @param value Pointer to which the datetime value of the winning argument
-    is written.
+    @param      flags  Flags used when evaluating date
+    @param[out] value  Smallest/largest datetime value from comparison
 
     @return true if error, false otherwise.
   */
-  bool cmp_datetimes(longlong *value);
+  bool cmp_datetimes(longlong *value, my_time_flags_t flags);
 
   /**
     Compare arguments as time values.
 
-    @param value Pointer to which the time value of the winning argument is
-    written.
+    @param[out] value  Smallest/largest time value from comparison
 
     @return true if error, false otherwise.
   */
   bool cmp_times(Time_val *value);
+
+  /**
+    Compare arguments as date values.
+
+    @param      flags  Flags used when evaluating date
+    @param[out] value  Smallest/largest date value from comparison
+
+    @return true if error, false otherwise.
+  */
+  bool cmp_dates(Date_val *value, my_time_flags_t flags);
 };
 
 class Item_func_min final : public Item_func_min_max {

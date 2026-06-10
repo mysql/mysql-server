@@ -1,0 +1,55 @@
+
+# 1. Create a source-replica topology.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 2. Prepare initial test data and ensure it is replicated.
+
+[connection master]
+CREATE TABLE t (a LONGBLOB) ENGINE = InnoDB;
+INSERT INTO t VALUES (REPEAT('a', 1000));
+include/rpl/sync_to_replica.inc
+call mtr.add_suppression("Could not purge binary logs since an.*");
+
+# 3. Take backup lock on the replica.
+
+[connection slave]
+LOCK INSTANCE FOR BACKUP;
+
+# 4. Generate a transaction that exceeds the relay log space limit.
+
+[connection master]
+INSERT INTO t VALUES (REPEAT('a', 10000));
+
+# 5. Verify that the receiver thread is waiting for applier thread to
+#    free relay log space.
+
+[connection slave]
+
+# 6. Unlock the replica instance.
+
+UNLOCK INSTANCE;
+
+# 7. Verify that the receiver thread is waiting for the source to send
+#    events.
+
+
+# 8. Verify that the files slave-relay-bin.000001 and
+#    slave-relay-bin.000002 have been deleted (purged) to free relay
+#    log space.
+
+
+# 9. Synchronize the source and replica servers.
+
+[connection master]
+include/rpl/sync_to_replica.inc
+
+# 10. Clean up.
+
+[connection master]
+DROP TABLE t;
+include/rpl/deinit.inc

@@ -1,0 +1,180 @@
+# Copyright (c) 2024, 2026, Oracle and/or its affiliates.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is designed to work with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+#
+# Testing the MySQL component_telemetry
+#
+
+version: "3"
+services:
+
+  # Jaeger
+  jaeger-all-in-one:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    networks:
+      - demo
+    environment:
+      # - LOG_LEVEL=debug
+      - COLLECTOR_OTLP_HTTP_HOST_PORT=0.0.0.0:4318
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+      - "14269:14269"  # Admin interface
+      - "14317:4317"   # OTLP gRPC receiver
+      - "14318:4318"   # OTLP HTTP receiver
+
+  # Zipkin
+  zipkin-all-in-one:
+    container_name: zipkin
+    image: openzipkin/zipkin:latest
+    environment:
+      - JAVA_OPTS=-Xms1024m -Xmx1024m -XX:+ExitOnOutOfMemoryError
+    restart: always
+    networks:
+      - demo
+    ports:
+      - "9411:9411"
+
+  loki:
+    container_name: loki
+    build:
+      dockerfile: Dockerfile-all
+      context: ./loki
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - demo
+    ports:
+      - "3100:3100"
+    depends_on:
+      - loki-minio
+
+  grafana:
+    container_name: graphana
+    image: grafana/grafana:latest
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    depends_on:
+      - loki
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+          - name: Loki
+            type: loki
+            access: proxy
+            url: http://loki:3100
+            jsonData:
+              httpHeaderName1: "X-Scope-OrgID"
+            secureJsonData:
+              httpHeaderValue1: "tenant1"
+        EOF
+        /run.sh
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - demo
+
+  loki-minio:
+    container_name: minio
+    image: minio/minio
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /data/loki-data && \
+        mkdir -p /data/loki-ruler && \
+        minio server /data
+    environment:
+      - MINIO_ROOT_USER=loki
+      - MINIO_ROOT_PASSWORD=supersecret
+      - MINIO_PROMETHEUS_AUTH_TYPE=public
+      - MINIO_UPDATE=off
+    networks:
+      - demo
+    ports:
+      - "9000:9000"
+      - "40635:40635"
+    volumes:
+      - ./.data/minio:/data:z
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 15s
+      timeout: 20s
+      retries: 5
+
+  # Collector
+  otel-collector:
+    container_name: collector
+    build:
+      dockerfile: Dockerfile
+      context: ./collector
+    restart: always
+    networks:
+      - demo
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "55679:55679" # zpages extension
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - loki
+
+  prometheus:
+    container_name: prometheus
+    build:
+      dockerfile: Dockerfile
+      context: ./prometheus
+    restart: always
+    networks:
+      - demo
+    ports:
+      - "9090:9090"
+
+networks:
+  demo:
+    name: demo
+

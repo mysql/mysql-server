@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2025, Oracle and/or its affiliates.
+Copyright (c) 1996, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1102,10 +1102,6 @@ struct lock_sys_t {
   /** The highest slot ever used in the waiting_threads array.
   Protected by lock_sys->wait_mutex. */
   srv_slot_t *last_slot;
-
-  /** true if rollback of all recovered transactions is complete.
-  Protected by exclusive global lock_sys latch. */
-  bool rollback_complete;
 
   /** Max lock wait time observed, for innodb_row_lock_time_max reporting. */
   std::chrono::steady_clock::duration n_lock_max_wait_time;

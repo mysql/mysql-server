@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -56,6 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace Btree_multi {
 
 #ifdef UNIV_DEBUG
+thread_local uint64_t debug_counter = 0;
 static bool g_slow_io_debug = false;
 void bulk_load_enable_slow_io_debug() { g_slow_io_debug = true; }
 void bulk_load_disable_slow_io_debug() { g_slow_io_debug = false; }
@@ -1405,7 +1406,11 @@ void Page_load::finish() noexcept {
 dberr_t Page_load::commit() noexcept {
   /* It is assumed that finish() was called before commit */
   ut_a(!m_modified);
-  ut_ad(page_validate(m_page, m_index));
+
+  /* The page_validate() routine is a costly validation routine.  So better,
+  to reduce the number of times it will be called. */
+  ut_ad(debug_counter++ % 10 != 0 || page_validate(m_page, m_index));
+
   ut_a(m_rec_no > 0);
   ut_ad(!is_memory() || m_level_ctx->is_page_tracked(m_page_no));
 

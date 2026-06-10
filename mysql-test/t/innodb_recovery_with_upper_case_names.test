@@ -37,7 +37,9 @@ INSERT INTO mytable_ref VALUES (50);
 
 USE MYDB;
 SELECT * FROM mytable;
+--sorted_result
 SELECT * FROM FOO;
+--sorted_result
 SELECT * FROM mytable_ref;
 
 DELETE FROM mytable WHERE id =10;

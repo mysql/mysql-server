@@ -1,0 +1,278 @@
+################################################################################
+#  This test validates that primary election most updated method is used only
+#  if enabled on all members.
+#
+# Test:
+#  0. The test requires three servers: M1,M2 and M3.
+#  1. Install component and bootstrap group with member M1
+#  2. Join to group member M2 without component and increase
+#    to have highest priority on primary election
+#  3. Force member to suspend applying transactions until
+#     sending an unblock signal
+#  4. Join to group member M3 with component. It will log
+#     a message is configuration different from group
+#  5. Insert transactions on the group and confirm twenty
+#     entries
+#  6. Force a failover primary election by restarting primary
+#  7. Unblock M2 from applying transactions
+#  8. Assert M2 is primary
+#  9. Server M3 will complain has most uptodate enable but
+#     is off on group
+# 10. Confirm global status variables were not updated
+# 11. Confirm error log contain message that states member
+#     weight method was used to elect new primary
+# 12. Cleanup
+################################################################################
+
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/have_gr_replication_elect_prefers_most_updated.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Install component and bootstrap group with member M1
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Join to group member M2 without component and increase
+--echo #    to have highest priority on primary election
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $server2_uuid= `SELECT @@server_uuid`
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*Members have different configurations.*on usage of most up-to-date method on primary failover, method will not be used.*");
+SET SESSION sql_log_bin = 1;
+
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Force member to suspend applying transactions until
+--echo #    sending an unblock signal
+
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+
+--echo
+--echo ############################################################
+--echo # 4. Join to group member M3 with component. It will log
+--echo #    a message is configuration different from group
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*Members have different configurations.*on usage of most up-to-date method on primary failover, method will not be used.*");
+SET SESSION sql_log_bin = 1;
+
+INSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+
+--source include/start_group_replication.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_group_replication_elect_prefers_most_updated_disabled
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_select= Members have different configurations \(option group_replication_elect_prefers_most_updated.enabled\) on usage of most up-to-date method on primary failover, method will not be used.
+--let $assert_count= 1
+--let $assert_text= Member has different configuration from the group.
+--source include/assert_grep.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--echo
+--echo ############################################################
+--echo # 5. Insert transactions on the group and confirm twenty
+--echo #    entries
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+set sql_log_bin=1;
+
+CREATE TABLE t1(a int primary key);
+
+# Create the procedure to perform the dml operations.
+delimiter $$;
+CREATE PROCEDURE dml_operations()
+     BEGIN
+     declare x INT;
+     set x=1;
+     while x<=48 do
+     insert into t1 values (x);
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+--echo ----call procedure----
+call dml_operations();
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+
+# Wait until 48 inserts done causing to be a total of 50 transactions applied
+--let $wait_condition= SELECT COUNT(*) >=48 FROM t1
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Force a failover primary election by restarting primary
+
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+
+# Kill server1
+--echo # killing
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+
+--source include/kill_and_restart_mysqld.inc
+--echo # restarting
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+# Needed as we are not using rpl/restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl/reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+# Wait until group has only 2 members, that is, server1 death is detected by
+# the group.
+--echo # check that there are 2 members in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Unblock M2 from applying transactions
+
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+
+
+--echo
+--echo ############################################################
+--echo # 8. Assert M2 is primary
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo # 9. Server M3 will complain has most uptodate enable but
+--echo #    is off on group
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_group_replication_elect_prefers_most_updated_disabled
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_select= Members have different configurations \(option group_replication_elect_prefers_most_updated.enabled\) on usage of most up-to-date method on primary failover, method will not be used.
+--let $assert_count= 2
+--let $assert_text= Member has different configuration from the group.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 10. Confirm global status variables were not updated
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%most_uptodate%';
+
+
+--echo
+--echo ############################################################
+--echo # 11. Confirm error log contain message that states member
+--echo #     weight method was used to elect new primary
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_group_replication_elect_prefers_most_updated_disabled
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= uuid $server2_uuid was elected primary since it was highest weight member with value 90
+--let $assert_count= 1
+--let $assert_text= Server 2 used member weight method to elect new primary.
+--source include/assert_grep.inc
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $assert_only_after = CURRENT_TEST: i_group_replication.comp_gr_group_replication_elect_prefers_most_updated_disabled
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_select= uuid $server2_uuid was elected primary since it was highest weight member with value 90
+--let $assert_count= 1
+--let $assert_text= Server 2 used member weight method to elect new primary.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 12. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=ON;
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+SET GLOBAL SUPER_READ_ONLY=OFF;
+UNINSTALL COMPONENT 'file://component_group_replication_elect_prefers_most_updated';
+SET GLOBAL SUPER_READ_ONLY=ON;
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+
+DROP TABLE t1;
+DROP PROCEDURE dml_operations;
+
+--source include/group_replication_end.inc
+

@@ -1,0 +1,38 @@
+# Test remote clone command to replace data directory for different combinations
+# of recipient and donor server versions
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--echo # Setup the tables
+--source ../include/remote_basic_replace_across_lts_setup.inc
+
+--echo # Install clone plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo # In connection default - Cloning database
+--echo # Cloning from one LTS to next LTS is not supported in Clone protocol version 3
+--connection clone_conn_1
+SET DEBUG="+d,clone_set_to_protocol_version_3";
+SET DEBUG="+d,clone_one_lts_to_next_lts";
+--let $clone_remote_err = ER_CLONE_DONOR_VERSION
+--let $clone_err = ER_CLONE_DONOR_VERSION
+--source ../include/clone_command.inc
+SET DEBUG="-d,clone_one_lts_to_next_lts";
+
+SET DEBUG="-d,clone_set_to_protocol_version_3";
+
+--echo # Cloning from one LTS to next LTS is supported in Clone protocol version > 3
+SET DEBUG="+d,clone_one_lts_to_next_lts";
+--let $clone_remote_err =
+--let $clone_err =
+--source ../include/clone_command.inc
+SET DEBUG="-d,clone_one_lts_to_next_lts";
+--let $clone_remote_err = 0
+--echo # In connection default - Finished Cloning
+
+--echo # Validate the tables and cleanup the test
+--source ../include/remote_basic_replace_across_lts_validate.inc
+
+UNINSTALL PLUGIN clone;

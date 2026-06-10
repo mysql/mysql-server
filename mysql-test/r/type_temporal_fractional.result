@@ -2879,7 +2879,7 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (990000,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	14	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in (TIME'99:00:00.000000',TIME'00:00:00.000000'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in (990000,0))
 #
 # Testing IN with index: field->store_packed
 #
@@ -7839,7 +7839,7 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (0.000001,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('0000-00-00 00:00:00.000001','0000-00-00 00:00:00.000000'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in (0.000001,0))
 #
 # Testing IN with index: involves field->store_packed()
 #
@@ -12569,14 +12569,12 @@ a
 SELECT * FROM t1 WHERE
 a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
 a
-Warnings:
-Warning	1292	Incorrect datetime value: '0.000001' for column 'a' at row 1
+2000-01-01 00:00:00.000001
+2000-01-01 23:00:00.000001
 SELECT * FROM t1 WHERE a IN (0e0, 0.000001e0);
 a
 0000-00-00 00:00:00.000000
 0000-00-00 00:00:00.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '0.000001' for column 'a' at row 1
 #
 # Testing IN with index: involves field->store_packed()
 #
@@ -12595,8 +12593,8 @@ a
 2000-01-01 23:00:00.000000
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
 a
-Warnings:
-Warning	1292	Incorrect datetime value: '0.000001' for column 'a' at row 1
+2000-01-01 00:00:00.000001
+2000-01-01 23:00:00.000001
 SELECT * FROM t1 WHERE a IN (20000101000000.000001, 20000101230000.000001);
 a
 2000-01-01 00:00:00.000001
@@ -12605,8 +12603,6 @@ SELECT * FROM t1 WHERE a IN (0e0, 0.000001e0);
 a
 0000-00-00 00:00:00.000000
 0000-00-00 00:00:00.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '0.000001' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Testing CREATE TABLE LIKE
@@ -15734,7 +15730,9 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '-34464:00:00'
 SELECT TIMEDIFF('0000-00-00 00:00:00.00000', UTC_DATE) FROM dual;
 TIMEDIFF('0000-00-00 00:00:00.00000', UTC_DATE)
-NULL
+-838:59:59.00000
+Warnings:
+Warning	1292	Truncated incorrect time value: '-17540400:00:00.00000'
 SELECT TIME(CURRENT_DATE) FROM dual;
 TIME(CURRENT_DATE)
 00:00:00
@@ -16074,8 +16072,6 @@ AND STR_TO_DATE(DATE_FORMAT(col_datetime_6_not_null,
 CONCAT_WS('-', '%I', '%S', '%v' )),
 CONCAT_WS('-', '%V', '%H' ));
 c1
-Warnings:
-Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 DROP TABLE t1;
 SET @@timestamp=DEFAULT;
 SET @@timestamp= UNIX_TIMESTAMP('2011-09-21 08:20:30.123456');
@@ -16108,6 +16104,8 @@ col_time_1, col_time_3, col_datetime_6, col_time_3_key,
 col_datetime_5_not_null, col_time_1_key, col_time_4_key;
 c1	c2
 2004-06-28 22:47:21.052552	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Truncated incorrect date value: '0000-00-00 00:00:00'
 DROP TABLE t1;
 SET @@timestamp=DEFAULT;
 SET @@timestamp=UNIX_TIMESTAMP('2011-09-21 10:20:30');
@@ -16297,6 +16295,8 @@ c1	c2	c3
 2009-02-03 23:21:26.017	0000-00-00	09:30:40
 0000-00-00 00:00:00.000	2000-08-18	09:30:40
 2007-03-18 04:55:22.063	2000-11-21	09:30:40
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 DROP TABLE t1;
 SET @@timestamp=DEFAULT;
 CREATE TABLE t1 (
@@ -16330,8 +16330,8 @@ c1	c2	c3
 2001-05-17 15:25:33.04	09:36:28.04	00:20:07.00000
 2004-10-16 01:19:20.06	02:32:00.04	00:20:05.00000
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+Warning	1292	Truncated incorrect date value: '0000-00-00 00:00:00'
+Warning	1292	Truncated incorrect date value: '0000-00-00 00:00:00'
 DROP TABLE t1;
 SET @@timestamp=UNIX_TIMESTAMP('2011-09-21 10:20:30.123456');
 CREATE TABLE t1 (
@@ -16795,6 +16795,8 @@ NULL
 SELECT CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2021-00-00')),'+00:00','+7:5');
 CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2021-00-00')),'+00:00','+7:5')
 NULL
+Warnings:
+Warning	1292	Truncated incorrect date value: '2021-00-00'
 SET timestamp=UNIX_TIMESTAMP('2011-11-16 17:28:30');
 DROP TABLE IF EXISTS t1;
 Warnings:
@@ -17202,7 +17204,7 @@ DATE_FORMAT(-0.1111111111,'+'),
 CONVERT(-0.1111111,DATE),
 CAST(-0.1111111111 AS DATE);
 EXTRACT(DAY FROM (-0.1111111111))	EXTRACT(YEAR FROM (-0.1111111))	EXTRACT(YEAR_MONTH FROM (-0.1111111111))	EXTRACT(DAY FROM (-0.1111111))	EXTRACT(QUARTER FROM (-0.1111111111))	EXTRACT(MONTH FROM (-0.1111111))	EXTRACT(WEEK FROM (-0.1111111))	DATE(-0.1111111)	QUARTER(-0.1111111111)	TIMESTAMP(-0.1111111111)	LAST_DAY(-0.1111111111)	DAY(-0.1111111111)	MONTH(-0.1111111111)	YEAR(-0.1111111)	DAYOFMONTH(-0.1111111111)	TIMESTAMP((-0.1111111111),'{$x')	DATE_FORMAT(-0.1111111111,'+')	CONVERT(-0.1111111,DATE)	CAST(-0.1111111111 AS DATE)
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	2000-00-00	0	NULL	NULL	0	0	2000	0	NULL	NULL	2000-00-00	2000-00-00
 Warnings:
 Warning	1292	Incorrect datetime value: '-0.1111111111'
 Warning	1292	Incorrect datetime value: '-0.1111111'
@@ -17211,17 +17213,9 @@ Warning	1292	Incorrect datetime value: '-0.1111111'
 Warning	1292	Incorrect datetime value: '-0.1111111111'
 Warning	1292	Incorrect datetime value: '-0.1111111'
 Warning	1292	Incorrect datetime value: '-0.1111111'
-Warning	1292	Incorrect datetime value: '-0.1111111'
 Warning	1292	Incorrect datetime value: '-0.1111111111'
+Warning	1292	Truncated incorrect date value: '2000-00-00'
 Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111'
-Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111111'
-Warning	1292	Incorrect datetime value: '-0.1111111'
 Warning	1292	Incorrect datetime value: '-0.1111111111'
 #
 # Bug#13375823 - FSP(DECIMAL) RESULT DIFFERENCE WITH QUERY USING UNION ALL

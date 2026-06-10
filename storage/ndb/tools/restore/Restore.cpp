@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,10 +44,12 @@
 #include <NdbThread.h>
 #include "../src/kernel/vm/Emulator.hpp"
 #include "kernel/signaldata/FsOpenReq.hpp"
+#include "m_string.h"
 #include "portlib/NdbMem.h"
 #include "portlib/NdbTimestamp.h"
 #include "portlib/ndb_file.h"
 #include "restore_tables.h"
+#include "util/cstrbuf.h"
 #include "util/ndb_opts.h"
 
 using byte = unsigned char;
@@ -255,9 +257,13 @@ bool BackupFile::Twiddle(const AttributeDesc *const attr_desc,
   return true;
 }
 
-FilteredNdbOut err(*new FileOutputStream(stderr), 0, 0);
-FilteredNdbOut info(*new FileOutputStream(stdout), 1, 1);
-FilteredNdbOut debug(*new FileOutputStream(stdout), 2, 0);
+static FileOutputStream debug_stream(stdout);
+static FileOutputStream info_stream(stdout, &debug_stream, false);
+static FileOutputStream err_stream(stderr, &info_stream, true);
+
+FilteredNdbOut debug(debug_stream, 2, 0);
+FilteredNdbOut info(info_stream, 1, 1);
+FilteredNdbOut err(err_stream, 0, 0);
 RestoreLogger restoreLogger;
 
 // To decide in what byte order data is
@@ -838,20 +844,9 @@ RestoreDataIterator::RestoreDataIterator(const RestoreMetaData &md,
       m_current_table_has_transforms(false) {
   restoreLogger.log_debug("RestoreDataIterator constructor");
   setDataFile(md, 0);
-
-  alloc_extra_storage(8192);
-  m_row_max_extra_wordlen = 0;
 }
 
-bool RestoreDataIterator::validateRestoreDataIterator() {
-  if (!m_extra_storage_ptr) {
-    restoreLogger.log_error("m_extra_storage_ptr is NULL");
-    return false;
-  }
-  return true;
-}
-
-RestoreDataIterator::~RestoreDataIterator() { free_extra_storage(); }
+RestoreDataIterator::~RestoreDataIterator() {}
 
 void RestoreDataIterator::calc_row_extra_storage_words(
     const TableS *tableSpec) {
@@ -875,38 +870,16 @@ void RestoreDataIterator::calc_row_extra_storage_words(
   m_row_max_extra_wordlen = bitmap_words + transform_words;
 }
 
-void RestoreDataIterator::reset_extra_storage() {
-  m_extra_storage_curr_ptr = m_extra_storage_ptr;
-}
-
-void RestoreDataIterator::alloc_extra_storage(Uint32 words) {
-  m_extra_storage_wordlen = words;
-  m_extra_storage_ptr = (Uint32 *)malloc(4 * words);
-  m_extra_storage_curr_ptr = m_extra_storage_ptr;
-}
-
-void RestoreDataIterator::free_extra_storage() {
-  if (m_extra_storage_ptr) free(m_extra_storage_ptr);
-  m_extra_storage_ptr = nullptr;
-  m_extra_storage_curr_ptr = nullptr;
-}
-
-Uint32 RestoreDataIterator::get_free_extra_storage() const {
-  return Uint32((m_extra_storage_ptr + m_extra_storage_wordlen) -
-                m_extra_storage_curr_ptr);
-}
-
 void RestoreDataIterator::check_extra_storage() {
-  assert(m_row_max_extra_wordlen <= m_extra_storage_wordlen);
-  if (m_row_max_extra_wordlen >= get_free_extra_storage()) {
+  if (unlikely(
+          !m_extra_data_buffer.hasSpaceForEntry(m_row_max_extra_wordlen))) {
     /**
      * No more space available to buffer rows, flush
      * what is outstanding, then reset buffers and
      * continue.
      */
     flush_and_reset_buffers();
-    assert(get_free_extra_storage() > m_row_max_extra_wordlen);
-    assert(m_extra_storage_ptr == m_extra_storage_curr_ptr);
+    assert(m_extra_data_buffer.hasSpaceForEntry(m_row_max_extra_wordlen));
 
     /**
      * We do not want to break up batching due to a lack of
@@ -917,24 +890,12 @@ void RestoreDataIterator::check_extra_storage() {
      * boundaries are eventually controlled by the file
      * buffering only.
      */
-    const Uint32 newWords = m_extra_storage_wordlen * 2;
-    free_extra_storage();
-    alloc_extra_storage(newWords);
+    m_extra_data_buffer.expand();
   }
 }
 
 Uint32 *RestoreDataIterator::get_extra_storage(Uint32 len) {
-  Uint32 *currptr = m_extra_storage_curr_ptr;
-  Uint32 *nextptr = currptr + len;
-  Uint32 *endptr = m_extra_storage_ptr + m_extra_storage_wordlen;
-
-  if (nextptr <= endptr) {
-    m_extra_storage_curr_ptr = nextptr;
-    return currptr;
-  }
-
-  abort();
-  return nullptr;
+  return m_extra_data_buffer.getWordsPtr(len);
 }
 
 TupleS &TupleS::operator=(const TupleS &tuple) {
@@ -1417,18 +1378,8 @@ bool BackupFile::validateBackupFile() {
 }
 
 BackupFile::~BackupFile() {
-  int r = 0;
-  if (m_xfile.is_open()) {
-    r = m_xfile.close(false);
-  }
-
-  if (m_file.close() == -1) {
-    r = -1;
-  }
-
-  if (r == -1) {
-    restoreLogger.log_error("Warning: File did not close correctly.");
-  }
+  require(!m_xfile.is_open());
+  require(!m_file.is_open());
 
   if (m_buffer != nullptr) {
     free(m_buffer);
@@ -1436,6 +1387,9 @@ BackupFile::~BackupFile() {
 }
 
 bool BackupFile::openFile() {
+  require(!m_xfile.is_open());
+  require(!m_file.is_open());
+
   int r;
   m_file_size = 0;
   m_file_pos = 0;
@@ -1495,6 +1449,32 @@ bool BackupFile::openFile() {
   }
   m_file.close();
   return false;
+}
+
+bool BackupFile::closeFile(bool abort) {
+  require(m_file.is_open());
+  require(m_xfile.is_open());
+
+  int r1 = m_xfile.close(abort);
+  int r2 = m_file.close();
+  if (!abort && (r1 || r2)) {
+    const ndb_off_t data_pos = m_xfile.get_data_pos();
+    const ndb_off_t data_size = m_xfile.get_data_size();
+    if (data_pos != data_size) {
+      restoreLogger.log_warning(
+          "Warning: All data was not read, can not check file "
+          "consistency. Data read %jd of %jd bytes.",
+          intmax_t{data_pos}, intmax_t{data_size});
+    } else
+      restoreLogger.log_warning(
+          "Warning: File consistency error, may be checksum failure.");
+#ifdef ERROR_INSERT
+    if (m_error_insert == NDB_RESTORE_ERROR_INSERT_ABORT_ON_CLOSE_ERROR) {
+      ::abort();
+    }
+#endif
+  }
+  return (r1 == 0) && (r2 == 0);
 }
 
 int BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size,
@@ -1724,9 +1704,8 @@ void BackupFile::setName(const char *p, const char *n) {
 }
 
 bool BackupFile::readHeader() {
-  if (!openFile()) {
-    return false;
-  }
+  require(m_xfile.is_open());
+  require(m_file.is_open());
 
   Uint32 oldsz = sizeof(BackupFormat::FileHeader_pre_backup_version);
   int r = buffer_read(&m_fileHeader, oldsz, 1);
@@ -2078,17 +2057,42 @@ Uint64 Twiddle64(Uint64 in) {
   return (retVal);
 }  // Twiddle64
 
-RestoreLogIterator::RestoreLogIterator(const RestoreMetaData &md)
-    : m_metaData(md) {
+RestoreLogIterator::RestoreLogIterator(const RestoreMetaData &md,
+                                       void (*_free_data_callback)(void *),
+                                       void *ctx, Uint32 bufferSz)
+    : BackupFile(_free_data_callback, ctx, bufferSz), m_metaData(md) {
   restoreLogger.log_debug("RestoreLog constructor");
   setLogFile(md, 0);
 
   m_count = 0;
   m_last_gci = 0;
-  m_rowBuffIndex = 0;
+}
+
+void RestoreLogIterator::check_extra_storage() {
+  if (unlikely(!m_extra_data_buffer.hasSpaceForEntry(RowBuffWords))) {
+    /**
+     * No space available, flush outstanding, reset
+     * and continue
+     */
+    flush_and_reset_buffers();
+    assert(m_extra_data_buffer.hasSpaceForEntry(RowBuffWords));
+
+    /**
+     * We do not want to break up batching due to a lack of
+     * extra buffer storage, but that is what has happened
+     * here.
+     * So to avoid this in future we will take this chance
+     * to double the extra storage size, so that batching
+     * boundaries are eventually controlled by the file
+     * buffering only.
+     */
+    m_extra_data_buffer.expand();
+  }
 }
 
 const LogEntry *RestoreLogIterator::getNextLogEntry(int &res) {
+  check_extra_storage();
+
   // Read record length
   const Uint32 startGCP = m_metaData.getStartGCP();
   const Uint32 stopGCP = m_metaData.getStopGCP();
@@ -2212,7 +2216,6 @@ const LogEntry *RestoreLogIterator::getNextLogEntry(int &res) {
 
   const TableS *tab = m_logEntry.m_table;
   m_logEntry.clear();
-  m_rowBuffIndex = 0;
 
   auto *ah = (AttributeHeader *)attr_data;
   auto *end = (AttributeHeader *)(attr_data + attr_data_len);
@@ -2246,9 +2249,8 @@ const LogEntry *RestoreLogIterator::getNextLogEntry(int &res) {
     if (attr->Desc->transform) {
       const int col_idx = ah->getAttributeId();
       const NdbDictionary::Column *col = tab->m_dictTable->getColumn(col_idx);
-      void *dst_buf = m_rowBuff + m_rowBuffIndex;
-      m_rowBuffIndex += attr->Desc->getSizeInWords();
-      assert(m_rowBuffIndex <= RowBuffWords);
+      void *dst_buf =
+          m_extra_data_buffer.getWordsPtr(attr->Desc->getSizeInWords());
 
       if (!applyColumnTransform(col, attr->Desc, &attr->Data, dst_buf)) {
         res = -1;
@@ -2262,6 +2264,29 @@ const LogEntry *RestoreLogIterator::getNextLogEntry(int &res) {
   m_count++;
   res = 0;
   return &m_logEntry;
+}
+
+LogEntry &LogEntry::operator=(const LogEntry &logEntry) {
+  clear();
+
+  /* Copy over member vars + AttributeS which
+   * reference data in underlying buffer
+   */
+  m_frag_id = logEntry.m_frag_id;
+  m_type = logEntry.m_type;
+  m_table = logEntry.m_table;
+
+  for (Uint32 a = 0; a < logEntry.m_values.size(); a++) {
+    const AttributeS &source = *logEntry.m_values[a];
+    AttributeS *copy = add_attr();
+    if (unlikely(copy == nullptr)) abort();
+    copy->Desc = source.Desc;
+    copy->Data.null = source.Data.null;
+    copy->Data.size = source.Data.size;
+    copy->Data.void_value = source.Data.void_value;
+  }
+
+  return *this;
 }
 
 NdbOut &operator<<(NdbOut &ndbout, const AttributeS &attr) {
@@ -2420,58 +2445,67 @@ RestoreLogger::RestoreLogger() : print_timestamp(true) {
 
 RestoreLogger::~RestoreLogger() { NdbMutex_Destroy(m_mutex); }
 
-void RestoreLogger::log_error(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  char buf[LOG_MSGLEN];
-  vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
+void RestoreLogger::vlog_ll(FilteredNdbOut &out, const char *ll,
+                            const char *fmt, va_list ap) {
+  if (print_log_level) {
+    // Strip fmt prefix if it already contains log level prefix.
+    int ll_len = strlen(ll);
+    if (native_strncasecmp(fmt, ll, ll_len) == 0) {
+      const char *p = fmt + ll_len;
+      if (*p == ' ') p++;
+      if (*p == ':' || *p == '!') {
+        p++;
+        while (*p == ' ') p++;
+        fmt = p;
+      }
+    }
+  }
 
   NdbMutex_Lock(m_mutex);
+  cstrbuf<100 + LOG_MSGLEN> msg;
+
   if (print_timestamp) {
     std::timespec now = NdbTimestamp_GetCurrentTime();
     Logger::format_timestamp(&now, timestamp, sizeof(timestamp));
-    err << timestamp << " ";
+    msg.append(timestamp);
+    msg.append(" ");
   }
+  if (print_log_level) msg.appendf("%s: ", ll);
+  msg.append(getThreadPrefix());
+  msg.vappendf(fmt, ap);
+  assert(!msg.is_truncated());
+  msg.replace_end_if_truncated("...");
 
-  err << getThreadPrefix() << buf << endl;
+  out << msg.c_str() << endl;
   NdbMutex_Unlock(m_mutex);
+}
+
+void RestoreLogger::log_error(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vlog_ll(err, "ERROR", fmt, ap);
+  va_end(ap);
+}
+
+void RestoreLogger::log_warning(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vlog_ll(info, "WARNING", fmt, ap);
+  va_end(ap);
 }
 
 void RestoreLogger::log_info(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  char buf[LOG_MSGLEN];
-  vsnprintf(buf, sizeof(buf), fmt, ap);
+  vlog_ll(info, "INFO", fmt, ap);
   va_end(ap);
-
-  NdbMutex_Lock(m_mutex);
-  if (print_timestamp) {
-    std::timespec now = NdbTimestamp_GetCurrentTime();
-    Logger::format_timestamp(&now, timestamp, sizeof(timestamp));
-    info << timestamp << " ";
-  }
-
-  info << getThreadPrefix() << buf << endl;
-  NdbMutex_Unlock(m_mutex);
 }
 
 void RestoreLogger::log_debug(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  char buf[LOG_MSGLEN];
-  vsnprintf(buf, sizeof(buf), fmt, ap);
+  vlog_ll(debug, "DEBUG", fmt, ap);
   va_end(ap);
-
-  NdbMutex_Lock(m_mutex);
-  if (print_timestamp) {
-    std::timespec now = NdbTimestamp_GetCurrentTime();
-    Logger::format_timestamp(&now, timestamp, sizeof(timestamp));
-    debug << timestamp << " ";
-  }
-
-  debug << getThreadPrefix() << buf << endl;
-  NdbMutex_Unlock(m_mutex);
 }
 
 void RestoreLogger::setThreadPrefix(const char *prefix) {
@@ -2487,16 +2521,71 @@ const char *RestoreLogger::getThreadPrefix() const {
   return prefix;
 }
 
+void RestoreLogger::set_print_log_level(bool print_LL) {
+  print_log_level = print_LL;
+}
+
+bool RestoreLogger::get_print_log_level() const { return print_log_level; }
+
 void RestoreLogger::set_print_timestamp(bool print_TS) {
   print_timestamp = print_TS;
 }
 
-bool RestoreLogger::get_print_timestamp() { return print_timestamp; }
+bool RestoreLogger::get_print_timestamp() const { return print_timestamp; }
 
 NdbOut &operator<<(NdbOut &ndbout, const TableS &table) {
   ndbout << "-- " << table.getTableName() << " --" << endl;
   ndbout << *(table.m_dictTable) << endl;
   return ndbout;
+}
+
+BatchBuffer::BatchBuffer(Uint32 initialWordSize)
+    : totalWords(initialWordSize),
+      allocationPtr(nullptr),
+      nextWritePtr(nullptr) {
+  if (initialWordSize > 0) {
+    reAlloc(initialWordSize);
+  }
+}
+
+BatchBuffer::~BatchBuffer() { delete[] allocationPtr; }
+
+void BatchBuffer::reAlloc(Uint32 newWordSize) {
+  /* Check have nothing buffered */
+  require(allocationPtr == nextWritePtr);
+
+  if (allocationPtr) {
+    delete[] allocationPtr;
+  }
+
+  allocationPtr = new Uint32[newWordSize];
+  nextWritePtr = allocationPtr;
+  totalWords = newWordSize;
+}
+
+void BatchBuffer::reset() { nextWritePtr = allocationPtr; }
+
+void BatchBuffer::expand() {
+  if (likely(totalWords > 0)) {
+    reAlloc(2 * totalWords);
+  } else {
+    reAlloc(DEFAULT_SIZE);
+  }
+}
+
+bool BatchBuffer::hasSpaceForEntry(Uint32 wordSize) const {
+  const Uint32 usedWords = (nextWritePtr - allocationPtr);
+  const Uint32 freeWords = (totalWords - usedWords);
+
+  return (freeWords >= wordSize);
+}
+
+Uint32 *BatchBuffer::getWordsPtr(Uint32 wordSize) {
+  Uint32 *ret = nextWritePtr;
+  nextWritePtr += wordSize;
+  require(nextWritePtr <= allocationPtr + totalWords);
+
+  return ret;
 }
 
 template class Vector<TableS *>;

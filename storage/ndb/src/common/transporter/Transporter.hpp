@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
+#include "portlib/NdbTick.h"
 #include "portlib/ndb_sockaddr.h"
 #include "portlib/ndb_socket.h"
 #include "util/NdbSocket.h"
@@ -195,6 +196,9 @@ class Transporter {
   Uint64 get_used_bytes() const { return m_send_buffer_used_bytes; }
   Uint64 get_max_used_bytes() const { return m_send_buffer_max_used_bytes; }
 
+  NDB_TICKS get_last_recv() const { return m_last_recv; }
+  void set_last_recv(NDB_TICKS last_recv) { m_last_recv = last_recv; }
+
  protected:
   Transporter(TransporterRegistry &, TrpId transporter_index, TransporterType,
               const char *lHostName, const char *rHostName, int s_port,
@@ -264,6 +268,8 @@ class Transporter {
 
   Uint64 m_send_buffer_used_bytes;
   Uint64 m_send_buffer_max_used_bytes;  // Historic max use
+
+  NDB_TICKS m_last_recv;
 
   void resetCounters();
 

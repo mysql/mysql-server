@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,13 +26,12 @@
 #include <initializer_list>
 #include <optional>
 
-#include "helper/container/generic.h"
 #include "helper/plugin_monitor.h"
-#include "helper/wait_variable.h"
-#include "mysql/harness/logging/logging.h"
-
 #include "mysql_rest_service_plugin_config.h"
 
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/container/generic.h"
+#include "mysql/harness/utility/wait_variable.h"
 #include "mysqlrouter/io_component.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -75,6 +74,9 @@ class DestinationStatic : public collector::DestinationProvider {
 
 class DestinationDynamic : public DestinationStatic {
  private:
+  template <typename T>
+  using WaitableVariable = mysql_harness::utility::WaitableVariable<T>;
+
   enum State { kOk, kNoValidNodes, kStopped };
 
   MySQLRoutingAPI get_notifier(DestinationNodesStateNotifier **out_notifier) {
@@ -308,12 +310,12 @@ PluginConfig::PluginConfig(const ConfigSection *section,
       get_keyring_value(mysql_user_data_access_, kKeyringAttributePassword);
   jwt_secret_ = get_keyring_value("rest-user", "jwt_secret");
 
-  if (!helper::container::has(routing_sections, routing_rw_))
+  if (!mysql_harness::utility::container::has(routing_sections, routing_rw_))
     throw std::logic_error("Route name '" + routing_rw_ +
                            "' specified for `mysql_read_write_route` option, "
                            "doesn't exist or has unsupported protocol.");
   if (!routing_ro_.empty()) {
-    if (!helper::container::has(routing_sections, routing_ro_))
+    if (!mysql_harness::utility::container::has(routing_sections, routing_ro_))
       throw std::logic_error("Route name '" + routing_ro_ +
                              "' specified for `mysql_read_only_route` option, "
                              "doesn't exist or has unsupported protocol.");

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,10 @@ struct NdbUpGradeCompatible {
 };
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+    {MAKE_VERSION(9, 7, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* 7.0 <-> 9.7 */
     {MAKE_VERSION(9, 6, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
-     UG_Range}, /* 7.0 <-> 9.5 */
+     UG_Range}, /* 7.0 <-> 9.6 */
     {MAKE_VERSION(9, 5, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
      UG_Range}, /* 7.0 <-> 9.5 */
     {MAKE_VERSION(9, 4, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),

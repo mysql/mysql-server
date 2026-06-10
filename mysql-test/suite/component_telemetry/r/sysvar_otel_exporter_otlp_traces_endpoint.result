@@ -1,0 +1,53 @@
+call mtr.add_suppression("\\[OTEL\\]");
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_endpoint;
+@@global.telemetry.otel_exporter_otlp_traces_endpoint
+
+SELECT @@session.telemetry.otel_exporter_otlp_traces_endpoint;
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_endpoint' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_endpoint';
+Variable_name	Value
+telemetry.otel_exporter_otlp_traces_endpoint	
+SHOW SESSION VARIABLES LIKE 'telemetry.otel_exporter_otlp_traces_endpoint';
+Variable_name	Value
+telemetry.otel_exporter_otlp_traces_endpoint	
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_traces_endpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_traces_endpoint	
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='telemetry.otel_exporter_otlp_traces_endpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.otel_exporter_otlp_traces_endpoint	
+SET GLOBAL telemetry.otel_exporter_otlp_traces_endpoint
+='https://somewhere.example.com:4318/v1/traces';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_endpoint' is a read only variable
+SET SESSION telemetry.otel_exporter_otlp_traces_endpoint
+='https://somewhere.example.com:4318/v1/traces';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_endpoint' is a read only variable
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component with set var
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.otel_exporter_otlp_traces_endpoint
+='https://somewhere.example.com:4318/v1/traces';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_endpoint;
+@@global.telemetry.otel_exporter_otlp_traces_endpoint
+https://somewhere.example.com:4318/v1/traces
+SET PERSIST telemetry.otel_exporter_otlp_traces_endpoint
+='https://somewhere.else.example.com:4318/v1/traces';
+ERROR HY000: Variable 'telemetry.otel_exporter_otlp_traces_endpoint' is a read only variable
+SET PERSIST_ONLY telemetry.otel_exporter_otlp_traces_endpoint
+='https://somewhere.else.example.com:4318/v1/traces';
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Install component
+INSTALL COMPONENT 'file://component_telemetry';
+SELECT @@global.telemetry.otel_exporter_otlp_traces_endpoint;
+@@global.telemetry.otel_exporter_otlp_traces_endpoint
+https://somewhere.else.example.com:4318/v1/traces
+# Uninstall component
+UNINSTALL COMPONENT 'file://component_telemetry';
+# Cleanup
+RESET PERSIST;

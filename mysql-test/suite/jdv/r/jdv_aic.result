@@ -1,0 +1,650 @@
+# -------------------------------------
+# Part-1 NO_AUTO_VALUE_ON_ZERO = OFF
+# -------------------------------------
+# A singleton child with AUTO_INCREMENT primary key that is part of join condition
+CREATE TABLE parent(ppk INT PRIMARY KEY, pc2 INT);
+CREATE TABLE singleton(spkai INT PRIMARY KEY AUTO_INCREMENT, sc2 INT);
+CREATE JSON DUALITY VIEW singleton_dv AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : ppk,
+"k_pc2" : pc2,
+"k_singleton" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"k_spkai" : spkai,
+"k_sc2" : sc2
+) FROM singleton WHERE
+singleton.spkai = parent.ppk)
+) FROM parent;
+INSERT INTO singleton_dv VALUES ('{ "k_pc2": 42, "k_singleton": { "k_sc2": 43 }}');
+INSERT INTO singleton_dv VALUES ('{ "k_pc2": 420, "k_singleton": { "k_sc2": 430 }}');
+SELECT * FROM singleton_dv;
+data
+{"_id": 1, "k_pc2": 42, "_metadata": {"etag": "0f7233d64732c01f01c6a590ed0195f5"}, "k_singleton": {"k_sc2": 43, "k_spkai": 1}}
+{"_id": 2, "k_pc2": 420, "_metadata": {"etag": "b36f7b6044a3b917d35307659a395faa"}, "k_singleton": {"k_sc2": 430, "k_spkai": 2}}
+SELECT * FROM parent;
+ppk	pc2
+1	42
+2	420
+SELECT * FROM singleton;
+spkai	sc2
+1	43
+2	430
+DROP VIEW singleton_dv;
+DROP TABLE parent;
+DROP TABLE singleton;
+# A singleton child where the parent has AUTO_INCREMENT
+# primary key that is part of join condition. Generated
+# value cannot be inferred for singleton child due to
+# insertion order.
+CREATE TABLE parent(ppkai INT PRIMARY KEY AUTO_INCREMENT, pc2 INT);
+CREATE TABLE singleton(spk INT PRIMARY KEY, sc2 INT);
+CREATE JSON DUALITY VIEW singleton_dv AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : ppkai,
+"k_pc2" : pc2,
+"k_singleton" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"k_spk" : spk,
+"k_sc2" : sc2
+) FROM singleton WHERE
+singleton.spk = parent.ppkai)
+) FROM parent;
+INSERT INTO singleton_dv VALUES ('{ "k_pc2": 42, "k_singleton": { "k_sc2": 43 }}');
+ERROR HY000: Primary key column `test`.`singleton`.spk must be provided as path '$.k_singleton.k_spk'.
+# This works - the explicit value 55 is propagated to the parent and value for
+# ppk is not generated automatically
+INSERT INTO singleton_dv VALUES ('{ "k_pc2": 420, "k_singleton": { "k_spk": 55, "k_sc2": 430 }}');
+SELECT * FROM singleton_dv;
+data
+{"_id": 55, "k_pc2": 420, "_metadata": {"etag": "c4d7d3b376989a9b5f5cc97b3575b14e"}, "k_singleton": {"k_sc2": 430, "k_spk": 55}}
+SELECT * FROM parent;
+ppkai	pc2
+55	420
+SELECT * FROM singleton;
+spk	sc2
+55	430
+DROP VIEW singleton_dv;
+DROP TABLE parent;
+DROP TABLE singleton;
+# Testing insert with generated PKs
+CREATE TABLE parent(ppkai INT PRIMARY KEY AUTO_INCREMENT, pc2 INT);
+CREATE TABLE nested(npkai INT PRIMARY KEY AUTO_INCREMENT, nc2 INT, nc3 INT);
+INSERT INTO parent VALUES (1, 1);
+INSERT INTO nested VALUES (1, 100, 1000);
+CREATE JSON DUALITY VIEW nested_dv AS SELECT
+JSON_DUALITY_OBJECT( WITH (INSERT, UPDATE, DELETE)
+'_id' : ppkai,
+'k_pc2'  : pc2,
+'k_nested' : (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+'k_npkai' : npkai,
+'k_nc2' : nc2,
+'k_nc3' : nc3
+)) FROM nested WHERE nested.nc2 = parent.ppkai
+)
+) FROM parent;
+SELECT * FROM nested_dv;
+data
+{"_id": 1, "k_pc2": 1, "k_nested": null, "_metadata": {"etag": "a5d11d2a54fa9c6202c0733c943f8317"}}
+# All generated
+INSERT INTO nested_dv VALUES ('{ "k_pc2": 1000, "k_nested": [{"k_nc3": 2000},{"k_nc3": 3000},{"k_nc3":4000}]}');
+# Combination of generated and explicit primary key is not allowed
+INSERT INTO nested_dv VALUES ('{ "k_pc2": 1001, "k_nested": [{"k_nc3":5000},{"k_npkai": 42, "k_nc3":6000},{"k_nc3":7000}]}');
+ERROR HY000: Paths $.k_nested[1] and $.k_nested[0] use generated and explicit values for the same primary key, which is not allowed.
+INSERT INTO nested_dv VALUES ('{
+   "k_pc2": 666, "k_nested": [
+    { "k_npkai": 0, "k_nc3":5000},
+    {"k_npkai": 42, "k_nc3":6000},
+    {"k_npkai": -103, "k_nc3":-2000},
+    {"k_nc3":7000}]}');
+ERROR HY000: Paths $.k_nested[2] and $.k_nested[0] use generated and explicit values for the same primary key, which is not allowed.
+# Explicit keys with acceptable duplicate
+INSERT INTO nested_dv VALUES ('{ "k_pc2": 1002, "k_nested": [{"k_npkai": 43, "k_nc3":5000},{"k_npkai": 44, "k_nc3":6000},{"k_npkai":44, "k_nc3":6000}]}');
+# Explicit keys with pk duplicate where k_nc3 does not have identical values
+INSERT INTO nested_dv VALUES ('{ "k_pc2": 1003, "k_nested": [{"k_npkai": 46, "k_nc3":5000},{"k_npkai": 46, "k_nc3":5000},{"k_npkai":46, "k_nc3":7000}]}');
+ERROR HY000: Path '$.k_nested[2]' is a duplicate for primary key column `test`.`nested`.npkai but has conflicting values for column nc3: path '$.k_nested[2].k_nc3' vs path '$.k_nested[0].k_nc3'
+SELECT * FROM nested_dv;
+data
+{"_id": 1, "k_pc2": 1, "k_nested": null, "_metadata": {"etag": "a5d11d2a54fa9c6202c0733c943f8317"}}
+{"_id": 2, "k_pc2": 1000, "k_nested": [{"k_nc2": 2, "k_nc3": 2000, "k_npkai": 2}, {"k_nc2": 2, "k_nc3": 3000, "k_npkai": 3}, {"k_nc2": 2, "k_nc3": 4000, "k_npkai": 4}], "_metadata": {"etag": "9147660215bcaa8deb965b6476e3f394"}}
+{"_id": 3, "k_pc2": 1002, "k_nested": [{"k_nc2": 3, "k_nc3": 5000, "k_npkai": 43}, {"k_nc2": 3, "k_nc3": 6000, "k_npkai": 44}], "_metadata": {"etag": "962c0e873f0065ff5e6ecd8053022142"}}
+# Same applies for UPDATE.
+UPDATE nested_dv SET data = '{ "_id": 3,  "k_pc2": 1003, "k_nested": [
+    { "k_npkai": 0, "k_nc3":5000},
+    {"k_npkai": 420, "k_nc3":6000},
+    {"k_npkai": -1030, "k_nc3":-2000},
+    {"k_nc3":7000}]}' WHERE JSON_EXTRACT(data, '$._id') = 3;
+ERROR HY000: Paths $.k_nested[2] and $.k_nested[0] use generated and explicit values for the same primary key, which is not allowed.
+SELECT * FROM nested_dv;
+data
+{"_id": 1, "k_pc2": 1, "k_nested": null, "_metadata": {"etag": "a5d11d2a54fa9c6202c0733c943f8317"}}
+{"_id": 2, "k_pc2": 1000, "k_nested": [{"k_nc2": 2, "k_nc3": 2000, "k_npkai": 2}, {"k_nc2": 2, "k_nc3": 3000, "k_npkai": 3}, {"k_nc2": 2, "k_nc3": 4000, "k_npkai": 4}], "_metadata": {"etag": "9147660215bcaa8deb965b6476e3f394"}}
+{"_id": 3, "k_pc2": 1002, "k_nested": [{"k_nc2": 3, "k_nc3": 5000, "k_npkai": 43}, {"k_nc2": 3, "k_nc3": 6000, "k_npkai": 44}], "_metadata": {"etag": "962c0e873f0065ff5e6ecd8053022142"}}
+SELECT * FROM nested;
+npkai	nc2	nc3
+1	100	1000
+2	2	2000
+3	2	3000
+4	2	4000
+43	3	5000
+44	3	6000
+SELECT * FROM parent;
+ppkai	pc2
+1	1
+2	1000
+3	1002
+DROP VIEW nested_dv;
+DROP TABLE nested;
+DROP TABLE parent;
+# Bug38936645 Allow 0/null in singleton parent join AUTO_INCREMENT
+CREATE TABLE fk_parent_ai (pid INT PRIMARY KEY AUTO_INCREMENT, pdata INT);
+CREATE TABLE fk_child_noai (cid INT PRIMARY KEY, pid INT REFERENCES fk_parent_ai(pid), cdata INT);
+CREATE OR REPLACE JSON DUALITY VIEW dv_singleton_noai_ai AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"_id" : cid,
+"pid" : pid,
+"cdata": cdata,
+"parent": (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"pid": pid,
+"pdata": pdata
+) FROM fk_parent_ai
+WHERE fk_parent_ai.pid = fk_child_noai.pid
+)
+) FROM fk_child_noai;
+CREATE VIEW cv AS SELECT p.pid, p.pdata, c.cid, c.cdata FROM fk_parent_ai p, fk_child_noai c
+WHERE p.pid = c.pid;
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 10,
+  "cdata": 10,
+  "parent": {
+    "pdata": 20
+  }
+}');
+# Expect pid=1 (generated from auto_increment (absent))
+SELECT * FROM cv WHERE pid = 1;
+pid	pdata	cid	cdata
+1	20	10	10
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 20,
+  "cdata": 21,
+  "parent": {
+    "pid" : 0,
+    "pdata": 22
+  }
+}');
+# Expect pid=2 (generated from auto_increment (0))
+SELECT * FROM cv WHERE pid = 2;
+pid	pdata	cid	cdata
+2	22	20	21
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 30,
+  "cdata": 31,
+  "parent": {
+    "pid" : null,
+    "pdata": 32
+  }
+}');
+# Expect pid=3 (generated from auto_increment (null))
+SELECT * FROM cv WHERE pid = 3;
+pid	pdata	cid	cdata
+3	32	30	31
+SELECT pid, pdata FROM fk_parent_ai ORDER BY pid;
+pid	pdata
+1	20
+2	22
+3	32
+SELECT cid, pid, cdata FROM fk_child_noai ORDER BY cid;
+cid	pid	cdata
+10	1	10
+20	2	21
+30	3	31
+DROP VIEW dv_singleton_noai_ai;
+DROP TABLES fk_parent_ai, fk_child_noai;
+DROP VIEW cv;
+# Bug38958650 Mixing explicit and generated keys rejected
+CREATE TABLE fk_parent_ai (pid INT PRIMARY KEY AUTO_INCREMENT, pdata INT);
+CREATE TABLE fk_child_noai (cid INT PRIMARY KEY AUTO_INCREMENT, pid INT REFERENCES fk_parent_ai(pid), cdata INT);
+CREATE OR REPLACE JSON DUALITY VIEW dv_singleton_ai_noai AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"_id" : pid,
+"pdata": pdata,
+"child": (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+"cid": cid,
+"pid": pid,
+"pdata": cdata
+)) FROM fk_child_noai
+WHERE fk_parent_ai.pid = fk_child_noai.pid
+)
+) FROM fk_parent_ai;
+INSERT INTO dv_singleton_ai_noai VALUES ('{
+  "pdata" : 1,
+  "child" : [
+    {
+      "cid"   : null,
+      "pdata" : 1
+    },
+    {
+      "cid" : 2,
+      "pdata" : 1
+    }
+  ]
+}');
+ERROR HY000: Paths $.child[0] and $.child[1] use generated and explicit values for the same primary key, which is not allowed.
+# Covers below scenarios:
+# 1. Omission of A_I column: "_id" in the parent, "pid" in 2nd and 3rd child
+# 2. Auto generation of A_I column on "0" value: 2nd child
+# 3. Auto generation of A_I column on "null" value: 3rd child
+# 4. Providing correct value of dependent join column, whole A_I column is auto generated: 1st child
+INSERT INTO dv_singleton_ai_noai VALUES ('{
+  "pdata" : 1,
+  "child" : [
+    {
+      "pid" : 1,
+      "pdata" : 1
+    },
+    {
+      "cid"   : 0,
+      "pdata" : 1
+    },
+    {
+      "cid" : null,
+      "pdata" : 1
+    }
+  ]
+}');
+SELECT * FROM dv_singleton_ai_noai;
+data
+{"_id": 1, "child": [{"cid": 1, "pid": 1, "pdata": 1}, {"cid": 2, "pid": 1, "pdata": 1}, {"cid": 3, "pid": 1, "pdata": 1}], "pdata": 1, "_metadata": {"etag": "546f1bbd8c60497b5f1f99b7fbf9baca"}}
+DROP VIEW dv_singleton_ai_noai;
+DROP TABLES fk_parent_ai, fk_child_noai;
+# Bug38936645 nested child inherits generated parent key
+CREATE TABLE parent_nested_ai (pid INT PRIMARY KEY AUTO_INCREMENT, pdata INT);
+CREATE TABLE child_nested_noai (cid INT PRIMARY KEY, pid INT REFERENCES parent_nested_ai(pid), cdata INT);
+CREATE OR REPLACE JSON DUALITY VIEW dv_nested_parent_ai AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"_id" : pid,
+"pdata": pdata,
+"child": (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+"cid": cid,
+"pid": pid,
+"cdata": cdata
+)) FROM child_nested_noai
+WHERE child_nested_noai.pid = parent_nested_ai.pid
+)
+) FROM parent_nested_ai;
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "pdata" : 101,
+  "child" : [
+    {
+      "cid" : 11,
+      "cdata" : 1100
+    }
+  ]
+}');
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "_id"   : 0,
+  "pdata" : 102,
+  "child" : [
+    {
+      "cid" : 12,
+      "pid" : 2,
+      "cdata" : 1200
+    }
+  ]
+}');
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "_id"   : null,
+  "pdata" : 103,
+  "child" : [
+    {
+      "cid" : 13,
+      "pid" : 3,
+      "cdata" : 1300
+    }
+  ]
+}');
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "_id"   : 4,
+  "pdata" : 104,
+  "child" : [
+    {
+      "cid" : 14,
+      "cdata" : 1400
+    }
+  ]
+}');
+SELECT pid, pdata FROM parent_nested_ai ORDER BY pid;
+pid	pdata
+1	101
+2	102
+3	103
+4	104
+SELECT cid, pid, cdata FROM child_nested_noai ORDER BY cid;
+cid	pid	cdata
+11	1	1100
+12	2	1200
+13	3	1300
+14	4	1400
+DROP VIEW dv_nested_parent_ai;
+DROP TABLES parent_nested_ai, child_nested_noai;
+CREATE TABLE customers (
+customer_id INT PRIMARY KEY AUTO_INCREMENT,
+name VARCHAR(100)
+);
+CREATE TABLE orders (
+order_id INT PRIMARY KEY AUTO_INCREMENT,
+customer_id INT,
+product VARCHAR(100),
+amount DECIMAL(10,2),
+FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+CREATE OR REPLACE JSON RELATIONAL DUALITY VIEW customers_orders_dv AS
+SELECT JSON_DUALITY_OBJECT( WITH(INSERT,UPDATE,DELETE)
+'_id': customer_id,
+'customer_name': name,
+'orders': (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT( WITH(INSERT,UPDATE,DELETE)
+'order_id': order_id,
+'product': product,
+'amount': amount
+)
+)
+FROM orders
+WHERE orders.customer_id = customers.customer_id
+)
+)
+FROM customers;
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Alice",
+    "orders": [
+      {"order_id": 1, "product": "Laptop", "amount": 1299.99},
+      {"order_id": 1, "product": "Mouse", "amount": 19.99}
+    ]
+}');
+ERROR HY000: Path '$.orders[1]' is a duplicate for primary key column `test`.`orders`.order_id but has conflicting values for column product: path '$.orders[1].product' vs path '$.orders[0].product'
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Alice",
+    "_id": 1,
+    "orders": [
+      {"order_id": 0, "product": "Laptop", "amount": 1299.99},
+      {"order_id": 0, "product": "Mouse", "amount": 19.99}
+    ]
+}');
+SELECT * FROM orders;
+order_id	customer_id	product	amount
+1	1	Laptop	1299.99
+2	1	Mouse	19.99
+SELECT * FROM customers;
+customer_id	name
+1	Alice
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Bob",
+    "orders": [
+      {"order_id": 0, "product": "Laptop", "amount": 1299.99},
+      {"order_id": 3, "product": "Mouse", "amount": 19.99}
+    ]
+}');
+ERROR HY000: Paths $.orders[0] and $.orders[1] use generated and explicit values for the same primary key, which is not allowed.
+SELECT * FROM orders;
+order_id	customer_id	product	amount
+1	1	Laptop	1299.99
+2	1	Mouse	19.99
+SELECT * FROM customers;
+customer_id	name
+1	Alice
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Candace",
+    "orders": [
+      {"product": "Laptop", "amount": 1299.99},
+      {"order_id": 5, "product": "Mouse", "amount": 19.99}
+    ]
+}');
+ERROR HY000: Paths $.orders[1] and $.orders[0] use generated and explicit values for the same primary key, which is not allowed.
+SELECT * FROM orders;
+order_id	customer_id	product	amount
+1	1	Laptop	1299.99
+2	1	Mouse	19.99
+# Testing with NO_AUTO_VALUE_ON_ZERO
+SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Alice",
+    "_id": 1,
+    "orders": [
+      {"order_id": 0, "product": "Laptop", "amount": 1299.99},
+      {"order_id": 0, "product": "Mouse", "amount": 19.99}
+    ]
+}');
+ERROR HY000: Path '$.orders[1]' is a duplicate for primary key column `test`.`orders`.order_id but has conflicting values for column product: path '$.orders[1].product' vs path '$.orders[0].product'
+SELECT * FROM orders;
+order_id	customer_id	product	amount
+1	1	Laptop	1299.99
+2	1	Mouse	19.99
+SELECT * FROM customers;
+customer_id	name
+1	Alice
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Bob",
+    "_id": 2,
+    "orders": [
+      {"product": "Laptop", "amount": 1299.99},
+      {"product": "Mouse", "amount": 19.99}
+    ]
+}');
+SELECT * FROM orders;
+order_id	customer_id	product	amount
+1	1	Laptop	1299.99
+2	1	Mouse	19.99
+3	2	Laptop	1299.99
+4	2	Mouse	19.99
+SELECT * FROM customers;
+customer_id	name
+1	Alice
+2	Bob
+INSERT INTO customers_orders_dv VALUES (
+'{  "customer_name": "Cathy",
+    "_id": 3,
+    "orders": [
+      {"order_id": null, "product": "Laptop", "amount": 1299.99},
+      {"order_id": null, "product": "Mouse", "amount": 19.99}
+    ]
+}');
+SELECT * FROM orders;
+order_id	customer_id	product	amount
+1	1	Laptop	1299.99
+2	1	Mouse	19.99
+3	2	Laptop	1299.99
+4	2	Mouse	19.99
+5	3	Laptop	1299.99
+6	3	Mouse	19.99
+SELECT * FROM customers;
+customer_id	name
+1	Alice
+2	Bob
+3	Cathy
+SET SESSION sql_mode = default;
+DROP VIEW customers_orders_dv;
+DROP TABLE orders;
+DROP TABLE customers;
+# Testing multiple singleton children referencing the same parent
+CREATE TABLE singleton1(s1c1 INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE singleton2(s2c1 INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE singleton3(s3c1 INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE singleton4(s4c1 INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE parent(pc1 INT PRIMARY KEY);
+CREATE JSON DUALITY VIEW dv AS
+SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE, DELETE)
+"_id" : pc1,
+"_singleton1" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"_s1c1" : s1c1
+) FROM singleton1 WHERE singleton1.s1c1 = parent.pc1),
+"_singleton2" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"_s2c1" : s2c1
+) FROM singleton2 WHERE singleton2.s2c1 = parent.pc1),
+"_singleton3" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"_s3c1" : s3c1
+) FROM singleton3 WHERE singleton3.s3c1 = parent.pc1),
+"_singleton4" : (SELECT JSON_DUALITY_OBJECT(WITH (INSERT, UPDATE)
+"_s4c1" : s4c1
+) FROM singleton4 WHERE singleton4.s4c1 = parent.pc1)
+) FROM parent;
+INSERT INTO dv VALUES (
+'{
+        "_singleton1" : {},
+        "_singleton2" : {},
+        "_singleton3" : {},
+        "_singleton4" : {}
+    }'
+);
+SELECT * FROM dv;
+data
+{"_id": 1, "_metadata": {"etag": "867130cfd057458d154c40adced1f0bf"}, "_singleton1": {"_s1c1": 1}, "_singleton2": {"_s2c1": 1}, "_singleton3": {"_s3c1": 1}, "_singleton4": {"_s4c1": 1}}
+DROP VIEW dv;
+DROP TABLE singleton4;
+DROP TABLE singleton3;
+DROP TABLE singleton2;
+DROP TABLE singleton1;
+DROP TABLE parent;
+# -------------------------------------
+# Part-2 NO_AUTO_VALUE_ON_ZERO = ON
+# -------------------------------------
+SET @orig_sql_mode = @@session.sql_mode;
+SET @@session.sql_mode=NO_AUTO_VALUE_ON_ZERO;
+CREATE TABLE fk_parent_ai (pid INT PRIMARY KEY AUTO_INCREMENT, pdata INT);
+CREATE TABLE fk_child_noai (cid INT PRIMARY KEY, pid INT REFERENCES fk_parent_ai(pid), cdata INT);
+CREATE OR REPLACE JSON DUALITY VIEW dv_singleton_noai_ai AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"_id" : cid,
+"pid" : pid,
+"cdata": cdata,
+"parent": (SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"pid": pid,
+"pdata": pdata
+) FROM fk_parent_ai
+WHERE fk_parent_ai.pid = fk_child_noai.pid
+)
+) FROM fk_child_noai;
+CREATE VIEW cv AS SELECT c.cid, c.pid, c.cdata, p.pdata
+FROM fk_child_noai c, fk_parent_ai p
+WHERE c.pid = p.pid;
+# It actually inserts the data with pid = 0
+# (due to NO_AUTO_VALUE_ON_ZERO)
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 0,
+  "cdata": 21,
+  "parent": {
+    "pid" : 0,
+    "pdata": 22
+  }
+}');
+SELECT * FROM cv WHERE cdata = 21;
+cid	pid	cdata	pdata
+0	0	21	22
+omission should lead to auto generation
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 1,
+  "cdata": 10,
+  "parent": {
+    "pdata": 20
+  }
+}');
+SELECT * FROM cv WHERE cdata = 10;
+cid	pid	cdata	pdata
+1	1	10	20
+Providing null should lead to auto generation
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 2,
+  "cdata": 31,
+  "parent": {
+    "pid" : null,
+    "pdata": 32
+  }
+}');
+SELECT * FROM cv WHERE cdata = 31;
+cid	pid	cdata	pdata
+2	2	31	32
+# When fk_child_noai.pid is provided explicitly the value
+# fk_parent_ai.pid is resolved through the join condition in
+# normal way before any insertions take place, resulting in
+# pid=3 (both inserts use the explicit value 3 and no
+# auto_increment value gets generated).
+INSERT INTO dv_singleton_noai_ai VALUES (
+'{
+  "_id" : 3,
+  "cdata": 31,
+  "pid" : 3,
+  "parent": {
+    "pid" : null,
+    "pdata": 32
+  }
+}');
+SELECT * FROM cv WHERE pid = 3;
+cid	pid	cdata	pdata
+3	3	31	32
+SELECT * FROM dv_singleton_noai_ai;
+data
+{"_id": 0, "pid": 0, "cdata": 21, "parent": {"pid": 0, "pdata": 22}, "_metadata": {"etag": "6cd91ba1383cb46164729ebe4aca357f"}}
+{"_id": 1, "pid": 1, "cdata": 10, "parent": {"pid": 1, "pdata": 20}, "_metadata": {"etag": "8fa32b20a0ddfbc0208c4cd48f002e50"}}
+{"_id": 2, "pid": 2, "cdata": 31, "parent": {"pid": 2, "pdata": 32}, "_metadata": {"etag": "44d34255dd8f22f1ccefbcf80b026ab7"}}
+{"_id": 3, "pid": 3, "cdata": 31, "parent": {"pid": 3, "pdata": 32}, "_metadata": {"etag": "b773bb770072c50e7025fc0060c03f2c"}}
+DROP VIEW dv_singleton_noai_ai;
+DROP TABLES fk_parent_ai, fk_child_noai;
+DROP VIEW cv;
+CREATE TABLE parent_nested_ai (pid INT PRIMARY KEY AUTO_INCREMENT, pdata INT);
+CREATE TABLE child_nested_noai (cid INT PRIMARY KEY, pid INT REFERENCES parent_nested_ai(pid), cdata INT);
+CREATE OR REPLACE JSON DUALITY VIEW dv_nested_parent_ai AS
+SELECT JSON_DUALITY_OBJECT(WITH INSERT
+"_id" : pid,
+"pdata": pdata,
+"child": (SELECT JSON_ARRAYAGG(JSON_DUALITY_OBJECT(WITH INSERT
+"cid": cid,
+"pid": pid,
+"cdata": cdata
+)) FROM child_nested_noai
+WHERE child_nested_noai.pid = parent_nested_ai.pid
+)
+) FROM parent_nested_ai;
+omission should lead to auto generation
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "pdata" : 101,
+  "child" : [
+    {
+      "cid" : 11,
+      "cdata" : 1100
+    }
+  ]
+}');
+Providing null should lead to auto generation
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "_id"   : null,
+  "pdata" : 103,
+  "child" : [
+    {
+      "cid" : 13,
+      "pid" : 2,
+      "cdata" : 1300
+    }
+  ]
+}');
+It actually inserts the data with pid = 0
+INSERT INTO dv_nested_parent_ai VALUES ('{
+  "_id"   : 0,
+  "pdata" : 102,
+  "child" : [
+    {
+      "cid" : 12,
+      "cdata" : 1200
+    }
+  ]
+}');
+SELECT * FROM dv_nested_parent_ai;
+data
+{"_id": 0, "child": [{"cid": 12, "pid": 0, "cdata": 1200}], "pdata": 102, "_metadata": {"etag": "d5339b091c8a49c8b48fb518b358dfdb"}}
+{"_id": 1, "child": [{"cid": 11, "pid": 1, "cdata": 1100}], "pdata": 101, "_metadata": {"etag": "b6ab360f707e23b3842943c738cb7361"}}
+{"_id": 2, "child": [{"cid": 13, "pid": 2, "cdata": 1300}], "pdata": 103, "_metadata": {"etag": "e83d2cf48d0298a32085cf086c83715d"}}
+DROP VIEW dv_nested_parent_ai;
+DROP TABLES child_nested_noai, parent_nested_ai;
+SET @@session.sql_mode=@orig_sql_mode;

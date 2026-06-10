@@ -1,4 +1,4 @@
-/* Copyright (c) 2025 Oracle and/or its affiliates.
+/* Copyright (c) 2025, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <optional>
+
 /**
   Determines if the current process is running in a container.
   @return true if running in either cgroup v1 or cgroup v2, false otherwise
@@ -31,7 +33,7 @@ bool is_running_in_cgroup();
 
 /**
   Determines if cgroup restricts resources
-  @return true if cgroup restricts resources like CPU or memory
+  @return true if cgroup restricts resources like memory
 */
 bool does_cgroup_limit_resources();
 
@@ -42,14 +44,6 @@ bool does_cgroup_limit_resources();
   running in a container
 */
 uint64_t my_cgroup_mem_limit();
-
-/**
-  Read the CPU limit set by the container. Try cgroup v2, and then cgroup v1
-  @return CPU limit set by cgroup v2 or cgroup v1; or 0
-  @note Return value of 0 implies either no limits are set or server is not
-  running in a container
-*/
-uint32_t my_cgroup_vcpu_limit();
 
 /**
   Find number of VCPUs as seen by the current process based on the

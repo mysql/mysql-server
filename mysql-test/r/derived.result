@@ -4822,4 +4822,93 @@ ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
 SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT c FROM t;
 ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
 DROP TABLE t;
+#
+# Bug#38191248: Issue with NULL Detection for DATE-Type Columns in
+#               Derived Tables after Derived Merge
+#
+CREATE TABLE t(id INT PRIMARY KEY, d DATE, t TIME, dt DATETIME);
+INSERT INTO t(id, d, t, dt) VALUES
+(1, '2025-01-01', '00:00:00', '2025-01-01 00:00:00'),
+(2, '2025-01-02', '01:02:03', '2025-01-02 01:02:03');
+SELECT ttt.b,
+t.d,
+COALESCE(NULL, t.d) AS c1,
+COALESCE(ttt.b, t.d) AS c2,
+COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+(SELECT DATE'2024-01-03' AS b
+FROM (SELECT 1) AS tt
+WHERE FALSE) AS ttt
+ON TRUE;
+b	d	c1	c2	c3
+NULL	2025-01-01	2025-01-01	2025-01-01	1
+NULL	2025-01-02	2025-01-02	2025-01-02	2
+SELECT ttt.b,
+t.t,
+COALESCE(NULL, t.t) AS c1,
+COALESCE(ttt.b, t.t) AS c2,
+COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+(SELECT TIME'23:59:59' AS b
+FROM (SELECT 1) AS tt
+WHERE FALSE) AS ttt
+ON TRUE;
+b	t	c1	c2	c3
+NULL	00:00:00	00:00:00	00:00:00	1
+NULL	01:02:03	01:02:03	01:02:03	2
+SELECT ttt.b,
+t.dt,
+COALESCE(NULL, t.dt) AS c1,
+COALESCE(ttt.b, t.dt) AS c2,
+COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+(SELECT TIMESTAMP'2024-01-03 23:59:59' AS b
+FROM (SELECT 1) AS tt
+WHERE FALSE) AS ttt
+ON TRUE;
+b	dt	c1	c2	c3
+NULL	2025-01-01 00:00:00	2025-01-01 00:00:00	2025-01-01 00:00:00	1
+NULL	2025-01-02 01:02:03	2025-01-02 01:02:03	2025-01-02 01:02:03	2
+SET optimizer_switch="derived_merge=off";
+SELECT ttt.b,
+t.d,
+COALESCE(NULL, t.d) AS c1,
+COALESCE(ttt.b, t.d) AS c2,
+COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+(SELECT DATE'2024-01-03' AS b
+FROM (SELECT 1) AS tt
+WHERE FALSE) AS ttt
+ON TRUE;
+b	d	c1	c2	c3
+NULL	2025-01-01	2025-01-01	2025-01-01	1
+NULL	2025-01-02	2025-01-02	2025-01-02	2
+SELECT ttt.b,
+t.t,
+COALESCE(NULL, t.t) AS c1,
+COALESCE(ttt.b, t.t) AS c2,
+COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+(SELECT TIME'23:59:59' AS b
+FROM (SELECT 1) AS tt
+WHERE FALSE) AS ttt
+ON TRUE;
+b	t	c1	c2	c3
+NULL	00:00:00	00:00:00	00:00:00	1
+NULL	01:02:03	01:02:03	01:02:03	2
+SELECT ttt.b,
+t.dt,
+COALESCE(NULL, t.dt) AS c1,
+COALESCE(ttt.b, t.dt) AS c2,
+COALESCE(ttt.b, t.id) AS c3
+FROM t LEFT JOIN
+(SELECT TIMESTAMP'2024-01-03 23:59:59' AS b
+FROM (SELECT 1) AS tt
+WHERE FALSE) AS ttt
+ON TRUE;
+b	dt	c1	c2	c3
+NULL	2025-01-01 00:00:00	2025-01-01 00:00:00	2025-01-01 00:00:00	1
+NULL	2025-01-02 01:02:03	2025-01-02 01:02:03	2025-01-02 01:02:03	2
+SET optimizer_switch=default;
+DROP TABLE t;
 include/rpl/set_gtid_mode_on.inc

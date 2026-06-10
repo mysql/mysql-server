@@ -62,12 +62,12 @@ CREATE TABLE t1(f1 INT NOT NULL AUTO_INCREMENT, f2 INT, key(f1));
 --error ER_NOT_SUPPORTED_YET
 CREATE TABLE t1 (f1 INT, f2 DATE) PARTITION BY KEY(f2) PARTITIONS 2;
 
---echo # Test case to verify partition table creation with user defined unique
---echo # key based implicit primary key.
---error ER_NOT_SUPPORTED_YET
+--echo # Test case to verify partition table creation with user defined unique key
 CREATE TABLE t1 (f1 INT, f2 INT NOT NULL UNIQUE) PARTITION BY RANGE (f2)
                    (PARTITION p0 VALUES LESS THAN (2011),
                     PARTITION p1 VALUES LESS THAN (2022));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 
 --echo # Test case to verify PK generation on InnoDB PK-less user table.
 --echo # PK should be generated in this case.
@@ -84,14 +84,14 @@ SHOW KEYS FROM t1;
 DROP TABLE t1;
 
 --echo # Test case to verify PK generation on InnoDB table with unique key
---echo # based implicit primary key. PK should be generated in this case.
+--echo # based implicit primary key. PK should not be generated in this case.
 CREATE TABLE t1(f1 INT NOT NULL UNIQUE);
 SHOW CREATE TABLE t1;
 SHOW KEYS FROM t1;
 DROP TABLE t1;
 
 --echo # Test case to verify PK generation on InnoDB temporary table with unique key
---echo # based implicit primary key. PK should be generated in this case.
+--echo # based implicit primary key. PK should be not generated in this case.
 CREATE TEMPORARY TABLE t1 (f1 INT NOT NULL UNIQUE);
 SHOW CREATE TABLE t1;
 SHOW KEYS FROM t1;
@@ -140,7 +140,7 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
 
---echo # Primary key is generated in this case.
+--echo # Primary key is not generated in this case.
 CREATE TABLE t2 (f1 INT NOT NULL UNIQUE) AS SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
@@ -793,5 +793,125 @@ DROP TABLE t1;
 SET SESSION show_gipk_in_create_table_and_information_schema =
               @saved_session_show_gipk_in_create_table_and_information_schema;
 
+SET SESSION sql_generate_invisible_primary_key =
+              @saved_session_sql_generate_invisible_primary_key;
+
+--echo #
+--echo # Bug#38195294: GIPK should not add a PK on tables with a PKE
+--echo #
+
+--echo # Set up
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+SET @saved_session_show_gipk_in_create_table_and_information_schema =
+       @@session.show_gipk_in_create_table_and_information_schema;
+
+SET SESSION sql_generate_invisible_primary_key = ON;
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+
+--echo # Composite UNIQUE with all parts NOT NULL -> no GIPK expected.
+CREATE TABLE t1 (fld1 INT NOT NULL, fld2 INT NOT NULL, UNIQUE KEY u_key(fld1,fld2));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Composite UNIQUE with a nullable part -> GIPK expected.
+CREATE TABLE t1 (fld1 INT NOT NULL, fld2 INT NULL, UNIQUE KEY u_key(fld1,fld2));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Single-column UNIQUE nullable -> GIPK expected.
+CREATE TABLE t1 (fld1 INT, UNIQUE KEY u_key(fld1));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # UNIQUE prefix key -> GIPK expected.
+CREATE TABLE t1 (fld1 VARCHAR(20) NOT NULL, UNIQUE KEY u_key(fld1(5)));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # UNIQUE on virtual generated column -> GIPK expected.
+CREATE TABLE t1 (fld1 INT, fld2 INT GENERATED ALWAYS AS (fld1 + 1) VIRTUAL, UNIQUE KEY u_key(fld2));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Functional UNIQUE index -> GIPK expected.
+CREATE TABLE t1 (fld1 INT NOT NULL, UNIQUE KEY u_key ((fld1 + 1)));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Non-unique index only -> GIPK expected.
+CREATE TABLE t1 (fld1 INT NOT NULL, KEY k_fld1(fld1));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Non-unique index only (temporary table) -> GIPK expected.
+CREATE TEMPORARY TABLE t1 (fld1 INT NOT NULL, KEY k_fld1(fld1));
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Single-column UNIQUE NOT NULL with AUTO_INCREMENT -> no GIPK or error expected.
+CREATE TABLE t1 (fld1 INT NOT NULL UNIQUE AUTO_INCREMENT);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Allow drop of GIPK when adding UNIQUE NOT NULL key (single column)
+CREATE TABLE t1 (fld1 INT NOT NULL);
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(fld1);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Allow drop of GIPK when adding composite UNIQUE NOT NULL key
+CREATE TABLE t1 (fld1 INT NOT NULL, fld2 INT NOT NULL);
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(fld1,fld2);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Temporary table variant with UNIQUE NOT NULL
+CREATE TEMPORARY TABLE t1 (fld1 INT NOT NULL);
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(fld1);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # UNIQUE prefix key should still be rejected
+CREATE TABLE t1 (fld1 VARCHAR(20) NOT NULL);
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(fld1(5));
+DROP TABLE t1;
+
+--echo # Composite UNIQUE with a nullable part should be rejected
+CREATE TABLE t1 (fld1 INT NOT NULL, fld2 INT NULL);
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(fld1,fld2);
+DROP TABLE t1;
+
+--echo # Dropping a UNIQUE NOT NULL is allowed if a PK remains (GIPK remains)
+CREATE TABLE t1 (fld1 INT);
+ALTER TABLE t1 ADD COLUMN fld2 INT NOT NULL, ADD UNIQUE KEY(fld2);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP INDEX fld2;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Disallow dropping both GIPK and the only UNIQUE NOT NULL
+CREATE TABLE t1 (fld1 INT);
+ALTER TABLE t1 ADD COLUMN fld2 INT NOT NULL, ADD UNIQUE KEY(fld2);
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, DROP INDEX fld2;
+DROP TABLE t1;
+
+--echo # Clean up
+SET SESSION show_gipk_in_create_table_and_information_schema =
+              @saved_session_show_gipk_in_create_table_and_information_schema;
 SET SESSION sql_generate_invisible_primary_key =
               @saved_session_sql_generate_invisible_primary_key;

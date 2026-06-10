@@ -3173,3 +3173,26 @@ COUNT(*)
 9
 DROP TABLE t1, t2, t3;
 include/rpl/set_gtid_mode_on.inc
+#
+# Bug#31402520: SQL_REQUIRE_PRIMARY_KEY should also accept PKEs
+#
+SET sql_require_primary_key=ON;
+# Table with a PK is allowed, of course.
+CREATE TABLE pk   (a INT PRIMARY KEY);
+# We can't DROP INDEX if that would leave the table without a PK.
+DROP INDEX `PRIMARY` ON pk;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Table with a PKE is (newly) also allowed.
+CREATE TABLE uknn (a INT UNIQUE KEY NOT NULL);
+# We can't DROP INDEX if that would leave the table without a PKE.
+DROP INDEX `a` ON uknn;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Table without a PKE (here: UNIQUE, but NULLable) is (still) not allowed.
+CREATE TABLE ukn  (a INT UNIQUE KEY);
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Table with no keys is not allowed.
+CREATE TABLE nk   (a INT NOT NULL);
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+DROP TABLE IF EXISTS pk;
+DROP TABLE IF EXISTS uknn;
+SET SESSION sql_require_primary_key=DEFAULT;

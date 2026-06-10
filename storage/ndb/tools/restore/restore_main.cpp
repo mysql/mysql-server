@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "my_getopt.h"
 #include "portlib/NdbTick.h"
 #include "portlib/ssl_applink.h"
+#include "util/cstrbuf.h"
 #include "util/ndb_openssl_evp.h"  // ndb_openssl_evp::library_init()
 #include "util/require.h"
 
@@ -45,6 +46,7 @@
 #include "consumer_restore.hpp"
 #include "my_alloc.h"
 #include "nulls.h"
+#include "scope_guard.h"
 
 #include <NdbThread.h>
 
@@ -101,6 +103,8 @@ const char *opt_ndb_table = NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
 bool opt_show_part_id = true;
+bool opt_show_node_id;
+bool opt_show_log_level;
 unsigned int opt_progress_frequency;
 NDB_TICKS g_report_prev;
 Vector<BaseString> g_databases;
@@ -445,8 +449,17 @@ static struct my_option my_long_options[] = {
     {"skip-broken-objects", 256, "Skip broken object when parsing backup",
      &ga_skip_broken_objects, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
      0},
-    {"show-part-id", 256, "Prefix log messages with backup part ID",
-     &opt_show_part_id, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"show-log-level", 256,
+     "Include log level in log message. Deprecated, log level will always "
+     "be included in future.",
+     &opt_show_log_level, nullptr, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    {"show-node-id", 256,
+     "Prefix log messages with node of that ndb_restore uses",
+     &opt_show_node_id, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"show-part-id", 256,
+     "Prefix log messages with backup part ID for multi part backups. "
+     "Deprecated, default on since 9.7.",
+     &opt_show_part_id, nullptr, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifdef ERROR_INSERT
     {"error-insert", OPT_ERROR_INSERT, "Insert errors (testing option)",
      &_error_insert, nullptr, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -687,6 +700,7 @@ bool readArguments(Ndb_opts &opts, char ***pargv) {
     }
     exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
   }
+  restoreLogger.set_print_log_level(opt_show_log_level);
   if (!opt_timestamp_printouts) {
     restoreLogger.set_print_timestamp(false);
   }
@@ -1607,12 +1621,12 @@ static bool setup_column_remappings(RestoreMetaData &metaData) {
 }
 
 static void free_data_callback(void *ctx) {
-  // RestoreThreadData is passed as context object to in RestoreDataIterator
-  // ctor. RestoreDataIterator calls callback function with context object
+  // RestoreThreadData is passed as context object to Iterators
+  // Iterators call callback function with context object
   // as parameter, so that callback can extract thread info from it.
   RestoreThreadData *data = (RestoreThreadData *)ctx;
   for (Uint32 i = 0; i < data->m_consumers.size(); i++)
-    data->m_consumers[i]->tuple_free();
+    data->m_consumers[i]->data_free();
 }
 
 static void free_include_excludes_vector() {
@@ -1786,11 +1800,13 @@ int do_restore(RestoreThreadData *thrdata) {
   init_progress();
 
   Vector<BackupConsumer *> &g_consumers = thrdata->m_consumers;
-  char threadName[15] = "";
-  if (opt_show_part_id)
-    BaseString::snprintf(threadName, sizeof(threadName), "[part %u] ",
-                         thrdata->m_part_id);
-  restoreLogger.setThreadPrefix(threadName);
+  cstrbuf<30> threadName;
+  if (opt_show_node_id)
+    threadName.appendf("Node %u: ", g_cluster_connection->node_id());
+  if (opt_show_part_id && (ga_backup_format == BF_MULTI_PART))
+    threadName.appendf("[part %u] ", thrdata->m_part_id);
+  require(!threadName.is_truncated());
+  restoreLogger.setThreadPrefix(threadName.c_str());
 
   /**
    * we must always load meta data, even if we will only print it to stdout
@@ -1809,6 +1825,12 @@ int do_restore(RestoreThreadData *thrdata) {
   }
 #endif
   restoreLogger.log_info("[restore_metadata] Read meta data file header");
+
+  if (!metaData.openFile()) {
+    restoreLogger.log_error("Failed to open %s", metaData.getFilename());
+    return NdbToolsProgramExitCode::FAILED;
+  }
+  Scope_guard close_meta_data_file_on_error(CloseFileUnchecked{metaData});
 
   if (!metaData.readHeader()) {
     restoreLogger.log_error("Failed to read %s", metaData.getFilename());
@@ -1927,6 +1949,10 @@ int do_restore(RestoreThreadData *thrdata) {
     restoreLogger.log_error("Restore: Failed to validate footer.");
     return NdbToolsProgramExitCode::FAILED;
   }
+
+  close_meta_data_file_on_error.release();
+  metaData.closeFile(/* abort */ false);
+
   restoreLogger.log_debug("Init Backup objects");
   Uint32 i;
   for (i = 0; i < g_consumers.size(); i++) {
@@ -2119,6 +2145,7 @@ int do_restore(RestoreThreadData *thrdata) {
   }
   restoreLogger.log_debug("Iterate over data");
   restoreLogger.log_info("[restore_data] Start restoring table data");
+  int snapshotstart = -1;
   if (ga_restore || ga_print) {
     Uint32 fragmentsTotal = 0;
     Uint32 fragmentsRestored = 0;
@@ -2169,6 +2196,11 @@ int do_restore(RestoreThreadData *thrdata) {
 
       RestoreDataIterator dataIter(metaData, &free_data_callback,
                                    (void *)thrdata, opt_read_size);
+#ifdef ERROR_INSERT
+      if (_error_insert > 0) {
+        dataIter.error_insert(_error_insert);
+      }
+#endif
 
       if (!dataIter.validateBackupFile()) {
         restoreLogger.log_error(
@@ -2176,13 +2208,13 @@ int do_restore(RestoreThreadData *thrdata) {
         return NdbToolsProgramExitCode::FAILED;
       }
 
-      if (!dataIter.validateRestoreDataIterator()) {
-        restoreLogger.log_error(
-            "Unable to allocate memory for RestoreDataIterator constructor");
+      restoreLogger.log_info("[restore_data] Read data file header");
+
+      if (!dataIter.openFile()) {
+        restoreLogger.log_error("Failed to open data file. Exiting...");
         return NdbToolsProgramExitCode::FAILED;
       }
-
-      restoreLogger.log_info("[restore_data] Read data file header");
+      Scope_guard close_data_file_on_error(CloseFileUnchecked{dataIter});
 
       // Read data file header
       if (!dataIter.readHeader()) {
@@ -2275,6 +2307,9 @@ int do_restore(RestoreThreadData *thrdata) {
 
       dataIter.validateFooter();  // not implemented
 
+      close_data_file_on_error.release();
+      dataIter.closeFile(/* abort */ false);
+
       {
         bool consumersOk = true;
         for (i = 0; i < g_consumers.size(); i++) {
@@ -2296,15 +2331,30 @@ int do_restore(RestoreThreadData *thrdata) {
     }
 
     if (_restore_data || _print_log || _print_sql_log) {
-      RestoreLogIterator logIter(metaData);
+      RestoreLogIterator logIter(metaData, &free_data_callback, (void *)thrdata,
+                                 opt_read_size);
+#ifdef ERROR_INSERT
+      if (_error_insert > 0) {
+        logIter.error_insert(_error_insert);
+      }
+#endif
 
       restoreLogger.log_info("[restore_log] Read log file header");
+
+      if (!logIter.openFile()) {
+        restoreLogger.log_error("Failed to open data file. Exiting...");
+        return NdbToolsProgramExitCode::FAILED;
+      }
+      Scope_guard close_log_file_on_error(CloseFileUnchecked{logIter});
 
       if (!logIter.readHeader()) {
         restoreLogger.log_error(
             "Failed to read header of data file. Exiting...");
         return NdbToolsProgramExitCode::FAILED;
       }
+
+      // Save snapshotstart to skip open log file again if restore epoch
+      snapshotstart = logIter.isSnapshotstartBackup();
 
       const LogEntry *logEntry = 0;
 
@@ -2334,6 +2384,10 @@ int do_restore(RestoreThreadData *thrdata) {
         return NdbToolsProgramExitCode::FAILED;
       }
       logIter.validateFooter();  // not implemented
+
+      close_log_file_on_error.release();
+      logIter.closeFile(/* abort */ false);
+
       {
         bool consumersOk = true;
         for (i = 0; i < g_consumers.size(); i++) {
@@ -2434,13 +2488,37 @@ int do_restore(RestoreThreadData *thrdata) {
 
   if (ga_restore_epoch) {
     restoreLogger.log_info("[restore_epoch] Restoring epoch");
-    RestoreLogIterator logIter(metaData);
+    if (snapshotstart == -1) {
+      RestoreLogIterator logIter(metaData, &free_data_callback, (void *)thrdata,
+                                 opt_read_size);
+#ifdef ERROR_INSERT
+      if (_error_insert > 0) {
+        logIter.error_insert(_error_insert);
+      }
+#endif
 
-    if (!logIter.readHeader()) {
-      err << "Failed to read snapshot info from log file. Exiting..." << endl;
-      return NdbToolsProgramExitCode::FAILED;
+      if (!logIter.openFile()) {
+        restoreLogger.log_error("Failed to open data file. Exiting...");
+        return NdbToolsProgramExitCode::FAILED;
+      }
+      Scope_guard close_log_file_on_error(CloseFileUnchecked{logIter});
+
+      if (!logIter.readHeader()) {
+        err << "Failed to read snapshot info from log file. Exiting..." << endl;
+        return NdbToolsProgramExitCode::FAILED;
+      }
+      close_log_file_on_error.release();
+      /*
+       * Only header is read. Rest of file may be unread. And by that for
+       * example file checksum can not be checked at close. In many use cases
+       * the log file has been consumed and checked by an earlier ndb_restore
+       * run and we are sloppy here and skip the extra checks in close by using
+       * the abort variant of close.
+       */
+      logIter.closeFile(/* abort */ true);
+
+      snapshotstart = logIter.isSnapshotstartBackup();
     }
-    bool snapshotstart = logIter.isSnapshotstartBackup();
     for (i = 0; i < g_consumers.size(); i++)
       if (!g_consumers[i]->update_apply_status(metaData, snapshotstart)) {
         restoreLogger.log_error("Restore: Failed to restore epoch");
@@ -2573,7 +2651,7 @@ static void *start_restore_worker(void *data) {
   RestoreThreadData *rdata = (RestoreThreadData *)data;
   rdata->m_result = do_restore(rdata);
   if (rdata->m_result == NdbToolsProgramExitCode::FAILED) {
-    info << "Thread " << rdata->m_part_id << " failed, exiting" << endl;
+    info.println("Thread %u failed, exiting", rdata->m_part_id);
     ga_error_thread = rdata->m_part_id;
   }
   return 0;

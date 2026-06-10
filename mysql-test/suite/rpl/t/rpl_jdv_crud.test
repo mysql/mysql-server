@@ -1,0 +1,216 @@
+#######################################################
+#
+# Replication test for DDL + DML of JSON duality views:
+#    1. Test first creates the JDV on the source, and
+#       makes sure it's replicated.
+#    2. When INSERT is performed againt the JDV on the
+#       source, it makes sure that  INSERTs affect the
+#       underlying tables, and inserted data is
+#       replicated.
+#    3. When UPDATE is performed against the JDV on
+#       the source, it makes sure that UPDATEs affect
+#       the underlying tables, and updated data is
+#       replicated.
+#    4. When DELETE is performed against the JDV on the
+#       source, it makes sure that it is replicated.
+#    5. When ALTER is performed against the JDV on the
+#       source, it makes sure that it is replicated.
+#    6. When DROP is performed against the JDV on the
+#        source, it makes sure that it is replicated.
+#
+#######################################################
+
+--echo ################################################
+--echo # Initialize the Replication setup
+--source include/rpl/init_source_replica.inc
+--echo ################################################
+
+--echo # Create tables on the source
+CREATE TABLE p_t1 (f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE p_t2 (f3 INT PRIMARY KEY, f4 INT);
+
+--echo # Create a JSON duality view on the source
+CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+        "_id" : f3,
+        "f4" : f4,
+        "ChildNode" : (
+            SELECT JSON_DUALITY_OBJECT(
+            WITH (INSERT, UPDATE)
+                    "f1" : f1,
+                    "f2" : f2)
+            FROM p_t1
+            WHERE p_t1.f1 = p_t2.f3
+        )
+) FROM p_t2;
+
+--echo # Print the view definition stored on the source
+SHOW CREATE VIEW p_dv1;
+
+--echo # Checksum the I_S view contents
+--source include/rpl_jdv_checksum_i_s.inc
+
+--echo # Insert new row in the JSON duality view (on the source)
+--echo # In effect, it should enter values in the underlying tables.
+INSERT INTO p_dv1 VALUES ('{
+    "_id" : 2,
+    "f4" : 300,
+    "ChildNode" : {
+        "f1" : 2,
+        "f2" : 300
+    }
+}');
+
+--echo ################################################
+--echo # Switching to replica
+--source include/rpl/sync_to_replica.inc
+--echo ################################################
+
+--echo # Print the view definition stored on the replica
+--echo # This makes sure that view exists on the replica
+--echo # and has the same definition as source.
+SHOW CREATE VIEW p_dv1;
+
+--echo # Checksum the I_S view contents
+--source include/rpl_jdv_checksum_i_s.inc
+
+--echo # SELECT the data from JSON duality view on
+--echo # replica.
+--echo # This makes sure that INSERT was replicated
+--echo # successfully (on the replica).
+
+--let $diff_tables=master:p_t1, slave:p_t1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:p_t2, slave:p_t2
+--source include/diff_tables.inc
+
+--echo ################################################
+--echo # Switch back to the source
+--source include/rpl/connection_source.inc
+--echo ################################################
+
+--echo # Run UPDATE statement on the source
+--echo # In effect, it should update values in the underlying tables.
+
+UPDATE p_dv1 SET data = '{
+    "f4": 400,
+    "_id": 2,
+    "ChildNode": {
+        "f1": 2,
+        "f2": 400
+    },
+    "_metadata": {
+        "etag": "aa5116936fc25283af51df31f4cbe0f7"
+    }
+}';
+
+--echo ################################################
+--echo # Switch to the replica
+--source include/rpl/sync_to_replica.inc
+--echo ################################################
+
+--echo # SELECT data from view to make sure that the data
+--echo # got UPDATE-d (on the replica)
+
+--let $diff_tables=master:p_t1, slave:p_t1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:p_t2, slave:p_t2
+--source include/diff_tables.inc
+
+--echo ################################################
+--echo # Switch back to the source
+--source include/rpl/connection_source.inc
+--echo ################################################
+
+--echo # Run DELETE statement on the source
+--echo # In effect, it should update values in the underlying tables.
+
+DELETE FROM p_dv1
+WHERE json_value(data, '$._id') = 2;
+
+--echo ################################################
+--echo # Switch to the replica
+--source include/rpl/sync_to_replica.inc
+--echo ################################################
+
+--echo # SELECT data from view to make sure that the data
+--echo # got DELETE-d (on the replica)
+
+--let $diff_tables=master:p_t1, slave:p_t1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:p_t2, slave:p_t2
+--source include/diff_tables.inc
+
+--echo ################################################
+--echo # Switch back to source
+--source include/rpl/connection_source.inc
+--echo ################################################
+
+--echo # Run ALTER for the JSON DUALITY VIEW on the source
+ALTER JSON DUALITY VIEW p_dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE)
+        "_id" : f3,
+        "ChildNode" : (
+            SELECT JSON_DUALITY_OBJECT(
+            WITH (INSERT, UPDATE)
+                    "f1" : f1,
+                    "f2" : f2
+            )
+            FROM p_t1
+            WHERE p_t1.f1 = p_t2.f3
+        )
+) FROM p_t2;
+
+--echo # Print the new view definition stored on the source
+SHOW CREATE VIEW p_dv1;
+
+--echo # Checksum the I_S view contents
+--source include/rpl_jdv_checksum_i_s.inc
+
+--echo ################################################
+--echo # Switch to replica
+--source include/rpl/sync_to_replica.inc
+--echo ################################################
+
+--echo # Make sure that ALTER got replicated
+SHOW CREATE VIEW p_dv1;
+
+--echo # Checksum the I_S view contents
+--source include/rpl_jdv_checksum_i_s.inc
+
+--echo ################################################
+--echo # Switch back to source
+--source include/rpl/connection_source.inc
+--echo ################################################
+
+--echo # Drop view and tables
+DROP VIEW p_dv1;
+DROP TABLE p_t1, p_t2;
+
+--echo # No I_S views contents on the source
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`);
+
+--echo ################################################
+--echo # Switch to replica
+--source include/rpl/sync_to_replica.inc
+--echo ################################################
+
+--echo # No I_S views contents on the replica
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS`);
+assert(!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS`);
+
+--echo ################################################
+--echo # Switch back to source
+--source include/rpl/connection_source.inc
+--echo ################################################
+--source include/rpl/deinit.inc

@@ -1,0 +1,3 @@
+--source include/have_case_insensitive_file_system.inc
+--let $on_case_insensitive_file_system = 1
+--source jdv_hospital_example_cs.test

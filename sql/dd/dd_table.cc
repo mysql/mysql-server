@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +99,7 @@
 #include "sql/sql_gipk.h"  // table_def_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_masking_policy.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_partition.h"  // expr_to_string
 #include "sql/sql_plugin_ref.h"
@@ -688,6 +689,13 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
     dd::Properties *col_options = &col_obj->options();
 
+    // Persist masking policy (if any) inside column options.
+    if (field.m_masking_policy_name.length > 0) {
+      col_options->set("masking_policy",
+                       dd::String_type{field.m_masking_policy_name.str,
+                                       field.m_masking_policy_name.length});
+    }
+
     /*
       Store flag indicating whether BIT type storage optimized or not.
       We need to store this flag in DD to correctly handle the case
@@ -782,6 +790,11 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
           dd::String_type(def_val.ptr(), def_val.length()));
     col_obj->set_engine_attribute(field.m_engine_attribute);
     col_obj->set_secondary_engine_attribute(field.m_secondary_engine_attribute);
+
+    if (validate_masking_policy_for_create_alter_table(thd, buf, &table,
+                                                       field)) {
+      return true;
+    }
   }
 
   return false;

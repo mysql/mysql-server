@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -134,14 +134,10 @@ usr/lib/mysql/plugin/component_masking.so
 usr/lib/mysql/plugin/component_masking_functions.so
 usr/lib/mysql/plugin/component_mle.so
 usr/lib/mysql/plugin/component_scheduler.so
-usr/lib/mysql/plugin/component_telemetry.so
 usr/lib/mysql/plugin/component_option_tracker.so
-usr/lib/mysql/plugin/component_group_replication_flow_control_stats.so
-usr/lib/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
-usr/lib/mysql/plugin/component_group_replication_resource_manager.so
-usr/lib/mysql/plugin/component_replication_applier_metrics.so
 usr/lib/mysql/plugin/component_firewall.so
 usr/lib/mysql/private/libpolyglot.so
+usr/lib/mysql/plugin/component_object_policy.so
 ")
 
    SET (DEB_INSTALL_TEST_PLUGINS
@@ -149,13 +145,10 @@ usr/lib/mysql/private/libpolyglot.so
 usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
 usr/bin/mysql_test_jwt_generator
-usr/lib/mysql/plugin/component_test_telemetry_resource_provider.so
-usr/lib/mysql/plugin/component_test_telemetry_secret_provider.so
 ")
 
   SET (DEB_INSTALL_CLIENT_PLUGINS
 "
-usr/lib/mysql/plugin/telemetry_client.so
 ")
 
   IF (DEB_AWS_SDK)

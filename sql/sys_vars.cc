@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -370,6 +370,31 @@ static bool check_session_admin_or_replication_applier(sys_var *self
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
              "REPLICATION_APPLIER");
+    return true;
+  }
+  return false;
+}
+
+/**
+  Checks if user has an additional REPLICATION_SLAVE_ADMIN privilege, needed
+  to modify REPLICA_ALLOW_HIGHER_VERSION_SOURCE system variable (unless having
+  SUPER).
+
+  @retval true failure
+  @retval false success
+
+  @param self the system variable to set value for
+  @param thd  the session context
+  @param setv the SET operations metadata
+*/
+static bool check_replica_allow_higher_version_source(
+    sys_var *self [[maybe_unused]], THD *thd, set_var *setv [[maybe_unused]]) {
+  Security_context *sctx = thd->security_context();
+  if (!sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"))
+           .first &&
+      !sctx->check_access(SUPER_ACL)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SYSTEM_VARIABLES_ADMIN plus REPLICATION_SLAVE_ADMIN, or SUPER");
     return true;
   }
   return false;
@@ -3256,7 +3281,8 @@ static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
 
   if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "use in non-debug builds");
+             "this build configuration; to enable it, build with CMake option "
+             "WITH_HYPERGRAPH_OPTIMIZER=ON");
     return true;
   }
 #endif
@@ -7468,6 +7494,14 @@ static Sys_var_bool Sys_skip_replica_start(
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
 
+static Sys_var_bool Sys_replica_allow_higher_version_source(
+    "replica_allow_higher_version_source",
+    "If disabled - replica rejects any attempt to connect to a higher-version "
+    "source server. If enabled - no compatibility check.",
+    GLOBAL_VAR(opt_replica_allow_higher_version_source), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_replica_allow_higher_version_source), ON_UPDATE(nullptr));
+
 static bool check_authentication_policy(sys_var *, THD *, set_var *var) {
   if (!(var->save_result.string_value.str)) return true;
   return authentication_policy::policy_validate(
@@ -7655,6 +7689,42 @@ Sys_var_bool Sys_innodb_native_foreign_keys(
     PERSIST_AS_READONLY READ_ONLY GLOBAL_VAR(innodb_native_foreign_keys),
     CMD_LINE(OPT_ARG, OPT_INNODB_FOREIGN_KEYS), DEFAULT(false), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+/**
+  Warn usage of enable_cascade_triggers variable. When it is set
+  to false, warning should include triggers do not fire during FK cascade.
+*/
+bool enable_cascade_triggers_check(sys_var *self, THD *thd, set_var *setv) {
+  if (setv->save_result.ulonglong_value == 0)
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_WITH_NOTE,
+        ER_THD(thd, ER_WARN_DEPRECATED_WITH_NOTE), self->name.str,
+        "Triggers on child table will not fire during foreign key cascade.");
+  else {
+    if (!is_sql_fk_checks_enabled(thd)) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_WITH_NOTE,
+          ER_THD(thd, ER_WARN_DEPRECATED_WITH_NOTE), self->name.str,
+          "Enabling trigger execution on child table is supported only with "
+          "SQL Foreign Key handling "
+          "(i.e with innodb_native_foreign_keys = OFF).");
+    } else {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                          self->name.str);
+    }
+  }
+  return false;
+}
+
+Sys_var_bool Sys_enable_cascade_triggers(
+    "enable_cascade_triggers",
+    "Execute trigger on child tables during foreign key cascade operations for "
+    "SQL Engine foreign key handling(i.e. innodb_native_foreign_keys = OFF).",
+    SESSION_VAR(enable_cascade_triggers),
+    CMD_LINE(OPT_ARG, OPT_CASCADE_TRIGGERS), DEFAULT(false), NO_MUTEX_GUARD,
+    IN_BINLOG, ON_CHECK(enable_cascade_triggers_check), ON_UPDATE(nullptr));
 }  // namespace
 
 #ifndef NDEBUG

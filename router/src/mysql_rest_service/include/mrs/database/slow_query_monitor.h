@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,9 @@
 #include <thread>
 #include "collector/counted_mysql_session.h"
 #include "collector/mysql_cache_manager.h"
-#include "helper/wait_variable.h"
 #include "mrs/configuration.h"
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/utility/wait_variable.h"
 
 namespace mrs {
 namespace database {
@@ -46,9 +46,9 @@ constexpr const int64_t k_default_sql_query_timeout_ms = 2000;
 
 class SlowQueryMonitor {
  public:
-  using TimeType = std::chrono::time_point<std::chrono::system_clock>;
   using MySQLSession = collector::CountedMySQLSession;
 
+ public:
   SlowQueryMonitor(const mrs::Configuration &configuration,
                    collector::MysqlCacheManager *cache);
   ~SlowQueryMonitor();
@@ -65,6 +65,10 @@ class SlowQueryMonitor {
   int64_t default_timeout() const { return default_sql_timeout_ms_; }
 
  private:
+  using TimeType = std::chrono::time_point<std::chrono::system_clock>;
+  template <typename T>
+  using WaitableVariable = mysql_harness::utility::WaitableVariable<T>;
+
   struct ActiveQuery {
     MySQLSession *conn;
     bool killed = false;

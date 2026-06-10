@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,11 +70,12 @@ bool Oauth2Handler::RequestHandlerJsonSimpleObject::response(
       helper::json::RapidReaderHandlerToMapOfSimpleValues;
 
   auto result = helper::json::text_to_handler<HandlerMapOfSimpleValues>(value);
+  if (!result.has_value()) return false;
 
   for (auto &e : output_) {
     auto &key = e.first;
     auto &out_value = e.second;
-    if (!helper::container::get_value_other(result, key, out_value)) {
+    if (!helper::container::get_value_other(*result, key, out_value)) {
       log_debug("Getting key:'%s' from container failed.", key);
       return false;
     }

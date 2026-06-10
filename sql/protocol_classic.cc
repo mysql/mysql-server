@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3537,16 +3537,17 @@ bool Protocol_text::store_datetime(const MYSQL_TIME &tm, uint decimals) {
       packet);
 }
 
-bool Protocol_text::store_date(const MYSQL_TIME &tm) {
+bool Protocol_text::store_date(const Date_val date) {
   // field_types check is needed because of the embedded protocol
   assert(send_metadata || field_types == nullptr ||
          field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
+  MYSQL_TIME tm = MYSQL_TIME(date);
   return store_temporal([&tm](char *to) { return my_date_to_str(tm, to); },
                         packet);
 }
 
-bool Protocol_text::store_time(const Time_val &time, uint precision) {
+bool Protocol_text::store_time(const Time_val time, uint precision) {
   // field_types check is needed because of the embedded protocol
   assert(send_metadata || field_types == nullptr ||
          field_types[field_pos] == MYSQL_TYPE_TIME);
@@ -3825,13 +3826,13 @@ bool Protocol_binary::store_datetime(const MYSQL_TIME &tm, uint precision) {
   return false;
 }
 
-bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
-  if (send_metadata) return Protocol_text::store_date(tm);
+bool Protocol_binary::store_date(const Date_val date) {
+  if (send_metadata) return Protocol_text::store_date(date);
   // field_types check is needed because of the embedded protocol
   assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
 
-  if (tm.year == 0 && tm.month == 0 && tm.day == 0) {
+  if (date.is_zero_date()) {
     // Nothing to send, except a single byte to indicate length = 0.
     return packet->append(char{0});
   }
@@ -3839,13 +3840,13 @@ bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
   char *pos = packet->prep_append(5, PACKET_BUFFER_EXTRA_ALLOC);
   if (pos == nullptr) return true;
   pos[0] = char{4};  // length
-  int2store(pos + 1, tm.year);
-  pos[3] = char(tm.month);
-  pos[4] = char(tm.day);
+  int2store(pos + 1, date.year());
+  pos[3] = char(date.month());
+  pos[4] = char(date.day());
   return false;
 }
 
-bool Protocol_binary::store_time(const Time_val &time, uint precision) {
+bool Protocol_binary::store_time(const Time_val time, uint precision) {
   if (send_metadata) return Protocol_text::store_time(time, precision);
   // field_types check is needed because of the embedded protocol
   assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_TIME);

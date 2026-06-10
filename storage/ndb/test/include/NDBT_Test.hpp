@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include <kernel/ndb_limits.h>
 #include <ndb_global.h>
+#include <memory>
 
 #include <NdbCondition.h>
 #include <NdbSleep.h>
@@ -41,6 +42,7 @@
 #include "../../src/ndbapi/ndb_cluster_connection_impl.hpp"
 #include "NDBT_ReturnCodes.h"
 #include "NdbRestarter.hpp"
+#include "util/ndb_barrier.h"
 
 class NDBT_Step;
 class NDBT_TestCase;
@@ -129,6 +131,8 @@ class NDBT_Context {
   static void getRecordSubRange(int records, int rangeCount, int rangeId,
                                 int &startRecord, int &stopRecord);
 
+  ndb::barrier *getStepsBarrierPtr();
+
  private:
   friend class NDBT_Step;
   friend class NDBT_TestSuite;
@@ -151,6 +155,8 @@ class NDBT_Context {
 
   int m_env_timeout;
   const Uint64 m_test_start_time;
+
+  std::unique_ptr<ndb::barrier> steps_barrier;
 };
 
 typedef int(NDBT_TESTFUNC)(NDBT_Context *, NDBT_Step *);

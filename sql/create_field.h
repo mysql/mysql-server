@@ -1,7 +1,7 @@
 #ifndef SQL_CREATE_FIELD_INCLUDED
 #define SQL_CREATE_FIELD_INCLUDED
 
-/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,6 +175,9 @@ class Create_field {
 
   /// Holds the expression to be used to generate default values.
   Value_generator *m_default_val_expr{nullptr};
+  /// The name of the masking policy to apply on the column when reading from
+  /// it. An empty string if there is no masking policy.
+  LEX_CSTRING m_masking_policy_name = EMPTY_CSTR;
   std::optional<gis::srid_t> m_srid;
 
   // Whether the field is actually an array of the field's type;
@@ -210,7 +213,7 @@ class Create_field {
             List<String> *interval_list, const CHARSET_INFO *cs,
             bool has_explicit_collation, uint uint_geom_type,
             Value_generator *gcol_info, Value_generator *default_val_expr,
-            std::optional<gis::srid_t> srid,
+            LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
             dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {

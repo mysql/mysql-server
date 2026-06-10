@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -24,6 +24,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -1382,4 +1383,79 @@ bool Security_context::has_column_access(Access_bitmask priv,
       return false;
   }
   return true;
+}
+
+/**
+  Check if current user is part of the given list of Auth IDs
+
+  @param [in] comma_separated_auth_id_list List of Auth IDs
+
+  @returns true if current_user is part of the list - false otherwise.
+*/
+
+bool Security_context::is_current_user_part_of(
+    std::string_view comma_separated_auth_id_list) const {
+  bool found{false};
+  Auth_id current_user(&m_priv_user[0], m_priv_user_length, &m_priv_host[0],
+                       m_priv_host_length);
+  iterate_comma_separated_quoted_string(
+      comma_separated_auth_id_list,
+      [&found, &current_user](std::string_view element) -> bool {
+        auto el = get_authid_from_quoted_string(element);
+        if (el.second == "") el.second = "%";
+        Auth_id auth_id(el.first, el.second);
+        if (auth_id == current_user) {
+          found = true;
+          return true;
+        }
+        return false;  // Continue searching
+      });
+  return found;
+}
+
+/**
+  Check if any of the current roles is part of the given list.
+
+  @param [in]  comma_separated_auth_id_list
+                Comma-separated list of quoted or unquoted auth IDs.
+  @param [out] first_find
+                Optional. If non-null and a match is found, it is set to the
+                first matching auth ID in backtick-quoted form (e.g. ``
+                `role`@`%` ``). If nullptr, no output is produced. If non-null
+                and no match is found, the pointed-to string is left unmodified.
+
+  @returns Status of the check
+    @retval true  One of the current roles is present in the list
+    @retval false None of the current roles are present in the list
+*/
+bool Security_context::is_current_role_part_of(
+    std::string_view comma_separated_auth_id_list,
+    std::string *first_find) const {
+  bool found{false};
+  if (m_active_roles.empty() || comma_separated_auth_id_list.empty())
+    return found;
+  iterate_comma_separated_quoted_string(
+      comma_separated_auth_id_list, [&](std::string_view element) -> bool {
+        auto el = get_authid_from_quoted_string(element);
+        if (el.second == "") el.second = "%";
+        Auth_id role_id(el.first, el.second);
+        auto it =
+            std::ranges::find_if(m_active_roles, [&](const Auth_id_ref &one) {
+              if (el.first ==
+                  std::string_view(one.first.str, one.first.length)) {
+                if (native_strcasecmp(el.second.c_str(), one.second.str) == 0)
+                  return true;
+              }
+              return false;
+            });
+        if (it != m_active_roles.end()) {
+          if (first_find != nullptr) {
+            role_id.auth_str(first_find);
+          }
+          found = true;
+          return true;
+        }
+        return false;  // Continue searching
+      });
+  return found;
 }

@@ -2856,10 +2856,13 @@ INSERT INTO t1 VALUES (1, 1, 1, 1), (1, 1, 1, 2), (1, 1, 1, 3), (1, 1, 1, 4);
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT DISTINCT c FROM t1 WHERE d=4;
 EXPLAIN
--> Filter: (t1.d = 4)  (rows=10)
-    -> Covering index skip scan for deduplication on t1 using foo  (rows=10)
+-> Filter: (t1.d = 4)  (rows=3)
+    -> Covering index skip scan for deduplication on t1 using foo  (rows=3)
 
 SELECT DISTINCT c FROM t1 WHERE d=4;
 c
@@ -2977,10 +2980,14 @@ INSERT INTO t2 VALUES (1,1,1,1,1,1), (1,2,1,1,1,1), (1,3,1,1,1,1),
 INSERT INTO t2 SELECT a, b + 4, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 1, b, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1;
 EXPLAIN
 -> Aggregate: count(distinct t1.a)  (rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
 SELECT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
@@ -2988,7 +2995,7 @@ COUNT(DISTINCT a)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a,b) FROM t1;
 EXPLAIN
 -> Aggregate: count(distinct t1.a,t1.b)  (rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
 SELECT COUNT(DISTINCT a,b) FROM t1;
 COUNT(DISTINCT a,b)
@@ -2996,7 +3003,7 @@ COUNT(DISTINCT a,b)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b,a) FROM t1;
 EXPLAIN
 -> Aggregate: count(distinct t1.b,t1.a)  (rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
 SELECT COUNT(DISTINCT b,a) FROM t1;
 COUNT(DISTINCT b,a)
@@ -3011,8 +3018,8 @@ COUNT(DISTINCT b)
 16
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t1.a)  (rows=5.66)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+-> Group aggregate: count(distinct t1.a)  (rows=2.24)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 COUNT(DISTINCT a)
@@ -3022,8 +3029,8 @@ COUNT(DISTINCT a)
 1
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t1.b)  (rows=5.66)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+-> Group aggregate: count(distinct t1.b)  (rows=4)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 COUNT(DISTINCT b)
@@ -3058,7 +3065,7 @@ COUNT(DISTINCT a)
 EXPLAIN FORMAT=TREE SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 EXPLAIN
 -> Aggregate: count(distinct t1.a)  (rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
@@ -3093,16 +3100,16 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 EXPLAIN
 -> Filter: (count(distinct t1.a) < 10)  (rows=1)
     -> Aggregate: count(distinct t1.a)  (rows=1)
-        -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+        -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 1
 1
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 EXPLAIN
--> Filter: (count(distinct t1.b) > 1)  (rows=5.66)
-    -> Group aggregate: count(distinct t1.b)  (rows=5.66)
-        -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+-> Filter: (count(distinct t1.b) > 1)  (rows=4)
+    -> Group aggregate: count(distinct t1.b)  (rows=4)
+        -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 1
@@ -3129,7 +3136,7 @@ COUNT(DISTINCT t1_1.a)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), 12 FROM t1;
 EXPLAIN
 -> Aggregate: count(distinct t1.a)  (rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 COUNT(DISTINCT a)	12
@@ -3137,7 +3144,7 @@ COUNT(DISTINCT a)	12
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b, c) FROM t2;
 EXPLAIN
 -> Aggregate: count(distinct t2.a,t2.b,t2.c)  (rows=1)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 COUNT(DISTINCT a, b, c)
@@ -3145,7 +3152,7 @@ COUNT(DISTINCT a, b, c)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 EXPLAIN
 -> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.a)  (rows=1)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=5)
 
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT a)
@@ -3161,7 +3168,7 @@ COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT f)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 EXPLAIN
 -> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.a)  (rows=1)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, a)
@@ -3184,8 +3191,8 @@ COUNT(DISTINCT a, b)	COUNT(DISTINCT b, d)
 32	16
 EXPLAIN FORMAT=TREE SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 EXPLAIN
--> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=8.65)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+-> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=32)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 a	c	COUNT(DISTINCT c, a, b)
@@ -3242,8 +3249,8 @@ GROUP BY b;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
 EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=5.66)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+-> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=4)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 a	COUNT(DISTINCT b)	SUM(DISTINCT b)
@@ -3253,8 +3260,8 @@ a	COUNT(DISTINCT b)	SUM(DISTINCT b)
 4	8	100
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=5.66)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+-> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=4)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
@@ -3274,9 +3281,9 @@ COUNT(DISTINCT a, b)
 EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 WHERE b = 13 AND c = 42 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t2.a), sum(distinct t2.a)  (rows=5.66)
-    -> Filter: ((t2.c = 42) and (t2.b = 13))  (rows=10)
-        -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+-> Group aggregate: count(distinct t2.a), sum(distinct t2.a)  (rows=2.24)
+    -> Filter: ((t2.c = 42) and (t2.b = 13))  (rows=5)
+        -> Covering index skip scan for deduplication on t2 using a  (rows=5)
 
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 WHERE b = 13 AND c = 42 GROUP BY a;
@@ -3294,7 +3301,7 @@ COUNT(DISTINCT a, b)	SUM(DISTINCT a)
 0	NULL
 EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: sum(distinct t2.a), max(t2.b)  (rows=5.66)
+-> Group aggregate: sum(distinct t2.a), max(t2.b)  (rows=4)
     -> Covering index scan on t2 using a  (rows=32)
 
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
@@ -3305,8 +3312,8 @@ SUM(DISTINCT a)	MAX(b)
 4	16
 EXPLAIN FORMAT=TREE SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 EXPLAIN
--> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=8.65)
-    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
+-> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=32)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 42 * (a + c + COUNT(DISTINCT c, a, b))
@@ -3344,7 +3351,7 @@ SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 252
 EXPLAIN FORMAT=TREE SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: max(t2.b), sum(distinct t2.a)  (rows=5.66)
+-> Group aggregate: max(t2.b), sum(distinct t2.a)  (rows=4)
     -> Covering index scan on t2 using a  (rows=32)
 
 SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;

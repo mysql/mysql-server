@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,44 @@ bool is_generate_invisible_primary_key_mode_active(THD *thd) {
           !thd->is_dd_system_thread() && !thd->is_initialize_system_thread());
 }
 
+static bool is_candidate_key(const Key_spec *key_spec,
+                             const Alter_info *alter_info) {
+  // Must be UNIQUE.
+  if (key_spec->type != KEYTYPE_UNIQUE) return false;
+
+  // Reject expression or prefix key parts.
+  for (const Key_part_spec *key_part : key_spec->columns) {
+    if (key_part->has_expression() || key_part->get_prefix_length() != 0)
+      return false;
+  }
+
+  // Validate each key part in create_list.
+  for (const Key_part_spec *key_part : key_spec->columns) {
+    const char *col_name = key_part->get_field_name();
+    bool found = false;
+
+    List_iterator<Create_field> cf_it(
+        const_cast<Alter_info *>(alter_info)->create_list);
+    const Create_field *cr_field = nullptr;
+    while ((cr_field = cf_it++)) {
+      if (cr_field->is_virtual_gcol())
+        continue;  // Skip virtual generated columns
+
+      if (!(my_strcasecmp(system_charset_info, cr_field->field_name,
+                          col_name))) {
+        // Column must be NOT NULL.
+        if (!(cr_field->flags & NOT_NULL_FLAG)) return false;
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) return false;
+  }
+
+  return true;
+}
+
 bool is_candidate_table_for_invisible_primary_key_generation(
     const HA_CREATE_INFO *create_info, Alter_info *alter_info) {
   // Check PK generation is supported for the table's storage engine.
@@ -71,6 +109,13 @@ bool is_candidate_table_for_invisible_primary_key_generation(
   const Mem_root_array<Key_spec *> &kl = alter_info->key_list;
   if (std::any_of(kl.begin(), kl.end(), [](const Key_spec *ks) {
         return (ks->type == KEYTYPE_PRIMARY);
+      }))
+    return false;
+
+  // Skip generation if there exists any UNIQUE NOT NULL key (treat as having a
+  // PK).
+  if (std::any_of(kl.begin(), kl.end(), [alter_info](const Key_spec *ks) {
+        return is_candidate_key(ks, alter_info);
       }))
     return false;
 
@@ -158,11 +203,12 @@ static bool generate_invisible_primary_key(THD *thd, Alter_info *alter_info) {
   Create_field *cr_field = new (thd->mem_root) Create_field();
   if (cr_field == nullptr) return true;  // OOM
 
-  if (cr_field->init(
-          thd, gipk_column_name, MYSQL_TYPE_LONGLONG, nullptr, nullptr,
-          (UNSIGNED_FLAG | NOT_NULL_FLAG | AUTO_INCREMENT_FLAG), nullptr,
-          nullptr, &EMPTY_CSTR, nullptr, nullptr, nullptr, false, 0, nullptr,
-          nullptr, {}, dd::Column::enum_hidden_type::HT_HIDDEN_USER, false))
+  if (cr_field->init(thd, gipk_column_name, MYSQL_TYPE_LONGLONG, nullptr,
+                     nullptr,
+                     (UNSIGNED_FLAG | NOT_NULL_FLAG | AUTO_INCREMENT_FLAG),
+                     nullptr, nullptr, &EMPTY_CSTR, nullptr, nullptr, nullptr,
+                     false, 0, nullptr, nullptr, EMPTY_CSTR, {},
+                     dd::Column::enum_hidden_type::HT_HIDDEN_USER, false))
     return true;
   if (alter_info->create_list.push_front(cr_field)) return true;
 
@@ -276,19 +322,31 @@ bool check_primary_key_alter_restrictions(THD *thd, handlerton *se_handlerton,
   */
   if (is_generate_invisible_primary_key_mode_active(thd)) {
     Mem_root_array<Key_spec *> &key_list = alter_info->key_list;
-    if (std::count_if(key_list.begin(), key_list.end(), [](const Key_spec *ks) {
-          return (ks->type == KEYTYPE_PRIMARY);
-        }) == 0) {
+    const bool has_pk = std::any_of(
+        key_list.begin(), key_list.end(),
+        [](const Key_spec *ks) { return (ks->type == KEYTYPE_PRIMARY); });
+    bool has_unique_not_null = false;
+
+    if (!has_pk) {
+      /*
+         Treat a UNIQUE index composed only of NOT NULL, non-virtual,
+         non-prefix, non-expression parts as a primary key equivalent.
+      */
+      has_unique_not_null = std::any_of(
+          key_list.begin(), key_list.end(), [alter_info](const Key_spec *ks) {
+            return is_candidate_key(ks, alter_info);
+          });
+    }
+
+    if (!has_pk && !has_unique_not_null) {
       /*
         When GIPK mode is active, dropping existing primary key without adding
-        a new primary key in not supported for now. But this restriction will be
-        relaxed eventually by automagically generating a primary key.
+        a new primary key or a UNIQUE NOT NULL key is not supported for now.
       */
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "existing primary key drop without adding a new primary key. In "
-               "@@sql_generate_invisible_primary_key=ON mode table should have "
-               "a primary key. Please add a new primary key to be able to drop "
-               "existing primary key.");
+      my_error(
+          ER_NOT_SUPPORTED_YET, MYF(0),
+          "an operation that leaves the table without a PRIMARY KEY or a "
+          "UNIQUE NOT NULL key while @@sql_generate_invisible_primary_key=ON.");
       return true;
     }
   }

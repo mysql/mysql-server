@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #define ROUTER_TESTS_TEST_HELPERS_INCLUDED
 
 #include <chrono>
+#include <exception>  // IWYU pragma: keep std::exception_ptr
 #include <functional>
 #include <map>
 #include <stdexcept>

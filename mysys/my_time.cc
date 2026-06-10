@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2026, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,7 @@
 #include "my_byteorder.h"    // int3store
 #include "my_inttypes.h"     // longlong, ulonglong, uchar
 #include "my_systime.h"      // IWYU pragma: keep localtime_r
+#include "my_temporal.h"
 #include "my_time_t.h"
 #include "myisampack.h"  // mi_int2store
 #include "mysql_time.h"
@@ -195,12 +196,12 @@ void set_max_time(MYSQL_TIME *tm, bool neg) {
 bool check_date(const MYSQL_TIME &my_time, bool not_zero_date,
                 my_time_flags_t flags, int *was_cut) {
   if (not_zero_date) {
-    if (((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
+    if ((flags & TIME_NO_ZERO_IN_DATE) &&
         (my_time.month == 0 || my_time.day == 0)) {
       *was_cut = MYSQL_TIME_WARN_ZERO_IN_DATE;
       return true;
     }
-    if ((!(flags & TIME_INVALID_DATES) && my_time.month &&
+    if (((flags & TIME_NO_INVALID_DATES) && my_time.month != 0 &&
          my_time.day > days_in_month[my_time.month - 1] &&
          (my_time.month != 2 || calc_days_in_year(my_time.year) != 366 ||
           my_time.day != 29))) {
@@ -355,17 +356,16 @@ bool time_zone_displacement_to_seconds(const char *str, size_t length,
                                   All elements in l_time is set to 0
 
       flags is a bit field with the following possible values:
-       TIME_FUZZY_DATE
        TIME_DATETIME_ONLY
        TIME_NO_ZERO_IN_DATE
        TIME_NO_ZERO_DATE
-       TIME_INVALID_DATES
+       TIME_NO_INVALID_DATES
 
     @param str_arg      String to parse
     @param length       Length of string
     @param[out] l_time  Date is stored here
     @param flags        Bitfield
-   TIME_FUZZY_DATE|TIME_DATETIME_ONLY|TIME_NO_ZERO_IN_DATE|TIME_NO_ZERO_DATE|TIME_INVALID_DATES
+   TIME_DATETIME_ONLY|TIME_NO_ZERO_IN_DATE|TIME_NO_ZERO_DATE|TIME_INVALID_DATES
    (described above)
     @param status Conversion status and warnings
 
@@ -780,8 +780,7 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12) { /* Probably full timestamp */
     MYSQL_TIME_STATUS tmpstatus;
-    (void)str_to_datetime(str, length, l_time,
-                          (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), &tmpstatus);
+    (void)str_to_datetime(str, length, l_time, TIME_DATETIME_ONLY, &tmpstatus);
     // DATE and DATETIME cannot be negative:
     if (negated && (l_time->time_type == MYSQL_TIMESTAMP_DATE ||
                     l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||
@@ -951,21 +950,22 @@ fractional:
 }
 
 /**
-  Convert number to TIME
-  @param nr            Number to convert.
+  Convert integer number to TIME
+
+  @param nr              Number to convert.
   @param [out] ltime     Variable to convert to.
   @param [out] warnings  Warning vector.
 
   @retval false OK
   @retval true No. is out of range
 */
-bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings) {
+bool int_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings) {
   if (nr > TIME_MAX_VALUE) {
     /* For huge numbers try full DATETIME, like str_to_time does. */
     if (nr >= 10000000000LL) /* '0001-00-00 00-00-00' */
     {
       const int warnings_backup = *warnings;
-      if (number_to_datetime(nr, ltime, 0, warnings) != -1LL) return false;
+      if (int_to_datetime(nr, ltime, 0, warnings) != -1LL) return false;
       *warnings = warnings_backup;
     }
     set_max_time(ltime, false);
@@ -988,6 +988,30 @@ bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings) {
   ltime->year = ltime->month = ltime->day = 0;
   TIME_set_hhmmss(ltime, static_cast<uint>(nr));
   ltime->second_part = 0;
+  return false;
+}
+
+bool int_to_date(long long int nr, Date_val *date, my_time_flags_t flags,
+                 int *warnings) {
+  // All negative values are invalid
+  if (nr < 0) {
+    *warnings = 1;
+    return true;
+  }
+  // For a possible datetime, strip off the time part
+  if (nr >= 100000000) {
+    nr /= 1000000;
+  }
+  uint32_t year = static_cast<uint32_t>(nr / 10000);
+  if (year < YY_PART_YEAR) {
+    year += 2000;
+  } else if (year < 100) {
+    year += 1900;
+  }
+  if (Date_val::make_date(year, (nr / 100) % 100, nr % 100, flags, date)) {
+    *warnings = 1;
+    return true;
+  }
   return false;
 }
 
@@ -1447,7 +1471,7 @@ int my_timeval_to_str(const my_timeval *tm, char *to, uint dec) {
 }
 
 /**
-  Convert datetime value specified as number to broken-down TIME
+  Convert datetime value specified as integer to broken-down TIME
   representation and form value of DATETIME type as side-effect.
 
   Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS,
@@ -1476,8 +1500,8 @@ int my_timeval_to_str(const my_timeval *tm, char *to, uint dec) {
                           TIME_NO_ZERO_DATE
   @retval anything else   DATETIME as integer in YYYYMMDDHHMMSS format
 */
-longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            my_time_flags_t flags, int *was_cut) {
+longlong int_to_datetime(longlong nr, MYSQL_TIME *time_res,
+                         my_time_flags_t flags, int *was_cut) {
   long part1;
   long part2;
 
@@ -1504,12 +1528,6 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     nr = (nr + 19000000L) * 1000000L; /* YYMMDD, year: 1970-1999 */
     goto ok;
   }
-  /*
-    Though officially we support DATE values from 1000-01-01 only, one can
-    easily insert a value like 1-1-1. So, for consistency reasons such dates
-    are allowed when TIME_FUZZY_DATE is set.
-  */
-  if (nr < 10000101L && !(flags & TIME_FUZZY_DATE)) goto err;
   if (nr <= 99991231L) {
     nr = nr * 1000000L;
     goto ok;
@@ -1726,11 +1744,12 @@ longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME &my_time) {
   Convert date to packed numeric date representation.
   Numeric packed date format is similar to numeric packed datetime
   representation, with zero hhmmss part.
+  OBSOLETE function: Will be removed when val_date_temporal() is removed.
 
   @param my_time The value to convert.
   @return      Packed numeric representation of ltime.
 */
-longlong TIME_to_longlong_date_packed(const MYSQL_TIME &my_time) {
+longlong obs_TIME_to_longlong_date_packed(const MYSQL_TIME &my_time) {
   const longlong ymd = ((my_time.year * 13 + my_time.month) << 5) | my_time.day;
   return my_packed_time_make_int(ymd << 17);
 }
@@ -1777,17 +1796,6 @@ void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp) {
 
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
   ltime->time_zone_displacement = 0;
-}
-
-/**
-  Convert packed numeric date representation to MYSQL_TIME.
-
-  @param [out] ltime The date variable to convert to.
-  @param      tmp   The packed numeric date value.
-*/
-void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp) {
-  TIME_from_longlong_datetime_packed(ltime, tmp);
-  ltime->time_type = MYSQL_TIMESTAMP_DATE;
 }
 
 /**
@@ -1924,16 +1932,6 @@ void my_timestamp_to_binary(const my_timeval *tm, uchar *ptr, uint dec) {
       mi_int3store(ptr + 4, tm->m_tv_usec);
   }
 }
-/**
-  Convert in-memory date representation to on-disk representation.
-
-  @param        ltime The value to convert.
-  @param [out]  ptr   The pointer to store the value to.
-*/
-void my_date_to_binary(const MYSQL_TIME *ltime, uchar *ptr) {
-  const long tmp = ltime->day + ltime->month * 32 + ltime->year * 16 * 32;
-  int3store(ptr, tmp);
-}
 
 /**
   Convert a temporal value to packed numeric temporal representation,
@@ -1943,11 +1941,10 @@ void my_date_to_binary(const MYSQL_TIME *ltime, uchar *ptr) {
   @return  Packed numeric time/date/datetime representation.
 */
 longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
-  assert(my_time.time_type != MYSQL_TIMESTAMP_TIME);
+  assert(my_time.time_type != MYSQL_TIMESTAMP_TIME &&
+         my_time.time_type != MYSQL_TIMESTAMP_DATE);
 
   switch (my_time.time_type) {
-    case MYSQL_TIMESTAMP_DATE:
-      return TIME_to_longlong_date_packed(my_time);
     case MYSQL_TIMESTAMP_DATETIME_TZ:
       assert(false);  // Should not be this type at this point.
     case MYSQL_TIMESTAMP_DATETIME:
@@ -1979,13 +1976,17 @@ void get_date_from_daynr(int64_t daynr, uint *ret_year, uint *ret_month,
   uint days_in_year;
   const uchar *month_pos;
 
-  if (daynr <= 365L || daynr >= 3652500) { /* Fix if wrong daynr */
+  if (daynr <= 0 || daynr >= 3652500) { /* Fix if wrong daynr */
     *ret_year = *ret_month = *ret_day = 0;
   } else {
     year = static_cast<uint>(daynr * 100 / 36525L);
-    temp = (((year - 1) / 100 + 1) * 3) / 4;
-    day_of_year = static_cast<uint>(daynr - static_cast<long>(year) * 365L) -
-                  (year - 1) / 4 + temp;
+    if (year > 0) {
+      temp = (((year - 1) / 100 + 1) * 3) / 4;
+      day_of_year = static_cast<uint>(daynr - static_cast<long>(year) * 365L) -
+                    (year - 1) / 4 + temp;
+    } else {
+      day_of_year = daynr;
+    }
     while (day_of_year > (days_in_year = calc_days_in_year(year))) {
       day_of_year -= days_in_year;
       (year)++;
@@ -2365,7 +2366,6 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
 
   ltime->second_part %= 1000000;
   Interval interval;
-  memset(&interval, 0, sizeof(interval));
   interval.second = 1;
   /* date_add_interval cannot handle bad dates */
   if (check_date(*ltime, non_zero_date(*ltime),
@@ -2660,14 +2660,12 @@ int my_time_compare(const MYSQL_TIME &my_time_a, const MYSQL_TIME &my_time_b) {
 */
 longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time,
                                  enum enum_field_types type) {
-  assert(type != MYSQL_TYPE_TIME);
+  assert(type != MYSQL_TYPE_TIME && type != MYSQL_TYPE_DATE);
 
   switch (type) {
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       return TIME_to_longlong_datetime_packed(my_time);
-    case MYSQL_TYPE_DATE:
-      return TIME_to_longlong_date_packed(my_time);
     default:
       return TIME_to_longlong_packed(my_time);
   }
@@ -2683,12 +2681,9 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time,
 */
 void TIME_from_longlong_packed(MYSQL_TIME *ltime, enum enum_field_types type,
                                longlong packed_value) {
-  assert(type != MYSQL_TYPE_TIME);
+  assert(type != MYSQL_TYPE_TIME && type != MYSQL_TYPE_DATE);
 
   switch (type) {
-    case MYSQL_TYPE_DATE:
-      TIME_from_longlong_date_packed(ltime, packed_value);
-      break;
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       TIME_from_longlong_datetime_packed(ltime, packed_value);
@@ -2713,12 +2708,9 @@ longlong longlong_from_datetime_packed(enum enum_field_types type,
                                        longlong packed_value) {
   MYSQL_TIME ltime;
 
-  assert(type != MYSQL_TYPE_TIME);
+  assert(type != MYSQL_TYPE_TIME && type != MYSQL_TYPE_DATE);
 
   switch (type) {
-    case MYSQL_TYPE_DATE:
-      TIME_from_longlong_date_packed(&ltime, packed_value);
-      return TIME_to_ulonglong_date(ltime);
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       TIME_from_longlong_datetime_packed(&ltime, packed_value);

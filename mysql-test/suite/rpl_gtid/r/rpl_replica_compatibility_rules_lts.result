@@ -1,0 +1,71 @@
+#
+# 1. Initial source-replica setup.
+#
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+include/suppress_messages.inc
+# Connection 2 suppresses message <Replication from higher version source.*>.
+#
+# 2. Disable the system variable that allows a replica to connect to
+#    a higher-version source.
+#
+include/rpl/stop_receiver.inc
+SET @saved_replica_allow_higher_version_source = @@GLOBAL.replica_allow_higher_version_source;
+SET GLOBAL replica_allow_higher_version_source=OFF;
+include/rpl/start_receiver.inc
+#
+# 3. Verify that replication enforces version compatibility between
+#    the source and replica across different scenarios.
+#
+# 3.1 Source has a higher major version. Verify replication is disallowed.
+#
+include/rpl/stop_receiver.inc
+# Adding debug point 'increment_source_major_version' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_error.inc [errno=15671]
+include/assert_grep.inc [Found expected incompatibility log entry]
+# Removing debug point 'increment_source_major_version' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+#
+# 3.2 Source has a higher patch version. Verify replication is allowed.
+#
+include/rpl/stop_receiver.inc
+# Adding debug point 'increment_source_patch_version' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_start.inc
+[connection master]
+INSERT INTO t1 VALUES(2);;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
+# Removing debug point 'increment_source_patch_version' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+#
+# 3.3 Source has a lower patch version. Verify replication is allowed.
+#
+include/rpl/stop_receiver.inc
+# Adding debug point 'increment_replica_patch_version' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_start.inc
+[connection master]
+INSERT INTO t1 VALUES(3);;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
+# Removing debug point 'increment_replica_patch_version' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+#
+# 4. Clean up
+#
+include/rpl/stop_receiver.inc
+# Adding debug point 'decrement_replica_patch_version' to @@GLOBAL.debug
+include/rpl/start_receiver.inc
+# Removing debug point 'decrement_replica_patch_version' from @@GLOBAL.debug
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+SET GLOBAL replica_allow_higher_version_source= @saved_replica_allow_higher_version_source;
+include/rpl/deinit.inc

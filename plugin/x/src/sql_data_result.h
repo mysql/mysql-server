@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #define PLUGIN_X_SRC_SQL_DATA_RESULT_H_
 
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -86,6 +87,7 @@ class Sql_data_result {
   void get_next_field(bool *value);
   void get_next_field(std::string *value);
   void get_next_field(char **value);
+  void get_next_field(std::optional<std::string> *value);
   template <typename T>
   void get_next_field(T *value) {
     static_assert(std::is_integral<T>::value, "Integral required.");

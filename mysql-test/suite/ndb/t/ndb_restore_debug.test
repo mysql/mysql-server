@@ -308,7 +308,7 @@ UPDATE ndb_restore_output SET a = TRIM(TRAILING "\r" FROM a);
 
 # Check output contains useful messages
 --echo Expect error message
-select count(*) into @msgcount from ndb_restore_output where a like "%Error restoring the data log%";
+select count(*) into @msgcount from ndb_restore_output where a like "%Error restoring the data log%" or a like "%Error reading the data log%";
 select @msgcount as 'Count of error message 1';
 select * from ndb_restore_output where @msgcount != 1;
 
@@ -443,6 +443,118 @@ select sum(val) from ndbinfo.counters where counter_name="COMMITS" and node_id=2
 select FLOOR((sum(val)-@node1_trans)/450) as n1_trans from ndbinfo.counters where counter_name="COMMITS" and node_id=1;
 select FLOOR((sum(val)-@node2_trans)/450) as n2_trans from ndbinfo.counters where counter_name="COMMITS" and node_id=2;
 --enable_query_log
+
+drop table t1;
+--echo Test concurrent log apply outcomes
+# Basic table
+create table t1 (a int primary key, b int) engine=ndb;
+# Table with case insensitive collation on pk
+# Testing that concurrent log apply serialises correctly
+# with different binary representations of same pk
+#
+create table t2 (a varchar(100) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci primary key, b int) engine=ndb;
+create table t3 (a int primary key, b int) engine=ndb;
+--let $rows=100
+--echo Insert rows
+--disable_query_log
+--let $r=0
+while ($r < $rows)
+{
+  --eval insert into t1 values ($r, 0);
+  --eval insert into t2 values (concat('A', $r), 0);
+  --inc $r
+}
+--enable_query_log
+--echo Start backup with stall-while-logging
+--echo Cause backup stall while log open
+--exec $NDB_MGM -e "all error 10040" >> $NDB_TOOLS_OUTPUT
+# Backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+--echo Modify rows so that backup log contains
+--echo changes closely spaced
+--echo This should maximise the chance of an out-of-order
+--echo event apply leading to an incorrect final state
+--disable_query_log
+--let $r=0
+while ($r < $rows)
+{
+  --eval update t1 set b=1 where a=$r;
+  --eval update t1 set b=2 where a=$r;
+  
+  --eval update t2 set a=concat('a', $r), b=1 where a = concat('A', $r);
+  --eval update t2 set a=concat('A', $r), b=2 where a = concat('a', $r);
+  
+  --inc $r
+}
+--echo Generate single long sequence of log ops on one key
+insert into t3 values (1, -1);
+--let $updates=3000
+--let $u=0
+while ($u < $updates)
+{
+  --eval update t3 set b=$u where a=1;
+  --inc $u
+}
+--enable_query_log
+--echo Complete backup
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+--echo Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+select count(1) from t1 where b != 2;
+--echo Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+select count(1) from t2 where b != 2;
+--echo Expect all values in t3 to be 2999
+select * from t3 order by a;
+--echo Now restore data and check content
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+select count(1) from t1 where b != 2;
+--echo Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+select count(1) from t2 where b != 2;
+--echo Expect all values in t3 to be 2999
+select * from t3 order by a;
+drop table t1;
+drop table t2;
+drop table t3;
+
+--echo With a big log (>128K) check that ndb_restore will not fail close
+--echo partially read log file when restoring epochs.
+
+create table t1 (pk int primary key, data varbinary(20000)) engine=ndb;
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039"
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+let $pk = 100;
+--disable_query_log
+while ($pk) {
+  dec $pk;
+  eval insert into t1 values ($pk, REPEAT(HEX(pk), 10000));
+}
+--enable_query_log
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0"
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+# Mess up control file to cause file read error
+--remove_file $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id-PART-1-OF-4/BACKUP-$the_backup_id.1.log
+--write_file $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id-PART-1-OF-4/BACKUP-$the_backup_id.1.log
+KNAK
+EOF
+--error 1
+--exec $NDB_RESTORE --error-insert=6 --show-part-id --restore-epoch -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+# Do not restore any data, only epochs. Only first part of log file is read.
+--exec $NDB_RESTORE --error-insert=6 --show-part-id --restore-epoch -b $the_backup_id -n 2 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 
 drop table t1;
 

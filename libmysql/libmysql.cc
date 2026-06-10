@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3004,7 +3004,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME_STATUS status;
       auto *tm = (MYSQL_TIME *)buffer;
-      (void)str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &status);
+      (void)str_to_datetime(value, length, tm, 0, &status);
       *param->error =
           (status.warnings != 0) && (param->buffer_type == MYSQL_TYPE_DATE &&
                                      tm->time_type != MYSQL_TIMESTAMP_DATE);
@@ -3144,8 +3144,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME: {
       int error;
-      value = number_to_datetime(value, (MYSQL_TIME *)buffer, TIME_FUZZY_DATE,
-                                 &error);
+      value = int_to_datetime(value, (MYSQL_TIME *)buffer, 0, &error);
       *param->error = (error != 0);
       break;
     }

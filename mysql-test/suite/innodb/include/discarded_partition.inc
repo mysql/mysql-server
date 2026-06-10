@@ -6,9 +6,6 @@
 # 3. REBUILD_PARTITION_TEST - performs ALTER TABLE ... REBUILD PARTITION
 # 4. SECONDARY_INDEX_TEST - creates and then drops secondary index
 # 5. DROP_TEST - performs drop test on created tables and does cleanup. TODO describe more
-# 6. PREPARE_FROM_8020 - similar to PREPARE, but loads data from prepared
-#    8.0.20 version of MySQL. Used for upgrade test
-# 7. CLEANUP_FROM_8020 - must be called after all tests are done, when prepared from 8.0
 #
 #  Feel free to add new tests
 
@@ -457,33 +454,4 @@ if($discarded_partition_option == 'DROP_TEST')
   DROP TABLE partitions.t7;
 
   DROP DATABASE partitions;
-}
-
-if($discarded_partition_option == 'PREPARE_FROM_8020')
-{
-  --source include/shutdown_mysqld.inc
-
-  --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/discarded_partition_data_8020.zip $MYSQL_TMP_DIR/discarded_partition_data_8020.zip
-  --file_exists $MYSQL_TMP_DIR/discarded_partition_data_8020.zip
-  --exec unzip -qo $MYSQL_TMP_DIR/discarded_partition_data_8020.zip -d $MYSQL_TMP_DIR
-
-  let $BUGDATADIR = $MYSQL_TMP_DIR/data_upgrade;
-
-  --replace_result $BUGDATADIR BUGDATADIR
-  --let $restart_parameters = restart: --datadir=$BUGDATADIR
-  --let $WAIT_COUNTER=3000 #TODO why?
-
-  --source include/start_mysqld.inc
-}
-
-if($discarded_partition_option == 'CLEANUP_FROM_8020')
-{
-  --source include/shutdown_mysqld.inc
-
-  --file_exists $MYSQL_TMP_DIR/discarded_partition_data_8020.zip
-  --force-rmdir $MYSQL_TMP_DIR/data_upgrade
-  --remove_file $MYSQL_TMP_DIR/discarded_partition_data_8020.zip
-
-  let $restart_parameters =;
-  --source include/start_mysqld.inc
 }

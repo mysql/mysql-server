@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+/*  Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -245,51 +245,6 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
   return (err);
 }
 
-/** Test specific function to configure the version strings of the donor and
-recipient to cover various scenarios where clone is allowed or not. This
-function will modify the input to ensure correct error message is printed.
-@param config_val recipient server's version string
-@param donor_val  donor server's version string
-*/
-static void test_configure_versions([[maybe_unused]] std::string &config_val,
-                                    [[maybe_unused]] std::string &donor_val) {
-  /* Test specific code to check for cross version clone support */
-  DBUG_EXECUTE_IF("clone_across_lts_version_match",
-                  { config_val = donor_val; });
-  DBUG_EXECUTE_IF("clone_across_lts_major_mismatch", {
-    config_val = "8.4.0";
-    donor_val = "9.7.2";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_minor_mismatch", {
-    config_val = "8.4.0";
-    donor_val = "8.3.2";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_non_8_0_patch_mismatch", {
-    config_val = "8.4.2";
-    donor_val = "8.4.1";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_8_0_patch_match", {
-    config_val = "8.0.25";
-    donor_val = "8.0.25-debug";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_8_0_before_backport_patch_mismatch", {
-    config_val = "8.0.34";
-    donor_val = "8.0.35";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_8_0_before_backport_patch_mis_single", {
-    config_val = "8.0.6";
-    donor_val = "8.0.7";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_8_0_across_backport_patch_mismatch", {
-    config_val = "8.0.38";
-    donor_val = "8.0.35";
-  });
-  DBUG_EXECUTE_IF("clone_across_lts_8_0_after_backport_patch_mismatch", {
-    config_val = "8.0.38";
-    donor_val = "8.0.37";
-  });
-}
-
 DEFINE_METHOD(int, mysql_clone_validate_configs,
               (THD * thd, Mysql_Clone_Key_Values &configs)) {
   int last_error = 0;
@@ -309,10 +264,7 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
     config_val.assign(utf8_str.c_ptr_quick());
 
     /* Check if the parameter value matches. */
-    if (DBUG_EVALUATE_IF(
-            "clone_across_lts_compare_versions",
-            config_val == donor_val && config_name.compare("version") != 0,
-            config_val == donor_val)) {
+    if (config_val == donor_val) {
       continue;
     }
 
@@ -323,12 +275,8 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
     if (config_name.compare("version_compile_os") == 0) {
       critical_error = ER_CLONE_OS;
     } else if (config_name.compare("version") == 0) {
-      /* test specific modifications to version strings */
-      test_configure_versions(config_val, donor_val);
-      if (are_versions_clone_compatible(config_val, donor_val)) {
-        continue;
-      }
-      critical_error = ER_CLONE_DONOR_VERSION;
+      /* Handled in mysql_clone_validate_version */
+      continue;
     } else if (config_name.compare("version_compile_machine") == 0) {
       critical_error = ER_CLONE_PLATFORM;
     }
@@ -346,6 +294,17 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
     /* Continue and check for all other configuration mismatch. */
   }
   return last_error;
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_version,
+              (const std::string &recipient, const std::string &donor,
+               const bool is_recipient_lts, const bool is_donor_lts)) {
+  if (!are_versions_clone_compatible(recipient, donor, is_recipient_lts,
+                                     is_donor_lts)) {
+    my_error(ER_CLONE_DONOR_VERSION, MYF(0), donor.c_str(), recipient.c_str());
+    return ER_CLONE_DONOR_VERSION;
+  }
+  return 0;
 }
 
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
