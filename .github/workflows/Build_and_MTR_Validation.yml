@@ -292,7 +292,7 @@ jobs:
             local enabled="$2"
             local report="$3"
             local log="${4:-}"
-            local content status total failed unstable line
+            local content status total failed line
 
             if [[ "$enabled" != "true" ]]; then
               echo "- ${title}: Skipped"
@@ -320,7 +320,6 @@ jobs:
             status="Failed"
             total=""
             failed=""
-            unstable=""
 
             if [[ "$content" =~ Completed:[[:space:]]*All[[:space:]]*([0-9]+)[[:space:]]*tests[[:space:]]*were[[:space:]]*successful\. ]]; then
               total="${BASH_REMATCH[1]}"
@@ -339,8 +338,6 @@ jobs:
               fi
             fi
 
-            unstable="$(grep -Eo 'Unstable[^0-9]*[0-9]+' <<<"$content" | tail -n 1 | grep -Eo '[0-9]+' | tail -n 1 || true)"
-
             if [[ "$status" == "Completed" ]]; then
               echo "* ${title}: Completed"
             else
@@ -348,7 +345,6 @@ jobs:
             fi
             [[ -n "$total" ]] && echo "   No of tests: ${total}"
             [[ -n "$failed" ]] && echo "   Failed: ${failed}"
-            [[ -n "$unstable" ]] && echo "   Unstable: ${unstable}"
             echo
           }
 
