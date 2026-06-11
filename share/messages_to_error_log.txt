@@ -11571,7 +11571,7 @@ ER_IB_WARN_MANY_NON_LRU_FILES_OPENED
   eng "More than 90%% of files opened out of the innodb_open_files limit are files that are not easy to close. The performance of system may degrade. Consider increasing value of the innodb_open_files system variable. There are %zu such files opened out of the total limit for all files opened of %zu."
 
 ER_IB_MSG_TRYING_TO_OPEN_FILE_FOR_LONG_TIME
-  eng "Trying to open a file for %lld seconds. Configuration only allows for %zu open files. Consider setting innobase_open_files higher."
+  eng "Trying to open a file for %lld seconds. Configuration only allows for %zu open files. Consider setting innodb_open_files higher."
 
 ER_GLOBAL_CONN_LIMIT
   eng "Connection closed. Global connection memory limit %llu bytes exceeded. Consumed %llu bytes."
