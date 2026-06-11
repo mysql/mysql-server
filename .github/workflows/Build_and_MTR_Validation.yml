@@ -715,11 +715,13 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Repository Checkout
+        uses: actions/checkout@v6
+       
       - name: Merge PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr merge ${{ github.event.pull_request.number }} \
-            --repo "${{ github.repository }}" \
             --merge \
             --delete-branch
