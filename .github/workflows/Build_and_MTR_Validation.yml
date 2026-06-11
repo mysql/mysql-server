@@ -706,4 +706,23 @@ jobs:
           name: mysql-ci-artifacts
           if-no-files-found: ignore
           path: artifacts/
-          
+
+  auto-merge:
+    needs:
+      - linux-workflow
+      - windows-workflow
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --merge \
+            --delete-branch
