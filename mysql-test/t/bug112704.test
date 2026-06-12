@@ -1,0 +1,25 @@
+--source include/have_debug.inc
+
+--echo # CTE clone handler mismatch when TempTable falls back to InnoDB
+
+SET @@internal_tmp_mem_storage_engine = 'TempTable';
+
+--echo # Case 1: Non-recursive CTE — handler mismatch fix (the fallback to
+--echo # InnoDB is counted in Created_tmp_disk_tables)
+FLUSH STATUS;
+SET DEBUG='+d,temptable_create_return_full';
+WITH v AS (VALUES ROW(1), ROW(2)) SELECT * FROM v AS v1 JOIN v AS v2 ORDER BY v1.column_0, v2.column_0;
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+--echo # Case 2: Recursive CTE — recursive ref opens via FollowTailIterator
+FLUSH STATUS;
+WITH RECURSIVE r AS (
+  SELECT 1 AS n
+  UNION ALL
+  SELECT n + 1 FROM r WHERE n < 5
+)
+SELECT * FROM r ORDER BY n;
+SET DEBUG='-d,temptable_create_return_full';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+SET @@internal_tmp_mem_storage_engine = DEFAULT;

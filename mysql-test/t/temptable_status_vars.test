@@ -77,7 +77,8 @@ while($counter < $max_counter){
   --echo
 
   if($counter > 1) {
-    --echo # Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+    --echo # Created_tmp_disk_tables counts the table created in InnoDB after
+    --echo # TempTable could not hold it (Bug#36845804)
   }
   CALL print_status_variables('session');
   if($counter > 1) {
@@ -180,7 +181,8 @@ while($counter < $max_counter){
   SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
   --echo
 
-  --echo # Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+  --echo # Created_tmp_disk_tables counts the table created in InnoDB after
+  --echo # TempTable could not hold it (Bug#36845804)
   CALL print_status_variables('session');
   CALL print_status_variables('global');
   inc $counter;
@@ -215,7 +217,8 @@ SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
 --echo # where table size exceeded the tmp_table_size
 
 --echo
---echo # Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+--echo # Created_tmp_disk_tables counts the table created in InnoDB after
+--echo # TempTable could not hold it (Bug#36845804)
 CALL print_status_variables('session');
 # Test the PFS session status table as well
 # Hypergraph has a different plan for the performance schema query. It

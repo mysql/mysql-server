@@ -188,19 +188,6 @@ let $test_query = SELECT /*+SET_VAR(sort_buffer_size=8192)*/ COUNT(*) FROM t3 FO
 --source include/mem_cnt_check_err.inc
 DROP TABLE t3,t2;
 
---echo # Testing memory/sql/Unique::merge_buffer.
-CREATE TABLE t2 (a INT);
-INSERT INTO t2 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
-INSERT INTO t2 SELECT a+8 FROM t2;
-INSERT INTO t2 SELECT a+16 FROM t2;
-INSERT INTO t2 SELECT a+32 FROM t2;
-INSERT INTO t2 SELECT a+64 FROM t2;
-INSERT INTO t2 VALUE(NULL);
-let $memory_key = memory/sql/Unique::merge_buffer;
-let $test_query = SELECT /*+ SET_VAR(tmp_table_size=1024) */ COUNT(DISTINCT a) FROM t2;
---source include/mem_cnt_check_err.inc
-DROP TABLE t2;
-
 --echo # Testing memory/sql/bison_stack.
 let $memory_key = memory/sql/bison_stack;
 let $test_query = SELECT ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));

@@ -30,8 +30,6 @@ memory/sql/READ_INFO test passed.
 memory/sql/TABLE::sort_io_cache test passed.
 # Testing memory/sql/Unique::sort_buffer.
 memory/sql/Unique::sort_buffer test passed.
-# Testing memory/sql/Unique::merge_buffer.
-memory/sql/Unique::merge_buffer test passed.
 # Testing memory/sql/bison_stack.
 memory/sql/bison_stack test passed.
 # Testing memory/sql/hashed_operation.

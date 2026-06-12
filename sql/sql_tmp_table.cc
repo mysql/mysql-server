@@ -2276,11 +2276,57 @@ static bool alloc_record_buffers(THD *thd, TABLE *table) {
   return false;
 }
 
+/**
+  Replace the handler of a not-yet-opened temporary table with a new one for
+  the given engine.
+
+  @param table Table whose handler to replace
+  @param ht    Engine to create the new handler for
+
+  @retval false OK
+  @retval true Error (table->file is left untouched)
+*/
+static bool reset_tmp_table_handler(TABLE *table, handlerton *ht) {
+  TABLE_SHARE *const share = table->s;
+  assert(!table->is_created());
+
+  handler *const file =
+      get_new_handler(share, false, share->alloc_for_tmp_file_handler, ht);
+  if (file == nullptr) return true; /* purecov: inspected */
+
+  // Update the handler with information about the table object
+  file->change_table_ptr(table, share);
+
+  if (file->set_ha_share_ref(&share->ha_share)) {
+    ::destroy_at(file);
+    return true;
+  }
+
+  ::destroy_at(table->file);
+  table->file = file;
+
+  return false;
+}
+
 bool open_tmp_table(TABLE *table) {
   assert(table->s->ref_count() == 1 ||        // not shared, or:
          table->s->db_type() == heap_hton ||  // using right engines
          table->s->db_type() == temptable_hton ||
          table->s->db_type() == innodb_hton);
+
+  /*
+    A temporary table may have several TABLE objects (clones) sharing one
+    TABLE_SHARE, each with its own handler, assigned when the clone was set up.
+    If the table's creation fell back from TempTable to InnoDB after that,
+    create_tmp_table_with_fallback() has updated the share's engine, and this
+    clone's handler is for an engine the table does not exist in; opening it
+    would fail with "table doesn't exist". Renew the handler first.
+  */
+  if (table->file->ht != table->s->db_type() &&
+      reset_tmp_table_handler(table, table->s->db_type())) {
+    table->db_stat = 0;
+    return true;
+  }
 
   int error;
   if ((error = table->file->ha_open(table, table->s->table_name.str, O_RDWR,
@@ -2350,8 +2396,19 @@ static bool create_tmp_table_with_fallback(THD *thd, TABLE *table) {
       table->file->create(share->table_name.str, table, &create_info, nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL &&
       table->s->db_type() == temptable_hton) {
-    table->file = get_new_handler(
-        table->s, false, share->alloc_for_tmp_file_handler, innodb_hton);
+    if (reset_tmp_table_handler(table, innodb_hton)) {
+      table->db_stat = 0; /* purecov: inspected */
+      return true;        /* purecov: inspected */
+    }
+    /*
+      Record the new engine in the share as well: the clones of this table
+      share it, and it is how they find the engine the table actually lives in,
+      see open_tmp_table().
+    */
+    plugin_unlock(nullptr, share->db_plugin);
+    share->db_plugin = ha_lock_engine(nullptr, innodb_hton);
+    create_info.db_type = innodb_hton;
+
     error = table->file->create(share->table_name.str, table, &create_info,
                                 nullptr);
   }
@@ -2361,6 +2418,11 @@ static bool create_tmp_table_with_fallback(THD *thd, TABLE *table) {
     table->db_stat = 0;
     return true;
   } else {
+    /*
+      Count the table if it ended up on disk. A table that fell back from
+      TempTable to InnoDB above now has InnoDB as its engine, so it is counted
+      too (Bug#36845804).
+    */
     if (table->s->db_type() != temptable_hton) {
       thd->inc_status_created_tmp_disk_tables();
     }

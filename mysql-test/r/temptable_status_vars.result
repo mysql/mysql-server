@@ -82,12 +82,13 @@ c1	COUNT(DISTINCT(c2))
 2	1
 3	1
 
-# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+# Created_tmp_disk_tables counts the table created in InnoDB after
+# TempTable could not hold it (Bug#36845804)
 CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
 Count_hit_tmp_table_size	0
 # TempTable_count_hit_max_ram is 7 because statements to show these
@@ -251,12 +252,13 @@ c1	COUNT(DISTINCT(c2))
 2	1
 3	1
 
-# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+# Created_tmp_disk_tables counts the table created in InnoDB after
+# TempTable could not hold it (Bug#36845804)
 CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
 Count_hit_tmp_table_size	1
 CALL print_status_variables('global');
@@ -276,12 +278,13 @@ c1	COUNT(DISTINCT(c2))
 2	1
 3	1
 
-# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+# Created_tmp_disk_tables counts the table created in InnoDB after
+# TempTable could not hold it (Bug#36845804)
 CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
 Count_hit_tmp_table_size	1
 CALL print_status_variables('global');
@@ -327,12 +330,13 @@ c1	COUNT(DISTINCT(c2))
 # Should be no different than the previous case
 # where table size exceeded the tmp_table_size
 
-# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+# Created_tmp_disk_tables counts the table created in InnoDB after
+# TempTable could not hold it (Bug#36845804)
 CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
 Count_hit_tmp_table_size	1
 SELECT VARIABLE_NAME, VARIABLE_VALUE
@@ -341,7 +345,7 @@ VARIABLE_NAME LIKE 'Created_tmp%tables' OR
 VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
 Count_hit_tmp_table_size	1
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Created_tmp_tables	1
 CALL print_status_variables('global');
 Variable_name	Value
