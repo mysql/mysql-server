@@ -14,6 +14,93 @@ jobs:
         with: 
           fetch-depth: 0
 
+      - name: Linux cleanup helper
+        shell: bash
+        run: |
+          cat > "${RUNNER_TEMP}/mysql-ci-cleanup.sh" <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          mode="${1:-mtr}"
+          tree="${2:-bld}"
+          WORK="${GITHUB_WORKSPACE:-$PWD}"
+          TEMP="${RUNNER_TEMP:-/tmp}"
+
+          echo "== MySQL CI cleanup: mode=${mode}, tree=${tree}, time=$(date -u '+%Y-%m-%dT%H:%M:%SZ') =="
+
+          # MTR commonly uses /dev/shm when --mem is enabled.
+          rm -rf /dev/shm/var_auto_* || true
+
+          # Stop any MySQL server left behind by a previous failed MTR invocation.
+          if pgrep -x mysqld >/dev/null 2>&1; then
+            echo "Stopping stray mysqld processes"
+            pkill -TERM mysqld || true
+
+            for i in 1 2 3 4 5; do
+              if ! pgrep -x mysqld >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+
+            if pgrep -x mysqld >/dev/null 2>&1; then
+              echo "Force-killing remaining mysqld processes"
+              pkill -9 mysqld || true
+            fi
+          fi
+
+          # Remove stale pid files and sockets from known volatile locations.
+          for root in \
+            "$WORK/bld/mysql-test/var" \
+            "$WORK/debug/mysql-test/var" \
+            "$TEMP/var-dir"
+          do
+            if [ -e "$root" ]; then
+              find "$root" -type f -name '*.pid' -delete 2>/dev/null || true
+              find "$root" -type s -name 'mysql*.sock' -delete 2>/dev/null || true
+              find "$root" -type s -name 'mysqld*.sock' -delete 2>/dev/null || true
+            fi
+          done
+
+          rm -f /tmp/mysql.sock /tmp/mysqld.sock /tmp/mysqlx.sock || true
+
+          case "$mode" in
+            prebuild)
+              # Safe only before compilation.
+              rm -rf "$WORK/bld" "$WORK/debug" "$TEMP/var-dir" || true
+              ;;
+
+            mtr)
+              # Safe before an MTR run. Do not remove runtime_output_directory.
+              rm -rf "$WORK/$tree/mysql-test/var" || true
+              rm -rf "$TEMP/var-dir" || true
+              ;;
+
+            *)
+              echo "Unknown cleanup mode: $mode" >&2
+              exit 2
+              ;;
+          esac
+
+          sync || true
+          sleep 1
+
+          echo "== Disk after cleanup =="
+          df -h "$WORK" || true
+
+          echo "== Memory after cleanup =="
+          free -h || true
+
+          echo "== Cleanup done =="
+          BASH
+
+          chmod +x "${RUNNER_TEMP}/mysql-ci-cleanup.sh"
+
+      - name: Pre-build cleanup
+        shell: bash
+        run: |
+          "${RUNNER_TEMP}/mysql-ci-cleanup.sh" prebuild bld
+
       - name: Dependency Installation
         run: |
           sudo apt-get update
@@ -131,6 +218,8 @@ jobs:
           xml_report="${GITHUB_WORKSPACE}/mtr_${GITHUB_RUN_NUMBER}.xml"
           unit_report="${GITHUB_WORKSPACE}/mtr-unit_${GITHUB_RUN_NUMBER}.xml"
           summary_report="${GITHUB_WORKSPACE}/build-error_main_${GITHUB_RUN_NUMBER}.txt"
+
+          "${RUNNER_TEMP}/mysql-ci-cleanup.sh" mtr bld
           
           if [ ! -d "${mysql_test_dir}" ]; then
             touch "${xml_report}"
@@ -139,7 +228,6 @@ jobs:
             exit 0
           fi
           
-          rm -rf /dev/shm/var_auto_*
           cd "${mysql_test_dir}"
           perl mysql-test-run.pl \
             --nounit-tests \
@@ -173,7 +261,8 @@ jobs:
           mysql_test_dir="${GITHUB_WORKSPACE}/bld/mysql-test"
           hypergraph_report="${GITHUB_WORKSPACE}/hypergraph_${GITHUB_RUN_NUMBER}.txt"
           
-          rm -rf /dev/shm/var_auto_* || true
+          "${RUNNER_TEMP}/mysql-ci-cleanup.sh" mtr bld
+          
           cd "${mysql_test_dir}"
           perl mysql-test-run.pl \
             --nounit-tests \
@@ -201,7 +290,8 @@ jobs:
           extra_report="${GITHUB_WORKSPACE}/extra_suites_${GITHUB_RUN_NUMBER}.txt"
           extra_suites=(innodb_fts innodb_undo innodb_gis innodb_zip)
           
-          rm -rf /dev/shm/var_auto_* || true
+          "${RUNNER_TEMP}/mysql-ci-cleanup.sh" mtr bld
+          
           cd "${mysql_test_dir}"
           perl mysql-test-run.pl \
             --force \
@@ -228,7 +318,8 @@ jobs:
           debug_summary_report="${GITHUB_WORKSPACE}/build-error_debug_${GITHUB_RUN_NUMBER}.txt"
           debug_err_log="${GITHUB_WORKSPACE}/mtr_${GITHUB_RUN_NUMBER}.err"
           
-          rm -rf /dev/shm/var_auto_*
+          "${RUNNER_TEMP}/mysql-ci-cleanup.sh" mtr debug
+          
           cd "${debug_test_dir}"
           perl mysql-test-run.pl \
             --force \
@@ -253,7 +344,8 @@ jobs:
           repl_report="${GITHUB_WORKSPACE}/mtr-replication_${GITHUB_RUN_NUMBER}.xml"
           repl_summary="${GITHUB_WORKSPACE}/build-error_replication_${GITHUB_RUN_NUMBER}.txt"
           
-          rm -rf /dev/shm/var_auto_* || true
+          "${RUNNER_TEMP}/mysql-ci-cleanup.sh" mtr bld
+          
           cd "${mysql_test_dir}"
           perl mysql-test-run.pl \
             --force \
@@ -545,11 +637,37 @@ jobs:
           $xmlReport = Join-Path $env:GITHUB_WORKSPACE ("mtr_{0}.xml" -f $env:GITHUB_RUN_NUMBER)
           $errLog = Join-Path $env:GITHUB_WORKSPACE ("mtr_{0}.err" -f $env:GITHUB_RUN_NUMBER)
           
-          if (Test-Path $vardir) {
-            Remove-Item -Recurse -Force $vardir
+          Write-Host "== Windows MTR pre-cleanup =="
+
+          Get-Process -Name mysqld,mysqld-debug,mysqltest -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+          Start-Sleep -Seconds 1
+
+          $cleanupPaths = @(
+            $vardir,
+            (Join-Path $mysqlTestDir 'var'),
+            (Join-Path $env:RUNNER_TEMP 'var_auto_*')
+          )
+
+          foreach ($path in $cleanupPaths) {
+            Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
           }
-          New-Item -ItemType Directory -Path $vardir | Out-Null
+
+          $socketPaths = @(
+            (Join-Path $env:TEMP 'mysql.sock'),
+            (Join-Path $env:TEMP 'mysqld.sock'),
+            (Join-Path $env:RUNNER_TEMP 'mysql.sock'),
+            (Join-Path $env:RUNNER_TEMP 'mysqld.sock')
+          )
+
+          foreach ($path in $socketPaths) {
+            Remove-Item -Path $path -Force -ErrorAction SilentlyContinue
+          }
+
+          New-Item -ItemType Directory -Path $vardir -Force | Out-Null
           Set-Location $mysqlTestDir
+          
           if ("${{ steps.diff.outputs.enable_innodb_mtr }}" -eq "true") {
             perl mysql-test-run.pl `
               --vardir="$vardir" `
