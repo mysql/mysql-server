@@ -309,7 +309,7 @@
    A multi-statement is permitting ::COM_QUERY to send more than one query to
    the server, separated by `;` characters.
 
-   The client musst announce that it wants multi-statements by either setting
+   The client must announce that it wants multi-statements by either setting
    the ::CLIENT_MULTI_STATEMENTS capability or by using
    @ref page_protocol_com_set_option
 */
