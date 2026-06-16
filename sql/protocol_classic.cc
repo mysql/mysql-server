@@ -270,7 +270,7 @@
    07 00 00 0b 00 01 00 02    00 00 00                   ...........
    ~~~~~~~~~~~~~
 
-   If the ::SERVER_MORE_RESULTS_EXISTS flag ise set, that indicates more
+   If the ::SERVER_MORE_RESULTS_EXISTS flag is set, that indicates more
    resultsets will follow.
 
    The trailing @ref page_protocol_basic_ok_packet is the response to the
