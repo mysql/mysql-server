@@ -3611,6 +3611,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
     about locks.
   */
   if (read_only == false || read_only == opt_readonly) {
+    const bool changed = (read_only != opt_readonly);
     opt_readonly = read_only;
 
     /*
@@ -3624,7 +3625,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
       // Do this last as it temporarily releases the global sys-var lock.
       event_scheduler_restart(thd);
     }
-    log_read_only_updated();
+    if (changed) log_read_only_updated();
     return false;
   }
 
@@ -3691,7 +3692,7 @@ end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
 end:
   read_only = opt_readonly;
-  log_read_only_updated();
+  if (!result) log_read_only_updated();
   return result;
 }
 
@@ -3747,7 +3748,6 @@ static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
   if ((result = thd->global_read_lock.make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
   opt_super_readonly = new_super_read_only;
-  log_super_read_only_updated();
   result = false;
 
 end_with_read_lock:
@@ -3757,7 +3757,7 @@ end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
 end:
   super_read_only = opt_super_readonly;
-  log_super_read_only_updated();
+  if (!result) log_super_read_only_updated();
   return result;
 }
 
