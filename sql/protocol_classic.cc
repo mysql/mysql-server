@@ -333,7 +333,7 @@
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>status</td>
-      <td>[0x1A] COM_SET_OPTION</td></tr>
+      <td>[0x1B] COM_SET_OPTION</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>option_operation</td>
       <td>One of ::enum_mysql_set_option</td></tr>
