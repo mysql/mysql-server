@@ -365,7 +365,8 @@ bool sp_lex_instr::execute_expression(THD *thd, uint *nextp) {
     return true;
   }
 
-  if (m_arena.get_state() != Query_arena::STMT_INITIALIZED_FOR_SP) {
+  if (!m_first_execution &&
+      m_arena.get_state() != Query_arena::STMT_INITIALIZED_FOR_SP) {
     m_lex->restore_cmd_properties();
     bind_fields(m_arena.item_list());
   }

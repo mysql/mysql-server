@@ -1,0 +1,49 @@
+--echo # Setup
+CREATE DATABASE IF NOT EXISTS bug_test;
+USE bug_test;
+
+DROP TABLE IF EXISTS test_table;
+CREATE TABLE test_table (
+    id       INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    value    VARCHAR(20) DEFAULT NULL,
+    modified INT UNSIGNED NOT NULL,
+    status   INT UNSIGNED NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY (value)
+) ENGINE=InnoDB
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+DROP PROCEDURE IF EXISTS bug_test.test_proc2;
+
+DELIMITER $$;
+CREATE PROCEDURE bug_test.test_proc2()
+BEGIN
+    IF NOT EXISTS (
+        SELECT GROUP_CONCAT(value) FROM test_table
+    ) THEN
+        SELECT 1;
+    ELSE
+        SELECT 2;
+    END IF;
+END$$
+DELIMITER ;$$
+
+--echo # 1st call: prepares & caches the IF expression (group_concat_max_len = 1500)
+SET SESSION group_concat_max_len = 1500;
+CALL bug_test.test_proc2;
+
+--echo # 2nd call: changed metadata forces a reprepare of the cached statement.
+--echo # Before the fix this crashed the server (use-after-free); it must now
+--echo # complete and return the same result.
+SET SESSION group_concat_max_len = 16384;
+CALL bug_test.test_proc2;
+
+--echo # Sanity: the connection survived the reprepare.
+SELECT 'server alive' AS status;
+
+--echo # Cleanup
+DROP PROCEDURE bug_test.test_proc2;
+DROP TABLE test_table;
+DROP DATABASE bug_test;
+SET SESSION group_concat_max_len = DEFAULT;
+
