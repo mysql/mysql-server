@@ -2964,7 +2964,7 @@ the LRU list it resets the value to the tail of the LRU list.
 buf_page_t *LRUItr::start() {
   ut_ad(mutex_own(m_mutex));
 
-  if (!m_hp || m_hp->old) {
+  if (!m_hp || !m_hp->old) {
     m_hp = UT_LIST_GET_LAST(m_buf_pool->LRU);
   }
 
