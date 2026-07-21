@@ -1,0 +1,16 @@
+SET GLOBAL DEBUG="+d,buf_lru_free_page_delay_zip_reinsert,buf_page_init_for_read_delay_lru_add";
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+c LONGBLOB
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+CALL scan_t1(6);
+CALL scan_t1(6);
+CALL update_t1(12);
+SELECT COUNT(*), MIN(LENGTH(c)) > 0 FROM t1;
+COUNT(*)	MIN(LENGTH(c)) > 0
+2000	1
+SET GLOBAL DEBUG="-d,buf_lru_free_page_delay_zip_reinsert,buf_page_init_for_read_delay_lru_add";
+DROP PROCEDURE populate_t1;
+DROP PROCEDURE scan_t1;
+DROP PROCEDURE update_t1;
+DROP TABLE t1;

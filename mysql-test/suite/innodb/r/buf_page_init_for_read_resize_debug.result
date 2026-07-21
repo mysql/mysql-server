@@ -1,0 +1,65 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, c CHAR(200)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');
+INSERT INTO t1 SELECT id + 4, c FROM t1;
+INSERT INTO t1 SELECT id + 8, c FROM t1;
+INSERT INTO t1 SELECT id + 16, c FROM t1;
+INSERT INTO t1 SELECT id + 32, c FROM t1;
+INSERT INTO t1 SELECT id + 64, c FROM t1;
+INSERT INTO t1 SELECT id + 128, c FROM t1;
+INSERT INTO t1 SELECT id + 256, c FROM t1;
+INSERT INTO t1 SELECT id + 512, c FROM t1;
+INSERT INTO t1 SELECT id + 1024, c FROM t1;
+CREATE TABLE t2 (id INT PRIMARY KEY, c CHAR(200)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT id, c FROM t1;
+INSERT INTO t2 SELECT id + 2048, c FROM t2;
+INSERT INTO t2 SELECT id + 4096, c FROM t2;
+INSERT INTO t2 SELECT id + 8192, c FROM t2;
+INSERT INTO t2 SELECT id + 16384, c FROM t2;
+INSERT INTO t2 SELECT id + 32768, c FROM t2;
+#
+# Scenario 1: the page hash is rebuilt between computing the page hash
+# cell latch and acquiring it.
+#
+# restart
+SET @old_buffer_pool_size = @@GLOBAL.innodb_buffer_pool_size;
+SELECT c FROM t1 WHERE id = 1;
+c
+a
+SET DEBUG_SYNC = 'buf_page_init_for_read_before_hash_lock SIGNAL paused WAIT_FOR go';
+SELECT c FROM t1 WHERE id = 2000;
+SET DEBUG_SYNC = 'now WAIT_FOR paused';
+SET GLOBAL innodb_buffer_pool_size = @old_buffer_pool_size * 8;
+SET DEBUG_SYNC = 'now SIGNAL go';
+c
+d
+SET DEBUG_SYNC = 'RESET';
+#
+# Scenario 2: the buffer pool is shrunk while a page is in the page
+# hash but not yet on the LRU list.
+#
+# restart: --innodb-buffer-pool-size=32M
+SELECT c FROM t1 WHERE id = 1;
+c
+a
+SELECT SUM(LENGTH(c)) FROM t2;
+SET DEBUG_SYNC = 'buf_page_init_for_read_before_lru_add SIGNAL paused WAIT_FOR go';
+SELECT c FROM t1 WHERE id = 2000;
+SET DEBUG_SYNC = 'now WAIT_FOR paused';
+SET GLOBAL innodb_buffer_pool_size = 8 * 1024 * 1024;
+SELECT SUBSTR(variable_value, 1, 18) = 'Completed resizing' AS completed
+FROM performance_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+completed
+0
+SET DEBUG_SYNC = 'now SIGNAL go';
+c
+d
+SELECT @@GLOBAL.innodb_buffer_pool_size = 8 * 1024 * 1024 AS shrunk;
+shrunk
+1
+SELECT c FROM t1 WHERE id = 2000;
+c
+d
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;
+# restart

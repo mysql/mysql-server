@@ -2296,7 +2296,24 @@ struct buf_pool_t {
      for all buf_pool_t-s */
   BufListMutex chunks_mutex;
 
-  /** LRU list mutex */
+  /** LRU list mutex.
+  Latching rule: no thread may WAIT for a block's frame rw-lock
+  (block->lock) while holding this mutex. buf_page_init_for_read()
+  acquires this mutex while holding the X-latch on the frame of the page
+  being read in, so waiting for a frame latch under this mutex would
+  create a deadlock cycle with that path. Consequently, a frame latch may
+  be taken under this mutex only with the rw_lock_*_nowait() variants:
+  flushing does so and handles the failure, and buf_page_create() does so
+  on a frame taken from the free list, asserting success (its latch is
+  unlocked and the block is unreachable by other threads while the page
+  hash X-latch is still held, so the attempt cannot fail). Compressed-only
+  pages (BUF_BLOCK_ZIP_PAGE descriptors) have no frame and no frame
+  rw-lock, so the paths handling them add no edge to this rule.
+  This rule cannot be expressed via latch_level_t ordering, because
+  block->lock is registered with SYNC_LEVEL_VARYING which LatchDebug
+  ignores; instead it is enforced in debug builds (with
+  --innodb-sync-debug) by rw_lock_assert_wait_allowed() at the rw-lock
+  wait entry points in sync0rw.cc. */
   BufListMutex LRU_list_mutex;
 
   /** free and withdraw list mutex */
@@ -2353,7 +2370,17 @@ struct buf_pool_t {
 
   /** Hash table of buf_page_t or buf_block_t file pages, buf_page_in_file() ==
   true, indexed by (space_id, offset).  page_hash is protected by an array of
-  mutexes. */
+  mutexes.
+  Membership-change protocol: a descriptor for a page id may be inserted
+  only after verifying the id's absence, with the cell's X-latch held
+  continuously from that verification until the insert. Conversely, a
+  remover which will re-insert a descriptor for the same page id (the
+  keep-zip path of buf_LRU_free_page()) must keep the cell's X-latch held
+  continuously from the delete until the re-insert, so that the page id is
+  never observably absent from the hash while the page is still logically
+  in the buffer pool. Note that buf_page_init_for_read() inserts while
+  holding only the cell's X-latch (not the LRU list mutex), so the LRU
+  list mutex does NOT stabilize page hash membership. */
   hash_table_t *page_hash;
 
   /** Hash table of buf_block_t blocks whose frames are allocated to the zip
