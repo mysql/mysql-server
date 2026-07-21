@@ -505,7 +505,12 @@ static inline bool buf_page_can_relocate(
 {
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
   ut_ad(buf_page_in_file(bpage));
-  ut_ad(bpage->in_LRU_list);
+  /* A page whose read IO is still in progress may be hash-visible but not
+  yet linked into the LRU list: buf_page_init_for_read() links it into the
+  LRU list only after making it hash-visible. Such a page is io-fixed for
+  read (and not relocatable), which is the only legitimate way to reach
+  this function for a page which is not in the LRU list. */
+  ut_ad(bpage->in_LRU_list || buf_page_get_io_fix(bpage) == BUF_IO_READ);
 
   return (buf_page_get_io_fix(bpage) == BUF_IO_NONE &&
           bpage->buf_fix_count == 0);

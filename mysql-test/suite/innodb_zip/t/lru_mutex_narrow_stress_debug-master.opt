@@ -1,0 +1,3 @@
+--innodb-buffer-pool-size=24M
+--innodb-buffer-pool-chunk-size=2M
+--innodb-buffer-pool-instances=1

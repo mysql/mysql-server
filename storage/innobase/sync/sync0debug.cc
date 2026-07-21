@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "sync0debug.h"
+#include "univ.i"
 
 #include <stddef.h>
 #include <algorithm>
@@ -683,7 +684,12 @@ const latch_t *LatchDebug::find(const Latches *latches,
 @param[in]      level           The level to lookup
 @return latch if found or NULL */
 const latch_t *LatchDebug::find(latch_level_t level) UNIV_NOTHROW {
-  return (find(thread_latches(), level));
+  /* A thread which has not acquired any latch yet has no latch list
+  allocated (thread_latches() without the create flag returns nullptr)
+  and thus holds nothing at any level. */
+  const Latches *latches = thread_latches();
+
+  return (latches != nullptr ? find(latches, level) : nullptr);
 }
 
 /**
@@ -1267,7 +1273,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(FTS_PLL_TOKENIZE, SYNC_FTS_TOKENIZE,
                   fts_pll_tokenize_mutex_key);
 
-  LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_BUF_PAGE_HASH, hash_table_mutex_key);
+  /* Do not use SYNC_BUF_PAGE_HASH for HASH_TABLE_MUTEX.
+  @see buf_buddy_no_page_hash_latch_validate(). */
+  LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_ANY_LATCH, hash_table_mutex_key);
 
   LATCH_ADD_MUTEX(IBUF_BITMAP, SYNC_IBUF_BITMAP_MUTEX, ibuf_bitmap_mutex_key);
 

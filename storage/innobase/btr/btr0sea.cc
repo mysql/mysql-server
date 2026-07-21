@@ -1976,12 +1976,13 @@ static bool btr_search_hash_table_validate(ulint part_id) {
         /* When a block is being freed,
         buf_LRU_free_page() first
         removes the block from
-        buf_pool->page_hash by calling
-        buf_LRU_block_remove_hashed_page().
-        After that, it invokes
-        buf_LRU_block_remove_hashed() to
-        remove the block from
-        btr_search_sys->hash_tables[i]. */
+        buf_pool->page_hash and sets it to
+        BUF_BLOCK_REMOVE_HASH by calling
+        buf_LRU_block_remove_hashed().
+        After that, it removes the block
+        from btr_search_sys->parts[i] (the
+        AHI) by calling
+        btr_search_drop_page_hash_index(). */
 
         ut_a(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
       }
