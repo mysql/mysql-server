@@ -2456,6 +2456,17 @@ static Sys_var_bool Sys_sha256_password_proxy_users(
     "check_proxy_users is enabled.",
     GLOBAL_VAR(sha256_password_proxy_users), CMD_LINE(OPT_ARG), DEFAULT(false));
 
+static Sys_var_bool Sys_partial_subject_match(
+    "partial_subject_match",
+    "If set to FALSE (the default), an account created with REQUIRE SUBJECT "
+    "requires the presented client certificate's subject to match the "
+    "specified value exactly. When set to TRUE, the match is relaxed so that "
+    "the account connects successfully as long as every attribute listed in "
+    "the REQUIRE SUBJECT value is present in the certificate's subject "
+    "(subset match). This allows verifying only a subset of the subject, for "
+    "example the Common Name, e.g. REQUIRE SUBJECT '/CN=myclient'.",
+    GLOBAL_VAR(partial_subject_match), CMD_LINE(OPT_ARG), DEFAULT(false));
+
 static Sys_var_charptr Sys_log_error(
     "log_error", "Error log file",
     READ_ONLY NON_PERSIST GLOBAL_VAR(log_error_dest),

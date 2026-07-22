@@ -1,0 +1,117 @@
+SET @start_value = @@global.partial_subject_match;
+SELECT @start_value;
+@start_value
+0
+'#----- Default value -----------------------------------------#'
+SET @@global.partial_subject_match = 1;
+SET @@global.partial_subject_match = DEFAULT;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = @start_value;
+SELECT @@global.partial_subject_match = 0;
+@@global.partial_subject_match = 0
+1
+'#----- Valid values ------------------------------------------#'
+SET @@global.partial_subject_match = 0;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = 1;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+1
+SET @@global.partial_subject_match = TRUE;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+1
+SET @@global.partial_subject_match = FALSE;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = ON;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+1
+SET @@global.partial_subject_match = OFF;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+'#----- Invalid values ----------------------------------------#'
+SET @@global.partial_subject_match = -1;
+ERROR 42000: Variable 'partial_subject_match' can't be set to the value of '-1'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = 4294967296;
+ERROR 42000: Variable 'partial_subject_match' can't be set to the value of '4294967296'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = 10240022115;
+ERROR 42000: Variable 'partial_subject_match' can't be set to the value of '10240022115'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'partial_subject_match'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = -1024;
+ERROR 42000: Variable 'partial_subject_match' can't be set to the value of '-1024'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = 42949672950;
+ERROR 42000: Variable 'partial_subject_match' can't be set to the value of '42949672950'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+SET @@global.partial_subject_match = 'test';
+ERROR 42000: Variable 'partial_subject_match' can't be set to the value of 'test'
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0
+'#----- Global/Session variable -------------------------------#'
+SET @@session.partial_subject_match = 0;
+ERROR HY000: Variable 'partial_subject_match' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@partial_subject_match;
+@@partial_subject_match
+0
+SELECT IF(@@global.partial_subject_match, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='partial_subject_match';
+IF(@@global.partial_subject_match, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT IF(@@partial_subject_match, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='partial_subject_match';
+IF(@@partial_subject_match, "ON", "OFF") = VARIABLE_VALUE
+1
+SET @@global.partial_subject_match = 1;
+SELECT @@partial_subject_match = @@global.partial_subject_match;
+@@partial_subject_match = @@global.partial_subject_match
+1
+'#----- Accessing with and without @@ sign --------------------#'
+SET partial_subject_match = 1;
+ERROR HY000: Variable 'partial_subject_match' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@partial_subject_match;
+@@partial_subject_match
+1
+SET local.partial_subject_match = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.partial_subject_match = 1' at line 1
+SELECT local.partial_subject_match;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.partial_subject_match = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.partial_subject_match = 1' at line 1
+SELECT global.partial_subject_match;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT partial_subject_match;
+ERROR 42S22: Unknown column 'partial_subject_match' in 'field list'
+SELECT @@session.partial_subject_match;
+ERROR HY000: Variable 'partial_subject_match' is a GLOBAL variable
+SET @@global.partial_subject_match = @start_value;
+SELECT @@global.partial_subject_match;
+@@global.partial_subject_match
+0

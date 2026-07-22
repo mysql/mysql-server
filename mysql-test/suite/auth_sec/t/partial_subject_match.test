@@ -1,0 +1,69 @@
+#############################################################################
+# Purpose: Verify that REQUIRE SUBJECT performs a subset (partial) match of  #
+#          the client certificate subject when the global system variable    #
+#          partial_subject_match is enabled, and an exact match when it is    #
+#          disabled (the default, preserving legacy behaviour).              #
+#                                                                            #
+# std_data/client-cert.pem subject (X509_NAME_oneline representation):       #
+#   /C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client               #
+#                                                                            #
+# The server is started (see -master.opt) with the std_data CA so that the   #
+# presented client certificate verifies successfully.                        #
+#############################################################################
+
+# Connection options that present the standard client certificate.
+--let $CONN= --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem
+# Rejected connections: discard the (host-dependent) client error text; the
+# --error 1 assertion below is what proves the connection was refused.
+--let $DISCARD= > $MYSQL_TMP_DIR/psm_out.txt 2>&1
+
+CREATE USER cn_only@'%' REQUIRE SUBJECT '/CN=Client';
+CREATE USER cn_wrong@'%' REQUIRE SUBJECT '/CN=Wrong';
+CREATE USER full_subj@'%' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client';
+CREATE USER multi_ok@'%' REQUIRE SUBJECT '/O=Oracle/CN=Client';
+CREATE USER wrong_val@'%' REQUIRE SUBJECT '/O=Wrong';
+CREATE USER reorder@'%' REQUIRE SUBJECT '/CN=Client/O=Oracle';
+
+--echo #
+--echo # ---- partial_subject_match = OFF (exact match, default) ----
+--echo #
+SET GLOBAL partial_subject_match = OFF;
+
+--echo # Exact full subject matches -> connection succeeds
+--exec $MYSQL $CONN -ufull_subj -e "SELECT 'CONNECT_OK' AS result" 2>&1
+
+--echo # CN-only subset does NOT match in exact mode -> connection rejected
+--error 1
+--exec $MYSQL $CONN -ucn_only -e "SELECT 1" $DISCARD
+
+--echo #
+--echo # ---- partial_subject_match = ON (subset match) ----
+--echo #
+SET GLOBAL partial_subject_match = ON;
+
+--echo # CN-only subset now matches -> connection succeeds
+--exec $MYSQL $CONN -ucn_only -e "SELECT 'CONNECT_OK' AS result" 2>&1
+
+--echo # Exact full subject still matches -> connection succeeds
+--exec $MYSQL $CONN -ufull_subj -e "SELECT 'CONNECT_OK' AS result" 2>&1
+
+--echo # Multiple-attribute subset (all present with matching values) -> success
+--exec $MYSQL $CONN -umulti_ok -e "SELECT 'CONNECT_OK' AS result" 2>&1
+
+--echo # Attribute order is irrelevant for the subset match -> success
+--exec $MYSQL $CONN -ureorder -e "SELECT 'CONNECT_OK' AS result" 2>&1
+
+--echo # Attribute present but with a different value -> connection rejected
+--error 1
+--exec $MYSQL $CONN -uwrong_val -e "SELECT 1" $DISCARD
+
+--echo # A subset with the wrong CN never matches -> connection rejected
+--error 1
+--exec $MYSQL $CONN -ucn_wrong -e "SELECT 1" $DISCARD
+
+--echo #
+--echo # Cleanup
+--echo #
+SET GLOBAL partial_subject_match = DEFAULT;
+DROP USER cn_only@'%', cn_wrong@'%', full_subj@'%', multi_ok@'%', wrong_val@'%', reorder@'%';
+--remove_file $MYSQL_TMP_DIR/psm_out.txt
