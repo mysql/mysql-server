@@ -535,6 +535,28 @@ static bool upgrade_firewall_procedures(THD *thd) {
 }
 
 /**
+ * Check whether the legacy mysql_firewall plugin is installed.
+ *
+ * The firewall component exposes component-scoped system variables. Presence of
+ * the legacy mysql_firewall_database variable is used to decide whether the
+ * legacy plugin stored procedure upgrade path should run.
+ */
+static bool is_firewall_plugin_installed(THD *thd) {
+  LEX_STRING firewall_schema_name = {nullptr, 0};
+  Ed_connection conn(thd);
+
+  lex_string_strmake(thd->mem_root, &firewall_schema_name,
+                     STRING_WITH_LEN("SELECT @@mysql_firewall_database"));
+
+  if (conn.execute_direct(firewall_schema_name)) {
+    thd->clear_error();
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * This function will switch to the schema which is pointed by the
  * mysql-firewall-database variable by executing USE.
  *
@@ -601,7 +623,8 @@ static bool upgrade_firewall(THD *thd) {
   }
 
   // upgrade the procedures
-  if (has_old_firewall_tables || has_new_firewall_tables) {
+  if ((has_old_firewall_tables || has_new_firewall_tables) &&
+      is_firewall_plugin_installed(thd)) {
     error = switch_to_firewall_schema(thd, fw_schema) ||
             upgrade_firewall_procedures(thd);
 
