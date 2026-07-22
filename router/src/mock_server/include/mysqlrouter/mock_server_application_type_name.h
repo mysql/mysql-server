@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,21 +23,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_HTTP_SERVER_EXPORT_INCLUDED
-#define MYSQLROUTER_HTTP_SERVER_EXPORT_INCLUDED
+#ifndef MYSQLROUTER_MOCK_SERVER_APPLICATION_TYPE_NAME_INCLUDED
+#define MYSQLROUTER_MOCK_SERVER_APPLICATION_TYPE_NAME_INCLUDED
 
-#ifdef _WIN32
-#ifdef http_server_DEFINE_STATIC
-#define HTTP_SERVER_EXPORT
-#else
-#ifdef http_server_EXPORTS
-#define HTTP_SERVER_EXPORT __declspec(dllexport)
-#else
-#define HTTP_SERVER_EXPORT __declspec(dllimport)
-#endif
-#endif
-#else
-#define HTTP_SERVER_EXPORT
-#endif
+#include <string_view>
 
-#endif
+namespace mysql_harness {
+inline constexpr std::string_view kMockServerApplicationTypeName = "MockServer";
+}  // namespace mysql_harness
+
+#endif /* MYSQLROUTER_MOCK_SERVER_APPLICATION_TYPE_NAME_INCLUDED */

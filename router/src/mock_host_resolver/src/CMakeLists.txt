@@ -29,17 +29,12 @@ ADD_HARNESS_PLUGIN(mock_host_resolver
   SOURCES
   mock_host_resolver_plugin.cc
   mock_host_resolver_plugin_config.cc
+
+  REQUIRES_IF
+  harness_stdx_interface
+
   REQUIRES
   harness_stdx
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
-
-TARGET_INCLUDE_DIRECTORIES(mock_host_resolver PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-
-GENERATE_EXPORT_HEADER(mock_host_resolver
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/mock_host_resolver_export.h)
-
-

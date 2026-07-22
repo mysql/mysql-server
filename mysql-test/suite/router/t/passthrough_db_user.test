@@ -1,6 +1,9 @@
 # Tests that services that have the passthroughDbUser option set will execute
 # SQL for DB endpoints as that user.
 
+--let $component_only_suppression_pattern=Too many open sessions .* with passthrough DB pool from user
+--source include/component_only_suppression.inc
+
 # create the schemas
 create schema db1;
 
@@ -30,6 +33,9 @@ grant execute on procedure db1.p2 to user2@'%';
 grant execute on function db1.f2 to user2@'%';
 
 --source include/have_router.inc
+
+--let $component_only_suppression_pattern=Too many open sessions .* with passthrough DB pool from user
+--source include/component_only_suppression.inc
 
 --let $extra_mrs_router_id=1
 
@@ -180,9 +186,16 @@ exec $MRS_CLIENT_ARGS
 --echo #
 --echo # I.4
 --echo # there should be 4 connections for each user corresponding to the pool
---let $wait_condition=SELECT COUNT(*)=4 FROM performance_schema.processlist WHERE user='user1';
+--let $expected_session=4
+if ($MTR_ROUTER_MRS_USE_COMPONENT)
+{
+  # Please note that component uses internal SQL service, thus the cache for normal and passthrough
+  # connections is disabled.
+  --let $expected_session=0
+}
+--let $wait_condition=SELECT COUNT(*)=$expected_session FROM performance_schema.processlist WHERE user='user1';
 --source include/wait_condition_or_abort.inc
---let $wait_condition=SELECT COUNT(*)=4 FROM performance_schema.processlist WHERE user='user2';
+--let $wait_condition=SELECT COUNT(*)=$expected_session FROM performance_schema.processlist WHERE user='user2';
 --source include/wait_condition_or_abort.inc
 
 
@@ -313,8 +326,13 @@ exec $MRS_CLIENT_ARGS
   --path /svc/authentication/logout
   --session-file $MYSQL_TMP_DIR/user1b_session.dat;
 
---let $wait_condition=SELECT count(*)=0 FROM performance_schema.processlist where USER = 'user1'
---source include/wait_condition.inc
+--let $expected_session=4
+if ($MTR_ROUTER_MRS_USE_COMPONENT)
+{
+  --let $expected_session=0
+}
+--let $wait_condition=SELECT COUNT(*)=$expected_session FROM performance_schema.processlist WHERE user='user1';
+--source include/wait_condition_or_abort.inc
 
 --echo #
 --echo # III.2
@@ -502,7 +520,13 @@ exec $MRS_CLIENT_ARGS
   -p newpass
   --session-file $MYSQL_TMP_DIR/user1_session.dat;
 
---let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.processlist WHERE user='user1';
+--let $expected_session=2
+if ($MTR_ROUTER_MRS_USE_COMPONENT)
+{
+  --let $expected_session=0
+}
+
+--let $wait_condition=SELECT COUNT(*)=$expected_session FROM performance_schema.processlist WHERE user='user1';
 --source include/wait_condition_or_abort.inc
 
 --echo # Access db-object that doesn't require authentication, still service requires it.

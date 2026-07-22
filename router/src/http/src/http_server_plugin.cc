@@ -283,7 +283,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       // one.
       http_servers.emplace(section->name, HttpServerFactory::create(config));
 
-      log_info(
+      log_system(
           "listening on %s%s", (config.with_ssl_ ? "https://" : "http://"),
           mysql_harness::TcpDestination(config.srv_address_, config.srv_port_)
               .str()

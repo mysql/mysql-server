@@ -25,17 +25,39 @@
 
 #include "mysqlrouter/io_thread.h"
 
+#include <exception>
 #include <string>
 
 #include "my_thread.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/thread_affinity.h"
+#include "scope_guard.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 using namespace std::string_literals;
 
 void IoThread::operator()() {
+  try {
+    if (lifecycle_.on_start) lifecycle_.on_start(ndx_);
+  } catch (...) {
+    startup_promise_.set_exception(std::current_exception());
+    return;
+  }
+
+  const auto lifecycle_guard = create_scope_guard([this] {
+    try {
+      if (lifecycle_.on_stop) lifecycle_.on_stop(ndx_);
+    } catch (const std::exception &e) {
+      log_error("failed to stop io-thread 'io-%zu': %s", ndx_, e.what());
+    } catch (...) {
+      log_error("failed to stop io-thread 'io-%zu': unexpected exception",
+                ndx_);
+    }
+  });
+
+  startup_promise_.set_value();
+
   if (cpu_affinity_.any()) {
     auto res = ThreadAffinity(thr_.native_handle()).affinity(cpu_affinity_);
     if (!res) {

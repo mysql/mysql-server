@@ -1,6 +1,7 @@
 # Verify that the service status is respected by the MRS
 #
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 # Testing functionality added in the metadata ver. 3 here
 --source ../include/mrs/is_mrs_schema_v3_or_v4.inc
 

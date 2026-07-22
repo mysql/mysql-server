@@ -1,0 +1,24 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+# Registred SERVICE at path: /timeout
+# Registred DB_SCHEMA at path: /timeout/db
+# Registred DB_OBJECT at path: /timeout/db/sleep
+#
+# I.
+GET /timeout/db/sleep?delay_seconds=30
+{"message":"Database request timed out","status":504}
+OK
+Timed-out procedure request was cancelled.
+#
+# II.
+Procedure request succeeded after cancellation.
+
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_timeout;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

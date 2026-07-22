@@ -1,0 +1,51 @@
+
+
+## II. Set sysvars to valid values:
+#
+# 1. Set each sysvar to a valid value and verify the change.
+# 2. Restart the component and verify that values are applied
+#
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+#
+## II. 1 Set each sysvar to a valid value and verify the change.
+include/assert.inc [MRS Component http_port must be %HTTP_PORT%]
+include/assert.inc [MRS Component ssl_cert must be MYSQL_TMP_DIR/home/foo/mycert.ca]
+include/assert.inc [MRS Component ssl_key must be MYSQL_TMP_DIR/home/bar/key.key]
+include/assert.inc [MRS Component ssl_cipher must match the configured value]
+include/assert.inc [MRS Component io_worker_threads must be 1]
+include/assert.inc [MRS Component http_max_connections must be 100000]
+include/assert.inc [MRS Component http_max_request_body_size must be 2147483648]
+include/assert.inc [MRS Component http_max_response_body_size must be 2147483648]
+
+#
+## II. 2 Restart the component and verify that values are applied
+mysql_rest_service_restart()
+0
+include/assert.inc [current_http_port reports the restarted listener port]
+include/assert.inc [MRS Component default http_port must be 33443]
+mysql_rest_service_restart()
+0
+include/assert.inc [current_http_port is inactive after failed restart]
+include/assert.inc [current_tls_cert is inactive after failed restart]
+include/assert.inc [current_tls_key is inactive after failed restart]
+mysql_rest_service_restart()
+0
+mysql_rest_service_restart()
+0
+include/assert.inc [current_http_port is inactive after invalid ssl_cipher]
+include/assert.inc [current_tls_cipher is inactive after invalid ssl_cipher]
+include/assert.inc [current_io_worker_threads is inactive after invalid ssl_cipher]
+mysql_rest_service_restart()
+0
+
+#
+# Cleanup
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+include/assert.inc [MRS Component system variables must be unregistered]

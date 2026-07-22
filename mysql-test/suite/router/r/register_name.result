@@ -1,5 +1,6 @@
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
+# DB `basic_schema` - created
 
 
 ## I. Check how router_name is registered in the metadata
@@ -24,6 +25,7 @@ router_name
 select router_name from mysql_rest_service_metadata.router;
 router_name
 custom_name
+DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;

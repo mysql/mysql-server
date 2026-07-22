@@ -41,6 +41,7 @@ INSERT INTO `test`.`user2`(user_id, nickname, email) VALUES(0, "none", "no-email
 # Registred AUTH APP at path: /svc
 # Registred DB_OBJECT at path: /svc/basic/user1
 # Registred DB_OBJECT at path: /svc/basic/user2
+# Configured data-provider access for TABLE test.note
 GET /svc/basic/note
 {
     "message": "Unauthorized",

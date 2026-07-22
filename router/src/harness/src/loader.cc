@@ -354,8 +354,11 @@ void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-Loader::Loader(const std::string &program, LoaderConfig &config)
-    : config_(config), program_(program) {
+Loader::Loader(const std::string &program, LoaderConfig &config,
+               bool can_run_only_on_builtins)
+    : config_(config),
+      program_(program),
+      can_run_only_on_builtins_{can_run_only_on_builtins} {
   auto plugin_state = PluginState::get_instance();
   plugin_state->reset();
 
@@ -588,7 +591,7 @@ void Loader::start() {
   // check if there is anything to load; if not we currently treat is as an
   // error, not letting the user to run "idle" router that would close right
   // away
-  if (external_plugins_to_load_count() == 0) {
+  if (external_plugins_to_load_count() == 0 && !can_run_only_on_builtins_) {
     throw std::runtime_error(
         "Error: The service is not configured to load or start any plugin. "
         "Exiting.");
@@ -647,6 +650,12 @@ void Loader::unload_all() {
   log_debug("Unloading all plugins.");
   // If that ever gets implemented make sure to not attempt unloading
   // built-in plugins
+  for (auto &p : plugins_) {
+    log_debug("Unloading: %s.", p.first.c_str());
+    p.second.unload_library();
+  }
+
+  plugins_.clear();
 }
 
 /**

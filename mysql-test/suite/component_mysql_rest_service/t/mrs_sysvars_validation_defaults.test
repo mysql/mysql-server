@@ -1,0 +1,2 @@
+--source include/not_solaris.inc
+--source ../include/test/mrs_sysvars_validation_defaults.inc

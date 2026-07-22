@@ -1,5 +1,6 @@
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
+# DB `basic_schema` - created
 ## I. Create services with default compelted content and user-defined
 # 1. verify that default page ix html/txt and its legnth
 # 2. verify user provided page content
@@ -17,6 +18,7 @@ OK
 GET /b/authentication/completed
 example
 OK
+DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;

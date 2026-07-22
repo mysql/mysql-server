@@ -303,13 +303,17 @@ uint64_t MySQLRoutingComponent::current_total_connections() {
   return result;
 }
 
-const rapidjson::Document &MySQLRoutingComponent::routing_guidelines_document()
-    const {
+std::optional<std::reference_wrapper<const rapidjson::Document>>
+MySQLRoutingComponent::routing_guidelines_document() const {
+  if (!routing_guidelines_) return std::nullopt;
+
   return routing_guidelines_->get_routing_guidelines_document();
 }
 
-rapidjson::Document MySQLRoutingComponent::routing_guidelines_document_schema()
-    const {
+std::optional<rapidjson::Document>
+MySQLRoutingComponent::routing_guidelines_document_schema() const {
+  if (!routing_guidelines_) return std::nullopt;
+
   rapidjson::Document schema;
   schema.Parse(routing_guidelines_->get_schema());
   return schema;

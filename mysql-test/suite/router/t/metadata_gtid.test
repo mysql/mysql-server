@@ -1,4 +1,5 @@
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 --source include/have_group_replication_plugin.inc
 
 # Set the router-id, to generate statistics

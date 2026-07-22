@@ -239,3 +239,6 @@ thread_pool                      plugin_output_directory  no THREADPOOL_PLUGIN  
 thread_pool                      plugin_output_directory  no TP_THREAD_GROUP_STATE_PLUGIN TP_THREAD_GROUP_STATE
 thread_pool                      plugin_output_directory  no TP_THREAD_STATE_PLUGIN       TP_THREAD_STATE
 thread_pool                      plugin_output_directory  no TP_THREAD_TWO_PLUGIN         TP_THREAD_GROUP_STATS,TP_THREAD_STATE
+
+# MySQL REST Service component
+component_mysql_rest_service          plugin_output_directory  no  MYSQL_REST_SERVICE_COMPONENT component_mysql_rest_service

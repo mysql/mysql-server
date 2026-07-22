@@ -651,6 +651,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysql_rest_service.so
 %dir %{_datadir}/mysql-*/
 %{_datadir}/mysql-*/charsets/
 %{_datadir}/mysql-*/bulgarian/

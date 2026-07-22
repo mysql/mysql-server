@@ -111,7 +111,7 @@ SET(TESTS
 FOREACH(TEST ${TESTS})
   ADD_HARNESS_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
-    LIB_DEPENDS test-helpers;OpenSSL::SSL OpenSSL::Crypto)
+    LIB_DEPENDS test-helpers;OpenSSL::SSL;OpenSSL::Crypto;mysys)
 ENDFOREACH()
 
 SET(TESTS
@@ -123,7 +123,7 @@ FOREACH(TEST ${TESTS})
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/
     INCLUDE_DIRS ${MySQLRouter_BINARY_DIR}/src/harness/include/
-    LIB_DEPENDS harness_tls;test-helpers;OpenSSL::SSL;OpenSSL::Crypto)
+    LIB_DEPENDS harness_tls;test-helpers)
 ENDFOREACH()
 
 SET(TESTS
@@ -202,7 +202,7 @@ MYSQL_ADD_EXECUTABLE(net_ts_connect net_ts_connect.cc
 MYSQL_ADD_EXECUTABLE(net_ts_accept net_ts_accept.cc
   COMPONENT Router
   SKIP_INSTALL
-  LINK_LIBRARIES harness_net_ts
+  LINK_LIBRARIES harness_net_ts harness-library
   )
 
 MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc

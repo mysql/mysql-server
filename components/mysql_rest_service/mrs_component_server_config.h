@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,21 +23,46 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_MOCK_SERVER_EXPORT_INCLUDED
-#define MYSQLROUTER_MOCK_SERVER_EXPORT_INCLUDED
+#ifndef MRS_COMPONENT_SERVER_CONFIG_H
+#define MRS_COMPONENT_SERVER_CONFIG_H
 
-#ifdef _WIN32
-#ifdef mock_server_DEFINE_STATIC
-#define MOCK_SERVER_EXPORT
-#else
-#ifdef mock_server_EXPORTS
-#define MOCK_SERVER_EXPORT __declspec(dllexport)
-#else
-#define MOCK_SERVER_EXPORT __declspec(dllimport)
-#endif
-#endif
-#else
-#define MOCK_SERVER_EXPORT
-#endif
+#include <string>
 
-#endif
+namespace mrs_component {
+
+/**
+  Holds the Server configuration required by the MRS component.
+*/
+class ServerConfig {
+ public:
+  ServerConfig() = default;
+  ~ServerConfig() = default;
+  ServerConfig(const ServerConfig &) = delete;
+  ServerConfig &operator=(const ServerConfig &) = delete;
+  ServerConfig(ServerConfig &&) = delete;
+  ServerConfig &operator=(ServerConfig &&) = delete;
+
+  std::string m_basedir;
+  std::string m_datadir;
+  std::string m_log_level;
+  std::string m_hostname;
+  std::string m_port;
+  std::string m_server_id;
+  std::string m_server_uuid;
+  std::string m_ssl_cert;
+  std::string m_ssl_key;
+  std::string m_ssl_cipher;
+  std::string m_bind_address;
+  std::string m_socket;
+  bool m_have_ssl = false;
+
+  int fetch_required_sysvars();
+
+ private:
+  int get_sysvar_value(const std::string &name, std::string &value);
+  int get_have_ssl(bool &value);
+};
+
+}  // namespace mrs_component
+
+#endif  // MRS_COMPONENT_SERVER_CONFIG_H

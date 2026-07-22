@@ -4,6 +4,8 @@
 #
 --source include/have_router.inc
 
+--source include/skip_component_mrs.inc
+
 CREATE USER account1@'%' IDENTIFIED BY 'pwd1';
 CREATE USER account2@'%' IDENTIFIED BY 'pwd2';
 

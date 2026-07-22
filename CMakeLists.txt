@@ -2527,13 +2527,19 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
 
 # depends on mysql_version.h to exist
-IF(NOT WITHOUT_SERVER AND WITH_ROUTER)
-  ADD_SUBDIRECTORY(router)
+IF(NOT WITHOUT_SERVER)
+  IF(WITH_ROUTER)
+    ADD_SUBDIRECTORY(router)
+  ENDIF()
 ELSE()
   # Define harness_net_ts target and public include directories.
+  INCLUDE(router/cmake/Plugin.cmake)
   ADD_SUBDIRECTORY(router/src/harness/include)
-  # In case we switch from ON to OFF, we do not want mtr
-  # to pick up any obsolete executables.
+ENDIF()
+
+IF(WITHOUT_SERVER OR NOT WITH_ROUTER)
+  # In case we switch from ON to OFF, we do not want mtr to pick up any
+  # obsolete executables.
   IF(WIN32)
     SET(MYSQLROUTER_EXE "mysqlrouter.exe")
   ELSE()
@@ -2550,6 +2556,7 @@ ELSE()
       ${EXE_DIR}/MinSizeRel/${MYSQLROUTER_EXE}
       )
   ENDIF()
+
   # We do not want ctest to pick up obsolete tests.
   # See similar code for WITH_UNIT_TESTS above.
   IF(EXISTS "${CMAKE_BINARY_DIR}/router/CTestTestfile.cmake")

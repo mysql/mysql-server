@@ -98,7 +98,9 @@ stdx::expected<void, std::error_code> IoComponent::init(
       }
     }
     try {
-      io_threads_.emplace_back(ndx, cpu_affinity, backend_name);
+      io_threads_.emplace_back(ndx, cpu_affinity, backend_name,
+                               thread_lifecycle_);
+      io_threads_.back().wait_until_started();
 
       // check if the io-thread is actually started.
       auto open_res = io_threads_.back().context().open_res();
@@ -112,6 +114,9 @@ stdx::expected<void, std::error_code> IoComponent::init(
       // reset the component
       reset();
       return stdx::unexpected(e.code());
+    } catch (...) {
+      reset();
+      throw;
     }
   }
 

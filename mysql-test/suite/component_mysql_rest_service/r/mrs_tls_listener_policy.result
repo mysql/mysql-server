@@ -1,0 +1,31 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+# Component restart applies MRS TLS changes without changing Server TLS.
+include/assert.inc [Server admin TLS context uses the configured certificate]
+SET GLOBAL mysql_rest_service.ssl_cipher = 'ECDHE-RSA-AES256-GCM-SHA384';
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+include/assert.inc [component restart leaves Server main TLS context unchanged]
+include/assert.inc [component restart leaves Server admin TLS context unchanged]
+include/assert.inc [component restart applies the replacement MRS certificate]
+include/assert.inc [component restart applies the replacement MRS private key]
+include/assert.inc [component restart applies the replacement MRS cipher policy]
+
+# Server TLS reload leaves the active MRS context unchanged.
+SET GLOBAL ssl_cipher = 'ECDHE-RSA-AES128-GCM-SHA256';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+include/assert.inc [Server TLS reload leaves the active MRS TLS status unchanged]
+SET GLOBAL ssl_cipher = @saved_server_ssl_cipher;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

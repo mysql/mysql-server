@@ -30,6 +30,7 @@
 #include <sstream>
 #include <vector>
 
+#include "componentlog_plugin.h"
 #include "consolelog_plugin.h"
 #include "dim.h"
 #include "filelog_plugin.h"
@@ -274,6 +275,9 @@ HandlerPtr create_logging_sink(const mysql_harness::Config &full_conf,
 #else
     result = std::make_unique<SyslogHandler>(true, config.level);
 #endif
+  } else if (config.name == kComponentlogPluginName &&
+             ComponentlogHandler::is_initialized()) {
+    result = std::make_unique<ComponentlogHandler>(true, config.level);
   } else if (g_supported_external_logging_handler_names.count(config.name) >
              0) {
     if (!full_conf.has_any(config.name)) {

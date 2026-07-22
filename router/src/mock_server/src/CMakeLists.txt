@@ -65,6 +65,7 @@ ENDIF()
 
 add_harness_plugin(mock_server
   NO_INSTALL
+
   SOURCES duktape_statement_reader.cc
   x_protocol_decoder.cc
   x_protocol_encoder.cc
@@ -78,37 +79,44 @@ add_harness_plugin(mock_server
   mock_server_component.cc
   authentication.cc
   protocol_base.cc
+
+  REQUIRES_IF
+  mysql_protocol
+  router_mysqlxmessages_interface
+  router_utils_interface
+  io_component_interface
+  duktape
+
   REQUIRES
-    mysql_protocol
-    duktape
-    router_mysqlxmessages
-    harness_stdx
-    harness-library
-    router_utils
-    io_component
-    harness_tls
+  router_mysqlxmessages
+  harness_stdx
+  harness-library
+  router_utils
+  io_component
+  harness_tls
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   )
-ADD_DEPENDENCIES(mock_server
+ADD_DEPENDENCIES(mock_server_object
   GenError
   mysql_server_mock_schema
   )
 
-TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
-  ${PROJECT_SOURCE_DIR}/src/mock_server/include/
-  ${PROJECT_SOURCE_DIR}/src/router/include
-  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include/
-  ${PROJECT_SOURCE_DIR}/src/http/tests/
-  ${CMAKE_CURRENT_BINARY_DIR}
-  )
-
 add_harness_plugin(rest_mock_server
   NO_INSTALL
-  SOURCES rest_mock_server.cc
-  REQUIRES mock_server;http_server)
-TARGET_INCLUDE_DIRECTORIES(rest_mock_server PUBLIC
-  ${PROJECT_SOURCE_DIR}/src/http/include
-  ${PROJECT_SOURCE_DIR}/src/http/tests/
-  )
+
+  SOURCES
+  rest_mock_server.cc
+
+  REQUIRES_IF
+  http_server_interface
+  mock_server_interface
+  router_utils_interface
+  ext::cno
+  router_tls
+
+  REQUIRES mock_server;http_server;)
 
 MYSQL_ADD_EXECUTABLE(mysql_server_mock
   main.cc
@@ -120,6 +128,10 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   harness_net_ts
   SKIP_INSTALL
   )
+
+TARGET_INCLUDE_DIRECTORIES(mysql_server_mock PRIVATE
+  ${PROJECT_SOURCE_DIR}/src/mock_server/include
+)
 
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1

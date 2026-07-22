@@ -1,0 +1,57 @@
+
+
+## I. Bootstrap succeeds with direct privileges
+## II. Active-only role privileges are not inherited; a default role works
+## III. Missing CREATE USER or ROLE_ADMIN fails atomically and recovers
+## IV. Missing metadata privileges retains accounts without grant drift
+# MySQL Rest Service schema created.
+
+# I. Direct bootstrap privileges are sufficient
+include/assert.inc [direct-grant installer has no active role]
+include/assert.inc [direct grants provision both fixed internal accounts]
+include/assert.inc [direct grants permit runtime registration]
+include/assert.inc [direct-grant bootstrap publishes the listener]
+
+# II. A session-active non-default role is not inherited
+include/assert.inc [installer session has the non-default role active]
+include/assert.inc [active-only bootstrap failure leaves the component installed]
+include/assert.inc [active-only privileges create no internal account]
+include/assert.inc [active-only privileges create no runtime registration]
+include/assert.inc [active-only bootstrap failure publishes no listener]
+include/assert.inc [retry installer activates its bootstrap role by default]
+include/assert.inc [default-role retry provisions both internal accounts]
+
+# III.1 Missing CREATE USER fails before creating either account
+include/assert.inc [missing CREATE USER leaves no internal account]
+include/assert.inc [missing CREATE USER leaves no runtime registration]
+include/assert.inc [missing CREATE USER leaves no listener]
+include/assert.inc [granting CREATE USER permits a successful retry]
+
+# III.2 Missing ROLE_ADMIN makes CREATE USER DEFAULT ROLE atomic
+include/assert.inc [missing ROLE_ADMIN leaves no partial internal account]
+include/assert.inc [missing ROLE_ADMIN leaves no runtime registration]
+include/assert.inc [missing ROLE_ADMIN leaves no listener]
+include/assert.inc [granting ROLE_ADMIN permits a successful retry]
+
+# IV. Missing metadata access retains accounts without grant drift
+include/assert.inc [metadata privilege failure reports WAITING_FOR_METADATA]
+include/assert.inc [metadata failure retains both internal accounts locked]
+include/assert.inc [metadata failure retains exactly the provider-role memberships]
+include/assert.inc [metadata failure retains exactly the provider default roles]
+include/assert.inc [metadata failure leaves no unexpected direct grants]
+include/assert.inc [metadata privilege failure creates no runtime registration]
+include/assert.inc [metadata privilege failure leaves no listener]
+include/assert.inc [metadata recovery keeps both internal accounts locked]
+include/assert.inc [metadata recovery keeps exactly the provider-role memberships]
+include/assert.inc [metadata recovery keeps exactly the provider default roles]
+include/assert.inc [metadata recovery adds no unexpected direct grants]
+include/assert.inc [metadata privilege recovery completes runtime registration]
+include/assert.inc [metadata privilege recovery publishes the listener]
+
+# Cleanup
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

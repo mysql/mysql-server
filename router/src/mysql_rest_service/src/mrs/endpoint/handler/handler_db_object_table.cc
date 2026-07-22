@@ -330,7 +330,9 @@ uint64_t HandlerDbObjectTable::slow_query_timeout() const {
 }
 
 HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
-  auto session = get_session(ctxt);
+  PoolManagerRef pool;
+  auto session = get_session(
+      ctxt, collector::MySQLConnection::kMySQLConnectionUserdataRO, &pool);
   auto object = entry_->object_description;
   database::dv::ObjectFieldFilter field_filter;
   std::optional<std::string> target_field;
@@ -408,7 +410,7 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
       database::QueryRestTable rest{opt_encode_bigints_as_string,
                                     opt_sp_include_links, slow_query_timeout()};
 
-      monitored::QueryRetryOnRO query_retry{cache_,
+      monitored::QueryRetryOnRO query_retry{pool ? nullptr : cache_,
                                             session,
                                             gtid_manager_,
                                             fog,
@@ -469,7 +471,7 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
       log_debug("Rest select single row %s",
                 database::dv::format_key(*object, pk).str().c_str());
 
-      monitored::QueryRetryOnRO query_retry{cache_,
+      monitored::QueryRetryOnRO query_retry{pool ? nullptr : cache_,
                                             session,
                                             gtid_manager_,
                                             fog,

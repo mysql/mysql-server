@@ -2355,6 +2355,34 @@ TEST_F(HttpServerLimitsRuntimeTest, OversizedBodyReturns413) {
   EXPECT_NE(get_req.get_response_code(), HttpStatusCode::PayloadTooLarge);
 }
 
+TEST_F(HttpServerLimitsRuntimeTest, InvalidUriWithOversizedBodyReturns413) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_request_body_size", "8"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  const auto response =
+      send_raw_http_request(http_hostname_, http_port_,
+                            "POST /path?someparam=${...://...} HTTP/1.1\r\n"
+                            "Host: 127.0.0.1\r\nContent-Length: 16\r\n"
+                            "Connection: close\r\n\r\nabcdefghijklmnop");
+  EXPECT_THAT(response,
+              ::testing::StartsWith("HTTP/1.1 413 Payload Too Large"));
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto get_req = rest_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(get_req);
+}
+
 TEST_F(HttpServerLimitsRuntimeTest,
        RequestWithContentLengthAndTransferEncodingReturns400) {
   const std::string conf_file{create_config_file(
@@ -2372,7 +2400,7 @@ TEST_F(HttpServerLimitsRuntimeTest,
 
   const auto response = send_raw_http_request(
       http_hostname_, http_port_,
-      "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+      "POST /path?someparam=${...://...} HTTP/1.1\r\nHost: 127.0.0.1\r\n"
       "Transfer-Encoding: chunked\r\nContent-Length: 4\r\n"
       "Connection: close\r\n\r\n4\r\nabcd\r\n"
       "0\r\n\r\n");
@@ -2397,11 +2425,11 @@ TEST_F(HttpServerLimitsRuntimeTest, RequestWithInvalidContentLengthReturns400) {
 
   ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
-  const auto response =
-      send_raw_http_request(http_hostname_, http_port_,
-                            "POST /upload HTTP/1.1\r\nHost: "
-                            "127.0.0.1\r\nContent-Length: abc\r\n"
-                            "Connection: close\r\n\r\n");
+  const auto response = send_raw_http_request(
+      http_hostname_, http_port_,
+      "POST /path?someparam=${...://...} HTTP/1.1\r\nHost: "
+      "127.0.0.1\r\nContent-Length: abc\r\n"
+      "Connection: close\r\n\r\n");
   EXPECT_THAT(response, ::testing::StartsWith("HTTP/1.1 400 Bad Request"));
   EXPECT_THAT(http_server.get_logfile_content(),
               ::testing::ContainsRegex(

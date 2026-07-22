@@ -29,7 +29,9 @@
 #include <stdexcept>
 #include <vector>
 
+#include "components/mysql_rest_service/component_application_type_name.h"
 #include "hostname_validator.h"
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
@@ -522,9 +524,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     }
 
     net::io_context &io_ctx = IoComponent::get_instance().io_context();
-    {
+    const bool is_application_component =
+        mysql_harness::ApplicationTypeManager::instance().get() ==
+        mysql_harness::kComponentApplicationTypeName;
+
+    std::shared_ptr<routing_guidelines::Routing_guidelines_engine>
+        routing_guidelines = nullptr;
+    if (!is_application_component) {
       auto &routing_component = MySQLRoutingComponent::get_instance();
       std::lock_guard lock(routing_guidelines_create_mtx);
+
       if (!routing_component.routing_guidelines_initialized()) {
         const auto &routing_guidelines_document =
             create_routing_guidelines_document(g_app_info->config->sections(),
@@ -534,6 +543,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                     routing_guidelines_document.value().c_str());
           routing_component.set_routing_guidelines(
               routing_guidelines_document.value());
+          routing_guidelines =
+              MySQLRoutingComponent::get_instance().get_routing_guidelines();
         } else if (routing_guidelines_document.error() ==
                    std::errc::not_supported) {
           log_debug(
@@ -544,11 +555,14 @@ static void start(mysql_harness::PluginFuncEnv *env) {
               "Unable to create routing guidelines from configuration file: " +
               routing_guidelines_document.error().message());
         }
+      } else {
+        // Guidelines initialized by a different routing plugin, can be used
+        // straight away
+        routing_guidelines =
+            MySQLRoutingComponent::get_instance().get_routing_guidelines();
       }
     }
 
-    auto routing_guidelines =
-        MySQLRoutingComponent::get_instance().get_routing_guidelines();
     auto r = std::make_shared<MySQLRouting>(
         config, io_ctx, std::move(routing_guidelines), name,
         config.source_ssl_mode != SslMode::kDisabled ? source_tls_ctx : nullptr,
@@ -602,7 +616,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       std::this_thread::sleep_for(1ms);
     }
 
-    if (mdc->is_initialized() && !r->is_standalone()) {
+    if (mdc->is_initialized() && !r->is_standalone() &&
+        !is_application_component) {
       mdc->add_routing_guidelines_update_callbacks(
           [r](const std::string &routing_guidelines_document) {
             return r->update_routing_guidelines(routing_guidelines_document);
@@ -615,15 +630,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       });
     }
 
-    Scope_guard guard{[r, mdc, section_key = section->key,
-                       tls_reload_registration,
+    Scope_guard guard{[r, mdc, is_application_component,
+                       section_key = section->key, tls_reload_registration,
                        destination_tls_reload_registration]() {
       mysql_harness::TlsReloadComponent::get_instance().unregister_callback(
           tls_reload_registration);
       mysql_harness::TlsReloadComponent::get_instance().unregister_callback(
           destination_tls_reload_registration);
       MySQLRoutingComponent::get_instance().erase(section_key);
-      if (mdc->is_initialized() && !r->is_standalone()) {
+      if (mdc->is_initialized() && !r->is_standalone() &&
+          !is_application_component) {
         mdc->clear_routing_guidelines_update_callbacks();
         mdc->clear_router_info_update_callback();
       }

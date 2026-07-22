@@ -1,0 +1,102 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE USER mrs_mysql_auth_user@'%' IDENTIFIED BY 'pwd';
+CREATE USER mrs_mysql_auth_locked@'%' IDENTIFIED BY 'pwd' ACCOUNT LOCK;
+CREATE SCHEMA mrs_mysql_auth;
+CREATE TABLE mrs_mysql_auth.pool_holder (id INT PRIMARY KEY);
+INSERT INTO mrs_mysql_auth.pool_holder VALUES (1);
+GRANT SELECT ON mrs_mysql_auth.* TO mrs_mysql_auth_user@'%';
+UPDATE mysql_rest_service_metadata.config
+SET data = JSON_MERGE_PATCH(data,
+'{"passthroughDbUser":{"poolSize":1}}');
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/db
+# Registred DB_OBJECT at path: /svc/db/holder
+# Registred AUTH APP at path: /svc
+
+# Successful authentication returns the canonical MySQL account.
+GET /svc/authentication/login
+
+OK
+SELECT name, vendor_user_id
+FROM mysql_rest_service_metadata.mrs_user
+WHERE name = 'mrs_mysql_auth_user';
+name	vendor_user_id
+mrs_mysql_auth_user	mrs_mysql_auth_user@%
+
+# Passthrough pool exhaustion returns 429 and recovers after release.
+LOCK TABLES mrs_mysql_auth.pool_holder WRITE;
+GET /svc/db/holder/1
+{
+    "message": "Too Many Requests",
+    "status": 429
+}
+OK
+UNLOCK TABLES;
+GET /svc/db/holder/1
+{
+    "id": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/db/holder/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
+    }
+}
+OK
+
+# A failed pool allocation releases its slot for a later retry.
+DROP USER mrs_mysql_auth_user@'%';
+GET /svc/db/holder/1
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+CREATE USER mrs_mysql_auth_user@'%' IDENTIFIED BY 'pwd';
+GRANT SELECT ON mrs_mysql_auth.* TO mrs_mysql_auth_user@'%';
+GET /svc/db/holder/1
+{
+    "id": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/db/holder/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
+    }
+}
+OK
+
+# Invalid, missing, and locked accounts are rejected.
+GET /svc/authentication/login
+
+OK
+GET /svc/authentication/login
+
+OK
+GET /svc/authentication/login
+
+OK
+
+# A failed attempt does not affect a later authenticated connection.
+GET /svc/authentication/login
+
+OK
+
+# Cleanup
+DROP USER mrs_mysql_auth_user@'%';
+DROP USER mrs_mysql_auth_locked@'%';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_mysql_auth;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

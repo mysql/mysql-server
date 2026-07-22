@@ -26,8 +26,10 @@
 #include "test/helpers.h"
 
 #include "dim.h"
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
+#include "router/src/router/include/mysqlrouter/router_application_type_name.h"
 
 ::testing::AssertionResult AssertLoaderSectionAvailable(
     const char *loader_expr, const char *section_expr,
@@ -80,6 +82,10 @@ void init_test_logger(
 
     dim.set_Config(config.release(),
                    std::default_delete<mysql_harness::LoaderConfig>());
+
+    // Set the Application type
+    mysql_harness::ApplicationTypeManager::instance().set(
+        mysql_harness::kRouterApplicationTypeName);
   }
 
   std::list<std::string> log_domains(additional_log_domains.begin(),

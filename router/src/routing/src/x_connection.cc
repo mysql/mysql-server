@@ -289,10 +289,11 @@ MysqlRoutingXConnection::encode_error_packet(std::vector<uint8_t> &error_frame,
                                              uint16_t error_code,
                                              const std::string &msg,
                                              const std::string &sql_state,
-                                             Mysqlx::Error::Severity severity) {
+                                             bool is_severity_fatal) {
   auto err_msg = Mysqlx::Error();
 
-  err_msg.set_severity(severity);
+  err_msg.set_severity(is_severity_fatal ? Mysqlx::Error::FATAL
+                                         : Mysqlx::Error::ERROR);
   err_msg.set_msg(msg);
   err_msg.set_code(error_code);
   err_msg.set_sql_state(sql_state);
@@ -1493,13 +1494,12 @@ void MysqlRoutingXConnection::client_cap_set() {
             }
 
             // check if the server supports Tls
-            for (auto const &caps : dst_protocol.caps()->capabilities()) {
-              if (!caps.has_name()) continue;
+            for (auto const &caps : dst_protocol.caps()) {
 #ifdef DEBUG_IO
-              std::cerr << __LINE__ << ": " << caps.name() << "\n";
+              std::cerr << __LINE__ << ": " << caps << "\n";
 #endif
 
-              if (caps.name() == "tls") {
+              if (caps == "tls") {
                 continue_with_tls = true;
                 break;
               }
@@ -1784,7 +1784,13 @@ void MysqlRoutingXConnection::server_recv_check_caps_response() {
                                           Function::kFinish);
         }
 
-        src_protocol.caps(std::move(msg));
+        std::set<std::string> cap_names;
+        for (auto const &caps : msg->capabilities()) {
+          if (!caps.has_name()) continue;
+          cap_names.insert(caps.name());
+        }
+
+        src_protocol.caps(std::move(cap_names));
       }
 
       discard_current_msg(src_channel, src_protocol);

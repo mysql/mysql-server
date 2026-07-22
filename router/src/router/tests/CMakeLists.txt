@@ -155,6 +155,8 @@ ADD_HARNESS_TEST_FILE(test_mysqlrouter_app.cc
     test-helpers
     router_frontend_lib
     routing_frontend_lib
+	router_lib
+    routing_guidelines
   EXTRA_SOURCES
     ../../../tests/helpers/filesystem_utils.cc
   INCLUDE_DIRS
@@ -181,9 +183,15 @@ FOREACH(test_file
   ADD_HARNESS_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE issues
     LIB_DEPENDS
-      test-helpers
-      router_utils
+      router_utils_object
+      router_lib_object
+      harness_tls_object
+      harness_stdx_object
       router_frontend_lib  # init_keyring
+      router_mysql_object
+      router_cluster_object
+      routing_guidelines_object
+      test-helpers
     INCLUDE_DIRS
       $<TARGET_PROPERTY:router_utils,INCLUDE_DIRECTORIES>
       ../src/
@@ -191,6 +199,13 @@ FOREACH(test_file
   )
 ENDFOREACH()
 DOWNGRADE_STRINGOP_WARNINGS(routertest_issues_bug24909259)
+
+IF(WIN32)
+  # This test intentionally embeds the Router object libraries, so imported
+  # symbols may be resolved by definitions in the same executable, as with
+  # component_mysql_rest_service.
+  TARGET_LINK_OPTIONS(routertest_issues_bug24909259 PRIVATE "/IGNORE:4217")
+ENDIF()
 
 ADD_HARNESS_TEST_FILE(test_default_paths.cc
   MODULE ${TEST_MODULE}

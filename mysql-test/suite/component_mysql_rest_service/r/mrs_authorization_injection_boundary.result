@@ -1,0 +1,36 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+# DB `basic_schema` - created
+# Registred SERVICE at path: /public
+# Registred DB_SCHEMA at path: /public/db
+# Registred DB_OBJECT at path: /public/db/items
+# Registred SERVICE at path: /secure
+# Registred DB_SCHEMA at path: /secure/db
+# Registred DB_OBJECT at path: /secure/db/items
+# Registred SERVICE at path: /other
+# Registred DB_SCHEMA at path: /other/db
+# Registred DB_OBJECT at path: /other/db/items
+# Registered MRS ROLE: component_user
+# Registered MRS Role Grant: /secure /db /items => CREATE,READ
+# Registred AUTH APP at path: NULL
+# Registred MRS USER: 'component_user'
+
+# Public content works and protected content requires authentication.
+
+# Service and CRUD denials happen before application SQL executes.
+include/assert.inc [service and CRUD authorization reject before application SQL]
+
+# Hostile input remains data and invalid SQL surfaces are rejected.
+SELECT comments FROM basic_schema.table2 WHERE id = 11;
+comments
+0' UNION SELECT CURRENT_USER() --
+
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

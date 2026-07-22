@@ -49,67 +49,37 @@ SET(guidelines_SRC
   utils.cc
   )
 
-ADD_LIBRARY(routing_guidelines-objects OBJECT ${guidelines_SRC})
-TARGET_LINK_LIBRARIES(routing_guidelines-objects
+ROUTER_ADD_SHARED_LIBRARY(routing_guidelines
+  SOURCES
+  ${guidelines_SRC}
+
+  OUTPUT_NAME "mysqlrouter_routing_guidelines"
+
+  LINK_LIBRARIES_IF
+  extra::rapidjson
+  router_utils_interface
+
+  LINK_LIBRARIES
+  PUBLIC
+  harness-library
+  router_utils
   PUBLIC harness_stdx router_utils
-  PRIVATE extra::rapidjson)
-# Needed so items tagged with ROUTING_GUIDELINES_EXPORT
-# (to be exposed by the shared version of the library)
-# are not skipped during build
-TARGET_COMPILE_DEFINITIONS(routing_guidelines-objects
-  PUBLIC routing_guidelines_EXPORTS)
-TARGET_INCLUDE_DIRECTORIES(routing_guidelines-objects PUBLIC
+  )
+
+TARGET_INCLUDE_DIRECTORIES(routing_guidelines_object PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   ${CMAKE_CURRENT_BINARY_DIR}/../include/
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR})
-
-# Converting an OBJECT library to STATIC or SHARED does not work for Xcode,
-# use the OBJECT library everywhere.
-# We don't support creating packages from Xcode projects anyways,
-# so we don't need the INSTALL stuff below.
-# See also ADD_CONVENIENCE_LIBRARY and MERGE_CONVENIENCE_LIBRARIES.
-IF(APPLE_XCODE)
-  ADD_LIBRARY(routing_guidelines ALIAS routing_guidelines-objects)
-  ADD_LIBRARY(routing_guidelines-static ALIAS routing_guidelines-objects)
-  GENERATE_EXPORT_HEADER(routing_guidelines
-    EXPORT_FILE_NAME
-    ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_guidelines_export.h)
-  RETURN()
-ENDIF()
 
 IF(LIBFUZZER_COMPILE_FLAGS)
   ADD_LIBRARY(routing_guidelines-fuzzed OBJECT ${guidelines_SRC})
   # Build it only if needed by other targets.
   SET_PROPERTY(TARGET routing_guidelines-fuzzed PROPERTY EXCLUDE_FROM_ALL TRUE)
   TARGET_LINK_LIBRARIES(routing_guidelines-fuzzed
-    $<TARGET_PROPERTY:routing_guidelines-objects,LINK_LIBRARIES>)
+    $<TARGET_PROPERTY:routing_guidelines,LINK_LIBRARIES>)
   TARGET_INCLUDE_DIRECTORIES(routing_guidelines-fuzzed PUBLIC
-    $<TARGET_PROPERTY:routing_guidelines-objects,INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:routing_guidelines_object,INCLUDE_DIRECTORIES>)
   TARGET_COMPILE_OPTIONS(routing_guidelines-fuzzed
     PUBLIC "${LIBFUZZER_COMPILE_FLAGS}")
 ENDIF()
-
-ROUTER_ADD_SHARED_LIBRARY(routing_guidelines
-  $<TARGET_OBJECTS:routing_guidelines-objects>
-
-  OUTPUT_NAME "mysqlrouter_routing_guidelines"
-
-  LINK_LIBRARIES
-  PUBLIC
-  harness-library
-  router_utils
-  )
-
-# static library for tests
-ADD_LIBRARY(routing_guidelines-static STATIC
-  $<TARGET_OBJECTS:routing_guidelines-objects>)
-TARGET_INCLUDE_DIRECTORIES(routing_guidelines-static PUBLIC
-  $<TARGET_PROPERTY:routing_guidelines-objects,INCLUDE_DIRECTORIES>
-  )
-TARGET_COMPILE_OPTIONS(routing_guidelines-static PUBLIC
-  $<TARGET_PROPERTY:routing_guidelines-objects,COMPILE_OPTIONS>
-  )
-TARGET_COMPILE_DEFINITIONS(routing_guidelines-static PUBLIC
-  $<TARGET_PROPERTY:routing_guidelines-objects,COMPILE_DEFINITIONS>
-  )

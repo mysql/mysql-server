@@ -47,10 +47,9 @@ class HTTP_CLIENT_EXPORT Request : public http::base::Request {
   using ConnectionInterface = http::base::ConnectionInterface;
 
  public:
-  explicit Request(const Uri &uri, MethodType method = http::base::method::Get)
-      : holder_{std::make_unique<Holder>(uri, method)} {}
+  explicit Request(const Uri &uri, MethodType method = http::base::method::Get);
 
-  Request() : Request(Uri{"/"}, http::base::method::Get) {}
+  Request();
   Request(Request &&);
   ~Request() override;
 

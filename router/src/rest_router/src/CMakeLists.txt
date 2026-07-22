@@ -31,6 +31,11 @@ ADD_HARNESS_PLUGIN(rest_router
   http_server_lib
   rest_api_lib
   rest_api
+  REQUIRES_IF
+  routing_interface
+  http_server_lib_interface
+  rest_api_lib
+  rest_api_interface
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
 
 GENERATE_EXPORT_HEADER(rest_router

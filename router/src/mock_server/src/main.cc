@@ -35,6 +35,7 @@
 #endif
 
 #include "dim.h"
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
@@ -43,6 +44,7 @@
 #include "mysql/harness/process_state_component.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "mysqlrouter/mock_server_application_type_name.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 
 constexpr unsigned kHelpScreenWidth = 72;
@@ -138,6 +140,11 @@ class MysqlServerMockFrontend {
 
   void run() {
     init_DIM();
+
+    // Set the Application type
+    mysql_harness::ApplicationTypeManager::instance().set(
+        mysql_harness::kMockServerApplicationTypeName);
+
     auto loader_config = std::make_unique<mysql_harness::LoaderConfig>(
         mysql_harness::Config::allow_keys);
 

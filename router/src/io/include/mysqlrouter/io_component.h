@@ -29,6 +29,7 @@
 #include <list>
 #include <memory>  // make_unique
 #include <string>
+#include <utility>
 
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -56,6 +57,17 @@ class IO_COMPONENT_EXPORT IoComponent {
   net::io_context &io_context();
 
   static IoComponent &get_instance();
+
+  /**
+   * Set callbacks invoked from each I/O worker thread.
+   *
+   * The callbacks must be set before init() and reset only after reset().
+   */
+  void set_thread_lifecycle(IoThreadLifecycle lifecycle) {
+    thread_lifecycle_ = std::move(lifecycle);
+  }
+
+  void reset_thread_lifecycle() { thread_lifecycle_ = {}; }
 
   /**
    * initialize io-component.
@@ -129,6 +141,7 @@ class IO_COMPONENT_EXPORT IoComponent {
   std::atomic<int> users_{};
 
   std::string backend_name_;
+  IoThreadLifecycle thread_lifecycle_;
 };
 
 #endif

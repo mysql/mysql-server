@@ -1,4 +1,5 @@
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 --source include/have_group_replication_plugin.inc
 
 --source ../include/predefined_setup/configure_innodb_cluster_gr.inc

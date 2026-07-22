@@ -185,6 +185,7 @@ my $initial_bootstrap_cmd;
 my $mysql_base_version;
 my $mysqlx_baseport;
 my $router_baseport;
+my $component_mrs_baseport;
 my $router_plugin_dir;
 my $path_config_file;       # The generated config file, var/my.cnf
 my $path_vardir_trace;
@@ -285,6 +286,7 @@ our @DEFAULT_SUITES = qw(
   x
   component_keyring_file
   component_connection_control
+  component_mysql_rest_service
   jdv
 );
 
@@ -375,6 +377,7 @@ our $glob_debugger       = 0;
 our $group_replication   = 0;
 our $router_test           = 0;
 our $router_bootstrap_test = 0;
+our $component_mrs_test    = 0;
 our $ndbcluster_enabled  = 0;
 our $ndbcluster_only     = $ENV{'MTR_NDB_ONLY'} || 0;
 our $mysqlbackup_enabled = 0;
@@ -846,6 +849,11 @@ sub main {
 
   if ($router_test) {
     # Reserve 10 extra ports for the Router to use
+    $ports_per_thread = $ports_per_thread + 10;
+  }
+
+  if ($component_mrs_test) {
+    # Reserve 10 extra ports for the HTTP
     $ports_per_thread = $ports_per_thread + 10;
   }
 
@@ -2668,6 +2676,13 @@ sub set_build_thread_ports($) {
   if ($router_test) {
     $router_baseport = $baseport + $baseport_offset;
     $ENV{'MTR_ROUTER_PORT_OFFSET'} = $baseport + $baseport_offset;
+    $baseport_offset = $baseport_offset + 10;
+  }
+
+  # Next set of 10 ports is reserved for the MRS component if used
+  if ($component_mrs_test) {
+    $component_mrs_baseport = $baseport + $baseport_offset;
+    $ENV{'MTR_COMPONENT_MRS_PORT_OFFSET'} = $baseport + $baseport_offset;
     $baseport_offset = $baseport_offset + 10;
   }
 
@@ -5276,7 +5291,7 @@ sub run_testcase ($) {
     }
     if (!$tinfo->{router_test}) {
       $config_router = ();
-      if ($tinfo->{router_bootstrap_test}) {
+      if ($tinfo->{router_bootstrap_test} || $tinfo->{'component_mrs_test'}) {
         my $plugin_dir = dirname($plugin_mysqlrouter_routing);
         $ENV{"ROUTER_PLUGIN_DIRECTORY"} = $plugin_dir;
       }

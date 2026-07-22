@@ -35,6 +35,7 @@
 #include "mrs/database/query_statistics.h"
 #include "mrs/database/query_version.h"
 
+#include "mrs/mrs_start_observer.h"
 #include "mrs/observability/entity.h"
 #include "mrs/router_observation_entities.h"
 
@@ -160,9 +161,15 @@ SchemaMonitor::SchemaMonitor(
 
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
-void SchemaMonitor::start() {
+void SchemaMonitor::start(MrsStartObserver *observer) {
   if (state_.exchange(k_initializing, k_running)) {
     log_debug("SchemaMonitor::start");
+    if (observer != nullptr &&
+        observer->on_mrs_start() == MrsStartResult::kCancelled) {
+      stop();
+      return;
+    }
+
     run();
   }
 }
@@ -199,6 +206,9 @@ class MetadataSchemaVersionChange : public std::runtime_error {
 };
 
 void SchemaMonitor::run() {
+  // stop() may win after the readiness callback but before run() is entered.
+  if (!state_.is(k_running)) return;
+
   log_system("Starting MySQL REST Metadata monitor");
 
   bool force_clear{true};
@@ -379,6 +389,7 @@ void SchemaMonitor::run() {
                 exc.what());
           }
         }
+
       } while (wait_until_next_refresh());
     } catch (const std::exception &) {
       force_clear = md_source_destination_.handle_error();

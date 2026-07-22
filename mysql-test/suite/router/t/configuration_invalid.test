@@ -7,6 +7,22 @@
 
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 
+--let $configuration_warning_level_pattern=[Ww][Aa][Rr][Nn][Ii][Nn][Gg]
+if ($MTR_ROUTER_MRS_USE_COMPONENT)
+{
+  --let $configuration_log_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+
+  --let $component_only_suppression_pattern=Option .* has an invalid value and will fallback to the default
+  --source include/component_only_suppression.inc
+  --let $component_only_suppression_pattern=Option .* value is too large. It was truncated to the maximum allowed value: .*
+  --source include/component_only_suppression.inc
+}
+
+if (!$MTR_ROUTER_MRS_USE_COMPONENT)
+{
+  --let $configuration_log_file=$MYSQLROUTER_LOGFILE
+}
+
 ## Test starts here
 --echo
 --echo
@@ -39,8 +55,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option responseCache.maxCacheSize has an invalid value and will fallback to the default.*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option responseCache.maxCacheSize has an invalid value and will fallback to the default.*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -56,8 +72,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option fileCache.maxCacheSize has an invalid value and will fallback to the default.*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option fileCache.maxCacheSize has an invalid value and will fallback to the default.*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -73,8 +89,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option 'session.expiration' has an invalid value and will fallback to the default.*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option 'session.expiration' has an invalid value and will fallback to the default.*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -90,8 +106,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option 'session.inactivity' has an invalid value and will fallback to the default.*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option 'session.inactivity' has an invalid value and will fallback to the default.*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -107,8 +123,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option 'jwt.expiration' has an invalid value and will fallback to the default.*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option 'jwt.expiration' has an invalid value and will fallback to the default.*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -125,8 +141,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option 'session.expiration' value is too large. It was truncated to the maximum allowed value: 43200*.*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option 'session.expiration' value is too large. It was truncated to the maximum allowed value: 43200*.*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -142,8 +158,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option 'session.inactivity' value is too large. It was truncated to the maximum allowed value: 43200*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option 'session.inactivity' value is too large. It was truncated to the maximum allowed value: 43200*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -159,8 +175,8 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 
 --echo # Verify the change
 
---let $grep_pattern = .*WARNING .* Option 'jwt.expiration' value is too large. It was truncated to the maximum allowed value: 60*
---let $grep_file = $MYSQLROUTER_LOGFILE
+--let $grep_pattern = .*$configuration_warning_level_pattern.* Option 'jwt.expiration' value is too large. It was truncated to the maximum allowed value: 60*
+--let $grep_file = $configuration_log_file
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc
 
@@ -169,3 +185,6 @@ UPDATE mysql_rest_service_metadata.config SET `data` = '{
 --echo # Cleanup
 
 --source ../include/mrs/cleanup.inc
+
+--let $configuration_log_file=
+--let $configuration_warning_level_pattern=

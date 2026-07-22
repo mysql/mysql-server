@@ -28,10 +28,17 @@ ADD_HARNESS_PLUGIN(rest_metadata_cache
   rest_metadata_cache_status.cc
   rest_clusters_list.cc
   rest_clusters_nodes.cc
+
+  REQUIRES_IF
+  metadata_cache_interface
+  http_server_lib_interface
+  rest_api_interface
+
   REQUIRES
   metadata_cache
   http_server_lib
   rest_api
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
 
 TARGET_INCLUDE_DIRECTORIES(rest_metadata_cache

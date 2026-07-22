@@ -35,9 +35,8 @@ insert into sakila.compound values (1,1,'one'), (1,2,'two'), (3,1,'three');
 --let $mrs_add_schema_path=/sakila
 --source ../include/mrs/db_schema/add.inc
 
-# TODO(alfredo) - add.inc is not working for this
---let $mrs_add_db_object=compoud
---let $mrs_add_db_object_path=/compoud
+--let $mrs_add_db_object=compound
+--let $mrs_add_db_object_path=/compound
 --let $mrs_add_db_object_auth=1
 --source ../include/mrs/db_object/add.inc
 

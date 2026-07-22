@@ -29,6 +29,7 @@
 #include "helper/plugin_monitor.h"
 #include "mysql_rest_service_plugin_config.h"
 
+#include "mrs/embedded_runtime_services.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/container/generic.h"
 #include "mysql/harness/utility/wait_variable.h"
@@ -285,6 +286,7 @@ PluginConfig::PluginConfig(const ConfigSection *section,
                            const uint32_t http_port)
     : mysql_harness::BasePluginConfig(section) {
   static const char *kKeyringAttributePassword = "password";
+  auto *embedded_runtime_services = get_embedded_runtime_services();
   mysql_user_ = get_option(section, "mysql_user", StringOption{});
   mysql_user_data_access_ =
       get_option(section, "mysql_user_data_access", StringOption{});
@@ -304,11 +306,17 @@ PluginConfig::PluginConfig(const ConfigSection *section,
     throw std::logic_error(
         "`metadata_refresh_interval` option, must be greater than zero.");
 
-  mysql_user_password_ = get_keyring_value<UserConfigurationInfo>(
-      mysql_user_, kKeyringAttributePassword);
-  mysql_user_data_access_password_ =
-      get_keyring_value(mysql_user_data_access_, kKeyringAttributePassword);
-  jwt_secret_ = get_keyring_value("rest-user", "jwt_secret");
+  if (embedded_runtime_services) {
+    mysql_user_password_.clear();
+    mysql_user_data_access_password_.clear();
+    jwt_secret_ = embedded_runtime_services->jwt_secret();
+  } else {
+    mysql_user_password_ = get_keyring_value<UserConfigurationInfo>(
+        mysql_user_, kKeyringAttributePassword);
+    mysql_user_data_access_password_ =
+        get_keyring_value(mysql_user_data_access_, kKeyringAttributePassword);
+    jwt_secret_ = get_keyring_value("rest-user", "jwt_secret");
+  }
 
   if (!mysql_harness::utility::container::has(routing_sections, routing_rw_))
     throw std::logic_error("Route name '" + routing_rw_ +

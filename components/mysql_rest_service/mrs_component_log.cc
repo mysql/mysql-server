@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,21 +23,23 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_HTTP_COMMON_EXPORT_INCLUDED
-#define MYSQLROUTER_HTTP_COMMON_EXPORT_INCLUDED
+#include "mrs_component_log.h"
 
-#ifdef _WIN32
-#ifdef http_common_DEFINE_STATIC
-#define HTTP_COMMON_EXPORT
-#else
-#ifdef http_common_EXPORTS
-#define HTTP_COMMON_EXPORT __declspec(dllexport)
-#else
-#define HTTP_COMMON_EXPORT __declspec(dllimport)
-#endif
-#endif
-#else
-#define HTTP_COMMON_EXPORT
-#endif
+namespace mrs_component {
 
-#endif
+/**
+  Emits information entry into the system log
+  @param log_type Log type - error or diagnostic log
+  @param level    Severity level: info, warning, error
+  @param code     Client to server error code (see mysqld_error.h)
+  @param msg      Formatted string message
+*/
+void Log::log_message(enum_log_type log_type, long long level, long long code,
+                      const char *msg, ...) const {
+  va_list args;
+  va_start(args, msg);
+  log_message_va(log_type, level, code, msg, args);
+  va_end(args);
+}
+
+}  // namespace mrs_component

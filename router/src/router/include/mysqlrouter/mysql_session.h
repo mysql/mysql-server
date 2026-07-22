@@ -513,10 +513,10 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
 
   virtual unsigned long server_version();
 
-  MYSQL *get_handle() { return connection_; }
+  virtual MYSQL *get_handle() { return connection_; }
 
-  void log_queries(bool log) { log_queries_ = log; }
-  bool log_queries() const { return log_queries_; }
+  virtual void log_queries(bool log) { log_queries_ = log; }
+  virtual bool log_queries() const { return log_queries_; }
 
  private:
   // stores selected parameters that were passed to the last successful call to
@@ -587,6 +587,15 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
   // if query be timed and sent to the sql-log.
   mysql_harness::logging::DomainLogger logger_{"sql"};
 
+ protected:
+  static Error make_query_preparation_error(const std::string &query,
+                                            unsigned int error_code,
+                                            const std::string &error_message);
+  static Error make_query_execution_error(const std::string &query,
+                                          unsigned int error_code,
+                                          const std::string &error_message);
+
+ private:
   static SQLLogFilter &get_log_filter();
 
   bool log_queries_{true};

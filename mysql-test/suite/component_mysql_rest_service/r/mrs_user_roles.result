@@ -1,0 +1,206 @@
+
+
+## I. Automatically create the fixed internal accounts
+## II. Reuse valid locked accounts with inherited and mandatory roles
+## III. Reject an unlocked account with lock-status decoys
+## IV. Reject an existing account with a missing role
+## V. Reject direct privileges on an existing account
+## VI. Reject the provider role with admin option
+## VII. Reject an additional direct role
+## VIII. Reject an additional direct mandatory role
+## IX. Reject a global grant option
+## X. Provision fixed accounts for a same-named installer at another host
+## XI. Retry account provisioning after provider roles become available
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+#
+# I. Automatically create the fixed internal accounts
+SELECT User, Host, account_locked
+FROM mysql.user
+WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+ORDER BY User;
+User	Host	account_locked
+mysql_mrs_data	localhost	Y
+mysql_mrs_metadata	localhost	Y
+SELECT FROM_USER, FROM_HOST, TO_USER, TO_HOST
+FROM mysql.role_edges
+WHERE TO_USER IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+ORDER BY TO_USER;
+FROM_USER	FROM_HOST	TO_USER	TO_HOST
+mysql_rest_service_data_provider	%	mysql_mrs_data	localhost
+mysql_rest_service_meta_provider	%	mysql_mrs_metadata	localhost
+SELECT DEFAULT_ROLE_USER, DEFAULT_ROLE_HOST, USER, HOST
+FROM mysql.default_roles
+WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+ORDER BY USER;
+DEFAULT_ROLE_USER	DEFAULT_ROLE_HOST	USER	HOST
+mysql_rest_service_data_provider	%	mysql_mrs_data	localhost
+mysql_rest_service_meta_provider	%	mysql_mrs_metadata	localhost
+SELECT @@mysql_rest_service.mrs_user;
+ERROR HY000: Unknown system variable 'mysql_rest_service.mrs_user'
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+SELECT COUNT(*) AS internal_accounts_after_uninstall
+FROM mysql.user
+WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+AND Host = 'localhost';
+internal_accounts_after_uninstall
+2
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# II. Reuse valid locked accounts with inherited and mandatory roles
+CREATE ROLE 'mrs_inherited_role', 'mrs_mandatory_role';
+GRANT 'mrs_inherited_role' TO 'mysql_rest_service_meta_provider';
+SET @saved_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'mrs_mandatory_role';
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider'
+  REQUIRE SUBJECT ' ACCOUNT UNLOCK ' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+SET GLOBAL mandatory_roles = @saved_mandatory_roles;
+REVOKE 'mrs_inherited_role' FROM 'mysql_rest_service_meta_provider';
+DROP ROLE 'mrs_inherited_role', 'mrs_mandatory_role';
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# III. Reject an unlocked account with lock-status decoys
+CREATE USER 'mysql_mrs_metadata'@'localhost' IDENTIFIED BY 'dummy'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider'
+  REQUIRE SUBJECT ' ACCOUNT LOCK PASSWORD HISTORY ' ACCOUNT UNLOCK
+ATTRIBUTE '{"note": "ACCOUNT LOCK"}';
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# IV. Reject an existing account with a missing role
+CREATE USER 'mysql_mrs_metadata'@'localhost' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# V. Reject direct privileges on an existing account
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT SELECT ON *.* TO 'mysql_mrs_data'@'localhost';
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# VI. Reject the provider role with admin option
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+GRANT 'mysql_rest_service_meta_provider'
+  TO 'mysql_mrs_metadata'@'localhost'
+  WITH ADMIN OPTION;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# VII. Reject an additional direct role
+CREATE ROLE 'mrs_extra_direct_role';
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT 'mrs_extra_direct_role' TO 'mysql_mrs_data'@'localhost';
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+DROP ROLE 'mrs_extra_direct_role';
+
+#
+# VIII. Reject an additional direct mandatory role
+CREATE ROLE 'mrs_extra_mandatory_role';
+SET @saved_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'mrs_extra_mandatory_role';
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT 'mrs_extra_mandatory_role' TO 'mysql_mrs_data'@'localhost';
+ALTER USER 'mysql_mrs_data'@'localhost' DEFAULT ROLE
+'mysql_rest_service_data_provider', 'mrs_extra_mandatory_role';
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+SET GLOBAL mandatory_roles = @saved_mandatory_roles;
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+DROP ROLE 'mrs_extra_mandatory_role';
+
+#
+# IX. Reject a global grant option
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT USAGE ON *.* TO 'mysql_mrs_data'@'localhost' WITH GRANT OPTION;
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# X. Provision fixed accounts for a same-named installer at another host
+CREATE USER 'mysql_mrs_metadata'@'%';
+GRANT ALL ON *.* TO 'mysql_mrs_metadata'@'%' WITH GRANT OPTION;
+GRANT ROLE_ADMIN ON *.* TO 'mysql_mrs_metadata'@'%';
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+SELECT COUNT(*) AS fixed_accounts_created
+FROM mysql.user
+WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+AND Host = 'localhost';
+fixed_accounts_created
+2
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost',
+'mysql_mrs_metadata'@'%';
+
+#
+# XI. Retry account provisioning after provider roles become available
+CREATE OR REPLACE SQL SECURITY INVOKER
+VIEW mysql_rest_service_metadata.msm_schema_version (major, minor, patch)
+AS SELECT 0, 0, 0;
+DROP ROLE 'mysql_rest_service_meta_provider',
+'mysql_rest_service_data_provider';
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+SELECT COUNT(*) AS accounts_created_without_provider_roles
+FROM mysql.user
+WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+AND Host = 'localhost';
+accounts_created_without_provider_roles
+0
+CREATE ROLE 'mysql_rest_service_meta_provider',
+'mysql_rest_service_data_provider';
+GRANT ALL ON `mysql_rest_service_metadata`.*
+TO 'mysql_rest_service_meta_provider', 'mysql_rest_service_data_provider';
+SELECT COUNT(*) AS accounts_created_after_provider_roles
+FROM mysql.user
+WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+AND Host = 'localhost';
+accounts_created_after_provider_roles
+2
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+#
+# Cleanup
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

@@ -235,11 +235,13 @@ class ServerConnection : public http::base::Connection<Socket> {
       update_body_related_header(header_name, header_value, body_headers);
       input_headers.add(std::move(header_name), std::move(header_value));
     }
+    // The rejected request target may be malformed, so do not parse it just
+    // to send an error response.
     if (body_headers.has_transfer_encoding && body_headers.has_content_length) {
       connection_handler_->log_invalid_request_body_headers_rejection(
           "both Content-Length and Transfer-Encoding are present");
       ServerRequest(this, session_id, (base::method::key_type)(1 << method_pos),
-                    path, std::move(input_headers))
+                    "", std::move(input_headers))
           .send_reply(base::status_code::BadRequest);
       Parent::keep_alive_ = false;
       return 1;
@@ -249,7 +251,7 @@ class ServerConnection : public http::base::Connection<Socket> {
       connection_handler_->log_invalid_request_body_headers_rejection(
           "invalid Content-Length");
       ServerRequest(this, session_id, (base::method::key_type)(1 << method_pos),
-                    path, std::move(input_headers))
+                    "", std::move(input_headers))
           .send_reply(base::status_code::BadRequest);
       Parent::keep_alive_ = false;
       return 1;
@@ -262,7 +264,7 @@ class ServerConnection : public http::base::Connection<Socket> {
       connection_handler_->log_max_request_body_size_rejection(
           max_request_body_size, body_headers.content_length);
       ServerRequest(this, session_id, (base::method::key_type)(1 << method_pos),
-                    path, std::move(input_headers))
+                    "", std::move(input_headers))
           .send_reply(base::status_code::PayloadTooLarge);
       Parent::keep_alive_ = false;
       return 1;

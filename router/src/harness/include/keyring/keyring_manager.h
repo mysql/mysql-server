@@ -65,6 +65,14 @@ HARNESS_EXPORT bool init_keyring_with_key(const std::string &keyring_file_path,
                                           bool create_if_needed);
 
 /**
+ * Inject a custom Keyring implementation.
+ *
+ * This allows embedders (like components) to provide their own keyring backend
+ * instead of the Router implementation.
+ */
+HARNESS_EXPORT void init_keyring(Keyring *custom);
+
+/**
  * Saves the keyring contents to disk.
  */
 HARNESS_EXPORT void flush_keyring();

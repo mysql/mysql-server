@@ -1317,7 +1317,6 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
 %endif # commercial
-
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
@@ -1360,6 +1359,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysql_rest_service.so
 
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
@@ -1477,6 +1477,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysql_rest_service.so
 
 %if 0%{?mecab}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so

@@ -1,6 +1,7 @@
 # Verify that the service status is respected by the MRS
 #
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 # mrs metadata logging is only enabled when md version is >= 4.0.2
 --source ../include/mrs/is_mrs_schema_v4.inc
 

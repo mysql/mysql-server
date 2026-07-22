@@ -31,7 +31,9 @@
 
 #include "mysqlrouter/io_component.h"
 
+#include <atomic>
 #include <limits>
+#include <stdexcept>
 #include <system_error>
 
 #ifndef _WIN32
@@ -55,6 +57,7 @@ class IoComponentTest : public ::testing::Test {
     // if test fails, reset the instance anyway to not interfere with the next
     // test
     IoComponent::get_instance().reset();
+    IoComponent::get_instance().reset_thread_lifecycle();
   }
 };
 
@@ -116,6 +119,34 @@ TEST_F(IoComponentTest, init_run_reset_some_work) {
   io_comp.run();
   SCOPED_TRACE("// reset");
   io_comp.reset();
+}
+
+TEST_F(IoComponentTest, thread_lifecycle) {
+  auto &io_comp = IoComponent::get_instance();
+  std::atomic<size_t> starts{};
+  std::atomic<size_t> stops{};
+
+  io_comp.set_thread_lifecycle(
+      {[&starts](size_t) { ++starts; }, [&stops](size_t) { ++stops; }});
+
+  ASSERT_TRUE(io_comp.init(3, defaultIoBackend));
+  io_comp.reset();
+
+  EXPECT_EQ(starts, 3);
+  EXPECT_EQ(stops, 3);
+}
+
+TEST_F(IoComponentTest, thread_lifecycle_start_failure) {
+  auto &io_comp = IoComponent::get_instance();
+  std::atomic<size_t> stops{};
+
+  io_comp.set_thread_lifecycle(
+      {[](size_t) { throw std::runtime_error("start failed"); },
+       [&stops](size_t) { ++stops; }});
+
+  EXPECT_THROW(io_comp.init(1, defaultIoBackend), std::runtime_error);
+  EXPECT_TRUE(io_comp.io_threads().empty());
+  EXPECT_EQ(stops, 0);
 }
 
 // test unknown backends

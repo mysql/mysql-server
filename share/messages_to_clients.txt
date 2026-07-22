@@ -11067,6 +11067,36 @@ ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
 ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
   eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
 
+ER_MRS_COMPONENT_UDF_ERROR
+  eng "The function '%s' failed. %s"
+
+ER_MRS_KEYRING_INIT_ERROR
+  eng "Failed to initialize Keyring."
+
+ER_MRS_CONFIG_INIT_ERROR
+  eng "Failed to initialize configuration handler."
+
+ER_MRS_SYSVARS_INIT_ERROR
+  eng "Failed to initialize system variables handler."
+
+ER_MRS_SYSVARS_REGISTER_ERROR
+  eng "Failed to register system variables."
+
+ER_MRS_STATUSVARS_INIT_ERROR
+  eng "Failed to initialize status variables handler."
+
+ER_MRS_STATUSVARS_REGISTER_ERROR
+  eng "Failed to register status variables."
+
+ER_MRS_UDFS_INIT_ERROR
+  eng "Failed to initialize UDF handler."
+
+ER_MRS_UDFS_REGISTER_ERROR
+  eng "Failed to register UDFs."
+
+ER_MRS_BACKEND_INIT_ERROR
+  eng "Failed to initialize backend."
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #
