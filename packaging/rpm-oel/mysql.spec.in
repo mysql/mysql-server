@@ -159,6 +159,14 @@ Source7:        %{compatsrc}
 BuildRequires:  cmake >= 3.14.6
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
+# rpcgen shells out to the system C preprocessor to generate
+# xdr_gen/xcom_vp.h. Without it rpcgen fails silently and xcom
+# fails to compile.
+# cpp is not declared explicitly in BuildRequires.
+# On el9/el10 yum-builddep's resolution pulls in gcc as a side effect,
+# and gcc itself requires cpp. On el8 this does not happen so it must
+# be declared explicitly.
+%{?el8:BuildRequires:  cpp}
 %else
 BuildRequires:  cmake3 >= 3.14.6
 %endif
@@ -195,12 +203,16 @@ BuildRequires:  binutils
 BuildRequires:  dwz
 BuildRequires:  gcc-c++
 BuildRequires:  gcc
-BuildRequires:  libfido2-devel
 %ifnarch aarch64
 BuildRequires:  libquadmath-devel
 %endif
-BuildRequires:  libudev-devel
 %endif # el10
+%if 0%{?rhel} >= 8
+# Needed to build the FIDO2/WebAuthn client plugin, configured similarly to
+# add_fido_plugins above to avoid configuration drift.
+BuildRequires:  libfido2-devel
+BuildRequires:  libudev-devel
+%endif # add_fido_plugins deps (el8+)
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  patchelf
