@@ -1349,11 +1349,13 @@ struct AccessPath {
       AccessPath *child;
       table_map tables_to_delete_from;
       table_map immediate_tables;
+      table_map tables_to_get_rowid_for;
     } delete_rows;
     struct {
       AccessPath *child;
       table_map tables_to_update;
       table_map immediate_tables;
+      table_map tables_to_get_rowid_for;
     } update_rows;
   } u;
 };

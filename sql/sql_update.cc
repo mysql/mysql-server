@@ -2211,13 +2211,11 @@ static bool AddRowIdAsTempTableField(THD *thd, TABLE *table,
 /// @param table The table to get a row ID from.
 /// @param tmp_table The temporary table in which to store the row ID.
 /// @param field_num The field of tmp_table in which to store the row ID.
-/// @param hash_join_tables A map of all tables that are part of a hash join.
+/// @param tables_to_get_rowid_for The tables for which handler::position()
+/// must be called to get the row ID.
 static void StoreRowId(TABLE *table, TABLE *tmp_table, int field_num,
-                       table_map hash_join_tables) {
-  // Hash joins have already copied the row ID from the join buffer into
-  // table->file->ref. Nested loop joins have not, so we call position() to get
-  // the row ID from the handler.
-  if (!Overlaps(hash_join_tables, table->pos_in_table_list->map())) {
+                       table_map tables_to_get_rowid_for) {
+  if (Overlaps(tables_to_get_rowid_for, table->pos_in_table_list->map())) {
     table->file->position(table->record[0]);
   }
   tmp_table->visible_field_ptr()[field_num]->store(
@@ -2639,9 +2637,9 @@ bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
        rowids of tables used in the CHECK OPTION condition.
       */
       int field_num = 0;
-      StoreRowId(table, tmp_table, field_num++, m_hash_join_tables);
+      StoreRowId(table, tmp_table, field_num++, m_tables_to_get_rowid_for);
       for (TABLE &tbl : m_unupdated_check_opt_tables) {
-        StoreRowId(&tbl, tmp_table, field_num++, m_hash_join_tables);
+        StoreRowId(&tbl, tmp_table, field_num++, m_tables_to_get_rowid_for);
       }
 
       /*
@@ -2957,9 +2955,8 @@ err:
 bool UpdateRowsIterator::DoInit() {
   if (m_source->Init()) return true;
 
-  if (m_outermost_table != nullptr &&
-      !Overlaps(m_hash_join_tables,
-                m_outermost_table->pos_in_table_list->map())) {
+  if (m_use_semi_consistent_read) {
+    assert(m_outermost_table != nullptr);
     // As it's the first table in the join, and we're doing a nested loop join,
     // the table is the left argument of that nested loop join; thus, we can ask
     // for semi-consistent read.
@@ -2970,7 +2967,7 @@ bool UpdateRowsIterator::DoInit() {
 }
 
 UpdateRowsIterator::~UpdateRowsIterator() {
-  if (m_outermost_table != nullptr && m_outermost_table->is_created()) {
+  if (m_use_semi_consistent_read && m_outermost_table->is_created()) {
     m_outermost_table->file->try_semi_consistent_read(false);
   }
 }
@@ -3160,7 +3157,7 @@ UpdateRowsIterator::UpdateRowsIterator(
     List<TABLE> unupdated_check_opt_tables, COPY_INFO **update_operations,
     mem_root_deque<Item *> **fields_for_table,
     mem_root_deque<Item *> **values_for_table,
-    table_map tables_with_rowid_in_buffer)
+    table_map tables_to_get_rowid_for, bool use_semi_consistent_read)
     : RowIterator(thd),
       m_source(std::move(source)),
       m_outermost_table(outermost_table),
@@ -3172,7 +3169,8 @@ UpdateRowsIterator::UpdateRowsIterator(
       m_update_operations(update_operations),
       m_fields_for_table(fields_for_table),
       m_values_for_table(values_for_table),
-      m_hash_join_tables(tables_with_rowid_in_buffer) {}
+      m_tables_to_get_rowid_for(tables_to_get_rowid_for),
+      m_use_semi_consistent_read(use_semi_consistent_read) {}
 
 unique_ptr_destroy_only<RowIterator> CreateUpdateRowsIterator(
     THD *thd, MEM_ROOT *mem_root, JOIN *join,
@@ -3183,12 +3181,22 @@ unique_ptr_destroy_only<RowIterator> CreateUpdateRowsIterator(
 
 unique_ptr_destroy_only<RowIterator> Query_result_update::create_iterator(
     THD *thd, MEM_ROOT *mem_root, unique_ptr_destroy_only<RowIterator> source) {
+  AccessPath *const root_path = unit->root_access_path();
+  assert(root_path->type == AccessPath::UPDATE_ROWS);
+  // Use semi-consistent reads for the outermost table if it is only part of
+  // nested loop joins. If a nested loop result containing the table is used in
+  // a hash join, semi-consistent reads cannot be used. The old optimizer always
+  // uses nested loop joins for UPDATE, whereas the hypergraph optimizer may use
+  // hash joins.
+  const bool use_semi_consistent_read =
+      main_table != nullptr &&
+      (!thd->lex->using_hypergraph_optimizer() ||
+       !Overlaps(GetHashJoinTables(root_path),
+                 main_table->pos_in_table_list->map()));
   return NewIterator<UpdateRowsIterator>(
       thd, mem_root, std::move(source), main_table, table_to_update,
       update_tables, tmp_tables, copy_field, unupdated_check_opt_tables,
       update_operations, fields_for_table, values_for_table,
-      // The old optimizer does not use hash join in UPDATE statements.
-      thd->lex->using_hypergraph_optimizer()
-          ? GetHashJoinTables(unit->root_access_path())
-          : 0);
+      root_path->update_rows().tables_to_get_rowid_for,
+      use_semi_consistent_read);
 }

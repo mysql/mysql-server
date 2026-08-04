@@ -176,6 +176,11 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
   path->delete_rows().child = child;
   path->delete_rows().tables_to_delete_from = delete_tables;
   path->delete_rows().immediate_tables = immediate_tables;
+  // The old optimizer always uses nested loop joins for DELETE, so default to
+  // calling handler::position() for all tables. The hypergraph optimizer
+  // overwrites this map during finalization, and excludes the tables which have
+  // row IDs stored in the hash join buffer.
+  path->delete_rows().tables_to_get_rowid_for = ~table_map{0};
   return path;
 }
 
@@ -188,6 +193,11 @@ AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
   path->update_rows().child = child;
   path->update_rows().tables_to_update = update_tables;
   path->update_rows().immediate_tables = immediate_tables;
+  // The old optimizer always uses nested loop joins for UPDATE, so default to
+  // calling handler::position() for all tables. The hypergraph optimizer
+  // overwrites this map during finalization, and excludes the tables which have
+  // row IDs stored in the hash join buffer.
+  path->update_rows().tables_to_get_rowid_for = ~table_map{0};
   return path;
 }
 
@@ -1499,7 +1509,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         iterator = NewIterator<DeleteRowsIterator>(
             thd, mem_root, std::move(job.children[0]), join,
-            param.tables_to_delete_from, param.immediate_tables);
+            param.tables_to_delete_from, param.immediate_tables,
+            param.tables_to_get_rowid_for);
         break;
       }
       case AccessPath::UPDATE_ROWS: {
