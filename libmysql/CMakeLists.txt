@@ -298,8 +298,8 @@ ADD_SUBDIRECTORY(authentication_kerberos)
 # authentication IAM client plug-in
 ADD_SUBDIRECTORY(authentication_oci_client)
 
-# Fido and Webauthn clients
-ADD_SUBDIRECTORY(fido_client)
+# WebAuthn client authentication plug-in
+ADD_SUBDIRECTORY(authentication_webauthn)
 
 # authentication mysql_native_password client plug-in
 ADD_SUBDIRECTORY(authentication_native_password)

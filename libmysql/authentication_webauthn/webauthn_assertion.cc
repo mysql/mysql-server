@@ -31,10 +31,10 @@
 #include <iostream>
 #include <sstream>
 
-#include <base64.h> /* base64_encode */
-#include <common.h>
+#include <base64.h>      /* base64_encode */
 #include <mysql_com.h>   /* CHALLENGE_LENGTH */
 #include <scope_guard.h> /* create_scope_guard */
+#include "common.h"
 
 #undef MYSQL_DYNAMIC_PLUGIN
 #include <mysql/service_mysql_alloc.h>

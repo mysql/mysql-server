@@ -29,7 +29,7 @@
 #include <openssl/sha.h>
 #include <cassert>
 
-#include <common.h>
+#include "common.h"
 
 #include "webauthn_registration.h"
 
