@@ -1,0 +1,33 @@
+#
+# WL#16403: usage data test
+#
+CREATE DATABASE `mysql_option`;
+CREATE TABLE `mysql_option`.`option_usage` (
+`CLUSTER_ID` VARCHAR(36) NOT NULL COLLATE utf8mb4_general_ci,
+`SERVER_ID` VARCHAR(36) NOT NULL COLLATE utf8mb4_general_ci,
+`OPTION_NAME` VARCHAR(64) NOT NULL COLLATE utf8mb4_general_ci,
+`USAGE_DATA` JSON NOT NULL,
+PRIMARY KEY(`CLUSTER_ID`, `SERVER_ID`, `OPTION_NAME`)
+) Engine=InnoDB;
+INSTALL COMPONENT 'file://component_option_tracker';
+# No webauthn usage: should return 0 rows.
+SELECT VARIABLE_VALUE > 0 FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'option_tracker_usage:WebauthN authentication';
+VARIABLE_VALUE > 0
+INSTALL PLUGIN authentication_webauthn SONAME 'webauthn_auth_file_name';
+# Should return 0: still not used
+SELECT VARIABLE_VALUE > 0 FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'option_tracker_usage:WebauthN authentication';
+VARIABLE_VALUE > 0
+0
+CREATE USER u1 IDENTIFIED WITH authentication_webauthn BY 'fooo';
+# Should return 1: digest
+SELECT VARIABLE_VALUE > 0 FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'option_tracker_usage:WebauthN authentication';
+VARIABLE_VALUE > 0
+1
+DROP USER u1;
+UNINSTALL PLUGIN authentication_webauthn;
+UNINSTALL COMPONENT 'file://component_option_tracker';
+DROP TABLE `mysql_option`.`option_usage`;
+DROP DATABASE `mysql_option`;

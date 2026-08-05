@@ -64,6 +64,7 @@ perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=gro
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --debug-server --big-test --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl   --no-skip
+perl mysql-test-run.pl --debug-server --big-test --timer --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip
 
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
@@ -198,4 +199,3 @@ perl mysql-test-run.pl --debug-server --timer --force --parallel=6 --comment=gro
 #GR with privilege checking for group recovery channel and group applier channel
 perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_priv_checks_user --vardir=var-gr_priv_checks_user --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360 --defaults-extra-file=include/rpl_priv_checks_user_no_dynamic_grants.cnf
 ####END OF SECTION 8 GR EXTENDED-WEEKLY#############
-

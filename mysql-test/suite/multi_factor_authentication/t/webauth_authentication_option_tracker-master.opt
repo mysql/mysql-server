@@ -1,0 +1,4 @@
+$OPTION_TRACKER_OPT
+$WEBAUTHN_AUTHENTICATION_PLUGIN_OPT
+--loose-authentication_webauthn_rp_id=mysql.com
+--loose-debug='+d,preserve_shared_objects_after_unload'
