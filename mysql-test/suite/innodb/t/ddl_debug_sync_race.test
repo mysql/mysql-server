@@ -1,0 +1,228 @@
+####################################################################
+# Sync points hit by the threads of a parallel DDL.
+#
+# The tasks that drive ddl::Builder are taken off a shared queue by
+# whichever DDL thread is free (ddl::Loader::Task_queue::mt_execute()),
+# so an ALTER that builds several indexes runs their
+# setup_sort()/btree_build()/finalize() concurrently - and every one of
+# those threads executes the builder's sync points on the *same* THD,
+# the connection's, since that is what ddl::Context::thd() returns.
+# The connection's own thread takes tasks off that queue as well, and
+# hits further sync points on its THD on the way, with DEBUG_SYNC_C().
+#
+# The debug sync facility used to assume that a sync point is only ever
+# hit by the thread owning the THD:
+#
+# - debug_sync_remove_action() asserted it, which killed the server as
+#   soon as a DDL worker thread, which has a THD of its own, consumed
+#   the last activation of an action armed by the connection;
+#
+# - nothing protected thd->debug_sync_control, so two threads inside
+#   debug_sync() raced on the activation count of an action, on its
+#   removal from the action array and on the clearing of the signal
+#   they woke up on.
+#
+# Part 1 has two builders of one ALTER wait in row_log_apply_before.
+# They have to do so one after the other. If they wait at the same
+# time, one of them consumes and clears the signal that releases both
+# and the other is left waiting for a signal that no longer exists.
+#
+# Part 2 is a stress: four builders repeatedly meet in the same sync
+# point with a single activation armed, so the thread executing it and
+# removing the action is usually not the connection's.
+#
+# Part 3 pins down the *shape* of the serialization: it has to be per
+# THD. While one connection is parked inside the sync point, another
+# connection's DDL must still be able to reach it. Serializing all
+# statements against each other deadlocks that, and would hang e.g.
+# innodb.innodb-index-online-purge.
+#
+# Part 4 adds a sync point that only the connection's own thread
+# executes on the connection's THD: clone_notify_ddl is hit with
+# DEBUG_SYNC_C(), i.e. on current_thd, by every thread about to
+# finalize a builder. The connection's thread has to take its turn
+# there like the workers do in row_log_apply_before. If it does not,
+# it removes its action from the action array while a worker waits in
+# row_log_apply_before, which moves the action the worker is executing:
+#
+#   sql/debug_sync.cc: Assertion `dsp_idx < ds_control->ds_active' failed
+####################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1,1,1,1);
+--disable_query_log
+--let $rows = 10
+while ($rows)
+{
+  INSERT INTO t1 SELECT a + (SELECT MAX(a) FROM t1), b, c, d, e FROM t1;
+  --dec $rows
+}
+--enable_query_log
+
+--connect (ddl1, localhost, root,,)
+# More than one DDL thread is what puts several builders in flight at
+# once; be explicit rather than relying on the default.
+SET SESSION innodb_ddl_threads = 4;
+
+--echo #
+--echo # Part 1: two builders of one ALTER wait in one sync point.
+--echo #
+--echo # EXECUTE 2 lets two of the four builders execute the action. On a
+--echo # server that lets them do so concurrently, both wait for ddl_resume,
+--echo # the first one out clears that signal (the default for WAIT_FOR) and
+--echo # the second one waits for it forever: the ALTER below never returns
+--echo # and both waits below run into their TIMEOUT.
+--echo #
+
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume TIMEOUT 60 EXECUTE 2';
+--send ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+# One builder at a time: park it, release it, then do the same for the
+# second activation.
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked TIMEOUT 60';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked TIMEOUT 60';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+
+--connection ddl1
+--reap
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+
+--echo #
+--echo # Part 2: several builders of one ALTER meet in one sync point.
+--echo #
+
+--let $round = 10
+while ($round)
+{
+  --connection default
+  SET DEBUG_SYNC = 'RESET';
+
+  --connection ddl1
+  SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+  --send ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE
+
+  --connection default
+  # One builder parks here; the other three reach the same sync point
+  # while it does, which is the concurrency being tested.
+  SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+  SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+
+  --connection ddl1
+  --reap
+  ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+
+  --dec $round
+}
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+
+--echo # The table survived the concurrent builders.
+SELECT COUNT(*) FROM t1;
+
+--echo #
+--echo # Part 3: the serialization must not span connections.
+--echo #
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 SELECT a, b FROM t1;
+
+--connect (ddl2, localhost, root,,)
+SET SESSION innodb_ddl_threads = 4;
+
+--connection ddl1
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl1_parked WAIT_FOR ddl1_resume';
+--send ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR ddl1_parked';
+
+--connection ddl2
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl2_parked WAIT_FOR ddl2_resume';
+--send ALTER TABLE t2 ADD INDEX j1(b), ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+--echo # ddl1 is parked inside row_log_apply_before. ddl2 has to be able to
+--echo # reach the very same sync point; this times out if the two statements
+--echo # are serialized against each other instead of per THD.
+SET DEBUG_SYNC = 'now WAIT_FOR ddl2_parked';
+
+SET DEBUG_SYNC = 'now SIGNAL ddl1_resume';
+SET DEBUG_SYNC = 'now SIGNAL ddl2_resume';
+
+--connection ddl1
+--reap
+
+--connection ddl2
+--reap
+
+--connection default
+--echo # Both statements completed.
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+
+--echo #
+--echo # Part 4: the connection's thread hits a sync point of its own while
+--echo # the workers are in theirs.
+--echo #
+--echo # Each of the four builders is parked in row_log_apply_before, and
+--echo # released again, one at a time. The thread of the connection hits
+--echo # clone_notify_ddl once when the ALTER starts, and then again when it
+--echo # is the one about to finalize a builder, which is usually while a
+--echo # worker is parked. EXECUTE 2 makes that second hit the one that
+--echo # removes the action, and so moves the one of row_log_apply_before.
+--echo #
+
+--let $round = 5
+while ($round)
+{
+  --connection ddl1
+  SET DEBUG_SYNC = 'RESET';
+  SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL ddl_notified EXECUTE 2';
+  SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume EXECUTE 4';
+  --send ALTER TABLE t1 ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ADD INDEX i5(b, c), ALGORITHM=INPLACE, LOCK=NONE
+
+  --connection default
+  --let $builder = 4
+  while ($builder)
+  {
+    SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+    SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+    --dec $builder
+  }
+
+  --connection ddl1
+  --reap
+  SET DEBUG_SYNC = 'RESET';
+  ALTER TABLE t1 DROP INDEX i2, DROP INDEX i3, DROP INDEX i4, DROP INDEX i5;
+
+  --dec $round
+}
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+
+--echo # The table survived the concurrent builders.
+SELECT COUNT(*) FROM t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--disconnect ddl1
+--disconnect ddl2
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;
