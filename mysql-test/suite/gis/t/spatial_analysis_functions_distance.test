@@ -2304,3 +2304,47 @@ SELECT ST_DISTANCE( @EMPTY_COLLECTION_SRID0_A, @A_SRID0);
 SELECT ST_DISTANCE( @A_SRID0, @EMPTY_COLLECTION_SRID0_A);
 SELECT ST_DISTANCE( @EMPTY_COLLECTION_SRID4326_A, @A_WGS84);
 SELECT ST_DISTANCE( @A_WGS84, @EMPTY_COLLECTION_SRID4326_A);
+
+--echo #
+--echo # Sub-metre separations on a geographic SRS
+--echo #
+
+# sql/gis uses the Boost.Geometry Andoyer strategy for geographic distance in
+# distance_functor.cc, length.cc, hausdorff_distance.cc and
+# frechet_distance.cc. Andoyer previously evaluated the spherical cosine law,
+# which loses all significance as acos() approaches 1, so separations of a few
+# centimetres collapsed to exactly 0. One block covers all four functions
+# because they share that strategy.
+#
+# On the equator the geodesic reduces to the analytic arc a*dlon, with a the
+# WGS 84 semi-major axis. dlon below is 1.3025e-7 degrees, about 1.45 cm.
+# Agreement is asserted to 1e-9 relative, which is far looser than the 1e-15
+# actually observed and far tighter than the collapse to zero it guards against.
+
+SET @a = 6378137;
+SET @dlon = 0.00000013025;
+SET @analytic = @a * @dlon * PI()/180;
+
+SET @p1 = ST_GEOMFROMTEXT('POINT(0 0)', 4326);
+SET @p2 = ST_GEOMFROMTEXT(CONCAT('POINT(0 ', @dlon, ')'), 4326);
+SET @l1 = ST_GEOMFROMTEXT('LINESTRING(0 0,0.00001 0)', 4326);
+SET @l2 = ST_GEOMFROMTEXT(CONCAT('LINESTRING(0 ', @dlon, ',0.00001 ', @dlon, ')'), 4326);
+
+--echo # Each distance is nonzero and matches the analytic arc.
+SELECT ST_DISTANCE(@p1, @p2) > 0 AS nonzero,
+       ABS(ST_DISTANCE(@p1, @p2) / @analytic - 1) < 1e-9 AS matches_analytic;
+SELECT ST_LENGTH(ST_GEOMFROMTEXT(CONCAT('LINESTRING(0 0,0 ', @dlon, ')'), 4326)) > 0 AS nonzero,
+       ABS(ST_LENGTH(ST_GEOMFROMTEXT(CONCAT('LINESTRING(0 0,0 ', @dlon, ')'), 4326))
+           / @analytic - 1) < 1e-9 AS matches_analytic;
+SELECT ST_HAUSDORFFDISTANCE(@l1, @l2) > 0 AS nonzero,
+       ABS(ST_HAUSDORFFDISTANCE(@l1, @l2) / @analytic - 1) < 1e-9 AS matches_analytic;
+SELECT ST_FRECHETDISTANCE(@l1, @l2) > 0 AS nonzero,
+       ABS(ST_FRECHETDISTANCE(@l1, @l2) / @analytic - 1) < 1e-9 AS matches_analytic;
+
+--echo # Accuracy holds across scales, from centimetres to a degree of arc.
+SELECT d.dlon AS separation_deg,
+       ABS(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+                       ST_GEOMFROMTEXT(CONCAT('POINT(0 ', d.dlon, ')'), 4326))
+           / (@a * d.dlon * PI()/180) - 1) < 1e-9 AS matches_analytic
+FROM (SELECT 0.00000013025 AS dlon UNION ALL SELECT 0.000001 UNION ALL
+      SELECT 0.00001 UNION ALL SELECT 0.001 UNION ALL SELECT 1) d;

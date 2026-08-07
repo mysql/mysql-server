@@ -1,0 +1,175 @@
+//
+// detail/wince_thread.hpp
+// ~~~~~~~~~~~~~~~~~~~~~~~
+//
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef BOOST_ASIO_DETAIL_WINCE_THREAD_HPP
+#define BOOST_ASIO_DETAIL_WINCE_THREAD_HPP
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1200)
+# pragma once
+#endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
+
+#include <boost/asio/detail/config.hpp>
+
+#if defined(BOOST_ASIO_WINDOWS) && defined(UNDER_CE)
+
+#include <boost/asio/detail/memory.hpp>
+#include <boost/asio/detail/socket_types.hpp>
+#include <boost/asio/detail/throw_error.hpp>
+#include <boost/asio/error.hpp>
+
+#include <boost/asio/detail/push_options.hpp>
+
+namespace boost {
+namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
+namespace detail {
+
+DWORD WINAPI wince_thread_function(LPVOID arg);
+
+class wince_thread
+{
+public:
+  // Construct in a non-joinable state.
+  wince_thread() noexcept
+    : arg_(0)
+  {
+  }
+
+  // Constructor.
+  template <typename Function>
+  wince_thread(Function f, unsigned int = 0)
+    : wince_thread(std::allocator_arg, std::allocator<void>(), f)
+  {
+  }
+
+  // Construct with custom allocator.
+  template <typename Allocator, typename Function>
+  wince_thread(allocator_arg_t, const Allocator& a,
+      Function f, unsigned int = 0)
+    : arg_(start_thread(allocate_object<func<Function, Allocator>>(a, f, a)))
+  {
+  }
+
+  // Move constructor.
+  wince_thread(wince_thread&& other) noexcept
+    : arg_(other.arg_)
+  {
+    other.arg_ = 0;
+  }
+
+  // Destructor.
+  ~wince_thread()
+  {
+    if (arg_)
+      std::terminate();
+  }
+
+  // Move assignment.
+  wince_thread& operator=(wince_thread&& other) noexcept
+  {
+    arg_ = other.arg_;
+    other.arg_ = 0;
+    return *this;
+  }
+
+  // Whether the thread can be joined.
+  bool joinable() const
+  {
+    return !!arg_;
+  }
+
+  // Wait for the thread to exit.
+  void join()
+  {
+    if (arg_)
+      ::WaitForSingleObject(arg_->thread_, INFINITE);
+  }
+
+  // Get number of CPUs.
+  static std::size_t hardware_concurrency()
+  {
+    SYSTEM_INFO system_info;
+    ::GetSystemInfo(&system_info);
+    return system_info.dwNumberOfProcessors;
+  }
+
+private:
+  friend DWORD WINAPI wince_thread_function(LPVOID arg);
+
+  class func_base
+  {
+  public:
+    virtual ~func_base() {}
+    virtual void run() = 0;
+    virtual void destroy() = 0;
+    ::HANDLE thread_;
+  };
+
+  template <typename Function, typename Allocator>
+  class func
+    : public func_base
+  {
+  public:
+    func(Function f, const Allocator& a)
+      : f_(f),
+        allocator_(a)
+    {
+    }
+
+    virtual void run()
+    {
+      f_();
+    }
+
+    virtual void destroy()
+    {
+      deallocate_object(allocator_, this);
+    }
+
+  private:
+    Function f_;
+    Allocator allocator_;
+  };
+
+  func_base* start_thread(func_base* arg)
+  {
+    DWORD thread_id = 0;
+    arg->thread_ = ::CreateThread(0, 0,
+        wince_thread_function, arg, 0, &thread_id);
+    if (!arg->thread_)
+    {
+      arg->destroy();
+      DWORD last_error = ::GetLastError();
+      boost::system::error_code ec(last_error,
+          boost::asio::error::get_system_category());
+      boost::asio::detail::throw_error(ec, "thread");
+    }
+    return arg;
+  }
+
+  func_base* arg_;
+};
+
+inline DWORD WINAPI wince_thread_function(LPVOID arg)
+{
+  static_cast<wince_thread::func_base*>(arg)->run();
+  return 0;
+}
+
+} // namespace detail
+BOOST_ASIO_INLINE_NAMESPACE_END
+} // namespace asio
+} // namespace boost
+
+#include <boost/asio/detail/pop_options.hpp>
+
+#endif // defined(BOOST_ASIO_WINDOWS) && defined(UNDER_CE)
+
+#endif // BOOST_ASIO_DETAIL_WINCE_THREAD_HPP
