@@ -8902,6 +8902,24 @@ static bool mark_common_columns(THD *thd, Table_ref *table_ref_1,
           set_new_item_local_context(thd, item_2, nj_col_2->table_ref))
         return true;
 
+      /*
+        The common-column items are already fixed, so fix_fields() on the
+        join condition will not reach the column-privilege check for them.
+        Check it here. The generated predicate reads both columns, so it
+        requires SELECT_ACL like an explicit ON condition does, regardless
+        of thd->want_privilege: that is zero while a derived table is being
+        resolved (see Query_block::prepare()), and the deferred check for
+        such a table walks only its selected columns, not this condition.
+      */
+      {
+        const Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+        if (item_1->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                         pointer_cast<uchar *>(thd)) ||
+            item_2->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                         pointer_cast<uchar *>(thd)))
+          return true;
+      }
+
       Item *eq_arg1 = item_1->apply_masking_policy(thd);
       if (eq_arg1 == nullptr) return true;
       Item *eq_arg2 = item_2->apply_masking_policy(thd);
