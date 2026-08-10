@@ -2530,7 +2530,13 @@ done:
   else
     thd->mem_root->Clear();
 
-    /* SHOW PROFILE instrumentation, end */
+  if (thd->is_classic_protocol()) {
+    Protocol_classic *protocol = thd->get_protocol_classic();
+    NET *net = protocol->get_net();
+    thd->try_shrink_net_buffer(net, protocol->get_packet_length());
+  }
+
+  /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
   thd->profiling->finish_current_query();
 #endif

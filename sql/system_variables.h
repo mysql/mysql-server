@@ -254,6 +254,7 @@ struct System_variables {
   ulong net_retry_count;
   ulong net_wait_timeout;
   ulong net_write_timeout;
+  ulong net_buffer_shrink_threshold;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
   ulong optimizer_max_subgraph_pairs;

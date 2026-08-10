@@ -3086,6 +3086,18 @@ static Sys_var_ulong Sys_net_buffer_length(
     VALID_RANGE(1024, 1024 * 1024), DEFAULT(16384), BLOCK_SIZE(1024),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
+#define DEFAULT_NET_BUFFER_SHRINK_THRESHOLD 5
+
+static Sys_var_ulong Sys_net_buffer_shrink_threshold(
+    "net_buffer_shrink_threshold",
+    "If the size currently required for net buffer is less than half of the "
+    "allocated size, a shrink is requested. Once the number of consecutive "
+    "requests reaches this threshold, the buffer is halved, but never below "
+    "net_buffer_length. A value of 0 disables shrink",
+    SESSION_VAR(net_buffer_shrink_threshold), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(DEFAULT_NET_BUFFER_SHRINK_THRESHOLD),
+    BLOCK_SIZE(1));
+
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type) {
   if (!self->is_global_persist(type)) {
     // net_buffer_length is a specific property for the classic protocols

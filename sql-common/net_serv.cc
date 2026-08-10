@@ -258,6 +258,36 @@ bool net_realloc(NET *net, size_t length) {
   return false;
 }
 
+#ifdef MYSQL_SERVER
+/**
+  Shrink net buffer.
+
+  @param net      NET handler
+  @param length   shrink net buffer to length. length should smaller
+                  than the original buffer size
+
+  @retval  true   failed to shrink
+  @retval  false  Shrunk to length successfully
+*/
+bool net_shrink(NET *net, size_t length) {
+  uchar *buff;
+  size_t pkt_length;
+
+  assert(length < net->max_packet);
+  pkt_length = (length + IO_SIZE - 1) & ~(IO_SIZE - 1);
+
+  if (!(buff = (uchar *)my_realloc(
+            key_memory_NET_buff, (char *)net->buff,
+            pkt_length + NET_HEADER_SIZE + COMP_HEADER_SIZE, MYF(0))))
+    return true;
+
+  net->buff = net->write_pos = buff;
+  net->buff_end = buff + pkt_length;
+  net->max_packet = ulong(pkt_length);
+  return false;
+}
+#endif
+
 /**
   Clear (reinitialize) the NET structure for a new command.
 

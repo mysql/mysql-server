@@ -1,0 +1,173 @@
+# Test NET::buff shrinking for classic protocol connections.
+#
+# The test verifies that:
+#   1. A query larger than net_buffer_length grows NET::buff.
+#   2. Five consecutive small queries shrink the buffer by approximately half.
+#   3. Further small queries shrink it to, but never below, net_buffer_length.
+#   4. A later large query can grow the buffer again after it was shrunk.
+#
+# Expected result: PFS allocation statistics show grow, gradual shrink, a
+# stable lower bound, and successful regrowth in that order.
+
+--source include/have_nodebug.inc
+
+# =============================================================================
+# Prerequisites
+# =============================================================================
+
+if (`SELECT @@GLOBAL.performance_schema = FALSE`) {
+  skip Test requires @@GLOBAL.performance_schema = TRUE.;
+}
+
+let $instrument = `SELECT ENABLED FROM performance_schema.setup_instruments
+                    WHERE NAME = 'memory/sql/NET::buff'`;
+if ($instrument != YES) {
+  skip Test requires memory/sql/NET::buff instrumentation.;
+}
+
+# =============================================================================
+# Setup
+# =============================================================================
+
+let $old_net_buffer_shrink_threshold = query_get_value(
+  SHOW VARIABLES LIKE "net_buffer_shrink_threshold", Value, 1);
+SHOW VARIABLES LIKE 'net_buffer_length';
+
+# Generate padding for a query larger than net_buffer_length. The padding is
+# produced on the default connection so setup cannot affect con1's shrink count.
+let $query_padding = `SELECT REPEAT('x', 32768)`;
+
+CREATE USER 'shrink_test_user'@'localhost';
+SET GLOBAL net_buffer_shrink_threshold = 5;
+--connect(con1, localhost, shrink_test_user, , )
+let $con1_processlist_id = `SELECT CONNECTION_ID()`;
+--connection default
+--disable_query_log
+--eval SET @con1_processlist_id = $con1_processlist_id
+
+# Extra 39 bytes are allocated for
+# PSI header (32 B), net header (4 B), compression header (4 B)
+# They are not counted.
+
+let $pfs_net_buff_stmt =
+  SELECT COUNT_ALLOC - COUNT_FREE AS CURRENT_ALLOCATIONS,
+         CURRENT_NUMBER_OF_BYTES_USED - 39
+  FROM performance_schema.memory_summary_by_thread_by_event_name
+  WHERE EVENT_NAME = 'memory/sql/NET::buff'
+    AND THREAD_ID = (SELECT THREAD_ID
+                     FROM performance_schema.threads
+                     WHERE PROCESSLIST_ID = @con1_processlist_id);
+
+# =============================================================================
+# Test 1: A large incoming query grows NET::buff
+# =============================================================================
+
+--connection con1
+--echo [connection con1]
+--disable_result_log
+--eval SELECT 1 /* $query_padding */
+--enable_result_log
+
+--connection default
+--echo [connection default]
+--echo "NET::buff after a large query; capacity should have grown."
+--eval $pfs_net_buff_stmt
+
+# =============================================================================
+# Test 2: Five small queries shrink the grown buffer by about half
+# =============================================================================
+
+--connection con1
+--echo [connection con1]
+--disable_result_log
+SELECT 1;
+SELECT 1;
+SELECT 1;
+SELECT 1;
+--enable_result_log
+
+--connection default
+--echo [connection default]
+--echo "NET::buff after four small queries; capacity should not be shrunk."
+--eval $pfs_net_buff_stmt
+
+--connection con1
+--echo [connection con1]
+--disable_result_log
+SELECT 1;
+--enable_result_log
+
+--connection default
+--echo [connection default]
+--echo "NET::buff after five small queries; capacity should be about half."
+--eval $pfs_net_buff_stmt
+
+# =============================================================================
+# Test 3: Five more small queries reach net_buffer_length
+# =============================================================================
+
+--connection con1
+--echo [connection con1]
+--disable_result_log
+SELECT 1;
+SELECT 1;
+SELECT 1;
+SELECT 1;
+SELECT 1;
+--enable_result_log
+
+--connection default
+--echo [connection default]
+--echo "NET::buff after ten small queries; capacity should reach its minimum."
+--eval $pfs_net_buff_stmt
+
+let $net_buffer_length = query_get_value(
+  SHOW VARIABLES LIKE 'net_buffer_length', Value, 1);
+let $current_buffer_capacity = `$pfs_net_buff_stmt`;
+
+if ($current_buffer_capacity == $net_buffer_length) {
+  --echo NET::buff capacity is equal to net_buffer_length.
+}
+
+# =============================================================================
+# Test 4: Further small queries do not shrink below net_buffer_length
+# =============================================================================
+
+--connection con1
+--echo [connection con1]
+--disable_result_log
+SELECT 1;
+SELECT 1;
+SELECT 1;
+SELECT 1;
+SELECT 1;
+--enable_result_log
+
+--connection default
+--echo [connection default]
+--echo "NET::buff remains at its minimum after five more small queries."
+--eval $pfs_net_buff_stmt
+
+# =============================================================================
+# Test 5: A later large query grows the buffer again
+# =============================================================================
+
+--connection con1
+--echo [connection con1]
+--disable_result_log
+--eval SELECT 1 /* $query_padding */
+--enable_result_log
+
+--connection default
+--echo [connection default]
+--echo "NET::buff after another large query; capacity should grow again."
+--eval $pfs_net_buff_stmt
+
+# =============================================================================
+# Cleanup
+# =============================================================================
+
+--disconnect con1
+--eval SET GLOBAL net_buffer_shrink_threshold = $old_net_buffer_shrink_threshold
+--enable_query_log
+DROP USER 'shrink_test_user'@'localhost';

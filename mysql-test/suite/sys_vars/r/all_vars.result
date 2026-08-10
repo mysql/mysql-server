@@ -72,6 +72,8 @@ master_verify_checksum
 master_verify_checksum
 max_length_for_sort_data
 max_length_for_sort_data
+net_buffer_shrink_threshold
+net_buffer_shrink_threshold
 optimizer_max_subgraph_pairs
 optimizer_max_subgraph_pairs
 partial_revokes

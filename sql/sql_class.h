@@ -1324,6 +1324,9 @@ class THD : public MDL_context_owner,
   std::atomic<uint> m_cached_rw_status;
 
  public:
+  /** Try to shrink an expanded NET::buff after consecutive candidates. */
+  void try_shrink_net_buffer(NET *net, ulong input_packet_length);
+
   /// Locks the query plan of this THD
   void lock_query_plan() { mysql_mutex_lock(&LOCK_query_plan); }
   void unlock_query_plan() { mysql_mutex_unlock(&LOCK_query_plan); }

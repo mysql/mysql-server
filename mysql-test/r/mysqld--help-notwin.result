@@ -775,6 +775,12 @@ The following options may be given as the first argument:
  --myisam-use-mmap   Use memory mapping for reading and writing MyISAM tables
  --net-buffer-length=# 
  Buffer length for TCP/IP and socket communication
+ --net-buffer-shrink-threshold=# 
+ If the size currently required for net buffer is less
+ than half of the allocated size, a shrink is requested.
+ Once the number of consecutive requests reaches this
+ threshold, the buffer is halved, but never below
+ net_buffer_length. A value of 0 disables shrink
  --net-read-timeout=# 
  Number of seconds to wait for more data from a connection
  before aborting the read
@@ -1867,6 +1873,7 @@ myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
 net-buffer-length 16384
+net-buffer-shrink-threshold 5
 net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60

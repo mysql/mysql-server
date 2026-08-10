@@ -584,6 +584,56 @@ THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd)
   thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
 }
 
+/**
+  Try to shrink an expanded NET::buff.
+
+  NET::buff grows when the server receives a large packet and otherwise keeps
+  the expanded capacity until the THD is destroyed.
+
+  Shrinking needs to meet the following conditions:
+  1. The currently required size of NET::buff is less than half the allocated
+  one.
+  2. Condition 1 is met 'net_buffer_shrink_threshold' times consecutively.
+
+  @param[in,out] net                  Network state containing the buffer.
+  @param[in]     input_packet_length  Length of the current input packet.
+
+  @return This function does not return a status. If allocation fails, the
+          original buffer and network error state are preserved.
+*/
+void THD::try_shrink_net_buffer(NET *net, ulong input_packet_length) {
+  if (net->max_packet <= variables.net_buffer_length ||
+      net->max_packet <= IO_SIZE ||
+      net->extension == nullptr ||
+      variables.net_buffer_shrink_threshold == 0) {
+    return;
+  }
+
+  auto net_serv = static_cast<NET_SERVER *>(net->extension);
+
+  /* Shrink to half the current capacity, but not below net_buffer_length. */
+  const ulong target_buffer_capacity =
+      max(variables.net_buffer_length, net->max_packet / 2);
+
+  /* Avoid shrinking it as additional memory might be needed for future use. */
+  if (input_packet_length > target_buffer_capacity) {
+    net_serv->shrink_requests = 0;
+    return;
+  }
+
+  /* Wait for the configured number of consecutive shrink requests. */
+  if (++net_serv->shrink_requests < variables.net_buffer_shrink_threshold) {
+    return;
+  }
+
+  if (net_shrink(net, target_buffer_capacity)) {
+    --net_serv->shrink_requests;
+    return;
+  }
+
+  net_serv->shrink_requests = 0;
+}
+
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
                       const char *calling_func [[maybe_unused]],

@@ -1,0 +1,36 @@
+SHOW VARIABLES LIKE 'net_buffer_length';
+Variable_name	Value
+net_buffer_length	16384
+CREATE USER 'shrink_test_user'@'localhost';
+SET GLOBAL net_buffer_shrink_threshold = 5;
+[connection con1]
+[connection default]
+"NET::buff after a large query; capacity should have grown."
+CURRENT_ALLOCATIONS	CURRENT_NUMBER_OF_BYTES_USED - 39
+1	36864
+[connection con1]
+[connection default]
+"NET::buff after four small queries; capacity should not be shrunk."
+CURRENT_ALLOCATIONS	CURRENT_NUMBER_OF_BYTES_USED - 39
+1	36864
+[connection con1]
+[connection default]
+"NET::buff after five small queries; capacity should be about half."
+CURRENT_ALLOCATIONS	CURRENT_NUMBER_OF_BYTES_USED - 39
+1	20480
+[connection con1]
+[connection default]
+"NET::buff after ten small queries; capacity should reach its minimum."
+CURRENT_ALLOCATIONS	CURRENT_NUMBER_OF_BYTES_USED - 39
+1	16384
+[connection con1]
+[connection default]
+"NET::buff remains at its minimum after five more small queries."
+CURRENT_ALLOCATIONS	CURRENT_NUMBER_OF_BYTES_USED - 39
+1	16384
+[connection con1]
+[connection default]
+"NET::buff after another large query; capacity should grow again."
+CURRENT_ALLOCATIONS	CURRENT_NUMBER_OF_BYTES_USED - 39
+1	36864
+DROP USER 'shrink_test_user'@'localhost';
