@@ -187,6 +187,15 @@ The following options may be given as the first argument:
  --binlog-ignore-db=name 
  Exclude updates to the specified database when writing
  the binary log.
+ --binlog-large-commit-threshold=# 
+ Increases transaction concurrency for large transactions
+ (i.e. those with sizes larger than this value) by
+ renaming the large transaction's binlog cache temporary
+ file to a new binary log file at commit time, instead of
+ copying the transaction cache data to the end of the
+ active binary log file while holding a lock that prevents
+ other transactions from binlogging. 0 disables the
+ feature.
  --binlog-max-flush-queue-time=# 
  The maximum time that the binary log group commit will
  keep reading transactions before it flush the
@@ -1696,6 +1705,7 @@ binlog-format ROW
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
 binlog-gtid-simple-recovery TRUE
+binlog-large-commit-threshold 134217728
 binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-rotate-encryption-master-key-at-startup FALSE

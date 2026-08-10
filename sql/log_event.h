@@ -3764,6 +3764,56 @@ class Ignorable_log_event
 };
 
 /**
+  @class Empty_log_event
+  It is the subclass of Ignorable_log_event, used to fill the reserved space in
+  binary log.
+
+  When a large transaction commits by renaming its binlog cache temporary file
+  to a new binary log file (see @ref Binlog_commit_by_rotate), some space is
+  reserved at the beginning of the cache file for the events that describe the
+  binary log's state (Format description, Previous-GTIDs and the transaction's
+  own GTID event). After those events are written there is usually some space
+  left before the transaction data. An Empty_log_event is written to consume the
+  remaining reserved bytes so that the transaction data still starts exactly at
+  the reserved offset. As it is an Ignorable_log_event, slaves and mysqlbinlog
+  that do not recognize it can safely skip it.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+ B_l:Ignorable_event     Log_event
+                 \       /
+       <<virtual>>\     /
+                   \   /
+             Ignorable_log_event
+                     \
+                      \
+                Empty_log_event
+
+  This event is composed of Event header and empty buffer.
+*/
+class Empty_log_event : public Ignorable_log_event {
+ public:
+#ifdef MYSQL_SERVER
+  Empty_log_event(THD *thd_arg, size_t size)
+      : Ignorable_log_event(thd_arg), m_size(size) {}
+
+  bool write_data_body(Basic_ostream *ostream) override;
+#endif
+
+  size_t get_data_size() override { return m_size - LOG_EVENT_HEADER_LEN; }
+
+  void set_size(size_t size) { m_size = size; }
+
+ private:
+  size_t m_size;
+};
+
+/**
   @class Rows_query_log_event
   It is used to record the original query for the rows
   events in RBR.

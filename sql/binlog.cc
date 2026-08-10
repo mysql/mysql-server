@@ -121,8 +121,9 @@
 #include "sql/raii/sentry.h"  // raii::Sentry<>
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/rpl_mi.h"       // Master_info
+#include "sql/rpl_handler.h"         // RUN_HOOK
+#include "sql/rpl_log_encryption.h"  // rpl_encryption
+#include "sql/rpl_mi.h"              // Master_info
 #include "sql/rpl_record.h"
 #include "sql/rpl_replica.h"
 #include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
@@ -152,6 +153,159 @@
 #include "thr_lock.h"
 
 class Item;
+
+/**
+  This class implementes the feature to rename a binlog cache temporary file to
+  a binlog file. It is used to avoid holding LOCK_log long time when writting a
+  huge binlog cache to binlog file.
+
+  With this feature, temporary files of binlog caches will be created in
+  BINLOG_CACHE_DIR which is created in the same directory to binlog files
+  at server startup.
+*/
+class Binlog_commit_by_rotate {
+ public:
+  Binlog_commit_by_rotate() = default;
+
+  /**
+    Check whether rename to binlog should be executed on the cache_data.
+
+    @param[in] thd  THD of the committing transaction.a
+
+    @retval true    It should do rename.
+    @retval false   It should do normal commit.
+  */
+  bool should_commit_by_rotate(THD *thd);
+
+  /**
+    This function is the entry function to rename a binlog cache to a binary log
+    file. It first rotates the binary log, then renames the temporary file of
+    the binlog cache to the new binary log file, after that it commits the
+    transaction.
+
+    @param[in] thd  THD of the committing transaction.
+
+    @retval true    The transaction has been handled here (either committed by
+                    rename, or an error was raised into thd->commit_error).
+    @retval false   Rename could not be done, the caller should fall back to the
+                    normal commit path.
+  */
+  bool commit(THD *thd);
+
+  /**
+    During the binlog rotation triggered by commit(), after creating the
+    binary log file and writing the events that describe its state (e.g. Format
+    description event), copy them into the binlog cache file (into its reserved
+    space), fill the remaining reserved space with an Empty_log_event, write the
+    GTID event and then rename the binlog cache file to the new binary log file.
+
+    @retval false   The binary log file was replaced successfully.
+    @retval true    An error occurred while replacing the binary log file.
+  */
+  bool replace_binlog_file(THD *thd);
+
+  /**
+    The space required for the session binlog caches to reserve. It is
+    calculated from the length of the current binary log file when it is
+    generated and aligned to IO_SIZE.
+
+    @param[in] header_len  Length of the header of the current binary log file
+                           (magic + Format description + Previous_gtids events).
+  */
+  void set_reserved_bytes(uint32 header_len);
+
+  /**
+    Return reserved space required for the binlog cache. It is NOT defined as an
+    atomic variable, while it is get and set in parallel. Synchronizing between
+    set and get is not really necessary, m_reserved_bytes does not get updated
+    often. A reader may read an old value, but it just affects the current
+    transaction. The next transaction will get the fresh value. And reserving
+    space is a transaction level action, so there always are some transactions
+    reserving space with the old value.
+  */
+  uint32 get_reserved_size() const { return m_reserved_bytes; }
+
+  /**
+    Whether the current thread is committing by renaming its binlog cache to a
+    binary log file. It is used with LOCK_log acquired by the open/rotate path
+    to decide whether to reuse the binlog cache temporary file as the new binary
+    log file.
+  */
+  bool is_committing_by_rotate() const { return m_committing_by_rotate; }
+
+  /** The name of the binlog cache temporary file that is being renamed. */
+  const char *get_tmp_file_name() const { return m_tmp_file_name; }
+
+  /**
+    Whether the last rename (replace_binlog_file) succeeded. It is used with
+    LOCK_log acquired: commit() reads it after the rotation to decide whether
+    the cache was renamed or whether to fall back to the normal commit.
+  */
+  bool replaced() const { return m_replaced; }
+
+ private:
+  /* Singleton object, disable the copy constructor and assignment. */
+  Binlog_commit_by_rotate &operator=(const Binlog_commit_by_rotate &) = delete;
+  Binlog_commit_by_rotate(const Binlog_commit_by_rotate &) = delete;
+
+  /**
+    Calculate the size of the GTID event that will be written for the
+    transaction. It uses the same logic as write_transaction() so that the
+    reserved space is filled exactly.
+
+    @param[in] thd  THD of the committing transaction.
+
+    @return The GTID event size.
+  */
+  my_off_t get_gtid_event_length(THD *thd);
+
+  /**
+    The session cache that is being renamed to a binary log file: true for the
+    statement cache, false for the transaction cache. It is decided by
+    should_commit_by_rotate() and used with LOCK_log acquired.
+  */
+  bool m_use_stmt_cache{false};
+
+  /** The name of the binlog cache temporary file being renamed. */
+  char m_tmp_file_name[FN_REFLEN]{0};
+
+  /**
+    Whether the current thread is committing by renaming its binlog cache. It is
+    used with LOCK_log acquired.
+  */
+  bool m_committing_by_rotate{false};
+
+  /**
+    Whether replace_binlog_file() succeeded to rename the cache to the new
+    binary log file. It is set inside the rotation (from open_binlog) and read
+    back by commit(). Used with LOCK_log acquired.
+  */
+  bool m_replaced{false};
+
+  /**
+    The header size of the new binary log file (magic + Format description +
+    Previous_gtids events). It is captured by replace_binlog_file() and used to
+    size the Empty event that fills the reserved space.
+  */
+  my_off_t m_header_size{0};
+
+  /**
+    The reserved space at the beginning of the renamed cache file and the end
+    position of the transaction data in it. Captured by commit() before the
+    rotation and used by replace_binlog_file(). Used with LOCK_log acquired.
+  */
+  my_off_t m_reserved_size{0};
+  my_off_t m_file_end_pos{0};
+
+  /**
+    Reserved space required for a binlog cache. See get_reserved_size(). It is
+    initialized to IO_SIZE and updated after every rotation by
+    set_reserved_bytes().
+  */
+  uint32 m_reserved_bytes{IO_SIZE};
+};
+
+static Binlog_commit_by_rotate binlog_commit_by_rotate;
 
 using mysql::binlog::event::enum_binlog_checksum_alg;
 using std::list;
@@ -977,6 +1131,411 @@ static binlog_cache_mngr *thd_get_cache_mngr(const THD *thd) {
   return (binlog_cache_mngr *)thd_get_ha_data(thd, binlog_hton);
 }
 
+/*
+  The prefix of the binlog cache temporary files. It matches the prefix used by
+  Binlog_cache_storage::open() ("ML"). Only files with this prefix are deleted
+  when cleaning the #binlog_cache_files directory at startup.
+*/
+static const char *BINLOG_CACHE_FILE_PREFIX = "ML";
+
+/* Name of the directory that holds the binlog cache temporary files. */
+static const char *BINLOG_CACHE_DIR = "#binlog_cache_files";
+
+char binlog_cache_dir[FN_REFLEN];
+ulonglong opt_binlog_large_commit_threshold = 128 * 1024 * 1024;
+
+bool binlog_commit_by_rotate_enabled() {
+  return opt_binlog_large_commit_threshold > 0;
+}
+
+uint32 binlog_cache_reserved_size() {
+  return binlog_commit_by_rotate.get_reserved_size();
+}
+
+bool init_binlog_cache_dir() {
+  size_t length;
+  const uint max_tmp_file_name_len =
+      strlen(BINLOG_CACHE_FILE_PREFIX) + 1 /* underline */ +
+      20 /* max len of the cache object address */;
+
+  dirname_part(binlog_cache_dir, log_bin_basename, &length);
+  /*
+    Must ensure the full name of the temporary file is shorter than FN_REFLEN,
+    to avoid overflowing the name buffer in write and commit.
+  */
+  if (length + strlen(BINLOG_CACHE_DIR) + max_tmp_file_name_len >= FN_REFLEN) {
+    LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+           "The binary log cache directory path is too long.");
+    return true;
+  }
+
+  memcpy(binlog_cache_dir + length, BINLOG_CACHE_DIR, strlen(BINLOG_CACHE_DIR));
+  binlog_cache_dir[length + strlen(BINLOG_CACHE_DIR)] = 0;
+
+  MY_DIR *dir_info = my_dir(binlog_cache_dir, MYF(0));
+
+  if (!dir_info) {
+    /* Make a dir for binlog cache temp files if it does not exist. */
+    if (my_mkdir(binlog_cache_dir, 0777, MYF(0)) < 0) {
+      LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+             "Failed to create the binary log cache directory.");
+      return true;
+    }
+    return false;
+  }
+
+  /* Try to delete all cache files in the directory. */
+  for (uint i = 0; i < dir_info->number_off_files; i++) {
+    FILEINFO *file = dir_info->dir_entry + i;
+
+    /* Skip the names "." and "..". */
+    if (!strcmp(file->name, ".") || !strcmp(file->name, "..")) continue;
+
+    if (strncmp(file->name, BINLOG_CACHE_FILE_PREFIX,
+                strlen(BINLOG_CACHE_FILE_PREFIX))) {
+      char msg[FN_REFLEN + 128];
+      snprintf(msg, sizeof(msg),
+               "%s is in %s/, but it is not a binlog cache file", file->name,
+               BINLOG_CACHE_DIR);
+      LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, msg);
+      continue;
+    }
+
+    char file_path[FN_REFLEN];
+    fn_format(file_path, file->name, binlog_cache_dir, "", MYF(MY_REPLACE_DIR));
+    my_delete(file_path, MYF(0));
+  }
+
+  my_dirend(dir_info);
+  return false;
+}
+
+void Binlog_commit_by_rotate::set_reserved_bytes(uint32 header_len) {
+  /* Add reserved space for the GTID event and the minimum Empty event. */
+  header_len += LOG_EVENT_HEADER_LEN /* Empty event header */ +
+                mysql::binlog::event::Gtid_event::get_max_event_length() +
+                BINLOG_CHECKSUM_LEN * 2;
+
+  /* The reserved size is aligned to IO_SIZE. */
+  header_len = (header_len + (IO_SIZE - 1)) & ~(IO_SIZE - 1);
+  if (header_len != m_reserved_bytes) m_reserved_bytes = header_len;
+}
+
+my_off_t Binlog_commit_by_rotate::get_gtid_event_length(THD *thd) {
+  binlog_cache_data *cache_data =
+      thd_get_cache_mngr(thd)->get_binlog_cache_data(!m_use_stmt_cache);
+
+  Gtid_specification gtid_spec;
+  gtid_spec.type = ANONYMOUS_GTID;
+  gtid_spec.gtid = {0, 0};
+  ulonglong immediate_commit_timestamp = my_micro_time();
+
+  Gtid_log_event ev(
+      0 /* server_id */, cache_data->is_trx_cache(), 0 /* last_committed */,
+      1 /* sequence_number */, cache_data->may_have_sbr_stmts(),
+      thd->variables.original_commit_timestamp, immediate_commit_timestamp,
+      gtid_spec, thd->variables.original_server_version,
+      do_server_version_int(::server_version));
+
+  if (ev.original_commit_timestamp == UNDEFINED_COMMIT_TIMESTAMP) {
+    if (thd->slave_thread || thd->is_binlog_applier())
+      ev.original_commit_timestamp = 0;
+    else
+      ev.original_commit_timestamp = immediate_commit_timestamp;
+  }
+  if (ev.original_server_version == UNDEFINED_SERVER_VERSION) {
+    if (thd->slave_thread || thd->is_binlog_applier())
+      ev.original_server_version = UNKNOWN_SERVER_VERSION;
+    else
+      ev.original_server_version = do_server_version_int(::server_version);
+  }
+
+  ev.set_trx_length_by_cache_size(
+      cache_data->get_byte_position(),
+      binlog_checksum_options != mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF,
+      cache_data->get_event_counter());
+
+  return ev.get_event_length();
+}
+
+bool Binlog_commit_by_rotate::should_commit_by_rotate(THD *thd) {
+  if (!binlog_commit_by_rotate_enabled()) return false;
+
+  Binlog_cache_storage *trx_cache =
+      thd_get_cache_mngr(thd)->get_binlog_cache_data(true)->get_cache();
+  Binlog_cache_storage *stmt_cache =
+      thd_get_cache_mngr(thd)->get_binlog_cache_data(false)->get_cache();
+
+  /*
+    Only rename a cache to a binlog file if its temporary file is larger than
+    binlog_large_commit_threshold.
+  */
+  if (DBUG_EVALUATE_IF("commit_by_rotate_skip_threshold_check", 0, 1) &&
+      likely(trx_cache->length() <= opt_binlog_large_commit_threshold &&
+             stmt_cache->length() <= opt_binlog_large_commit_threshold))
+    return false;
+
+  /*
+    Pick the cache to rename. Prefer the statement cache if it holds data,
+    otherwise the transaction cache.
+  */
+  m_use_stmt_cache = !stmt_cache->is_empty();
+  Binlog_cache_storage *cache = m_use_stmt_cache ? stmt_cache : trx_cache;
+
+  /*
+    Do not rename if the temporary file was not written (the data fit in the
+    memory buffer) or if no space was reserved at the beginning of the file.
+  */
+  if (cache->file_reserved_bytes() == 0 || cache->disk_writes() == 0)
+    return false;
+
+  /*
+    - Do not rename if binlog encryption is enabled: the binlog cache temporary
+      file uses a different file password than the binary log file.
+    - It is not supported to rename both the statement cache and the
+      transaction cache to binary log files at the same time.
+  */
+  if (rpl_encryption.is_enabled() || cache->is_encryption_enabled() ||
+      (!stmt_cache->is_empty() && !trx_cache->is_empty()))
+    return false;
+
+  if (unlikely(thd_get_cache_mngr(thd)->has_incident())) return false;
+  if (unlikely(!mysql_bin_log.is_open())) return false;
+
+  return true;
+}
+
+bool Binlog_commit_by_rotate::commit(THD *thd) {
+  DBUG_TRACE;
+  /* The cache being renamed was decided by should_commit_by_rotate(). */
+  Binlog_cache_storage *cache = thd_get_cache_mngr(thd)
+                                    ->get_binlog_cache_data(!m_use_stmt_cache)
+                                    ->get_cache();
+  bool check_purge = false;
+  bool flush_error = false;
+
+  m_file_end_pos = cache->get_file_end_pos();
+  m_reserved_size = cache->file_reserved_bytes();
+
+  /*
+    Sync the binlog cache temporary file before entering LOCK_log, to reduce the
+    time of holding LOCK_log. If it fails, fall back to the normal commit.
+  */
+  if (cache->sync_temp_file()) return false;
+
+  /* Save the temporary file name, replace_binlog_file() renames it. */
+  strncpy(m_tmp_file_name, cache->tmp_file_name(), FN_REFLEN - 1);
+  m_tmp_file_name[FN_REFLEN - 1] = '\0';
+
+  mysql_mutex_lock(&mysql_bin_log.LOCK_log);
+
+  m_committing_by_rotate = true;
+  m_replaced = false;
+
+  /*
+    Rotate. Because m_committing_by_rotate is true, the rotation creates a new
+    binary log file normally and, right after writing its header events, calls
+    replace_binlog_file(), which copies the header into the temporary file,
+    renames the temporary file to the new binary log file, and writes the Empty
+    and GTID events into the reserved space.
+  */
+  if ((flush_error = mysql_bin_log.rotate(true, &check_purge))) {
+    thd->commit_error = THD::CE_FLUSH_ERROR;
+    goto err;
+  }
+
+  if (!m_replaced) {
+    /*
+      The reserved space was not enough to rename the cache. The rotation
+      created a fresh binary log file; fall back to the normal commit path,
+      which flushes the transaction into it.
+    */
+    m_committing_by_rotate = false;
+    mysql_mutex_unlock(&mysql_bin_log.LOCK_log);
+    if (check_purge) mysql_bin_log.auto_purge();
+    return false;
+  }
+
+  DBUG_EXECUTE_IF("binlog_commit_by_rotate_crash_after_rotate",
+                  DBUG_SUICIDE(););
+
+  /*
+    The transaction is fully written into the renamed binary log file. Update
+    the end position and run the after_flush/after_sync replication hooks.
+  */
+  mysql_bin_log.update_binlog_end_pos();
+  mysql_bin_log.update_thd_next_event_pos(thd);
+  thd->set_trans_pos(mysql_bin_log.log_file_name, m_file_end_pos);
+
+  m_committing_by_rotate = false;
+
+  {
+    const char *file_name_ptr = mysql_bin_log.log_file_name +
+                                dirname_length(mysql_bin_log.log_file_name);
+    if (RUN_HOOK(binlog_storage, after_flush,
+                 (thd, file_name_ptr, m_file_end_pos))) {
+      LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_RUN_AFTER_FLUSH_HOOK);
+      flush_error = true;
+      goto err;
+    }
+    if (RUN_HOOK(binlog_storage, after_sync,
+                 (thd, file_name_ptr, m_file_end_pos))) {
+      flush_error = true;
+      goto err;
+    }
+  }
+
+  /* Finish the commit for the transaction and its followers. */
+  (void)mysql_bin_log.finish_commit(thd);
+
+  /*
+    Rotate to the next binary log file, so the renamed file holds only this
+    transaction. This rotation restores binlog_checksum_options from
+    checksum_alg_reset (see new_file_impl()); clear it afterwards so the next
+    rotation does not restore again.
+  */
+  if (mysql_bin_log.rotate(true, &check_purge)) {
+    thd->commit_error = THD::CE_FLUSH_ERROR;
+    goto err;
+  }
+  mysql_bin_log.checksum_alg_reset =
+      mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
+
+err:
+  if (flush_error)
+    mysql_bin_log.handle_binlog_flush_or_sync_error(
+        thd, false /* need_lock_log */, nullptr);
+
+  m_committing_by_rotate = false;
+  mysql_mutex_unlock(&mysql_bin_log.LOCK_log);
+
+  if (check_purge) mysql_bin_log.auto_purge();
+
+  return true;
+}
+
+bool Binlog_commit_by_rotate::replace_binlog_file(THD *thd) {
+  mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
+
+  MYSQL_BIN_LOG::Binlog_ofile *binlog_file = mysql_bin_log.get_binlog_file();
+
+  /*
+    The rotation just created a new binary log file (log_file_name) and wrote
+    its header events (magic, Format description, Previous_gtids) into it. Its
+    current size is the header size.
+  */
+  m_header_size = binlog_file->position();
+
+  const my_off_t gtid_len = get_gtid_event_length(thd);
+
+  /*
+    Required space for the header events plus the GTID event and the minimum
+    Empty event. If the reserved space is not enough (e.g. the Previous_gtids
+    event grew since the last rotation), do not rename: leave the freshly
+    created binary log file as the active one and let commit() fall back to the
+    normal commit path.
+  */
+  const my_off_t required_size =
+      m_header_size + gtid_len + LOG_EVENT_HEADER_LEN /* minimum Empty event */;
+
+  if (DBUG_EVALUATE_IF("simulate_reserve_size_not_enough", 1, 0) ||
+      required_size > m_reserved_size) {
+    LogErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+           "The binary log cache file cannot be renamed to a binary log "
+           "because its reserved space is too small for the header events. "
+           "Falling back to the normal commit path.");
+    return false;  // m_replaced stays false
+  }
+
+  /*
+    Copy the header events from the new binary log file to the beginning of the
+    temporary file (into its reserved space).
+  */
+  {
+    IO_CACHE_ostream dst;
+    IO_CACHE_istream src;
+
+    if (dst.open(mysql_bin_log.m_log_file_key, m_tmp_file_name, MYF(MY_WME)) ||
+        src.open(mysql_bin_log.m_log_file_key, key_file_binlog_cache,
+                 mysql_bin_log.log_file_name, MYF(MY_WME)) ||
+        stream_copy(&src, &dst) || dst.flush()) {
+      LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+             "Failed to copy the binary log header to the binary log cache "
+             "temporary file during commit-by-rotate.");
+      return false;
+    }
+  }
+
+  binlog_file->close();
+  my_delete(mysql_bin_log.log_file_name, MYF(MY_WME));
+  /* Any error happens after the file is deleted should return true. */
+
+  DBUG_EXECUTE_IF("binlog_commit_by_rotate_crash_before_rename",
+                  DBUG_SUICIDE(););
+
+  if (DBUG_EVALUATE_IF("simulate_rename_binlog_cache_to_binlog_error", 1, 0) ||
+      my_rename(m_tmp_file_name, mysql_bin_log.log_file_name, MYF(MY_WME))) {
+    LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+           "Failed to rename the binary log cache temporary file to a binary "
+           "log during commit-by-rotate.");
+    mysql_bin_log.atomic_log_state = MYSQL_BIN_LOG::LOG_CLOSED;
+    return true;
+  }
+
+  DBUG_EXECUTE_IF("binlog_commit_by_rotate_crash_after_rename",
+                  DBUG_SUICIDE(););
+
+  /*
+    Reopen the renamed file as the binary log file and position it right after
+    the header, so that the Empty and GTID events can be written into the
+    reserved space.
+  */
+  const myf flags = MY_WME | MY_NABP | MY_WAIT_IF_FULL;
+  if (binlog_file->open(mysql_bin_log.m_log_file_key,
+                        mysql_bin_log.log_file_name, flags,
+                        true /* existing */) ||
+      binlog_file->seek_to(m_header_size)) {
+    LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+           "Failed to reopen the renamed binary log file during "
+           "commit-by-rotate.");
+    return true;
+  }
+
+  binlog_cache_data *cache_data =
+      thd_get_cache_mngr(thd)->get_binlog_cache_data(!m_use_stmt_cache);
+  cache_data->get_cache()->detach_temp_file();
+
+  (void)mysql_bin_log.assign_automatic_gtids_to_flush_group(thd);
+
+  Empty_log_event empty_event(thd, m_reserved_size - m_header_size - gtid_len);
+  my_off_t bytes = 0;
+  bool wrote_xid = false;
+  if (mysql_bin_log.write_event_to_binlog(&empty_event) ||
+      cache_data->flush(thd, &bytes, &wrote_xid, false)) {
+    LogErr(
+        ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+        "Failed to write the empty and GTID events during commit-by-rotate.");
+    return true;
+  }
+
+  if (binlog_file->position() != m_reserved_size) {
+    LogErr(
+        ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+        "Failed to fill the reserved space exactly during commit-by-rotate.");
+    return true;
+  }
+
+  if (mysql_bin_log.flush_and_sync(true /* force */) ||
+      binlog_file->seek_to(m_file_end_pos)) {
+    LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+           "Failed to flush and sync the binary log during commit-by-rotate.");
+    return true;
+  }
+
+  m_replaced = true;
+  return false;
+}
+
 /**
   Checks if the BINLOG_CACHE_SIZE's value is greater than MAX_BINLOG_CACHE_SIZE.
   If this happens, the BINLOG_CACHE_SIZE is set to MAX_BINLOG_CACHE_SIZE.
@@ -1231,6 +1790,17 @@ int binlog_cache_data::write_event(Log_event *ev) {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                     { DBUG_SET("+d,simulate_file_write_error"); });
 
+    /*
+      When space is reserved at the beginning of the cache temporary file (so
+      that it can be renamed to a binary log file, see
+      Binlog_commit_by_rotate), the binlog data does not start at offset 0 of
+      the file. The end_log_pos of the events must account for the reserved
+      space, so fill it with the actual end position of the temporary file,
+      including the reserved space.
+    */
+    if (m_cache.get_file_reserved_size() > 0)
+      ev->common_header->log_pos = m_cache.get_file_end_pos();
+
     if (binary_event_serialize(ev, &m_cache)) {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending", {
         DBUG_SET("-d,simulate_file_write_error");
@@ -1475,6 +2045,13 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
   bool ret = DBUG_EVALUATE_IF("simulate_write_trans_without_gtid", false,
                               gtid_event.write(writer));
   if (ret) goto end;
+
+  /*
+    During commit-by-rotate the transaction data is already in the binary log
+    file (the renamed binlog cache temporary file), so only the GTID event needs
+    to be written above. Skip copying the cache data here.
+  */
+  if (unlikely(binlog_commit_by_rotate.is_committing_by_rotate())) goto end;
 
   /*
     finally write the transaction data, if it was not compressed
@@ -4543,6 +5120,24 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   bool write_file_name_to_index_file = false;
 
+  /*
+    Commit by rotate: a MySQL binlog cache stores its events without a checksum
+    (the checksum is added by Binlog_event_writer only while copying the cache
+    to the binary log). So the renamed cache file, and therefore the whole new
+    binary log file, must use a checksum-off format regardless of the global
+    binlog_checksum. Disable the checksum here so the Format description and the
+    other header events of this file are written without a checksum. The next
+    rotation restores binlog_checksum_options from checksum_alg_reset (see
+    new_file_impl()).
+  */
+  if (!is_relay_log && binlog_commit_by_rotate.is_committing_by_rotate() &&
+      binlog_checksum_options !=
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF) {
+    checksum_alg_reset =
+        static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
+    binlog_checksum_options = mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
+  }
+
   Format_description_log_event s;
 
   if (m_binlog_file->is_empty()) {
@@ -4697,6 +5292,25 @@ bool MYSQL_BIN_LOG::open_binlog(
   }
   if (m_binlog_file->flush_and_sync()) goto err;
 
+  if (!is_relay_log) {
+    /*
+      Update the space to reserve at the beginning of the session binlog caches
+      now that the header of a fresh binary log file is known. The next
+      transactions that use commit-by-rotate will reserve this much space.
+    */
+    binlog_commit_by_rotate.set_reserved_bytes(m_binlog_file->position());
+
+    /*
+      Commit by rotate: the header events of the new binary log file have just
+      been written and synced. Copy them into the committing transaction's
+      binlog cache temporary file and rename that file to this new binary log
+      file. See Binlog_commit_by_rotate::replace_binlog_file().
+    */
+    if (binlog_commit_by_rotate.is_committing_by_rotate() &&
+        binlog_commit_by_rotate.replace_binlog_file(current_thd))
+      goto err;
+  }
+
   if (write_file_name_to_index_file) {
     DBUG_EXECUTE_IF("crash_create_critical_before_update_index",
                     DBUG_SUICIDE(););
@@ -4732,7 +5346,15 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   m_binlog_index_monitor.close_purge_index_file();
 
-  update_binlog_end_pos();
+  /*
+    During commit-by-rotate, the binary log file has been reopened on the
+    renamed temporary file and is positioned after the header. Skip updating the
+    end position here; Binlog_commit_by_rotate::commit() sets it after writing
+    the GTID event and seeking to the end of the transaction data.
+  */
+  if (!(!is_relay_log && binlog_commit_by_rotate.is_committing_by_rotate() &&
+        binlog_commit_by_rotate.replaced()))
+    update_binlog_end_pos();
   return false;
 
 err:
@@ -5429,7 +6051,7 @@ int MYSQL_BIN_LOG::new_file_impl(
     goto end;
   }
 
-  if (!is_relay_log) {
+  if (!is_relay_log && !binlog_commit_by_rotate.is_committing_by_rotate()) {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error = gtid_state->save_gtids_of_last_binlog_into_table())) {
       if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
@@ -7552,6 +8174,21 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     if (Commit_order_manager::wait(thd)) {
       return thd->commit_error;
     }
+  }
+
+  /*
+    For a very large transaction, rename its binlog cache temporary file to a
+    new binary log file instead of copying its data into the active binary log
+    while holding LOCK_log. This avoids stalling other transactions for a long
+    time. See Binlog_commit_by_rotate.
+  */
+  if (unlikely(binlog_commit_by_rotate.should_commit_by_rotate(thd))) {
+    Commit_stage_manager::get_instance().wait_for_ticket_turn(
+        thd, true /* update_ticket_manager */);
+
+    if (binlog_commit_by_rotate.commit(thd))
+      return thd->commit_error == THD::CE_COMMIT_ERROR;
+    /* Rename could not be done, fall through to the normal commit path. */
   }
 
   /*

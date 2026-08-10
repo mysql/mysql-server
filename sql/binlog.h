@@ -68,6 +68,15 @@ class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
 class user_var_entry;
+
+/** Initialize the directory used by large binlog cache files. */
+bool init_binlog_cache_dir();
+/** Whether commit-by-rotate is enabled. */
+bool binlog_commit_by_rotate_enabled();
+/** Reserved prefix size for a binlog cache temporary file. */
+uint32 binlog_cache_reserved_size();
+extern char binlog_cache_dir[FN_REFLEN];
+extern ulonglong opt_binlog_large_commit_threshold;
 class Binlog_cache_storage;
 
 struct Gtid;
@@ -106,6 +115,13 @@ struct Binlog_user_var_event {
   (mmap+fsync is two times faster than write+fsync)
 */
 class MYSQL_BIN_LOG : public TC_LOG {
+  /*
+    Binlog_commit_by_rotate renames a transaction's binlog cache temporary file
+    to a binary log file. It needs access to the internals of the binary log
+    (LOCK_log, the index file, the current file name, etc.) to do so.
+  */
+  friend class Binlog_commit_by_rotate;
+
  public:
   class Binlog_ofile;
 

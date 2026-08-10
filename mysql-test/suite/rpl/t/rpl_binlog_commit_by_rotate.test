@@ -1,0 +1,165 @@
+################################################################################
+# MDEV-32014 Rename binlog cache to binlog file (ported to MySQL trunk)
+#
+# It verifies that the binlog caches which are larger
+# than binlog_large_commit_threshold can be move to a binlog file
+# successfully. With a successful rename,
+# - it rotates the binlog and the cache is renamed to the new binlog file
+# - an ignorable event is generated just before the Gtid_log_event of the
+#   transaction to take the reserved spaces which is unused.
+#
+# It also verifies that rename is not supported in below cases
+# though the cache is larger than the threshold
+# - both statement and transaction cache should be flushed.
+#
+# Unlike MariaDB, commit by rotate rotates twice (the second rotation restores
+# the checksum for the following binary logs), so the renamed transaction is in
+# the binary log file just before the current one.
+################################################################################
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Prepare
+--echo #
+SET @saved_binlog_large_commit_threshold= @@GLOBAL.binlog_large_commit_threshold;
+SET @saved_binlog_checksum= @@GLOBAL.binlog_checksum;
+
+SET GLOBAL binlog_checksum = "NONE";
+
+CREATE TABLE t1 (c1 LONGTEXT) ENGINE = InnoDB;
+CREATE TABLE t2 (c1 LONGTEXT) ENGINE = MyISAM;
+
+INSERT INTO t1 values(repeat("1", 5242880));
+INSERT INTO t1 values(repeat("1", 5242880));
+INSERT INTO t2 values(repeat("1", 5242880));
+INSERT INTO t2 values(repeat("1", 5242880));
+
+--echo #
+--echo # Not renamed to binlog, since the binlog cache is not larger than the
+--echo # threshold. And it should works well after ROLLBACK TO SAVEPOINT
+--echo #
+BEGIN;
+SAVEPOINT s1;
+UPDATE t1 SET c1 = repeat('1', 5242880);
+ROLLBACK TO SAVEPOINT s1;
+UPDATE t1 SET c1 = repeat('2', 5242880);
+SAVEPOINT s2;
+UPDATE t1 SET c1 = repeat('3', 5242880);
+UPDATE t1 SET c1 = repeat('4', 5242880);
+ROLLBACK TO SAVEPOINT s2;
+COMMIT;
+
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_cond= "$binlog_file" = "master-bin.000002"
+--let $assert_text= Binlog is not rotated
+--source include/assert.inc
+
+--echo #
+--echo # Test binlog cache rename to binlog file with checksum off
+--echo #
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+SET @saved_binlog_large_commit_threshold = @@GLOBAL.binlog_large_commit_threshold;
+SET GLOBAL binlog_large_commit_threshold = 10 * 1024 * 1024;
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name= master
+--source include/connection.inc
+SET GLOBAL binlog_large_commit_threshold = 10 * 1024 * 1024;
+
+--echo # Transaction cache can be renamed and works well with ROLLBACK TO SAVEPOINT
+BEGIN;
+SAVEPOINT s1;
+UPDATE t1 SET c1 = repeat('2', 5242880);
+ROLLBACK TO s1;
+UPDATE t1 SET c1 = repeat('3', 5242880);
+SAVEPOINT s2;
+UPDATE t1 SET c1 = repeat('4', 5242880);
+UPDATE t1 SET c1 = repeat('5', 5242880);
+UPDATE t1 SET c1 = repeat('6', 5242880);
+ROLLBACK TO SAVEPOINT s2;
+COMMIT;
+INSERT INTO t1 VALUES("after_update_t1");
+
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'master-bin.000003' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+--echo # statement cache can be renamed
+BEGIN;
+UPDATE t2 SET c1 = repeat('4', 5242880);
+INSERT INTO t1 VALUES("after_update_t2");
+COMMIT;
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'master-bin.000005' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+--let $rpl_connection_name= master
+--source include/connection.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_connection_name= slave
+--source include/connection.inc
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'slave-bin.000002' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'slave-bin.000004' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_large_commit_threshold = @saved_binlog_large_commit_threshold;
+--source include/rpl/start_replica.inc
+
+--echo #
+--echo # CREATE SELECT works well
+--echo #
+--let $rpl_connection_name= master
+--source include/connection.inc
+CREATE TABLE t3 ENGINE = InnoDB SELECT * FROM t1;
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'master-bin.000007' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+--error ER_GTID_UNSAFE_CREATE_SELECT
+CREATE TABLE t4 ENGINE = MyISAM SELECT * FROM t2;
+
+--echo # XA statement works well
+XA START "test-a-long-xid========================================";
+UPDATE t1 SET c1 = repeat('1', 5242880);
+XA END "test-a-long-xid========================================";
+XA PREPARE "test-a-long-xid========================================";
+XA COMMIT "test-a-long-xid========================================";
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'master-bin.000009' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+XA START "test-xid";
+UPDATE t1 SET c1 = repeat('2', 5242880);
+XA END "test-xid";
+XA COMMIT "test-xid" ONE PHASE;
+--let $gtid_end_pos= query_get_value(SHOW BINLOG EVENTS IN 'master-bin.000011' LIMIT 4, End_log_pos, 4)
+--let $assert_cond= $gtid_end_pos = 4096
+--let $assert_text= Rename is executed.
+--source include/assert.inc
+
+--echo #
+--echo # Not rename to binlog file If both stmt and trx cache are not empty
+--echo #
+--error ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+UPDATE t1, t2 SET t1.c1 = repeat('8', 5242880), t2.c1 = repeat('7', 5242880);
+
+# cleanup
+DROP TABLE t1, t2, t3;
+SET GLOBAL binlog_large_commit_threshold = @saved_binlog_large_commit_threshold;
+SET GLOBAL binlog_checksum = @saved_binlog_checksum;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

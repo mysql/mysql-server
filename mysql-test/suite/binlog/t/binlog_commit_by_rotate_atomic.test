@@ -1,0 +1,135 @@
+################################################################################
+# Rename binlog cache to binlog file (ported to MySQL trunk)
+#
+# It verifies that the rename logic is handled correctly if an error or a crash
+# happens.
+################################################################################
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+RESET BINARY LOGS AND GTIDS;
+
+--echo #
+--echo # A binlog cache file is created in the #binlog_cache_files directory
+--echo # and it is deleted at disconnect.
+--echo #
+--connect(con1,localhost,root,,)
+CREATE TABLE t1 (c1 LONGTEXT) ENGINE = InnoDB;
+
+--echo # list #binlog_cache_files/ (empty)
+--let $datadir= `SELECT @@datadir`
+--list_files $datadir/#binlog_cache_files
+
+INSERT INTO t1 values(repeat("1", 5242880));
+INSERT INTO t1 values(repeat("1", 5242880));
+FLUSH BINARY LOGS;
+
+--echo # list #binlog_cache_files/ (one cache file)
+--replace_regex /ML_[0-9]+/ML_BINLOG_CACHE_FILE/
+--list_files $datadir/#binlog_cache_files
+
+--disconnect con1
+--connection default
+# Wait until the cache file of the disconnected session has been deleted.
+--let $wait_condition= SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE PROCESSLIST_USER = 'root' AND PROCESSLIST_ID != CONNECTION_ID()
+--source include/wait_condition.inc
+
+--echo # The binlog cache file is deleted at disconnection.
+--echo # list #binlog_cache_files/ (empty)
+--list_files $datadir/#binlog_cache_files
+
+--echo #
+--echo # Reserved space is not big enough for the header events. The rename is
+--echo # not done, but the rotation already created a fresh binary log file, so
+--echo # the transaction falls back to a normal commit into that new file.
+--echo #
+SET GLOBAL binlog_large_commit_threshold = 10 * 1024 * 1024;
+--let $before_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+SET SESSION debug = "+d,simulate_reserve_size_not_enough";
+UPDATE t1 SET c1 = repeat('2', 5242880);
+SET SESSION debug = "-d,simulate_reserve_size_not_enough";
+
+--let $event_sequence= !Gtid_or_anon
+--let $limit= 3
+--let $binlog_file= master-bin.000003
+--let $binlog_position= 4
+--source include/rpl/assert_binlog_events.inc
+
+--echo #
+--echo # Crash happens before renaming the file.
+--echo #
+SET GLOBAL binlog_large_commit_threshold = 10 * 1024 * 1024;
+--let $datadir= `SELECT @@datadir`
+
+SET SESSION debug = "+d,binlog_commit_by_rotate_crash_before_rename";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+UPDATE t1 SET c1 = repeat('4', 5242880);
+
+--write_file $datadir/#binlog_cache_files/non_binlog_cache
+It is not a binlog cache file
+EOF
+
+--echo # One cache file left after crash.
+--echo # list #binlog_cache_files/
+--replace_regex /ML_[0-9]+/ML_BINLOG_CACHE_FILE/
+--list_files $datadir/#binlog_cache_files
+
+--source include/start_mysqld.inc
+
+--echo # The cache files are deleted at startup (only the foreign file remains).
+--echo # list #binlog_cache_files/
+--list_files $datadir/#binlog_cache_files
+
+--let $assert_text= warning: non_binlog_cache is not a binlog cache file
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= not a binlog cache file
+--let $assert_count= 1
+--let $assert_only_after= CURRENT_TEST: binlog.binlog_commit_by_rotate_atomic
+--source include/assert_grep.inc
+
+--remove_file $datadir/#binlog_cache_files/non_binlog_cache
+
+SELECT * FROM t1 WHERE c1 = 4;
+
+--let $event_sequence= ()
+--let $binlog_file= master-bin.000004
+--let $binlog_position= 4
+--source include/rpl/assert_binlog_events.inc
+
+--echo #
+--echo # Crash happens just after the rotation renamed the cache to the new
+--echo # binary log file (the whole transaction, including its Xid event, is
+--echo # already in that file) but before the engine commit finished. On restart
+--echo # crash recovery commits the transaction, and no cache file is left.
+--echo #
+SET GLOBAL binlog_large_commit_threshold = 10 * 1024 * 1024;
+
+BEGIN;
+UPDATE t1 SET c1 = repeat('5', 5242880);
+SAVEPOINT s1;
+UPDATE t1 SET c1 = repeat('6', 5242880);
+UPDATE t1 SET c1 = repeat('7', 5242880);
+ROLLBACK TO SAVEPOINT s1;
+INSERT INTO t1 VALUES('a');
+
+SET SESSION debug = "+d,binlog_commit_by_rotate_crash_after_rotate";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+COMMIT;
+
+--echo # No cache file left after crash.
+--echo # list #binlog_cache_files/
+--replace_regex /ML_[0-9]+/ML_BINLOG_CACHE_FILE/
+--list_files $datadir/#binlog_cache_files
+
+--source include/start_mysqld.inc
+
+--let $event_sequence= Ignorable
+--let $limit= 3
+--let $binlog_file= master-bin.000005
+--let $binlog_position= 4
+--source include/rpl/assert_binlog_events.inc
+
+call mtr.add_suppression(".*not a binlog cache file.*");
+DROP TABLE t1;

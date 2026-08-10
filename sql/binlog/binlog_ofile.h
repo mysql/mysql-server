@@ -117,6 +117,24 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
   [[nodiscard]] virtual bool is_open();
 
   /**
+    Position the stream at @p offset so that the next write happens there,
+    without truncating the file (unlike truncate()). It is used by
+    Binlog_commit_by_rotate to write the GTID event into the space reserved at
+    the beginning of a renamed binlog cache temporary file, and then to move to
+    the end of the transaction data.
+
+    @param[in] offset  Absolute position to seek to.
+    @retval false  Success
+    @retval true   Error
+  */
+  [[nodiscard]] bool seek_to(my_off_t offset) {
+    assert(m_pipeline_head != nullptr);
+    if (m_pipeline_head->seek(offset)) return true;
+    m_position = offset;
+    return false;
+  }
+
+  /**
     Returns the encrypted header size of the binary log file.
 
     @retval 0 The file is not encrypted.

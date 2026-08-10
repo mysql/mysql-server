@@ -12978,6 +12978,33 @@ int Ignorable_log_event::pack_info(Protocol *protocol) {
   protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
+
+/*
+  The size of the buffer used to write the padding of an Empty_log_event. The
+  body of the event is just a run of zero bytes, so it is written out in chunks
+  of this size.
+*/
+static const size_t EMPTY_BUFFER_SIZE = 1024;
+
+bool Empty_log_event::write_data_body(Basic_ostream *ostream) {
+  size_t data_len =
+      m_size - mysql::binlog::event::Binary_log_event::IGNORABLE_HEADER_LEN -
+      LOG_EVENT_HEADER_LEN;
+
+  uchar empty_buffer[EMPTY_BUFFER_SIZE];
+  memset(empty_buffer, 0, EMPTY_BUFFER_SIZE);
+
+  while (data_len > EMPTY_BUFFER_SIZE) {
+    if (ostream->write(empty_buffer, EMPTY_BUFFER_SIZE)) return true;
+
+    data_len -= EMPTY_BUFFER_SIZE;
+  }
+
+  assert(data_len <= EMPTY_BUFFER_SIZE);
+  if (data_len > 0 && ostream->write(empty_buffer, data_len)) return true;
+
+  return false;
+}
 #endif
 
 #ifndef MYSQL_SERVER

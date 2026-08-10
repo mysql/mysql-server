@@ -81,6 +81,21 @@ bool IO_CACHE_istream::seek(my_off_t offset) {
   return res;
 }
 
+bool IO_CACHE_istream::begin(unsigned char **buffer, my_off_t *length) {
+  return seek(0) || next(buffer, length);
+}
+
+bool IO_CACHE_istream::next(unsigned char **buffer, my_off_t *length) {
+  my_b_fill(&m_io_cache);
+
+  *buffer = m_io_cache.read_pos;
+  *length = my_b_bytes_in_cache(&m_io_cache);
+
+  m_io_cache.read_pos = m_io_cache.read_end;
+
+  return m_io_cache.error;
+}
+
 Stdin_istream::Stdin_istream() = default;
 
 Stdin_istream::~Stdin_istream() { close(); }

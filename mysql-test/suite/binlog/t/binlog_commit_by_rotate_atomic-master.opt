@@ -1,0 +1,1 @@
+--log-bin=master-bin --binlog-large-commit-threshold=10485760

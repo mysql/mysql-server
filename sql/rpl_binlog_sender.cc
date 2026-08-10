@@ -623,8 +623,9 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
       be skipped. and maybe removing the gtid from m_exclude_gtid will make
       skip_event has better performance.
     */
-    if (m_exclude_gtid &&
-        (in_exclude_group = skip_event(event_ptr, in_exclude_group))) {
+    if ((m_exclude_gtid &&
+         (in_exclude_group = skip_event(event_ptr, in_exclude_group))) ||
+        unlikely(event_type == mysql::binlog::event::IGNORABLE_LOG_EVENT)) {
       /*
         If we have not send any event from past 'heartbeat_period' time
         period, then it is time to send a packet before skipping this group.

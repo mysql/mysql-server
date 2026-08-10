@@ -101,8 +101,8 @@
 #include "nulls.h"
 #include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // validate_user_plugins
-#include "sql/binlog.h"            // mysql_bin_log
+#include "sql/auth/auth_common.h"         // validate_user_plugins
+#include "sql/binlog.h"                   // mysql_bin_log
 #include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/clone_handler.h"
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
@@ -2818,6 +2818,18 @@ static Sys_var_ulonglong Sys_max_binlog_cache_size(
     VALID_RANGE(IO_SIZE, ULLONG_MAX), DEFAULT((ULLONG_MAX / IO_SIZE) * IO_SIZE),
     BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_binlog_cache_size));
+
+static Sys_var_ulonglong Sys_binlog_large_commit_threshold(
+    "binlog_large_commit_threshold",
+    "Increases transaction concurrency for large transactions (i.e. those "
+    "with sizes larger than this value) by renaming the large transaction's "
+    "binlog cache temporary file to a new binary log file at commit time, "
+    "instead of copying the transaction cache data to the end of the active "
+    "binary log file while holding a lock that prevents other transactions "
+    "from binlogging. 0 disables the feature.",
+    GLOBAL_VAR(opt_binlog_large_commit_threshold), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULLONG_MAX), DEFAULT(128 * 1024 * 1024), BLOCK_SIZE(1),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
     "max_binlog_stmt_cache_size", "Sets the total size of the statement cache",

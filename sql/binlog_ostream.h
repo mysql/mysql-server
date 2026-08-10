@@ -112,7 +112,8 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   size_t disk_writes() const;
 
   /**
-     Initializes binlog cache for reading and returns the data at the begin.
+     Initializes the binlog cache for reading and returns the data at the
+     beginning.
      buffer is controlled by binlog cache implementation, so caller should
      not release it. If the function sets *length to 0 and no error happens,
      it has reached the end of the cache.
@@ -138,9 +139,94 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   bool flush() override { return false; }
   bool sync() override { return false; }
 
+  /*
+    ----------------------------------------------------------------------------
+    Support for renaming a binlog cache temporary file to a binary log file
+    (see Binlog_commit_by_rotate). To rename the temporary file, enough space
+    must be reserved at the beginning of the file. The space is required for the
+    Format description, Previous_gtids and GTID events that describe the state
+    of the binary log the file becomes. The reserved header is hidden from
+    callers: get_byte_position()/length() still return the length of the binlog
+    data written to the cache, not the file length.
+    ----------------------------------------------------------------------------
+  */
+
+  /**
+    It returns the actual length of the temporary file which includes the
+    reserved space at the beginning of the file.
+  */
+  my_off_t get_file_end_pos() const;
+
+  /**
+    Reserved bytes at the beginning of the temporary file. It could be 0 for the
+    cases in which reserving space is not supported. See
+    init_file_reserved_bytes().
+  */
+  my_off_t file_reserved_bytes() const { return m_file_reserved_bytes; }
+
+  /**
+    It lazily initializes the reserved space of the temporary file on the first
+    write and returns the reserved bytes. Returns 0 if reserving space is
+    disabled.
+  */
+  my_off_t get_file_reserved_size();
+
+  /**
+    It is called after renaming the temporary file to a binary log file. The
+    file now is a binary log file, so detach it from the binlog cache.
+  */
+  void detach_temp_file();
+
+  /**
+    Flush and sync the data of the temporary file into storage.
+
+    @retval true  An error occurred while syncing the file.
+    @retval false The file was synced successfully.
+  */
+  bool sync_temp_file();
+
+  /**
+    Returns true if the temporary file encryption is enabled.
+  */
+  bool is_encryption_enabled() const {
+    return m_io_cache.m_encryptor != nullptr ||
+           m_io_cache.m_decryptor != nullptr;
+  }
+
+  IO_CACHE *get_io_cache() { return &m_io_cache; }
+  my_off_t get_max_cache_size() const { return m_max_cache_size; }
+
  private:
   IO_CACHE m_io_cache;
   my_off_t m_max_cache_size = 0;
+
+  /**
+    Stores the bytes reserved at the beginning of the temporary file. It is 0
+    for the cases in which reserving space is not supported (encryption enabled,
+    feature disabled). It is cleared by reset().
+  */
+  my_off_t m_file_reserved_bytes = 0;
+
+  /**
+    The raw length of the temporary file, which includes the reserved space.
+  */
+  my_off_t raw_length() const;
+
+  /**
+    Reserve the required space at the beginning of the temporary file. It
+    creates the temporary file if it does not exist yet. It is called by
+    get_file_reserved_size() the first time anything is written into the cache.
+  */
+  void init_file_reserved_bytes();
+
+  /**
+    Generate a unique name for the (KEEP) temporary file. The file is created in
+    the #binlog_cache_files directory next to the binary log files, so that it
+    can be renamed to a binary log file at commit time.
+
+    @param[out] name  Buffer of at least FN_REFLEN bytes to hold the name.
+  */
+  void generate_tmp_file_name(char *name);
   /**
     Enable IO Cache temporary file encryption.
 
@@ -232,6 +318,36 @@ class Binlog_cache_storage : public Basic_ostream {
      Returns true if binlog cache is empty.
   */
   bool is_empty() const { return length() == 0; }
+
+  /*
+    Accessors used to rename the transactional cache temporary file to a binary
+    log file (see Binlog_commit_by_rotate).
+  */
+
+  /** It returns the reserved bytes at the beginning of the temporary file. */
+  my_off_t file_reserved_bytes() const { return m_file.file_reserved_bytes(); }
+
+  /**
+    It lazily initializes and returns the reserved space of the temporary file.
+  */
+  my_off_t get_file_reserved_size() { return m_file.get_file_reserved_size(); }
+
+  /**
+    It returns the actual length of the temporary file which includes the
+    reserved space.
+  */
+  my_off_t get_file_end_pos() const { return m_file.get_file_end_pos(); }
+
+  /** Detach the temporary file after it was renamed to a binary log file. */
+  void detach_temp_file() { m_file.detach_temp_file(); }
+
+  /** Flush and sync the temporary file to storage. */
+  bool sync_temp_file() { return m_file.sync_temp_file(); }
+
+  /** Returns true if the temporary file encryption is enabled. */
+  bool is_encryption_enabled() { return m_file.is_encryption_enabled(); }
+
+  IO_CACHE_binlog_cache_storage *get_io_cache_storage() { return &m_file; }
 
  private:
   Truncatable_ostream *m_pipeline_head = nullptr;

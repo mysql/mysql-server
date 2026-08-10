@@ -123,6 +123,31 @@ class IO_CACHE_istream : public Basic_seekable_istream {
   */
   my_off_t length() override;
 
+  /**
+   Initializes cache for reading and returns the data at the begin.
+   buffer is controlled by cache implementation, so caller should
+   not release it. If the function sets *length to 0 and no error happens,
+   it has reached the end of the cache.
+
+   @param[out] buffer  It points to buffer where data is read.
+   @param[out] length  Length of the data in the buffer.
+   @retval false  Success
+   @retval true  Error
+*/
+  bool begin(unsigned char **buffer, my_off_t *length);
+
+  /**
+     Returns next piece of data. buffer is controlled by cache
+     implementation, so caller should not release it. If the function sets
+     *length to 0 and no error happens, it has reached the end of the cache.
+
+     @param[out] buffer  It points to buffer where data is read.
+     @param[out] length  Length of the data in the buffer.
+     @retval false  Success
+     @retval true  Error
+  */
+  bool next(unsigned char **buffer, my_off_t *length);
+
  private:
   IO_CACHE m_io_cache;
 };

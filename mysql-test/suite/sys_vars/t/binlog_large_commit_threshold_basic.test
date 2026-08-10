@@ -1,0 +1,31 @@
+# ============================================================================
+# Basic test for the binlog_large_commit_threshold system variable.
+# Scope: GLOBAL, dynamic, type ulonglong, default 128MB.
+# ============================================================================
+--source include/have_log_bin.inc
+
+SET @start_value = @@GLOBAL.binlog_large_commit_threshold;
+
+--echo # Default value is 128MB.
+SELECT @@GLOBAL.binlog_large_commit_threshold = 128 * 1024 * 1024;
+
+--echo # It is a GLOBAL only variable, there is no SESSION scope.
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.binlog_large_commit_threshold = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.binlog_large_commit_threshold;
+
+--echo # It is dynamic and accepts new values, 0 disables the feature.
+SET @@GLOBAL.binlog_large_commit_threshold = 0;
+SELECT @@GLOBAL.binlog_large_commit_threshold;
+SET @@GLOBAL.binlog_large_commit_threshold = 1073741824;
+SELECT @@GLOBAL.binlog_large_commit_threshold;
+
+--echo # Invalid values are rejected or adjusted.
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.binlog_large_commit_threshold = "abc";
+SET @@GLOBAL.binlog_large_commit_threshold = -1;
+SELECT @@GLOBAL.binlog_large_commit_threshold;
+
+--echo # Cleanup
+SET @@GLOBAL.binlog_large_commit_threshold = @start_value;

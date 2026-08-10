@@ -34,6 +34,21 @@
 #include "sql/rpl_log_encryption.h"
 #include "sql/sql_class.h"
 
+/*
+  Globals owned by the Binlog_commit_by_rotate feature (defined in
+  sql/binlog.cc). They are declared here rather than pulling in the whole header
+  to keep this low level file free of binlog layer dependencies.
+
+  - binlog_cache_dir        The #binlog_cache_files directory where the reserved
+                            (KEEP) temporary files are created.
+  - binlog_cache_reserved_size()  The space (in bytes) to reserve at the begin
+                            of the transactional cache temporary file.
+  - binlog_commit_by_rotate_enabled()  Whether the feature is switched on.
+*/
+extern char binlog_cache_dir[FN_REFLEN];
+extern uint32 binlog_cache_reserved_size();
+extern bool binlog_commit_by_rotate_enabled();
+
 #ifndef NDEBUG
 bool binlog_cache_is_reset = false;
 #endif
@@ -56,10 +71,38 @@ bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,
   return false;
 }
 
-void IO_CACHE_binlog_cache_storage::close() { close_cached_file(&m_io_cache); }
+void IO_CACHE_binlog_cache_storage::close() {
+  /*
+    The binlog cache temporary file is a normal (KEEP) file, so it must be
+    unlinked explicitly here. It is not unlinked when it has been detached
+    (renamed to a binary log file), in which case m_io_cache.file is -1.
+  */
+  if (m_io_cache.file != -1) unlink(tmp_file_name());
+
+  close_cached_file(&m_io_cache);
+}
 
 bool IO_CACHE_binlog_cache_storage::write(const unsigned char *buffer,
                                           my_off_t length) {
+  /*
+    The binlog cache always uses a normal (KEEP) file in the #binlog_cache_files
+    directory as its temporary file, so that it can be renamed to a binary log
+    file when space is reserved (see Binlog_commit_by_rotate). Create it here,
+    before the IO_CACHE would create its own unlinked file on buffer overflow.
+  */
+  if (m_io_cache.file == -1 &&
+      m_io_cache.write_pos + length > m_io_cache.write_end) {
+    char name_buff[FN_REFLEN];
+    generate_tmp_file_name(name_buff);
+    if ((m_io_cache.file = mysql_file_open(m_io_cache.file_key, name_buff,
+                                           O_CREAT | O_RDWR, MYF(MY_WME))) <
+        0) {
+      LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+             "Failed to open a binlog cache temporary file.");
+      return true;
+    }
+  }
+
   /*
     Enable/disable binlog cache temporary file encryption according to the
     setting of global binlog_encryption if both binlog cache temporary
@@ -92,6 +135,12 @@ bool IO_CACHE_binlog_cache_storage::write(const unsigned char *buffer,
 
 bool IO_CACHE_binlog_cache_storage::truncate(my_off_t offset) {
   /*
+    Skip the reserved space at the beginning of the temporary file. It is hidden
+    from callers, so truncate(0) truncates the file to m_file_reserved_bytes,
+    not to 0.
+  */
+  offset += m_file_reserved_bytes;
+  /*
      It is not really necessary to flush the data will be truncated into
      temporary file before truncating . And it may cause write failure. So set
      clear_cache to true if all data in cache will be truncated.
@@ -106,6 +155,8 @@ bool IO_CACHE_binlog_cache_storage::truncate(my_off_t offset) {
 }
 
 bool IO_CACHE_binlog_cache_storage::reset() {
+  /* m_file_reserved_bytes must be reset to 0 before truncate. */
+  m_file_reserved_bytes = 0;
   if (truncate(0)) return true;
 
   /* Truncate the temporary file if there is one. */
@@ -166,7 +217,13 @@ bool IO_CACHE_binlog_cache_storage::begin(unsigned char **buffer,
            m_io_cache.m_decryptor == nullptr);
   };);
 
-  if (reinit_io_cache(&m_io_cache, READ_CACHE, 0, false, false)) {
+  /*
+    Start reading after the reserved space at the beginning of the temporary
+    file. m_file_reserved_bytes is 0 unless the file reserves space for being
+    renamed to a binary log file (see Binlog_commit_by_rotate).
+  */
+  if (reinit_io_cache(&m_io_cache, READ_CACHE, m_file_reserved_bytes, false,
+                      false)) {
     DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
                     { DBUG_SET("-d,simulate_file_write_error"); });
 
@@ -193,9 +250,96 @@ bool IO_CACHE_binlog_cache_storage::next(unsigned char **buffer,
   return m_io_cache.error;
 }
 
-my_off_t IO_CACHE_binlog_cache_storage::length() const {
+my_off_t IO_CACHE_binlog_cache_storage::raw_length() const {
   if (m_io_cache.type == WRITE_CACHE) return my_b_tell(&m_io_cache);
   return m_io_cache.end_of_file;
+}
+
+my_off_t IO_CACHE_binlog_cache_storage::length() const {
+  /*
+    Hide the reserved space at the beginning of the temporary file. So length()
+    still returns the length of the binlog data written into the cache, not the
+    file length. m_file_reserved_bytes is 0 unless space is reserved.
+  */
+  return raw_length() - m_file_reserved_bytes;
+}
+
+my_off_t IO_CACHE_binlog_cache_storage::get_file_end_pos() const {
+  return raw_length();
+}
+
+void IO_CACHE_binlog_cache_storage::generate_tmp_file_name(char *name) {
+  /*
+    The temporary file is named with the cache prefix and the memory address of
+    the IO_CACHE which guarantees it is unique. The file is created in the
+    #binlog_cache_files directory, next to the binary log files, so that it can
+    be renamed to a binary log file at commit time. init_binlog_cache_dir()
+    guarantees the full name fits in FN_REFLEN; the return value is checked so
+    the compiler does not warn about a (here impossible) truncation.
+  */
+  if (snprintf(name, FN_REFLEN, "%s/%s_%llu", binlog_cache_dir,
+               m_io_cache.prefix, (ulonglong)&m_io_cache) >= FN_REFLEN)
+    name[FN_REFLEN - 1] = '\0';
+}
+
+void IO_CACHE_binlog_cache_storage::init_file_reserved_bytes() {
+  /*
+    Space is reserved only while the binlog_large_commit_threshold feature is on
+    and the cache is not encrypted (the reserved file becomes a binary log file,
+    which uses a different encryption key than the cache temporary file).
+  */
+  const bool should_enable =
+      binlog_commit_by_rotate_enabled() && !is_encryption_enabled();
+
+  /*
+    binlog_cache_reserved_size() is already aligned to IO_SIZE (see
+    Binlog_commit_by_rotate::set_reserved_bytes()), which keeps the reserved
+    region from reducing the cache buffer in reinit_io_cache().
+  */
+  my_off_t reserved = should_enable ? binlog_cache_reserved_size() : 0;
+
+  DBUG_EXECUTE_IF("simulate_small_binlog_cache_reserved_space",
+                  reserved = 100;);
+
+  m_file_reserved_bytes = reserved;
+
+  /*
+    Seek past the reserved space at the beginning of the temporary file. This
+    sets pos_in_file to m_file_reserved_bytes and seek_not_done to true. The
+    file is created when the buffer is full, and is sought to pos_in_file before
+    writing into it.
+  */
+  if (reserved != 0) {
+    reinit_io_cache(&m_io_cache, WRITE_CACHE, reserved, false, true);
+    m_io_cache.end_of_file = m_max_cache_size;
+  }
+}
+
+my_off_t IO_CACHE_binlog_cache_storage::get_file_reserved_size() {
+  /* Reserve space on the first write, while nothing is written yet. */
+  if (raw_length() == 0) init_file_reserved_bytes();
+  return m_file_reserved_bytes;
+}
+
+void IO_CACHE_binlog_cache_storage::detach_temp_file() {
+  /*
+    If a rollback to savepoint happened before, the real length of the
+    temporary file can be greater than the binlog data end position. Truncate
+    the file to its end position so it becomes a valid binary log file.
+  */
+  my_chsize(m_io_cache.file, get_file_end_pos(), 0, MYF(MY_WME));
+
+  mysql_file_close(m_io_cache.file, MYF(0));
+  /* Reset the fd so that the cache no longer owns the (now binary log) file. */
+  m_io_cache.file = -1;
+}
+
+bool IO_CACHE_binlog_cache_storage::sync_temp_file() {
+  assert(m_io_cache.file != -1);
+
+  if (my_b_flush_io_cache(&m_io_cache, 1)) return true;
+  if (mysql_file_sync(m_io_cache.file, MYF(MY_WME))) return true;
+  return false;
 }
 
 bool IO_CACHE_binlog_cache_storage::enable_encryption() {
