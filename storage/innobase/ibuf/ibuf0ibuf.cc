@@ -4347,6 +4347,37 @@ bool ibuf_is_empty(void) {
   return (is_empty);
 }
 
+void ibuf_evict_if_has_buffered_changes(const page_id_t &page_id) {
+  fil_space_t *space = fil_space_acquire_silent(page_id.space());
+  if (space == nullptr) {
+    return;
+  }
+
+  const page_size_t page_size(space->flags);
+  if (ibuf_fixed_addr_page(page_id, page_size) ||
+      fsp_descr_page(page_id, page_size)) {
+    fil_space_release(space);
+    return;
+  }
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  const page_t *bitmap_page =
+      ibuf_bitmap_get_map_page(page_id, page_size, UT_LOCATION_HERE, &mtr);
+  const bool buffered =
+      ibuf_bitmap_page_get_bits(bitmap_page, page_id, page_size,
+                                IBUF_BITMAP_BUFFERED, &mtr) != 0;
+
+  mtr_commit(&mtr);
+
+  if (buffered) {
+    buf_page_force_evict(page_id, page_size, true);
+  }
+
+  fil_space_release(space);
+}
+
 /** Prints info of ibuf. */
 void ibuf_print(FILE *file) /*!< in: file where to print */
 {
