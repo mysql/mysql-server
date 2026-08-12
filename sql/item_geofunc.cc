@@ -56,7 +56,9 @@
 #include "my_dbug.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
-#include "sql-common/json_dom.h"  // Json_wrapper
+#include "sql-common/json_dom.h"           // Json_wrapper
+#include "sql-common/json_syntax_check.h"  // check_json_depth
+#include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -2178,6 +2180,7 @@ static bool append_crs(Json_object *geometry, bool add_short_crs_urn,
   @param add_short_crs_urn True if we should add short format CRS URN
   @param add_long_crs_urn True if we should add long format CRS URN
   @param geometry_srid Spacial Reference System Identifier being used
+  @param depth Current recursion depth, incremented on entry
 
   @return false on success, true otherwise.
 */
@@ -2186,7 +2189,15 @@ static bool append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
                             const char *calling_function,
                             int max_decimal_digits, bool add_bounding_box,
                             bool add_short_crs_urn, bool add_long_crs_urn,
-                            uint32 geometry_srid) {
+                            uint32 geometry_srid, size_t depth) {
+  // A GeometryCollection may be nested arbitrarily deep. Bound the
+  // recursion by the JSON document depth limit, as every other Json_dom
+  // construction path does, so the tree is never built deeper than it can
+  // be serialized or destroyed. check_stack_overrun() matches the other
+  // recursive WKB walkers (spatial.cc, gis/wkb.cc).
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr)) return true;
+  if (check_json_depth(++depth, JsonDepthErrorHandler)) return true;
+
   // Check of wkb_type is within allowed range.
   wkb_header header;
   if (parser->scan_wkb_header(&header) ||
@@ -2299,7 +2310,7 @@ static bool append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
             append_geometry(parser, sub_geometry, false, &subcollection_mbr,
                             calling_function, max_decimal_digits,
                             add_bounding_box, add_short_crs_urn,
-                            add_long_crs_urn, geometry_srid)) {
+                            add_long_crs_urn, geometry_srid, depth)) {
           return true;
         }
 
@@ -2350,7 +2361,7 @@ bool geometry_to_json(Json_wrapper *wr, String *swkb,
   if (geojson_object == nullptr ||
       append_geometry(&parser, geojson_object, true, &mbr, calling_function,
                       max_decimal_digits, add_bounding_box, add_short_crs_urn,
-                      add_long_crs_urn, *geometry_srid)) {
+                      add_long_crs_urn, *geometry_srid, 0)) {
     delete geojson_object;
     return true;
   }
