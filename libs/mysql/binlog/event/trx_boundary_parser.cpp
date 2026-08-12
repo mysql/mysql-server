@@ -252,6 +252,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case mysql::binlog::event::SLAVE_EVENT:
     case mysql::binlog::event::DELETE_FILE_EVENT:
     case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT:
+    case mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT:
       boundary_type = EVENT_BOUNDARY_TYPE_IGNORE;
       break;
 

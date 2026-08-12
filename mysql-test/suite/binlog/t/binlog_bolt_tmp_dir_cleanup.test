@@ -1,0 +1,85 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify release binaries clean managed BOLT spill files and reject unsafe
+# temporary-directory entries.
+#
+# === Requirements ===
+# R1. Startup removes valid managed BOLT spill files.
+# R2. Startup rejects symlinked directories and unsafe directory entries.
+# R3. Rejected startup fixtures can be removed before the MTR server restarts.
+#
+# === Implementation ===
+# 1. Initialize paths for the managed spill directory and rejection logs.
+# 2. Restart with valid managed files and verify they are removed.
+# 3. Attempt standalone startup with each unsafe fixture and verify rejection.
+#
+--source include/not_windows.inc
+--source include/have_log_bin.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $BOLT_CLEANUP_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+--let $BOLT_CLEANUP_REJECT_LOG = $MYSQL_TMP_DIR/binlog_bolt_cleanup_reject.err
+--let $BOLT_CLEANUP_DIR_TARGET = $MYSQLD_DATADIR/binlog_bolt_cleanup_dir_target
+--let $BOLT_CLEANUP_FILE_TARGET = $MYSQLD_DATADIR/binlog_bolt_cleanup_file_target
+
+# Setup
+--exec touch $BOLT_CLEANUP_DIR/bolt_0123456789abcdef0123456789abcdef
+--exec touch $BOLT_CLEANUP_DIR/bolt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--exec touch $BOLT_CLEANUP_DIR/bolt_0123456789abcdefabcdef0123456789
+--echo Created 3 managed BOLT spill files
+
+--source include/restart_mysqld.inc
+
+--list_files $BOLT_CLEANUP_DIR
+--echo Startup cleanup removed all managed BOLT spill files
+
+# Prepare each startup fixture while the MTR server is running. Stop it only
+# immediately before the independent release-binary startup attempt, then
+# remove the rejected fixture before bringing the MTR server back.
+
+--echo # Reject a symbolic link for #binlog_temp_files.
+--rmdir $BOLT_CLEANUP_DIR
+--exec mkdir $BOLT_CLEANUP_DIR_TARGET
+--exec ln -s $BOLT_CLEANUP_DIR_TARGET $BOLT_CLEANUP_DIR
+--source include/shutdown_mysqld.inc
+--error 1
+--exec $MYSQLD_CMD --loose-console > $BOLT_CLEANUP_REJECT_LOG 2>&1
+--exec grep -Fq "it must be a directory and cannot be a symbolic link." $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_DIR
+--rmdir $BOLT_CLEANUP_DIR_TARGET
+--exec mkdir $BOLT_CLEANUP_DIR
+--source include/start_mysqld.inc
+
+--echo # Reject an unrecognized regular entry.
+--exec touch $BOLT_CLEANUP_DIR/not_a_managed_bolt_file
+--source include/shutdown_mysqld.inc
+--error 1
+--exec $MYSQLD_CMD --loose-console > $BOLT_CLEANUP_REJECT_LOG 2>&1
+--exec grep -Fq "found unsafe entry 'not_a_managed_bolt_file'." $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_DIR/not_a_managed_bolt_file
+--source include/start_mysqld.inc
+
+--echo # Reject a symbolic-link entry, even with a managed file name.
+--exec touch $BOLT_CLEANUP_FILE_TARGET
+--exec ln -s $BOLT_CLEANUP_FILE_TARGET $BOLT_CLEANUP_DIR/bolt_11111111111111111111111111111111
+--source include/shutdown_mysqld.inc
+--error 1
+--exec $MYSQLD_CMD --loose-console > $BOLT_CLEANUP_REJECT_LOG 2>&1
+--exec grep -Fq "found unsafe entry 'bolt_11111111111111111111111111111111'." $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_DIR/bolt_11111111111111111111111111111111
+--remove_file $BOLT_CLEANUP_FILE_TARGET
+--source include/start_mysqld.inc
+
+--echo # Reject a nested directory, even with a managed file name.
+--exec mkdir $BOLT_CLEANUP_DIR/bolt_22222222222222222222222222222222
+--source include/shutdown_mysqld.inc
+--error 1
+--exec $MYSQLD_CMD --loose-console > $BOLT_CLEANUP_REJECT_LOG 2>&1
+--exec grep -Fq "found unsafe entry 'bolt_22222222222222222222222222222222'." $BOLT_CLEANUP_REJECT_LOG
+--remove_file $BOLT_CLEANUP_REJECT_LOG
+--rmdir $BOLT_CLEANUP_DIR/bolt_22222222222222222222222222222222
+--source include/start_mysqld.inc

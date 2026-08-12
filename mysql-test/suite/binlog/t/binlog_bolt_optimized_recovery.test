@@ -1,0 +1,112 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT recovery logs the optimized seek and rejects a truncated
+# promoted binary log with an invalid Large_transaction_header.
+#
+# === Requirements ===
+# R1. Recovery logs the optimized large-transaction seek after promotion.
+# R2. A promoted transaction survives normal restart recovery.
+# R3. A corrupt LTH event causes the server to crash during recovery.
+#
+# === Implementation ===
+# 1. Initialize BOLT and a clean test table.
+# 2. Commit a qualifying transaction and restart to inspect recovery logging.
+# 3. Stop the server, truncate the promoted file at a fixed 1 MiB offset,
+#    and verify standalone recovery fails with the invalid-LTH diagnostic.
+#
+--source include/not_windows.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $BOLT_BACKUP = $MYSQLTEST_VARDIR/tmp/bolt_lth_backup
+--let $BOLT_FAILURE_LOG = $MYSQLTEST_VARDIR/tmp/bolt_invalid_lth.err
+
+# Setup
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+--enable_query_log
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: Recover an intact promoted transaction.
+# Expected behavior: commit.
+############################################################################
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Commit a qualifying transaction for optimized recovery.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+
+--let $promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The transaction was promoted into a new binary log file.
+--let $assert_cond = "$promoted_file" != "$binlog_file_before"
+--source include/assert.inc
+
+--let $restart_parameters = restart:
+--let $restart_parameters = $restart_parameters --binlog-large-transaction-optimization-enabled=ON
+--let $restart_parameters = $restart_parameters --binlog-large-transaction-optimization-threshold=10M
+--let $restart_parameters = $restart_parameters --max-binlog-size=1G
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Recovery logs the optimized large-transaction seek.
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN = Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset
+--source include/search_pattern.inc
+
+--let $assert_text = The committed promoted transaction survives recovery.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+############################################################################
+# Case 2: Try to recover a file with corrupt LTH
+# We simulate a corrupt LTH by manually truncating the XID event,
+# so the LTH points to a position that doesn't exist.
+############################################################################
+--let $binlog_file_before_corruption = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Commit a second qualifying transaction for corrupt-LTH recovery.
+BEGIN;
+INSERT INTO t1 VALUES (4, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (5, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
+COMMIT;
+
+--let $corrupt_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The second transaction was promoted into a new binary log file.
+--let $assert_cond = "$corrupt_file" != "$binlog_file_before_corruption"
+--source include/assert.inc
+
+--echo # Truncate the active promoted file and reject the invalid LTH.
+--source include/kill_mysqld.inc
+--let BOLT_BINLOG = $MYSQLD_DATADIR/$corrupt_file
+--exec cp $BOLT_BINLOG $BOLT_BACKUP
+--exec truncate -s 1048576 $BOLT_BINLOG
+--error 1
+--exec $MYSQLD_CMD --loose-console > $BOLT_FAILURE_LOG 2>&1
+--let SEARCH_FILE = $BOLT_FAILURE_LOG
+--let SEARCH_PATTERN = contains an invalid large transaction header
+--source include/search_pattern.inc
+
+--exec cp $BOLT_BACKUP $BOLT_BINLOG
+--remove_file $BOLT_BACKUP
+--remove_file $BOLT_FAILURE_LOG
+--let $restart_parameters = restart
+--source include/start_mysqld.inc
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL max_binlog_size = $save_max_binlog_size
+--enable_query_log

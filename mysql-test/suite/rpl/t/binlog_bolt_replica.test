@@ -1,0 +1,102 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify a replica re-logging a qualifying source BOLT transaction also uses
+# BOLT for its local binary log.
+#
+# === Requirements ===
+# R1. A source BOLT transaction replicates successfully to the replica.
+# R2. With log_replica_updates enabled, the replica SQL applier promotes its
+#     local binlog cache for the qualifying ROW transaction.
+#
+# === Implementation ===
+# 1. Initialize source/replica replication, BOLT, and a clean source table.
+# 2. Commit a qualifying BOLT transaction on the source and wait until the
+#    replica receiver has it available.
+# 3. Enable BOLT before starting the replica applier and verify its local
+#    promotion and promoted-file header.
+#
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init_source_replica.inc
+
+--let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $source_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $source_save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+
+# Setup
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+--enable_query_log
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_transaction_compression = OFF;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--source include/rpl/connection_replica.inc
+--let $replica_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $replica_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--let $replica_bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $replica_binlog_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+
+--echo # Write a qualifying promoted transaction on the source.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+--let $source_optimized_count = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = The source transaction was promoted before replication.
+--let $assert_cond = $source_optimized_count > 0
+--source include/assert.inc
+
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $replica_rows = query_get_value(SELECT COUNT(*) FROM t1, COUNT(*), 1)
+--let $replica_payload_bytes = query_get_value(SELECT SUM(OCTET_LENGTH(data)) FROM t1, SUM(OCTET_LENGTH(data)), 1)
+--let $replica_bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $replica_binlog_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = Replication applies every row from the source BOLT transaction.
+--let $assert_cond = $replica_rows = 3
+--source include/assert.inc
+--let $assert_text = Replication preserves the full large-transaction payload.
+--let $assert_cond = $replica_payload_bytes = 12000000
+--source include/assert.inc
+--let $assert_text = The replica SQL applier promotes the qualifying transaction once.
+--let $assert_cond = $replica_bolt_after = $replica_bolt_before + 1
+--source include/assert.inc
+--let $assert_text = Replica-local promotion opens a new active binary log.
+--let $assert_cond = "$replica_binlog_after" != "$replica_binlog_before"
+--source include/assert.inc
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_header_file = $replica_binlog_after
+--source ../../binlog/inc/validate_bolt_header.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $source_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $source_save_threshold
+--eval SET SESSION binlog_transaction_compression = $source_save_compression
+--enable_query_log
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $replica_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $replica_save_threshold
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--enable_query_log
+--let $rpl_skip_sync = 1
+--source include/rpl/deinit.inc

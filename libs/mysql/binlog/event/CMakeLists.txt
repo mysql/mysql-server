@@ -65,6 +65,7 @@ SET(TARGET_SRCS
   binlog_event.cpp
   control_events.cpp
   event_reader.cpp
+  large_transaction_header_event.cpp
   load_data_events.cpp
   rows_event.cpp
   statement_events.cpp

@@ -1,0 +1,65 @@
+# restart:
+# Case 1: BOLT is ON; binlog_cache_size > binlog_large_transaction_optimization_threshold.
+include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 20971520;
+Warnings:
+Warning	6910	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size.
+include/assert_error_log.inc [server: 1, pattern: Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]]
+include/assert.inc [Increasing binlog_cache_size raises the optimization threshold.]
+include/save_error_log_position.inc
+# restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+threshold
+20971520
+include/assert_error_log.inc [server: 1, pattern: Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]]
+# Case 2: BOLT is ON; binlog_large_transaction_optimization_threshold < binlog_cache_size.
+include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+Warnings:
+Warning	6910	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size.
+include/assert_error_log.inc [server: 1, pattern: Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]]
+include/assert.inc [A lower optimization threshold is raised to match binlog_cache_size.]
+# Case 3: BOLT is ON; binlog_large_transaction_optimization_threshold > binlog_cache_size.
+include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 22020096;
+include/assert_error_log.inc [server: 1, pattern: NONE]
+include/assert.inc [A threshold above binlog_cache_size is unchanged.]
+include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 10485760;
+include/assert_error_log.inc [server: 1, pattern: NONE]
+include/assert.inc [Lowering binlog_cache_size does not lower the threshold.]
+include/save_error_log_position.inc
+# restart: --binlog-large-transaction-optimization-enabled=ON --binlog-cache-size=20M --binlog-large-transaction-optimization-threshold=21M
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+threshold
+22020096
+include/assert_error_log.inc [server: 1, pattern: NONE]
+# restart:
+# Case 4: BOLT is OFF; binlog_cache_size > binlog_large_transaction_optimization_threshold.
+include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 20971520;
+include/assert_error_log.inc [server: 1, pattern: NONE]
+include/assert.inc [Increasing binlog_cache_size raises the threshold while BOLT is off.]
+include/save_error_log_position.inc
+# restart: --binlog-large-transaction-optimization-enabled=OFF --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+threshold
+20971520
+include/assert_error_log.inc [server: 1, pattern: NONE]
+# Case 5: BOLT is OFF; binlog_large_transaction_optimization_threshold < binlog_cache_size.
+include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+include/assert_error_log.inc [server: 1, pattern: NONE]
+include/assert.inc [A lower threshold is raised while BOLT is off.]
+# Case 6: BOLT is OFF; binlog_large_transaction_optimization_threshold > binlog_cache_size.
+include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 22020096;
+include/assert_error_log.inc [server: 1, pattern: NONE]
+include/assert.inc [A threshold above binlog_cache_size is unchanged while BOLT is off.]
+include/save_error_log_position.inc
+# restart: --binlog-large-transaction-optimization-enabled=OFF --binlog-cache-size=20M --binlog-large-transaction-optimization-threshold=21M
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+threshold
+22020096
+include/assert_error_log.inc [server: 1, pattern: NONE]
+# restart:

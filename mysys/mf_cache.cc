@@ -78,8 +78,17 @@ bool real_open_cached_file(IO_CACHE *cache) {
   DBUG_TRACE;
   if ((cache->file = mysql_file_create_temp(
            cache->file_key, name_buff, cache->dir, cache->prefix,
-           (O_RDWR | O_TRUNC), UNLINK_FILE, MYF(MY_WME))) >= 0) {
+           (O_RDWR | O_TRUNC), cache->named_file ? KEEP_FILE : UNLINK_FILE,
+           MYF(MY_WME))) >= 0) {
     error = 0;
+    if (cache->named_file &&
+        (cache->file_name = my_strdup(key_memory_IO_CACHE, name_buff,
+                                      MYF(MY_WME))) == nullptr) {
+      (void)mysql_file_close(cache->file, MYF(0));
+      (void)my_delete(name_buff, MYF(0));
+      cache->file = -1;
+      error = 1;
+    }
   }
   return error;
 }
@@ -92,6 +101,12 @@ void close_cached_file(IO_CACHE *cache) {
     (void)end_io_cache(cache);
     if (file >= 0) {
       (void)mysql_file_close(file, MYF(0));
+    }
+    if (cache->file_name != nullptr) {
+      /* A named temporary file is deleted when the cache is closed. */
+      (void)my_delete(cache->file_name, MYF(0));
+      my_free(cache->file_name);
+      cache->file_name = nullptr;
     }
     my_free(cache->dir);
     my_free(cache->prefix);

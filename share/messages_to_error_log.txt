@@ -13539,6 +13539,34 @@ ER_DD_DOWNGRADE
 ER_INVALID_SERVER_UPGRADE_SKIPS_LTS_LINEAGE
   eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Target MySQL server version belongs to a compatibility lineage whose previous LTS is %u, not %u."
 
+ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID
+  eng "Failed to initialize #binlog_temp_files at '%s': it must be a directory and cannot be a symbolic link."
+
+ER_BINLOG_BOLT_TEMP_FILES_DIR_UNSAFE_ENTRY
+  eng "Failed to initialize #binlog_temp_files at '%s': found unsafe entry '%s'. Only regular managed spill files named 'bolt_<lowercase alphanumeric id>' are allowed."
+
+ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED
+  eng "Failed to initialize #binlog_temp_files at '%s' (OS error %d)."
+
+ER_BINLOG_BOLT_TEMP_FILES_DIR_CLEANED
+  eng "Removed %u leftover managed binary log temporary file(s) from '%s'."
+
+ER_BINLOG_BOLT_LARGE_TRX_FALLBACK
+  eng "Could not optimize large transaction execution in the binary log because %s; standard binary logging was used instead."
+
+ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP
+  eng "Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset %llu in binary log file '%s'."
+
+ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION
+  eng "Could not optimize binlog recovery of a large transaction because source_verify_checksum is enabled."
+
+ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER
+  eng "Could not recover binary log file '%s' because it contains an invalid large transaction header."
+
+ER_BINLOG_BOLT_THRESHOLD_ADJUSTED
+  eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes to match binlog_cache_size."
+
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #

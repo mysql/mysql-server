@@ -109,6 +109,16 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
   */
   [[nodiscard]] virtual bool truncate(my_off_t offset);
 
+  /**
+     Seeks to an existing binlog offset so the next write appends there.
+
+     @param[in] offset  Logical offset for the next write.
+
+     @retval false  Success
+     @retval true   Error
+  */
+  [[nodiscard]] virtual bool position_at(my_off_t offset);
+
   [[nodiscard]] virtual bool flush();
   [[nodiscard]] virtual bool sync();
   [[nodiscard]] virtual bool flush_and_sync();

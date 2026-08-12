@@ -1,0 +1,168 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT threshold and binlog-cache normalization during runtime SETs and
+# server restart.
+#
+# === Requirements ===
+# R1. The optimization threshold is never below binlog_cache_size.
+# R2. BOLT-on normalization is reported to the client and error log.
+# R3. BOLT-off normalization preserves the invariant without BOLT warnings.
+#
+# === Implementation ===
+# 1. Initialize saved BOLT and cache-size configuration.
+# 2. Exercise valid and invalid threshold/cache relationships while BOLT is on.
+# 3. Repeat the relationships while BOLT is off and restore configuration.
+#
+--source include/have_log_bin.inc
+
+# Preserve the caller's configuration and restore it after the assertions.
+--let $save_enabled=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_cache_size=query_get_value(SELECT @@GLOBAL.binlog_cache_size, @@GLOBAL.binlog_cache_size, 1)
+
+# Setup
+# Start all BOLT-on runtime cases from a default server configuration.
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+--disable_query_log
+--disable_warnings
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_cache_size = 10485760;
+--enable_query_log
+--enable_warnings
+
+--echo # Case 1: BOLT is ON; binlog_cache_size > binlog_large_transaction_optimization_threshold.
+# Verify normalization after a runtime SET.
+--source include/save_error_log_position.inc
+--replace_regex /\t[0-9]+\t/\t<code>\t/
+SET GLOBAL binlog_cache_size = 20971520;
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= Increasing binlog_cache_size raises the optimization threshold.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+# Verify normalization during restart recovery.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--source include/assert_error_log.inc
+
+--echo # Case 2: BOLT is ON; binlog_large_transaction_optimization_threshold < binlog_cache_size.
+# Verify normalization after a runtime SET.
+--source include/save_error_log_position.inc
+--replace_regex /\t[0-9]+\t/\t<code>\t/
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A lower optimization threshold is raised to match binlog_cache_size.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+--echo # Case 3: BOLT is ON; binlog_large_transaction_optimization_threshold > binlog_cache_size.
+# Verify the valid relationship is unchanged after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 22020096;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A threshold above binlog_cache_size is unchanged.
+--let $assert_cond= $threshold = 22020096
+--source include/assert.inc
+
+# Verify lowering binlog_cache_size does not lower the threshold.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 10485760;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $cache_size=query_get_value(SELECT @@GLOBAL.binlog_cache_size, @@GLOBAL.binlog_cache_size, 1)
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= Lowering binlog_cache_size does not lower the threshold.
+--let $assert_cond= $cache_size = 10485760 AND $threshold = 22020096
+--source include/assert.inc
+
+# Verify the valid configuration restarts without adjustment.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=ON --binlog-cache-size=20M --binlog-large-transaction-optimization-threshold=21M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+
+# Start all BOLT-off runtime cases from a default server configuration.
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+--disable_query_log
+--disable_warnings
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_cache_size = 10485760;
+--enable_query_log
+--enable_warnings
+
+--echo # Case 4: BOLT is OFF; binlog_cache_size > binlog_large_transaction_optimization_threshold.
+# Verify normalization remains silent after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 20971520;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= Increasing binlog_cache_size raises the threshold while BOLT is off.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+# Verify startup normalization remains silent while BOLT is off.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=OFF --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+
+--echo # Case 5: BOLT is OFF; binlog_large_transaction_optimization_threshold < binlog_cache_size.
+# Verify normalization remains silent after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A lower threshold is raised while BOLT is off.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+--echo # Case 6: BOLT is OFF; binlog_large_transaction_optimization_threshold > binlog_cache_size.
+# Verify the valid relationship remains unchanged after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 22020096;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A threshold above binlog_cache_size is unchanged while BOLT is off.
+--let $assert_cond= $threshold = 22020096
+--source include/assert.inc
+
+# Verify the valid configuration restarts silently while BOLT is off.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=OFF --binlog-cache-size=20M --binlog-large-transaction-optimization-threshold=21M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+# Restore the caller's variable-dependent configuration without recording
+# environment-specific values in the result file.
+--disable_query_log
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--enable_query_log

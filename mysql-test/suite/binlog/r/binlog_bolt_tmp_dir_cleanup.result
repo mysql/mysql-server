@@ -1,0 +1,11 @@
+Created 3 managed BOLT spill files
+# restart
+Startup cleanup removed all managed BOLT spill files
+# Reject a symbolic link for #binlog_temp_files.
+# restart
+# Reject an unrecognized regular entry.
+# restart
+# Reject a symbolic-link entry, even with a managed file name.
+# restart
+# Reject a nested directory, even with a managed file name.
+# restart

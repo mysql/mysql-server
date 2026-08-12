@@ -1199,6 +1199,7 @@ static bool shall_skip_gtids(const Log_event *ev) {
     case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
     case mysql::binlog::event::ROTATE_EVENT:
     case mysql::binlog::event::IGNORABLE_LOG_EVENT:
+    case mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT:
     case mysql::binlog::event::INCIDENT_EVENT:
       filtered = false;
       break;

@@ -26,7 +26,7 @@ VARIABLE_NAME LIKE '%source%') AND
 'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 110 variables in the table.]
+include/assert.inc [Expect 112 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -44,6 +44,8 @@ SET PERSIST binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_d
 SET PERSIST binlog_group_commit_sync_no_delay_count = @@GLOBAL.binlog_group_commit_sync_no_delay_count;
 SET PERSIST binlog_gtid_simple_recovery = @@GLOBAL.binlog_gtid_simple_recovery;
 ERROR HY000: Variable 'binlog_gtid_simple_recovery' is a read only variable
+SET PERSIST binlog_large_transaction_optimization_enabled = @@GLOBAL.binlog_large_transaction_optimization_enabled;
+SET PERSIST binlog_large_transaction_optimization_threshold = @@GLOBAL.binlog_large_transaction_optimization_threshold;
 SET PERSIST binlog_max_flush_queue_time = @@GLOBAL.binlog_max_flush_queue_time;
 Warnings:
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
@@ -234,16 +236,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 90 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 88 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 88 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 90 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 90 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc [Expect 90 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -261,6 +263,8 @@ RESET PERSIST IF EXISTS binlog_group_commit_sync_no_delay_count;
 RESET PERSIST IF EXISTS binlog_gtid_simple_recovery;
 Warnings:
 Warning	3615	Variable binlog_gtid_simple_recovery does not exist in persisted config file
+RESET PERSIST IF EXISTS binlog_large_transaction_optimization_enabled;
+RESET PERSIST IF EXISTS binlog_large_transaction_optimization_threshold;
 RESET PERSIST IF EXISTS binlog_max_flush_queue_time;
 RESET PERSIST IF EXISTS binlog_order_commits;
 RESET PERSIST IF EXISTS binlog_rotate_encryption_master_key_at_startup;

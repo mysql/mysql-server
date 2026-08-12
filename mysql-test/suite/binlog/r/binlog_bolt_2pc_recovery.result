@@ -1,0 +1,25 @@
+Warnings:
+Note	1051	Unknown table 'test.t1'
+# Pre-TC-prepare crash rolls back.
+include/assert.inc [A pre-TC-prepare crash rolls back all rows.]
+# Post-TC-prepare crash rolls back.
+include/assert.inc [A post-TC-prepare crash rolls back all rows.]
+# Post-header-sync crash rolls back.
+include/assert.inc [A post-header-sync crash rolls back all rows.]
+# Post-purge-index-sync crash rolls back.
+include/assert.inc [A post-purge-index-sync crash rolls back all rows.]
+# Post-promote-rename crash rolls back.
+include/assert.inc [A post-promote-rename crash rolls back all rows.]
+# Post-main-index-update crash commits exactly once.
+include/assert.inc [A post-main-index-update crash commits all rows exactly once.]
+include/assert.inc [A post-main-index-update crash preserves the original rows.]
+# Post-purge-index-removal crash commits exactly once.
+include/assert.inc [A post-purge-index-removal crash commits all rows exactly once.]
+include/assert.inc [A post-purge-index-removal crash preserves the original rows.]
+# Pre-engine-commit crash commits exactly once.
+include/assert.inc [A pre-engine-commit crash commits all rows exactly once.]
+include/assert.inc [A pre-engine-commit crash preserves the original rows.]
+# Post-main-index XA PREPARE crash remains prepared and commits exactly once.
+include/assert.inc [A post-main-index XA PREPARE remains prepared until XA COMMIT.]
+include/assert.inc [XA COMMIT commits the recovered promoted rows exactly once.]
+DROP TABLE t1;

@@ -115,6 +115,15 @@ class Log_sanitizer {
   /// @returns Reference to a memory key
   virtual PSI_memory_key &get_memory_key() const = 0;
 
+  /// @brief Whether this sanitizer is recovering a relay log rather than a
+  /// binary log. A Large_transaction_header_log_event's recorded offset
+  /// refers to the source's binary log, so it is only actionable during
+  /// binary-log recovery; relay-log recovery must ignore it. This cannot be
+  /// derived from the event itself, because a header relayed from the source
+  /// does not carry LOG_EVENT_RELAY_LOG_F.
+  /// @returns true for relay-log recovery, false for binary-log recovery.
+  virtual bool is_relay_log_recovery() const { return false; }
+
   /// @brief This function goes through the opened file and searches for
   /// a valid position in a binary log file. It also gathers
   /// information about XA transactions which will be used during the
@@ -228,6 +237,22 @@ class Log_sanitizer {
 
   /// Last opened file size
   my_off_t m_last_file_size{0};
+
+  /// Metadata for the large transaction's terminal event.
+  my_off_t m_large_trx_xid_offset{0};
+  uint8_t m_large_trx_xid_type{0};
+
+  /// @brief Invoked when a `Large_transaction_header_log_event` is read from
+  /// the reader.
+  /// @details Validates the terminal event's offset and type, seeks to that
+  /// event, and marks the transaction as open.
+  /// @param ev The `Large_transaction_header_log_event` to process.
+  /// @param reader Reader for the current binary log.
+  void process_large_trx_header_event(
+      Large_transaction_header_log_event const &ev,
+      IBasic_binlog_file_reader &reader);
+
+  bool validate_large_trx_terminal_event(Log_event const &ev);
 
   /// @brief Invoked when a `Query_log_event` is read from the binary log file
   /// reader.

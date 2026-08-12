@@ -1,0 +1,97 @@
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, marker INT) ENGINE=MyISAM;
+# A large STATEMENT transaction uses the standard commit path.
+SET SESSION binlog_format = STATEMENT;
+SET @bolt_statement_payload = REPEAT('s', 12000000);
+BEGIN;
+INSERT INTO t1 VALUES (1, @bolt_statement_payload);
+COMMIT;
+SET @bolt_statement_payload = NULL;
+include/assert.inc [A large STATEMENT transaction does not promote a binary log.]
+include/assert.inc [A large STATEMENT transaction increments the missed counter once.]
+include/assert.inc [A large STATEMENT transaction stays in the active binary log.]
+include/assert.inc [A large STATEMENT fallback commits its row.]
+# A large MIXED transaction with a statement event uses the standard path.
+SET SESSION binlog_format = MIXED;
+SET @bolt_mixed_payload = REPEAT('m', 12000000);
+BEGIN;
+INSERT INTO t1 VALUES (1, @bolt_mixed_payload);
+COMMIT;
+SET @bolt_mixed_payload = NULL;
+include/assert.inc [A large MIXED transaction does not promote a binary log.]
+include/assert.inc [A large MIXED transaction increments the missed counter once.]
+include/assert.inc [A large MIXED transaction stays in the active binary log.]
+include/assert.inc [A large MIXED fallback commits its row.]
+# A checksum change during a large transaction uses the standard path.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('c', 5000000));
+SET GLOBAL binlog_checksum = IF(@@GLOBAL.binlog_checksum = 'CRC32', 'NONE', 'CRC32');
+INSERT INTO t1 VALUES (2, REPEAT('d', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('e', 5000000));
+COMMIT;
+include/assert.inc [A checksum change does not promote a binary log.]
+include/assert.inc [A checksum change increments the missed counter once.]
+include/assert.inc [A checksum-change fallback commits all rows.]
+# Restoring the original checksum before commit preserves promotion.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('r', 5000000));
+SET GLOBAL binlog_checksum = IF(@@GLOBAL.binlog_checksum = 'CRC32', 'NONE', 'CRC32');
+SET GLOBAL binlog_checksum = CRC32;
+INSERT INTO t1 VALUES (2, REPEAT('s', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('t', 5000000));
+COMMIT;
+include/assert.inc [Restoring the checksum before commit promotes the transaction.]
+include/assert.inc [Restoring the checksum before commit does not increment the missed counter.]
+include/assert.inc [The restored-checksum commit opens its promoted binary log.]
+include/assert.inc [The restored-checksum promoted transaction commits all rows.]
+include/assert.inc [The executed GTID set exceeds BOLT's reserved header.]
+# A dynamically reserved Previous_gtids header preserves promotion.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 5000000));
+COMMIT;
+include/assert.inc [A dynamically reserved Previous_gtids header promotes a binary log.]
+include/assert.inc [A dynamically reserved Previous_gtids header does not increment the missed counter.]
+include/assert.inc [The dynamically reserved-header commit opens its promoted binary log.]
+include/assert.inc [A dynamically reserved-header commit commits all rows.]
+INSERT INTO t1 VALUES (1, REPEAT('n', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('o', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('p', 5000000));
+INSERT INTO t2 VALUES (1, 0), (2, 0), (3, 0);
+# A mixed InnoDB/MyISAM row statement falls back for its statement cache.
+BEGIN;
+UPDATE t1 JOIN t2 USING (id) SET t1.data = CONCAT(t1.data, 'x'), t2.marker = 1;
+COMMIT;
+include/assert.inc [An InnoDB/MyISAM statement promotes its qualifying InnoDB cache.]
+include/assert.inc [An InnoDB/MyISAM statement increments the missed counter once.]
+include/assert.inc [An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.]
+include/assert.inc [An InnoDB/MyISAM fallback commits every InnoDB row.]
+include/assert.inc [An InnoDB/MyISAM fallback updates every MyISAM row.]
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart the server with binary-log encryption enabled.
+# An encrypted binary log uses the standard commit path.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('j', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('k', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('l', 5000000));
+COMMIT;
+include/assert.inc [An encrypted binary log does not promote a binary log.]
+include/assert.inc [An encrypted binary log increments the missed counter once.]
+include/assert.inc [An encrypted fallback stays in the active binary log.]
+include/assert.inc [An encrypted fallback commits all rows.]
+DROP TABLE t2;
+DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

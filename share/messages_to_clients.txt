@@ -11052,6 +11052,9 @@ ER_CSA_CRST_REQUIREMENT_GTID_ONLY
 ER_DA_CANNOT_REPLICATE_WITHOUT_BINLOG
   eng "Cannot replicate from source as it does not have logical log enabled. Check source configuration to enable it."
 
+ER_BINLOG_BOLT_THRESHOLD_ADJUSTED_SQL_WARNING
+  eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes to match binlog_cache_size."
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

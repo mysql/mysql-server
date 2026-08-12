@@ -55,6 +55,7 @@
 #include "my_thread_local.h"
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/control_events.h"
+#include "mysql/binlog/event/large_transaction_header_event.h"
 #include "mysql/binlog/event/load_data_events.h"
 #include "mysql/binlog/event/rows_event.h"
 #include "mysql/binlog/event/statement_events.h"
@@ -3764,6 +3765,95 @@ class Ignorable_log_event
 };
 
 /**
+  @class Large_transaction_header_log_event
+
+  Server class of the binlog large transaction optimization header event
+  (see mysql::binlog::event::Large_transaction_header_event
+  for the wire format and purpose). Written by the server into the
+  reserved header region of a promoted binary log file; on the applier
+  side it is a no-op (and, being flagged ignorable, servers that do not
+  know the type skip it entirely).
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+  B_l:Large_transaction_header_event    Log_event
+                            \                          /
+                             \                        /
+              Large_transaction_header_log_event
+
+  B_l: namespace mysql::binlog::event
+  @endinternal
+*/
+class Large_transaction_header_log_event
+    : public mysql::binlog::event::Large_transaction_header_event,
+      public Log_event {
+ public:
+  // disable copy-move semantics
+  Large_transaction_header_log_event(
+      Large_transaction_header_log_event &&) noexcept = delete;
+  Large_transaction_header_log_event &operator=(
+      Large_transaction_header_log_event &&) noexcept = delete;
+  Large_transaction_header_log_event(
+      const Large_transaction_header_log_event &) = delete;
+  Large_transaction_header_log_event &operator=(
+      const Large_transaction_header_log_event &) = delete;
+
+#ifdef MYSQL_SERVER
+  /**
+    Creates the event for writing into a promoted binary log file's
+    reserved header region.
+
+    @param thd_arg                    THD of the committing session.
+    @param terminating_event_offset  Offset of the transaction's
+                                     terminating event in the file.
+    @param terminating_event_type    Type of the transaction's terminating
+                                     event in the file.
+    @param padding_size              Filler bytes occupying the remainder
+                                     of the reserved region.
+  */
+  Large_transaction_header_log_event(
+      THD *thd_arg, uint64_t terminating_event_offset,
+      mysql::binlog::event::Log_event_type terminating_event_type,
+      uint64_t padding_size)
+      : mysql::binlog::event::Large_transaction_header_event(
+            terminating_event_offset,
+            static_cast<uint8_t>(terminating_event_type), padding_size),
+        Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, Log_event::EVENT_STMT_CACHE,
+                  Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
+    DBUG_TRACE;
+    common_header->set_is_valid(true);
+  }
+
+  int pack_info(Protocol *protocol) override;
+  bool write_data_body(Basic_ostream *ostream) override;
+#endif
+
+  Large_transaction_header_log_event(
+      const char *buf,
+      const mysql::binlog::event::Format_description_event *descr_event);
+
+  ~Large_transaction_header_log_event() override = default;
+
+  void claim_memory_ownership(bool claim) override;
+
+  size_t get_data_size() override {
+    return kFixedBodyLength + m_padding_size;
+  }
+
+#ifndef MYSQL_SERVER
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
+#endif
+
+#if defined(MYSQL_SERVER)
+  int do_apply_event(Relay_log_info const *rli) override;
+#endif
+};
+
+/**
   @class Rows_query_log_event
   It is used to record the original query for the rows
   events in RBR.
@@ -4189,16 +4279,20 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
 
     @param cache_size The size of the binlog cache in bytes.
     @param is_checksum_enabled If checksum will be added to events on flush.
+    @param is_checksum_computed If the events in the cache already carry
+           their checksum.
     @param event_counter The amount of events in the cache.
   */
   void set_trx_length_by_cache_size(ulonglong cache_size,
                                     bool is_checksum_enabled = false,
+                                    bool is_checksum_computed = false,
                                     int event_counter = 0);
 
   /// @copydoc set_trx_length_by_cache_size
   /// @detail tagged version of event
   void set_trx_length_by_cache_size_tagged(ulonglong cache_size,
                                            bool is_checksum_enabled = false,
+                                           bool is_checksum_computed = false,
                                            int event_counter = 0);
 };
 

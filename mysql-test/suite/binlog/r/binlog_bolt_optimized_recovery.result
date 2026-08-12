@@ -1,0 +1,30 @@
+Warnings:
+Note	1051	Unknown table 'test.t1'
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# Commit a qualifying transaction for optimized recovery.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+include/assert.inc [The transaction was promoted into a new binary log file.]
+# Kill and restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --max-binlog-size=1G
+# Recovery logs the optimized large-transaction seek.
+Pattern "Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset" found
+include/assert.inc [The committed promoted transaction survives recovery.]
+# Commit a second qualifying transaction for corrupt-LTH recovery.
+BEGIN;
+INSERT INTO t1 VALUES (4, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (5, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
+COMMIT;
+include/assert.inc [The second transaction was promoted into a new binary log file.]
+# Truncate the active promoted file and reject the invalid LTH.
+# Kill the server
+Pattern "contains an invalid large transaction header" found
+# restart
+DROP TABLE t1;

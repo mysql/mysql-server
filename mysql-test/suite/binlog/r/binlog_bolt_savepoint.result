@@ -1,0 +1,40 @@
+Warnings:
+Note	1051	Unknown table 'test.t1'
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# Savepoint rollback below binlog_cache_size keeps the active binlog.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 512000));
+SAVEPOINT before_spill;
+INSERT INTO t1 VALUES (2, REPEAT('b', 2000000));
+ROLLBACK TO SAVEPOINT before_spill;
+COMMIT;
+include/assert.inc [A final cache below binlog_cache_size is copied to the active binlog.]
+include/assert.inc [Savepoint rollback retains only the pre-spill row.]
+include/assert.inc [Savepoint rollback discards the post-savepoint row.]
+# Savepoint rollback below the BOLT threshold keeps the active binlog.
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('c', 2000000));
+SAVEPOINT before_discard;
+INSERT INTO t1 VALUES (12, REPEAT('d', 3000000));
+ROLLBACK TO SAVEPOINT before_discard;
+COMMIT;
+include/assert.inc [A final cache below the BOLT threshold is copied to the active binlog.]
+include/assert.inc [Savepoint rollback retains the above-cache pre-savepoint row.]
+include/assert.inc [Savepoint rollback discards the above-cache post-savepoint row.]
+# Savepoint rollback above the BOLT threshold promotes a new binlog.
+BEGIN;
+INSERT INTO t1 VALUES (21, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (22, REPEAT('f', 4000000));
+INSERT INTO t1 VALUES (23, REPEAT('g', 4000000));
+SAVEPOINT before_discard;
+INSERT INTO t1 VALUES (24, REPEAT('h', 2000000));
+ROLLBACK TO SAVEPOINT before_discard;
+COMMIT;
+include/assert.inc [A final cache above the BOLT threshold promotes a new active binlog.]
+include/assert.inc [Savepoint rollback retains the promoted pre-savepoint rows.]
+include/assert.inc [Savepoint rollback discards the promoted post-savepoint row.]
+DROP TABLE t1;

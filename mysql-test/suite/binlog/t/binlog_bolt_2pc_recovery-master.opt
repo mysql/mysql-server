@@ -1,0 +1,3 @@
+--binlog-large-transaction-optimization-enabled=ON
+--binlog-large-transaction-optimization-threshold=10M
+--max-binlog-size=1G

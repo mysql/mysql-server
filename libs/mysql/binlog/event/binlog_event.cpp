@@ -77,6 +77,8 @@ static const std::unordered_map<Log_event_type, const std::string>
                             {PARTIAL_UPDATE_ROWS_EVENT, "Update_rows_partial"},
                             {TRANSACTION_PAYLOAD_EVENT, "Transaction_payload"},
                             {GTID_TAGGED_LOG_EVENT, "Gtid_tagged_log_event"},
+                            {LARGE_TRANSACTION_HEADER_EVENT,
+                             "Large_transaction_header"},
                             {UNKNOWN_EVENT, "Unknown"}};
 
 const std::string &get_event_type_as_string(Log_event_type type) {
