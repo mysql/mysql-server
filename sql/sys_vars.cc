@@ -2859,6 +2859,21 @@ static Sys_var_ulong Sys_max_connections(
     /* max_connections is used as a sizing hint by the performance schema. */
     sys_var::PARSE_EARLY);
 
+/*
+  Bug#99917: Provide an option to cap the number of concurrent connections
+  accepted on the administrative interface (admin_address / admin_port).
+  Historically there was no limit on administrative connections; a value of
+  0 (the default) keeps that behaviour.
+*/
+static Sys_var_ulong Sys_admin_max_connections(
+    "admin_max_connections",
+    "The maximum number of concurrent client connections permitted on the "
+    "administrative interface (admin_address/admin_port). 0 (the default) "
+    "means no limit.",
+    GLOBAL_VAR(admin_max_connections), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
 static Sys_var_ulong Sys_max_connect_errors(
     "max_connect_errors",
     "If there is more than this number of interrupted connections from "

@@ -305,6 +305,8 @@ extern ulong stored_program_def_size;
 extern ulong table_def_size;
 extern ulong tablespace_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
+/* Bug#99917: administrative interface connection limit. */
+extern ulong admin_max_connections;
 extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
 extern bool opt_replica_allow_batching;

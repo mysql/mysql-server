@@ -1408,6 +1408,12 @@ ulong specialflag = 0;
 ulong binlog_cache_use = 0, binlog_cache_disk_use = 0;
 ulong binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0;
 ulong max_connections, max_connect_errors;
+/*
+  Bug#99917: limit on the number of concurrent connections to the
+  administrative interface (admin_address/admin_port). 0 means no limit,
+  which preserves the previous behaviour of the administrative interface.
+*/
+ulong admin_max_connections = 0;
 ulong rpl_stop_replica_timeout = LONG_TIMEOUT;
 bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
@@ -11689,6 +11695,17 @@ SHOW_VAR status_vars[] = {
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Acl_cache_items_count", (char *)&show_acl_cache_items_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    /*
+      Bug#99917: administrative interface counters. These count administrative
+      connections only; ordinary connections are accounted by
+      Threads_connected / Connection_errors_max_connections as before.
+    */
+    {"Admin_connection_errors_max_connections",
+     (char *)&Connection_handler_manager::admin_connection_errors_max_connection,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"Admin_connections",
+     (char *)&Connection_handler_manager::admin_connection_count, SHOW_INT,
      SHOW_SCOPE_GLOBAL},
 #ifndef NDEBUG
     {"Ongoing_anonymous_gtid_violating_transaction_count",

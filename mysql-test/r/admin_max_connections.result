@@ -1,0 +1,75 @@
+#
+# 1. Status variables exist and start at a clean baseline
+#
+SHOW GLOBAL STATUS LIKE 'Admin_connection%';
+Variable_name	Value
+Admin_connection_errors_max_connections	0
+Admin_connections	0
+#
+# 2. Create a user allowed to use the administrative interface
+#
+CREATE USER u_admin;
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO u_admin;
+#
+# 3. With the default of 0 there is no limit (previous behaviour),
+#    and Admin_connections counts administrative connections only
+#
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+Variable_name	Value
+Admin_connections	3
+# An ordinary connection must NOT change Admin_connections
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+Variable_name	Value
+Admin_connections	3
+# All administrative connections are gone again
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+Variable_name	Value
+Admin_connections	0
+#
+# 4. With admin_max_connections = 2 the third administrative
+#    connection is rejected, and the rejection is counted in
+#    Admin_connection_errors_max_connections only
+#
+SET GLOBAL admin_max_connections = 2;
+# Remember the normal-connection error counter to prove it stays put
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+Variable_name	Value
+Admin_connections	2
+connect(127.0.0.1,u_admin,,test,ADMIN_PORT,SOURCE_SOCKET);
+ERROR HY000: Too many connections
+SHOW GLOBAL STATUS LIKE 'Admin_connection_errors_max_connections';
+Variable_name	Value
+Admin_connection_errors_max_connections	1
+# The rejection did not leak into Connection_errors_max_connections
+# Connection_errors_max_connections unchanged: OK
+#
+# 5. Ordinary connections are not affected by the admin cap
+#
+SELECT 1 AS ordinary_connection_works;
+ordinary_connection_works
+1
+#
+# 6. Closing an administrative connection frees a slot
+#
+SELECT 1 AS admin_slot_freed;
+admin_slot_freed
+1
+#
+# 7. Lowering the cap below the number of open administrative
+#    connections affects only new connections
+#
+SET GLOBAL admin_max_connections = 1;
+SELECT 1 AS existing_admin_conn_alive;
+existing_admin_conn_alive
+1
+connect(127.0.0.1,u_admin,,test,ADMIN_PORT,SOURCE_SOCKET);
+ERROR HY000: Too many connections
+#
+# 8. Setting the value back to 0 removes the limit again
+#
+SET GLOBAL admin_max_connections = 0;
+#
+# Cleanup
+#
+DROP USER u_admin;
+SET GLOBAL admin_max_connections = DEFAULT;
