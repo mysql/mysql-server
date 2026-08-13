@@ -7322,6 +7322,13 @@ bool IsImmediateDeleteCandidate(const Table_ref *table_ref,
     return false;
   }
 
+  // Cannot delete from the table immediately if the delete cascades to another
+  // table in the query, as the cascade would remove rows that the query still
+  // reads and deletes itself. See Bug#80821 and Bug#102586.
+  if (delete_cascades_to_queried_table(table_ref, query_block->leaf_tables)) {
+    return false;
+  }
+
   return true;
 }
 

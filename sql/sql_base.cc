@@ -2257,6 +2257,53 @@ Table_ref *unique_table(const Table_ref *table, Table_ref *table_list,
 }
 
 /**
+  Test whether deleting a row from the subject table of a multi-table DELETE
+  can cascade to another table which the same statement reads.
+
+  Deleting from such a table while the join is still scanning is unsafe for
+  row-based replication: the cascade removes the child rows on the source and
+  logs row events for them, while the statement also logs the row events for
+  the child rows it deletes itself. On the replica the cascade has already
+  removed those rows by the time the logged child events are applied, which
+  breaks the applier with ER_KEY_NOT_FOUND. Deferring the delete until the
+  join has finished avoids the overlap.
+
+  Only ON DELETE CASCADE deletes child rows, so only that rule is considered.
+  ON DELETE SET NULL updates the child rows instead, which leaves them
+  findable for the logged events and replicates correctly.
+
+  @param  table       table to be checked (must be updatable base table)
+  @param  leaf_tables leaf tables of the query block to check against
+
+  @retval true  Deleting from @p table cascades to one of @p leaf_tables.
+  @retval false No cascading dependency within the query.
+*/
+
+bool delete_cascades_to_queried_table(const Table_ref *table,
+                                      const Table_ref *leaf_tables) {
+  assert(table->table != nullptr);
+
+  const TABLE_SHARE *share = table->table->s;
+  for (const TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p =
+           share->foreign_key_parent;
+       fk_p < share->foreign_key_parent + share->foreign_key_parents; ++fk_p) {
+    if (fk_p->delete_rule != dd::Foreign_key::RULE_CASCADE) continue;
+
+    for (const Table_ref *tl = leaf_tables; tl != nullptr; tl = tl->next_leaf) {
+      if (tl->table == nullptr) continue;  // View or derived table.
+      const TABLE_SHARE *child_share = tl->table->s;
+      if (my_strcasecmp(table_alias_charset, child_share->db.str,
+                        fk_p->referencing_table_db.str) == 0 &&
+          my_strcasecmp(table_alias_charset, child_share->table_name.str,
+                        fk_p->referencing_table_name.str) == 0)
+        return true;
+    }
+  }
+
+  return false;
+}
+
+/**
   Issue correct error message in case we found 2 duplicate tables which
   prevent some update operation
 

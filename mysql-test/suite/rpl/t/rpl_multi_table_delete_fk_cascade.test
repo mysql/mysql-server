@@ -1,0 +1,89 @@
+# ==== Purpose ====
+#
+# Check that a multi-table DELETE which names both a foreign key parent table
+# and a child table with a cascading delete rule does not break row-based
+# replication.
+#
+# ==== Implementation ====
+#
+# 1. On the source, run a multi-table DELETE covering a parent table and its
+#    ON DELETE CASCADE child.
+# 2. Synchronize the replica and compare both tables. Before this fix the
+#    applier stopped with ER_KEY_NOT_FOUND: the parent row was deleted while
+#    the join was still scanning, so the cascade removed the child rows on the
+#    replica before the logged child row events were applied.
+# 3. Repeat with an ON DELETE SET NULL child, which replicates correctly and
+#    is covered here so the difference stays visible.
+#
+# ==== References ====
+#
+# Bug#80821: Replication breaks if multi-table DELETE is used in conjunction
+#            with Foreign Key
+# Bug#102586: Foreign Key ON DELETE CASCADE breaks with RBR and multiple-table
+#             DELETE
+#
+###############################################################################
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # ON DELETE CASCADE
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (
+  id INT PRIMARY KEY,
+  parent_id INT,
+  FOREIGN KEY (parent_id) REFERENCES t1(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1, 1), (2, 1), (3, 2);
+
+DELETE p, c FROM t1 p LEFT JOIN t2 c ON c.parent_id = p.id WHERE p.id = 1;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+--let $diff_tables= master:test.t2, slave:test.t2
+--source include/diff_tables.inc
+
+--let $rpl_connection_name= master
+--source include/connection.inc
+DROP TABLE t2, t1;
+
+--echo #
+--echo # ON DELETE SET NULL, which is not deferred and not affected
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (
+  id INT PRIMARY KEY,
+  parent_id INT,
+  FOREIGN KEY (parent_id) REFERENCES t1(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1, 1), (2, 1), (3, 2);
+
+DELETE p, c FROM t1 p LEFT JOIN t2 c ON c.parent_id = p.id WHERE p.id = 1;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+--let $diff_tables= master:test.t2, slave:test.t2
+--source include/diff_tables.inc
+
+--let $rpl_connection_name= master
+--source include/connection.inc
+DROP TABLE t2, t1;
+
+--source include/rpl/deinit.inc

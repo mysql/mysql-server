@@ -302,6 +302,8 @@ void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
 Table_ref *unique_table(const Table_ref *table, Table_ref *table_list,
                         bool check_alias);
+bool delete_cascades_to_queried_table(const Table_ref *table,
+                                      const Table_ref *leaf_tables);
 void drop_temporary_table(THD *thd, Table_ref *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
