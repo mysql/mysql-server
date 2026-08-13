@@ -100,7 +100,7 @@ void box_envelope(const Geometry *g, const dd::Spatial_reference_system *srs,
 /// @param[out] coordinates The coordinates of the MBR
 ///
 /// @return false if succeed, true in case of an error
-bool knn_query_to_mbr(THD *thd, Item *knn_query_item, double (&coordinates)[5]);
+bool knn_query_to_mbr(THD *thd, Item *knn_query_item, double (&coordinates)[4]);
 
 }  // namespace gis
 

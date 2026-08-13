@@ -291,11 +291,11 @@ QUICK_RANGE::QUICK_RANGE(MEM_ROOT *mem_root, const uchar *min_key_arg,
       max_keypart_map(max_keypart_map_arg) {
   min_key = mem_root->ArrayAlloc<uchar>(min_length_arg + 1);
   max_key = mem_root->ArrayAlloc<uchar>(max_length_arg + 1);
-  if (min_key != nullptr) {
-    memcpy(min_key, min_key_arg, min_length_arg + 1);
+  if (min_key != nullptr && min_length_arg != 0) {
+    memcpy(min_key, min_key_arg, min_length_arg);
   }
-  if (max_key != nullptr) {
-    memcpy(max_key, max_key_arg, max_length_arg + 1);
+  if (max_key != nullptr && max_length_arg != 0) {
+    memcpy(max_key, max_key_arg, max_length_arg);
   }
 }
 
