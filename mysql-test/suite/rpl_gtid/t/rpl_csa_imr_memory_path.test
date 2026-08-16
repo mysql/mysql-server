@@ -1,0 +1,153 @@
+# ==== Purpose ====
+#
+# Memory-path end-to-end apply on a CSA (Change Stream Applier) channel with the
+# in-memory relay log (IMR) enabled: a normal workload replicates correctly
+# through the in-memory queue (no relay-log round trip), and the per-channel
+# queue metrics are surfaced in SHOW REPLICA STATUS.
+#
+# ==== Requirements ====
+#
+# R1. With IMR ON on a CSA channel, a mixed DML/DDL workload applies and the
+#     replica data matches the source. (FR3, FR4, FR4.1, FR4.3, FR5, FR6,
+#     NFR1, NFR4.1)
+# R2. SHOW REPLICA STATUS exposes In_Memory_Relay_Log_Space and
+#     In_Memory_Queue_Length: non-zero while transactions sit in the queue,
+#     draining to 0 once everything is applied. (FR34)
+#
+# ==== Implementation ====
+#
+#   1. Set up CSA replication (applier stopped), enable IMR, start the replica.
+#   2. Apply a mixed DML/DDL workload; sync; assert the replica matches source.
+#   3. Assert the queue metrics drain to 0 once everything is applied.
+#   4. With the applier stopped, received-but-unapplied transactions make the
+#      metrics non-zero; restart the applier, drain, and assert the data matches.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable the in-memory relay log on the CSA channel and start.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+--let $count= `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE IN_MEMORY_RELAYLOG_ENABLED = 'YES'`
+--let $assert_text= The channel reports the in-memory relay log as enabled
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+
+--echo
+--echo # 2. A mixed DML/DDL workload replicates correctly through the memory path.
+--echo
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, v INT);
+
+INSERT INTO t1 VALUES (1, 'one'), (2, 'two'), (3, 'three');
+
+BEGIN;
+INSERT INTO t2 (v) VALUES (10), (20), (30);
+UPDATE t1 SET b = 'ONE' WHERE a = 1;
+COMMIT;
+
+DELETE FROM t1 WHERE a = 3;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 0;
+UPDATE t2 SET v = v + 1;
+
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY a
+--source include/rpl/diff.inc
+--let $rpl_diff_statement= SELECT * FROM t2 ORDER BY id
+--source include/rpl/diff.inc
+
+--echo
+--echo # 3. The queue memory drains to 0 once everything is applied.
+--echo #    (Bytes are released at commit; empty envelopes may linger unswept
+--echo #    behind an idle coordinator, so In_Memory_Relay_Log_Space -- not
+--echo #    In_Memory_Queue_Length -- is the reliable "all committed" signal.)
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+--echo
+--echo # 4. With the applier stopped, received transactions make the metrics
+--echo #    non-zero; restarting the applier drains them and the data matches.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+# Baseline queue length before the new workload. With the applier stopped the
+# queue is retained (the receiver keeps running), and committed-but-unswept
+# envelopes from the previous phase can still linger behind the idle
+# coordinator, so the baseline is not necessarily 0. Capture it and assert the
+# exact DELTA below rather than an absolute value.
+--let $qlen_before= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 20
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t2 (v) VALUES (100 + $i)
+  --inc $i
+}
+--enable_query_log
+
+# Wait for the receiver (IO thread) to enqueue everything; the applier is
+# stopped, so nothing is dispatched, committed, or swept. Leaves us on the
+# replica connection.
+--source include/rpl/sync_to_replica_received.inc
+
+# Each autocommit INSERT is one transaction, hence exactly one queue envelope.
+# With the applier stopped, every received transaction stays queued, so the
+# queue length must grow by exactly $trx_count.
+--let $qlen_after= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length grew by exactly $trx_count queued transactions while the applier was stopped
+--let $assert_cond= $qlen_after - $qlen_before = $trx_count
+--source include/assert.inc
+
+--let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= In_Memory_Relay_Log_Space is non-zero while transactions are queued
+--let $assert_cond= $space > 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT * FROM t2 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1, t2;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

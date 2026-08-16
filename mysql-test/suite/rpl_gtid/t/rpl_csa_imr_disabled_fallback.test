@@ -1,0 +1,144 @@
+# ==== Purpose ====
+#
+# Test that the in-memory relay log (IMR) feature, when disabled, leaves the
+# classic (disk) relay-log path untouched on a CSA (Change Stream Applier)
+# channel, and that toggling the feature OFF -> ON -> OFF around live workloads
+# is non-destructive.
+#
+# ==== Requirements ====
+#
+# R1. On a CSA channel with IN_MEMORY_RELAYLOG_ENABLED = OFF, replication uses
+#     the classic relay-log path: relay logs are written on disk
+#     (Relay_Log_Space > 0) and the IMR SHOW REPLICA STATUS columns
+#     In_Memory_Relay_Log_Space / In_Memory_Queue_Length both report 0.
+# R2. Toggling IN_MEMORY_RELAYLOG_ENABLED OFF -> ON -> OFF (with replication
+#     stopped for each change) keeps the replica data consistent with the
+#     source (non-destructive fallback), so a channel can safely fall back to
+#     the disk path without data loss.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA replica (IMR defaults to OFF) and assert the classic path:
+#      relay logs present, IMR columns zero.
+#   2. Apply a workload with IMR OFF and verify data equality.
+#   3. Toggle IMR ON, apply a workload, verify data equality.
+#   4. Toggle IMR back OFF, apply a workload, verify data equality and that the
+#      classic path / zeroed IMR columns are restored.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. CSA channel with IMR OFF (the default) uses the classic relay-log
+--echo #    path: relay logs on disk, IMR SHOW REPLICA STATUS columns zero.
+--echo
+
+--source include/rpl/connection_replica.inc
+
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR is OFF by default on the CSA channel
+--let $assert_cond= "$imr_enabled" = "NO"
+--source include/assert.inc
+
+--let $imr_space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= In_Memory_Relay_Log_Space is 0 while IMR is OFF
+--let $assert_cond= $imr_space = 0
+--source include/assert.inc
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length is 0 while IMR is OFF
+--let $assert_cond= $imr_qlen = 0
+--source include/assert.inc
+
+--echo
+--echo # 2. Apply a workload with IMR OFF and verify data equality.
+--echo
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'off-a'), (2, 'off-b'), (3, 'off-c');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo # Classic path: relay logs are present on disk while IMR is OFF.
+--source include/rpl/connection_replica.inc
+--let $relay_space= query_get_value(SHOW REPLICA STATUS, Relay_Log_Space, 1)
+--let $assert_text= Relay_Log_Space is greater than 0 (classic relay logs in use)
+--let $assert_cond= $relay_space > 0
+--source include/assert.inc
+
+--echo
+--echo # 3. Toggle IMR ON (replication stopped for the change), apply, verify.
+--echo
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR is ON after the toggle
+--let $assert_cond= "$imr_enabled" = "YES"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4, 'on-a'), (5, 'on-b'), (6, 'on-c');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 4. Toggle IMR back OFF, apply, verify equality and the restored classic
+--echo #    path with zeroed IMR columns (non-destructive fallback).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (7, 'off2-a'), (8, 'off2-b'), (9, 'off2-c');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_replica.inc
+
+--let $imr_space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= In_Memory_Relay_Log_Space is 0 again after falling back to OFF
+--let $assert_cond= $imr_space = 0
+--source include/assert.inc
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length is 0 again after falling back to OFF
+--let $assert_cond= $imr_qlen = 0
+--source include/assert.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc
