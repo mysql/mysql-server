@@ -1,0 +1,68 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Enable IMR on the CSA channel, start replication, apply W1.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/start_replica.inc
+include/assert.inc [IMR is ON on the CSA channel]
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'w1-a'), (2, 'w1-b'), (3, 'w1-c');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 2. Stop only the applier; the receiver keeps running.
+
+[connection slave]
+include/rpl/stop_applier.inc
+
+# 3. Produce W2 on the source; the receiver queues it in memory
+#    (unapplied). The in-memory queue now holds uncommitted envelopes.
+
+[connection master]
+INSERT INTO t1 VALUES (4, 'w2-a');
+INSERT INTO t1 VALUES (5, 'w2-b');
+INSERT INTO t1 VALUES (6, 'w2-c');
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [In_Memory_Queue_Length is greater than 0 with W2 received but unapplied]
+
+# 4. Abruptly restart (crash) the replica: the volatile queue is lost.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+
+# 5. After the restart the in-memory queue is rebuilt empty (R1).
+
+include/assert.inc [In_Memory_Queue_Length is 0 after the restart (queue rebuilt empty)]
+include/assert.inc [In_Memory_Relay_Log_Space is 0 after the restart]
+# IMR is still enabled on the channel after the restart.
+include/assert.inc [IMR remains ON after the restart]
+
+# 6. START REPLICA: auto-positioning re-fetches W2; the replica converges
+#    (R2). W2 was never committed, so it is re-fetched by GTID.
+
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 7. Normal IMR replication resumes: apply W3 and verify (R3).
+
+[connection master]
+INSERT INTO t1 VALUES (7, 'w3-a'), (8, 'w3-b'), (9, 'w3-c');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

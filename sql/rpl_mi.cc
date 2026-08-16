@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <limits>
 
 #include "include/compression.h"
 #include "include/mutex_lock.h"
@@ -38,11 +39,13 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
 #include "sql/debug_sync.h"
 #include "sql/dynamic_ids.h"  // Server_ids
 #include "sql/log.h"
 #include "sql/mysqld.h"  // sync_masterinfo_period
 #include "sql/rpl_info_handler.h"
+#include "my_sys.h"  // dirname_length
 #include "sql/rpl_msr.h"      // channel_map
 #include "sql/rpl_replica.h"  // source_retry_count
 #include "sql/sql_class.h"
@@ -259,10 +262,81 @@ Master_info::~Master_info() {
   mysql_mutex_destroy(&rotate_lock);
   mysql_cond_destroy(&rotate_cond);
 
+  // The in-memory relay-log queue is owned by mi and destroyed with it. A full
+  // stop reset()s it to empty before this point, so ~Trx_envelope_queue's
+  // empty-queue invariant holds.
+  delete m_trx_queue;
+  m_trx_queue = nullptr;
+  m_current_sink = nullptr;
+
   delete m_channel_lock;
   delete ignore_server_ids;
-  delete mi_description_event;
   delete gtid_monitoring_info;
+}
+
+void Master_info::reconcile_in_memory_relaylog_queue() {
+  DBUG_TRACE;
+  // Runs only with both replication threads stopped and no thread attached to
+  // the queue (CHANGE REPLICATION SOURCE apply under the both-threads-stopped
+  // guard, or mi/rli init before any thread attaches), so nothing races the
+  // create/destroy of m_trx_queue.
+  const bool want_queue =
+      rli != nullptr && rli->is_in_memory_relaylog() && rli->is_csa_enabled();
+
+  if (!want_queue) {
+    // Selection OFF or the channel is no longer CSA-eligible: drop the queue.
+    // It is idle and was reset() to empty at the last full stop, so the
+    // destructor's empty-queue invariant holds.
+    if (m_trx_queue != nullptr) {
+      delete m_trx_queue;
+      m_trx_queue = nullptr;
+      m_current_sink = nullptr;
+    }
+    return;
+  }
+
+  // Selection is ON on a CSA channel. The per-channel memory bounds are the
+  // user-tunable CRST options (IN_MEMORY_RELAYLOG_LIMIT /
+  // IN_MEMORY_RELAYLOG_SPILL_THRESHOLD), defaulting to 128 MiB / 16 MiB when
+  // never configured.
+  const std::size_t memory_limit = rli->get_in_memory_relaylog_limit();
+  const std::size_t spill_threshold =
+      rli->get_in_memory_relaylog_spill_threshold();
+
+  // Spill files live in an "in_memory_relaylog_temp_files" subdirectory under
+  // the channel's relay log directory, so the spill store stays on the same
+  // filesystem as the relay logs and follows the configured relay-log path.
+  // Derive that directory from the channel's current relay log file name (its
+  // dirname, including the trailing separator; empty when no relay log name is
+  // set yet). reconcile() runs at rli init and at the end of every CHANGE
+  // REPLICATION SOURCE, with both replication threads stopped, so a changed
+  // relay-log path is observed here and the queue is rebuilt below when the
+  // directory differs -- keeping the spill path in sync with the relay-log
+  // path. Reading group_relay_log_name without data_lock is safe because no
+  // thread is attached to the queue at this point.
+  const char *relay_log_name = rli->get_group_relay_log_name();
+  const std::string spill_dir(relay_log_name, dirname_length(relay_log_name));
+
+  if (m_trx_queue != nullptr) {
+    // Already present: reuse it only if the bounds AND the spill directory
+    // still match, otherwise rebuild it to pick up the change. This runs with
+    // both threads stopped and the queue reset() to empty at the last full
+    // stop, so the destructor's empty-queue invariant holds for the rebuild.
+    if (m_trx_queue->memory_limit() == memory_limit &&
+        m_trx_queue->spill_threshold() == spill_threshold &&
+        m_trx_queue->relay_log_dir() == spill_dir) {
+      return;
+    }
+    delete m_trx_queue;
+    m_trx_queue = nullptr;
+    m_current_sink = nullptr;
+  }
+
+  // Create the empty queue with the configured per-channel bounds and the
+  // relay-log-derived spill directory.
+  m_current_sink = nullptr;
+  m_trx_queue = new mysql::csa::Trx_envelope_queue(memory_limit,
+                                                   spill_threshold, spill_dir);
 }
 
 void Master_info::request_rotate(THD *thd) {

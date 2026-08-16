@@ -107,6 +107,8 @@ if ($tmp) {
   --echo Source_public_key_path	
   --echo Get_Source_public_key	0
   --echo Network_Namespace	
+  --echo In_Memory_Relay_Log_Space	0
+  --echo In_Memory_Queue_Length	0
 }
 
 if (!$tmp) {

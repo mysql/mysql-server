@@ -1923,6 +1923,13 @@ class Relay_log_info : public Rpl_info {
 
   static const int APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT = 17;
 
+  static const int APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG = 18;
+
+  static const int APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_LIMIT = 19;
+
+  static const int
+      APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 20;
+
   /*
     Total lines in applier metadata.
     This has to be updated every time a member is added or removed.
@@ -1932,7 +1939,7 @@ class Relay_log_info : public Rpl_info {
     preserved.
   */
   static const int MAXIMUM_APPLIER_METADATA_LINES =
-      APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT;
+      APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_SPILL_THRESHOLD;
 
   bool read_info(Rpl_info_handler *from) override;
   bool write_info(Rpl_info_handler *to) override;
@@ -2165,6 +2172,27 @@ class Relay_log_info : public Rpl_info {
   /// @return The maximum amount of memory the channel can use to keep binlog
   /// events
   ulong get_applier_event_memory_limit();
+  /// Sets the persisted in-memory relay-log path selection for the channel
+  /// @param value true to select the in-memory path, false for the classic
+  /// relay-log path
+  void set_in_memory_relaylog(bool value);
+  /// Accesses the persisted in-memory relay-log path selection for the channel
+  /// @return true when the in-memory path is selected, false otherwise
+  bool is_in_memory_relaylog() const;
+  /// Sets the persisted hard memory bound (bytes) of the in-memory relay-log
+  /// queue for the channel. A value of 0 forces the default.
+  /// @param number Requested memory limit in bytes
+  void set_in_memory_relaylog_limit(ulong number);
+  /// Accesses the hard memory bound (bytes) of the in-memory relay-log queue
+  /// @return The configured memory limit in bytes, or the default when unset
+  ulong get_in_memory_relaylog_limit() const;
+  /// Sets the persisted spill threshold (bytes) of the in-memory relay-log
+  /// queue for the channel. A value of 0 forces the default.
+  /// @param number Requested spill threshold in bytes
+  void set_in_memory_relaylog_spill_threshold(ulong number);
+  /// Accesses the spill threshold (bytes) of the in-memory relay-log queue
+  /// @return The configured spill threshold in bytes, or the default when unset
+  ulong get_in_memory_relaylog_spill_threshold() const;
   /// Set CSA worker context used by commit order manager
   /// @param csa_worker_context CSA worker context
   void set_csa_worker_context(Parallel_worker_context *csa_worker_context);
@@ -2204,6 +2232,22 @@ class Relay_log_info : public Rpl_info {
   /// default value for the m_applier_event_memory_limit
   static constexpr ulong applier_event_memory_limit_default =
       1024 * 1024 * 1024;
+  /// Persisted per-channel selection of the in-memory relay-log path, taken
+  /// into account only when the channel starts. Defaults to OFF (classic
+  /// relay-log path).
+  bool m_in_memory_relaylog{false};
+  /// Persisted hard memory bound (bytes) of the in-memory relay-log queue,
+  /// taken into account only when the channel starts. 0 means "use default".
+  ulong m_in_memory_relaylog_limit{0};
+  /// Default value for m_in_memory_relaylog_limit (128 MiB).
+  static constexpr ulong in_memory_relaylog_limit_default =
+      128ULL * 1024 * 1024;
+  /// Persisted spill threshold (bytes) of the in-memory relay-log queue, taken
+  /// into account only when the channel starts. 0 means "use default".
+  ulong m_in_memory_relaylog_spill_threshold{0};
+  /// Default value for m_in_memory_relaylog_spill_threshold (16 MiB).
+  static constexpr ulong in_memory_relaylog_spill_threshold_default =
+      16ULL * 1024 * 1024;
   /// Non-owning, parallel CSA worker execution context, set by CSA
   Parallel_worker_context *m_csa_worker_context{nullptr};
   /// Coordinator RLI. Used in CSA to attach/detach temporary tables
