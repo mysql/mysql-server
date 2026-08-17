@@ -44,6 +44,7 @@
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "nulls.h"
+#include "sql/aggregated_stats_buffer.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
@@ -817,7 +818,8 @@ int ha_myisam::close(void) {
 }
 
 int ha_myisam::write_row(uchar *buf) {
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count,
+                         &aggregated_stats_buffer::ha_write_count);
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -1478,12 +1480,14 @@ bool ha_myisam::is_crashed() const {
 }
 
 int ha_myisam::update_row(const uchar *old_data, uchar *new_data) {
-  ha_statistic_increment(&System_status_var::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count,
+                         &aggregated_stats_buffer::ha_update_count);
   return mi_update(file, old_data, new_data);
 }
 
 int ha_myisam::delete_row(const uchar *buf) {
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count,
+                         &aggregated_stats_buffer::ha_delete_count);
   return mi_delete(file, buf);
 }
 
@@ -1522,7 +1526,8 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
                               key_part_map keypart_map,
                               enum ha_rkey_function find_flag) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count,
+                         &aggregated_stats_buffer::ha_read_key_count);
   if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
     set_my_errno(HA_ERR_KEY_NOT_FOUND);
     return HA_ERR_KEY_NOT_FOUND;
@@ -1536,7 +1541,8 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   enum ha_rkey_function find_flag) {
   assert(pushed_idx_cond == nullptr);
   assert(pushed_idx_cond_keyno == MAX_KEY);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count,
+                         &aggregated_stats_buffer::ha_read_key_count);
   if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
     set_my_errno(HA_ERR_KEY_NOT_FOUND);
     return HA_ERR_KEY_NOT_FOUND;
@@ -1549,7 +1555,8 @@ int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
                                    key_part_map keypart_map) {
   DBUG_TRACE;
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count,
+                         &aggregated_stats_buffer::ha_read_key_count);
   if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
     set_my_errno(HA_ERR_KEY_NOT_FOUND);
     return HA_ERR_KEY_NOT_FOUND;
@@ -1561,28 +1568,32 @@ int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
 
 int ha_myisam::index_next(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count,
+                         &aggregated_stats_buffer::ha_read_next_count);
   int error = mi_rnext(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_prev(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count,
+                         &aggregated_stats_buffer::ha_read_prev_count);
   int error = mi_rprev(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_first(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count,
+                         &aggregated_stats_buffer::ha_read_first_count);
   int error = mi_rfirst(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_last(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count,
+                         &aggregated_stats_buffer::ha_read_last_count);
   int error = mi_rlast(file, buf, active_index);
   return error;
 }
@@ -1591,7 +1602,8 @@ int ha_myisam::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
                                uint length [[maybe_unused]]) {
   int error;
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count,
+                         &aggregated_stats_buffer::ha_read_next_count);
   do {
     error = mi_rnext_same(file, buf);
   } while (error == HA_ERR_RECORD_DELETED);
@@ -1604,13 +1616,15 @@ int ha_myisam::rnd_init(bool scan) {
 }
 
 int ha_myisam::rnd_next(uchar *buf) {
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count,
+                         &aggregated_stats_buffer::ha_read_rnd_next_count);
   int error = mi_scan(file, buf);
   return error;
 }
 
 int ha_myisam::rnd_pos(uchar *buf, uchar *pos) {
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count,
+                         &aggregated_stats_buffer::ha_read_rnd_count);
   int error = mi_rrnd(file, buf, my_get_ptr(pos, ref_length));
   return error;
 }
@@ -1892,7 +1906,8 @@ int ha_myisam::ft_read(uchar *buf) {
 
   if (!ft_handler) return -1;
 
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count,
+                         &aggregated_stats_buffer::ha_read_next_count);
 
   error = ft_handler->please->read_next(ft_handler, (char *)buf);
 

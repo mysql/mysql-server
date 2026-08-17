@@ -398,6 +398,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/strings/my_strtoll10.h"
+#include "sql/aggregated_stats_buffer.h"
 #include "sql/current_thd.h"
 #include "sql/key.h"     // key_copy
 #include "sql/mysqld.h"  // my_localhost
@@ -1730,7 +1731,8 @@ int ha_federated::write_row(uchar *) {
 
   values_string.length(0);
   insert_field_value_string.length(0);
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count,
+                         &aggregated_stats_buffer::ha_write_count);
 
   /*
     start both our field and field values strings
@@ -2274,7 +2276,8 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   *result = nullptr;  // In case of errors
   index_string.length(0);
   sql_query.length(0);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count,
+                         &aggregated_stats_buffer::ha_read_key_count);
 
   sql_query.append(share->select_query);
 
@@ -2378,7 +2381,8 @@ int ha_federated::read_range_next() {
 int ha_federated::index_next(uchar *buf) {
   int retval;
   DBUG_TRACE;
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count,
+                         &aggregated_stats_buffer::ha_read_next_count);
   retval = read_next(buf, stored_result);
   return retval;
 }
@@ -2568,7 +2572,8 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos) {
   int ret_val;
   DBUG_TRACE;
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count,
+                         &aggregated_stats_buffer::ha_read_rnd_count);
 
   /* Get stored result set. */
   memcpy(&result, pos, sizeof(MYSQL_RES *));

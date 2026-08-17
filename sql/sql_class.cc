@@ -1609,6 +1609,8 @@ void THD::awake(THD::killed_state state_to_set) {
   if (state_to_set == THD::KILL_TIMEOUT) {
     assert(!status_var_aggregated);
     status_var.max_execution_time_exceeded++;
+    global_aggregated_stats.get_shard(thread_id())
+        .max_execution_time_exceeded++;
   }
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
@@ -2428,6 +2430,7 @@ void THD::inc_examined_row_count(ha_rows count) {
 void THD::inc_status_created_tmp_disk_tables() {
   assert(!status_var_aggregated);
   status_var.created_tmp_disk_tables++;
+  global_aggregated_stats.get_shard(thread_id()).created_tmp_disk_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
@@ -2436,6 +2439,7 @@ void THD::inc_status_created_tmp_disk_tables() {
 void THD::inc_status_created_tmp_tables() {
   assert(!status_var_aggregated);
   status_var.created_tmp_tables++;
+  global_aggregated_stats.get_shard(thread_id()).created_tmp_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
@@ -2444,6 +2448,7 @@ void THD::inc_status_created_tmp_tables() {
 void THD::inc_status_select_full_join() {
   assert(!status_var_aggregated);
   status_var.select_full_join_count++;
+  global_aggregated_stats.get_shard(thread_id()).select_full_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
@@ -2452,6 +2457,7 @@ void THD::inc_status_select_full_join() {
 void THD::inc_status_select_full_range_join() {
   assert(!status_var_aggregated);
   status_var.select_full_range_join_count++;
+  global_aggregated_stats.get_shard(thread_id()).select_full_range_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
@@ -2460,6 +2466,7 @@ void THD::inc_status_select_full_range_join() {
 void THD::inc_status_select_range() {
   assert(!status_var_aggregated);
   status_var.select_range_count++;
+  global_aggregated_stats.get_shard(thread_id()).select_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
@@ -2468,6 +2475,7 @@ void THD::inc_status_select_range() {
 void THD::inc_status_select_range_check() {
   assert(!status_var_aggregated);
   status_var.select_range_check_count++;
+  global_aggregated_stats.get_shard(thread_id()).select_range_check_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
@@ -2476,6 +2484,7 @@ void THD::inc_status_select_range_check() {
 void THD::inc_status_select_scan() {
   assert(!status_var_aggregated);
   status_var.select_scan_count++;
+  global_aggregated_stats.get_shard(thread_id()).select_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
@@ -2484,6 +2493,7 @@ void THD::inc_status_select_scan() {
 void THD::inc_status_sort_merge_passes() {
   assert(!status_var_aggregated);
   status_var.filesort_merge_passes++;
+  global_aggregated_stats.get_shard(thread_id()).filesort_merge_passes++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
@@ -2492,6 +2502,7 @@ void THD::inc_status_sort_merge_passes() {
 void THD::inc_status_sort_range() {
   assert(!status_var_aggregated);
   status_var.filesort_range_count++;
+  global_aggregated_stats.get_shard(thread_id()).filesort_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
@@ -2500,6 +2511,7 @@ void THD::inc_status_sort_range() {
 void THD::inc_status_sort_rows(ha_rows count) {
   assert(!status_var_aggregated);
   status_var.filesort_rows += count;
+  global_aggregated_stats.get_shard(thread_id()).filesort_rows += count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)
   (m_statement_psi, static_cast<ulong>(count));
@@ -2509,6 +2521,7 @@ void THD::inc_status_sort_rows(ha_rows count) {
 void THD::inc_status_sort_scan() {
   assert(!status_var_aggregated);
   status_var.filesort_scan_count++;
+  global_aggregated_stats.get_shard(thread_id()).filesort_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif
