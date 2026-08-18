@@ -1317,6 +1317,9 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
     }
     if (tr->is_deleted()) {
       want_privilege |= DELETE_ACL;
+      // A RETURNING clause reads the rows that are deleted, so SELECT
+      // privilege is required in addition to DELETE.
+      if (has_returning()) want_privilege |= SELECT_ACL;
     }
     if (want_privilege == 0) {
       want_privilege = SELECT_ACL;
