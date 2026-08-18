@@ -37,8 +37,11 @@ class SQL_I_List;
 
 class Sql_cmd_delete final : public Sql_cmd_dml {
  public:
-  Sql_cmd_delete(bool multitable_arg, SQL_I_List<Table_ref> *delete_tables_arg)
-      : multitable(multitable_arg), delete_tables(delete_tables_arg) {}
+  Sql_cmd_delete(bool multitable_arg, SQL_I_List<Table_ref> *delete_tables_arg,
+                 bool returning_arg = false)
+      : multitable(multitable_arg),
+        delete_tables(delete_tables_arg),
+        m_returning(returning_arg) {}
 
   enum_sql_command sql_command_code() const override {
     return multitable ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
@@ -47,6 +50,8 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
   bool is_single_table_plan() const override { return !multitable; }
 
   bool accept(THD *thd, Select_lex_visitor *visitor) override;
+
+  bool has_returning() const { return m_returning; }
 
  protected:
   bool precheck(THD *thd) override;
@@ -66,6 +71,9 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
     optimization, use the Table_ref::updating property instead.
   */
   SQL_I_List<Table_ref> *delete_tables;
+
+  /// True if DELETE has a RETURNING clause
+  bool m_returning;
 };
 
 /// Find out which of the delete target tables can be deleted from immediately

@@ -1,0 +1,515 @@
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+#
+# Setup
+#
+CREATE TABLE t1 (a INT, b VARCHAR(32));
+INSERT INTO t1 VALUES
+(7,'ggggggg'), (1,'a'), (3,'ccc'),
+(4,'dddd'), (1,'A'), (2,'BB'),
+(4,'DDDD'), (5,'EEEEE'), (7,'GGGGGGG'), (2,'bb');
+CREATE TABLE t1c SELECT * FROM t1;
+CREATE TABLE t2 (c INT);
+INSERT INTO t2 VALUES (4), (5), (7), (1);
+CREATE TABLE t2c SELECT * FROM t2;
+#
+# Test 1: DELETE ... RETURNING *
+#
+DELETE FROM t1 WHERE a=2 RETURNING *;
+a	b
+2	BB
+2	bb
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+INSERT INTO t1 VALUES (2,'BB'), (2,'bb');
+#
+# Test 2: DELETE ... RETURNING single column
+#
+DELETE FROM t1 WHERE a=2 RETURNING b;
+b
+BB
+bb
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+#
+# Test 3: DELETE ... RETURNING non-existing column (error)
+#
+INSERT INTO t1 VALUES (2,'BB'), (2,'bb');
+DELETE FROM t1 WHERE a=2 RETURNING c;
+ERROR 42S22: Unknown column 'c' in 'field list'
+#
+# Test 4: DELETE ... RETURNING column and expression
+#
+DELETE FROM t1 WHERE a=2 RETURNING a, UPPER(b);
+a	UPPER(b)
+2	BB
+2	BB
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+INSERT INTO t1 VALUES (2,'BB'), (2,'bb');
+#
+# Test 5: DELETE ... RETURNING with no rows matching (empty result set)
+#
+DELETE FROM t1 WHERE a=999 ORDER BY a RETURNING b;
+b
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	BB
+2	bb
+#
+# Test 6: DELETE ... RETURNING with aggregate function (error)
+#
+DELETE FROM t1 WHERE a=2 RETURNING MAX(b);
+ERROR HY000: Invalid use of group function
+#
+# Test 7: DELETE ... RETURNING with correlated scalar subquery
+#
+DELETE FROM t1 WHERE a < 5 RETURNING a, (SELECT MIN(c) FROM t2 WHERE c = a+1);
+a	(SELECT MIN(c) FROM t2 WHERE c = a+1)
+1	NULL
+3	4
+4	5
+1	NULL
+4	5
+2	NULL
+2	NULL
+SELECT * FROM t1;
+a	b
+7	ggggggg
+5	EEEEE
+7	GGGGGGG
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 8: DELETE ... RETURNING with subquery using GROUP_CONCAT
+#
+DELETE FROM t2 WHERE c < 5
+RETURNING (SELECT GROUP_CONCAT(b) FROM t1 GROUP BY a HAVING a = c);
+(SELECT GROUP_CONCAT(b) FROM t1 GROUP BY a HAVING a = c)
+dddd,DDDD
+a,A
+SELECT * FROM t2;
+c
+5
+7
+DELETE FROM t2;
+INSERT INTO t2 SELECT * FROM t2c;
+#
+# Test 9: DELETE ... RETURNING with user-defined function
+#
+CREATE FUNCTION f1(arg INT) RETURNS TEXT
+BEGIN
+RETURN (SELECT GROUP_CONCAT(b) FROM t1 WHERE a = arg);
+END|
+DELETE FROM t2 WHERE c < 5 RETURNING f1(c);
+f1(c)
+dddd,DDDD
+a,A
+SELECT * FROM t2;
+c
+5
+7
+DELETE FROM t2;
+INSERT INTO t2 SELECT * FROM t2c;
+DROP FUNCTION f1;
+#
+# Test 10: DELETE from updatable view with RETURNING
+#
+CREATE VIEW v1 AS SELECT a, b FROM t1;
+DELETE FROM v1 WHERE a < 3 RETURNING *;
+a	b
+1	a
+1	A
+2	BB
+2	bb
+SELECT * FROM t1;
+a	b
+7	ggggggg
+3	ccc
+4	dddd
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+DROP VIEW v1;
+#
+# Test 11: DELETE from non-updatable view (error)
+#
+CREATE VIEW v1 AS SELECT a, COUNT(b) AS cnt FROM t1 GROUP BY a;
+DELETE FROM v1 WHERE a < 5 RETURNING *;
+ERROR HY000: The target table v1 of the DELETE is not updatable
+DROP VIEW v1;
+#
+# Test 12: Multi-table DELETE with RETURNING (error)
+#
+DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.c RETURNING *;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNING *' at line 1
+#
+# Test 13: Prepared statement with DELETE ... RETURNING
+#
+PREPARE stmt FROM "DELETE FROM t1 WHERE a=2 ORDER BY b LIMIT 1 RETURNING a, UPPER(b)";
+EXECUTE stmt;
+a	UPPER(b)
+2	BB
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+EXECUTE stmt;
+a	UPPER(b)
+2	BB
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+DEALLOCATE PREPARE stmt;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 14: DELETE ... RETURNING with ORDER BY and LIMIT
+#
+DELETE FROM t1 WHERE a=1 ORDER BY b LIMIT 1 RETURNING a, b;
+a	b
+1	a
+SELECT * FROM t1;
+a	b
+7	ggggggg
+3	ccc
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 15: DELETE ... RETURNING with aliases
+#
+DELETE FROM t1 WHERE a=3 RETURNING a AS id, UPPER(b) AS upper_b, LENGTH(b) AS len;
+id	upper_b	len
+3	CCC	3
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 16: DELETE ... RETURNING table-qualified column references
+#
+DELETE FROM t1 WHERE a=3 RETURNING t1.a, t1.b;
+a	b
+3	ccc
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 17: DELETE ... RETURNING with IN subquery
+#
+DELETE FROM t1 WHERE a=7 RETURNING a, b, a IN (SELECT c FROM t2) AS in_t2;
+a	b	in_t2
+7	ggggggg	1
+7	GGGGGGG	1
+SELECT * FROM t1;
+a	b
+1	a
+3	ccc
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+2	bb
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 18: DELETE ... RETURNING with EXISTS subquery
+#
+DELETE FROM t1 WHERE a=7 RETURNING a, b, EXISTS(SELECT * FROM t2 WHERE c = a) AS exists_t2;
+a	b	exists_t2
+7	ggggggg	1
+7	GGGGGGG	1
+SELECT * FROM t1;
+a	b
+1	a
+3	ccc
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+2	bb
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 19: DELETE ... RETURNING with arithmetic expressions and functions
+#
+DELETE FROM t1 WHERE a <= 2
+RETURNING a, b, a * 10 AS a_times_10, LEAST(a, LENGTH(b)) AS least_val;
+a	b	a_times_10	least_val
+1	a	10	1
+1	A	10	1
+2	BB	20	2
+2	bb	20	2
+SELECT * FROM t1;
+a	b
+7	ggggggg
+3	ccc
+4	dddd
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 20: Subquery in RETURNING returning more than 1 row (error)
+#
+DELETE FROM t1 WHERE a=7 ORDER BY b LIMIT 1 RETURNING (SELECT c FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+#
+# Test 21: Stored procedure with DELETE ... RETURNING
+#
+CREATE PROCEDURE p1(IN val INT)
+BEGIN
+DELETE FROM t1 WHERE a = val RETURNING *;
+INSERT INTO t1 VALUES (val, 'reinserted');
+END|
+CALL p1(1);
+a	b
+1	a
+1	A
+SELECT * FROM t1;
+a	b
+7	ggggggg
+3	ccc
+4	dddd
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+1	reinserted
+DROP PROCEDURE p1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 22: DELETE ... RETURNING with ONLY_FULL_GROUP_BY sql_mode
+#
+SET @sql_mode_save = @@sql_mode;
+SET sql_mode = 'ONLY_FULL_GROUP_BY';
+DELETE FROM t1 WHERE a > 5 RETURNING *;
+a	b
+7	ggggggg
+7	GGGGGGG
+SET sql_mode = @sql_mode_save;
+SELECT * FROM t1;
+a	b
+1	a
+3	ccc
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+2	bb
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 23: DELETE ... RETURNING all rows (no WHERE)
+#
+DELETE FROM t1 RETURNING a, b;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+SELECT * FROM t1;
+a	b
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 24: DELETE ... RETURNING with PARTITION
+#
+CREATE TABLE t3 (a INT, b VARCHAR(32))
+PARTITION BY HASH(a) PARTITIONS 4;
+INSERT INTO t3 SELECT * FROM t1c;
+DELETE FROM t3 PARTITION (p0) WHERE a=4 RETURNING *;
+a	b
+4	dddd
+4	DDDD
+SELECT * FROM t3 WHERE a=4;
+a	b
+DROP TABLE t3;
+#
+# Test 25: EXPLAIN DELETE ... RETURNING (no data returned, no rows deleted)
+#
+EXPLAIN DELETE FROM t1 WHERE a=2 RETURNING *;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = 2)
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+3	ccc
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+#
+# Test 26: DELETE ... RETURNING with triggers
+#
+CREATE TABLE trigger_log (msg VARCHAR(100));
+CREATE TRIGGER t1_before_del BEFORE DELETE ON t1
+FOR EACH ROW
+BEGIN
+INSERT INTO trigger_log VALUES (CONCAT('before_del: a=', OLD.a, ' b=', OLD.b));
+END|
+CREATE TRIGGER t1_after_del AFTER DELETE ON t1
+FOR EACH ROW
+BEGIN
+INSERT INTO trigger_log VALUES (CONCAT('after_del: a=', OLD.a, ' b=', OLD.b));
+END|
+DELETE FROM t1 WHERE a=3 RETURNING a, b;
+a	b
+3	ccc
+SELECT * FROM trigger_log;
+msg
+before_del: a=3 b=ccc
+after_del: a=3 b=ccc
+SELECT * FROM t1;
+a	b
+7	ggggggg
+1	a
+4	dddd
+1	A
+2	BB
+4	DDDD
+5	EEEEE
+7	GGGGGGG
+2	bb
+DROP TRIGGER t1_before_del;
+DROP TRIGGER t1_after_del;
+DROP TABLE trigger_log;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 27: RETURNING only shows rows that were actually deleted
+#          (BEFORE trigger rejects some rows)
+#
+CREATE TRIGGER t1_guard BEFORE DELETE ON t1
+FOR EACH ROW
+BEGIN
+IF OLD.a = 2 THEN
+SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot delete a=2';
+END IF;
+END|
+DELETE FROM t1 WHERE a IN (1, 2) RETURNING a, b;
+ERROR 45000: Cannot delete a=2
+SELECT * FROM t1 WHERE a IN (1, 2);
+a	b
+1	a
+1	A
+2	BB
+2	bb
+DROP TRIGGER t1_guard;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+#
+# Test 28: DELETE ... RETURNING requires SELECT privilege
+#
+CREATE DATABASE delret_priv_db;
+CREATE TABLE delret_priv_db.tp (a INT, b VARCHAR(32));
+INSERT INTO delret_priv_db.tp VALUES (1,'one'), (2,'two'), (3,'three');
+CREATE USER 'test_delret'@'localhost';
+GRANT DELETE ON delret_priv_db.tp TO 'test_delret'@'localhost';
+GRANT SELECT(a) ON delret_priv_db.tp TO 'test_delret'@'localhost';
+DELETE FROM tp WHERE a=999;
+DELETE FROM tp WHERE a=2 RETURNING *;
+ERROR 42000: SELECT command denied to user 'test_delret'@'localhost' for table 'tp'
+GRANT SELECT ON delret_priv_db.tp TO 'test_delret'@'localhost';
+DELETE FROM tp WHERE a=2 RETURNING a, b;
+a	b
+2	two
+DROP USER 'test_delret'@'localhost';
+DROP DATABASE delret_priv_db;
+#
+# Cleanup
+#
+DROP TABLE t1, t2, t1c, t2c;
