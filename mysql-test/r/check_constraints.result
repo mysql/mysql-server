@@ -1259,6 +1259,15 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITH
 ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=copy;
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 DROP TABLE t1;
+#
+# Bug#121124 - An unrelated CHECK constraint on DATETIME should not
+# prevent an online ENUM extension.
+#
+CREATE TABLE t1 (e ENUM('a','b') NOT NULL, d DATETIME(6),
+CONSTRAINT ck CHECK (d IS NULL));
+ALTER TABLE t1 MODIFY e ENUM('a','b','c') NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 MODIFY e ENUM('a','b','c','d') NOT NULL, ALGORITHM=INPLACE;
+DROP TABLE t1;
 #-----------------------------------------------------------------------
 # Test case to verify check constraint with CHANGE COLUMN syntax.
 #-----------------------------------------------------------------------
