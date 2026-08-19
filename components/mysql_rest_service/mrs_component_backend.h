@@ -31,6 +31,7 @@
 #include <chrono>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 #include "components/mysql_rest_service/mrs_component_runtime_services.h"
@@ -201,6 +202,11 @@ class Backend : private mrs::MrsStartObserver {
   // Thread handling
   std::thread m_service_thread, m_backend_starter_thread;
   std::atomic<bool> m_backend_thd_stop_requested{false};
+  // Retain the installer's authority only while account provisioning is
+  // deferred waiting for the metadata provider roles. A lifecycle retry can
+  // then finish the same install-time operation without allowing ordinary
+  // restarts to recreate missing accounts.
+  std::optional<CurrentSecurityCtx> m_deferred_account_provisioning_context;
 #if !defined(NDEBUG)
   // MTR synchronization hook. When enabled at backend start, pause the
   // MRS-ready callback until stop() requests shutdown or an idempotent start

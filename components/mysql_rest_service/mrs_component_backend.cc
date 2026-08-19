@@ -403,6 +403,7 @@ void Backend::configure_accounts(bool retry_account_provisioning,
 
   if (retry_account_provisioning) {
     provision_accounts(false);  // Don't ignore ER_USER_DOES_NOT_EXIST now
+    m_deferred_account_provisioning_context.reset();
   }
 
   if (validate_metadata_account) validate_account(metadata_account);
@@ -707,7 +708,10 @@ int Backend::stop() {
       return 1;
     }
 
-    if (m_lifecycle_state == LifecycleState::kStopped) return 0;
+    if (m_lifecycle_state == LifecycleState::kStopped) {
+      m_deferred_account_provisioning_context.reset();
+      return 0;
+    }
     m_lifecycle_state = LifecycleState::kStopping;
   }
 
@@ -719,6 +723,7 @@ int Backend::stop() {
     std::lock_guard state_lock(m_lifecycle_state_mtx);
     if (stop_error == 0) {
       m_lifecycle_state = LifecycleState::kStopped;
+      m_deferred_account_provisioning_context.reset();
     } else if (m_lifecycle_admission_open) {
       // Once shutdown disables lifecycle operations, it owns the final state.
       m_lifecycle_state = LifecycleState::kError;
@@ -747,7 +752,10 @@ int Backend::shutdown() {
   {
     std::lock_guard state_lock(m_lifecycle_state_mtx);
     // The in-flight lifecycle operation may already have stopped the backend.
-    if (m_lifecycle_state == LifecycleState::kStopped) return 0;
+    if (m_lifecycle_state == LifecycleState::kStopped) {
+      m_deferred_account_provisioning_context.reset();
+      return 0;
+    }
     m_lifecycle_state = LifecycleState::kStopping;
   }
 
@@ -760,6 +768,8 @@ int Backend::shutdown() {
     // Keep STOPPING so a later component deinitialization retries cleanup.
     if (stop_error == 0) m_lifecycle_state = LifecycleState::kStopped;
   }
+
+  if (stop_error == 0) m_deferred_account_provisioning_context.reset();
 
   return stop_error;
 }
@@ -839,9 +849,16 @@ int Backend::start_backend(AccountProvisioning account_provisioning) {
         account_provisioning == AccountProvisioning::kAllowInstallerContext &&
         !m_sec_ctx.user.empty();
 
-    // Only INSTALL COMPONENT may use the caller to provision missing accounts.
-    // Server startup and lifecycle UDFs use the fixed metadata identity.
-    if (!has_bootstrap_context) {
+    if (!has_bootstrap_context &&
+        m_deferred_account_provisioning_context.has_value()) {
+      // A lifecycle retry interrupted install-time account provisioning
+      // while it was waiting for the metadata provider roles. Resume that
+      // operation with the original installer's authority.
+      m_sec_ctx = *m_deferred_account_provisioning_context;
+      has_bootstrap_context = true;
+    } else if (!has_bootstrap_context) {
+      // Ordinary server startup and lifecycle UDFs use the fixed metadata
+      // identity and only validate accounts provisioned during installation.
       m_sec_ctx.priv_user = m_router_config.metadata_account.username;
       m_sec_ctx.priv_hostname = internal_account_host;
     }
@@ -1371,6 +1388,11 @@ void Backend::run(std::promise<int> p, bool has_bootstrap_context) {
               // ER_USER_DOES_NOT_EXIST as temporary, wait for schema readiness,
               // then retry account provisioning.
               accounts_provisioned = provision_accounts(true);
+              if (!accounts_provisioned) {
+                m_deferred_account_provisioning_context = m_sec_ctx;
+              } else {
+                m_deferred_account_provisioning_context.reset();
+              }
             }
 
             if (abort_startup_if_requested()) return;
@@ -1390,7 +1412,8 @@ void Backend::run(std::promise<int> p, bool has_bootstrap_context) {
             configure_accounts(retry_account_provisioning,
                                validate_metadata_account);
 
-            // INSTALL COMPONENT is the only path allowed to create the fixed
+            // INSTALL COMPONENT, including continuation of its deferred
+            // provisioning, is the only path allowed to create the fixed
             // accounts. Complete provisioning before leaving MRS inactive so
             // configuring TLS and restarting can recover.
             if (has_bootstrap_context) validate_tls_configuration();

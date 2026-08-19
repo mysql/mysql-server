@@ -1,0 +1,18 @@
+
+
+## I. Restart MRS immediately after metadata schema deployment
+#
+# MySQL REST Service component installed.
+include/assert.inc [state reports WAITING_FOR_METADATA before schema deployment]
+# MySQL Rest Service schema created.
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+include/assert.inc [state reports READY after deferred account provisioning]
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
