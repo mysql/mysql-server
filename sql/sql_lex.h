@@ -2250,6 +2250,10 @@ class Query_block : public Query_term {
 
   bool is_row_count_valid_for_semi_join();
 
+  /// Expand wildcard (*) items in the field list. Public for use by
+  /// Sql_cmd_delete (RETURNING clause).
+  bool setup_wild(THD *thd);
+
  private:
   friend class Query_expression;
   friend class Condition_context;
@@ -2309,7 +2313,6 @@ class Query_block : public Query_term {
   Item *resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
 
-  bool setup_wild(THD *thd);
   bool setup_order_final(THD *thd);
   bool setup_group(THD *thd);
   void fix_after_pullout(Query_block *parent_query_block,

@@ -277,9 +277,12 @@ SELECT JSON_VALUE(json_value, '$.a') AS json_value FROM json_value;
 DROP TABLE json_value;
 
 # RETURNING is a non-reserved word both in the standard and in MySQL.
-CREATE TABLE returning(returning JSON);
-SELECT JSON_VALUE(returning, '$.a' RETURNING CHAR) AS returning FROM returning;
-DROP TABLE returning;
+# However it cannot be used unquoted as an identifier in MySQL because
+# it is not in ident_keywords_unambiguous (to avoid a grammar conflict with
+# DELETE ... RETURNING). Backtick-quoting works.
+CREATE TABLE `returning`(`returning` JSON);
+SELECT JSON_VALUE(`returning`, '$.a' RETURNING CHAR) AS `returning` FROM `returning`;
+DROP TABLE `returning`;
 
 --echo # Test ON EMPTY clause
 SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED) v;

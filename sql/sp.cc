@@ -90,6 +90,7 @@
 #include "sql/sql_parse.h"  // parse_sql
 #include "sql/sql_show.h"   // append_identifier
 #include "sql/sql_table.h"  // write_bin_log
+#include "sql/sql_delete.h" // Sql_cmd_delete
 #include "sql/strfunc.h"    // lex_string_strmake
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -2433,6 +2434,11 @@ uint sp_get_flags_for_command(LEX *lex) {
       break;
     default:
       flags = lex->is_explain() ? sp_head::MULTI_RESULTS : 0;
+      // DELETE ... RETURNING produces a result set
+      if (lex->sql_command == SQLCOM_DELETE &&
+          lex->m_sql_cmd != nullptr &&
+          down_cast<Sql_cmd_delete *>(lex->m_sql_cmd)->has_returning())
+        flags |= sp_head::MULTI_RESULTS;
       break;
   }
   return flags;

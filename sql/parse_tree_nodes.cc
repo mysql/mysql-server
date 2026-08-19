@@ -974,7 +974,17 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
 
   if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
 
-  return new (thd->mem_root) Sql_cmd_delete(is_multitable(), &delete_tables);
+  // Handle RETURNING clause: contextualize items and populate select->fields
+  if (opt_returning_list != nullptr) {
+    select->parsing_place = CTX_SELECT_LIST;
+    if (opt_returning_list->contextualize(&pc)) return nullptr;
+    select->parsing_place = CTX_NONE;
+    select->fields = opt_returning_list->value;
+  }
+
+  return new (thd->mem_root)
+      Sql_cmd_delete(is_multitable(), &delete_tables,
+                     opt_returning_list != nullptr);
 }
 
 Sql_cmd *PT_update::make_cmd(THD *thd) {

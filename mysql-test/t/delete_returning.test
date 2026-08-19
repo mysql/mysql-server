@@ -1,0 +1,338 @@
+#
+# Tests for DELETE ... RETURNING
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--echo #
+--echo # Setup
+--echo #
+
+CREATE TABLE t1 (a INT, b VARCHAR(32));
+INSERT INTO t1 VALUES
+  (7,'ggggggg'), (1,'a'), (3,'ccc'),
+  (4,'dddd'), (1,'A'), (2,'BB'),
+  (4,'DDDD'), (5,'EEEEE'), (7,'GGGGGGG'), (2,'bb');
+
+CREATE TABLE t1c SELECT * FROM t1;
+
+CREATE TABLE t2 (c INT);
+INSERT INTO t2 VALUES (4), (5), (7), (1);
+
+CREATE TABLE t2c SELECT * FROM t2;
+
+--echo #
+--echo # Test 1: DELETE ... RETURNING *
+--echo #
+DELETE FROM t1 WHERE a=2 RETURNING *;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (2,'BB'), (2,'bb');
+
+--echo #
+--echo # Test 2: DELETE ... RETURNING single column
+--echo #
+DELETE FROM t1 WHERE a=2 RETURNING b;
+SELECT * FROM t1;
+
+--echo #
+--echo # Test 3: DELETE ... RETURNING non-existing column (error)
+--echo #
+INSERT INTO t1 VALUES (2,'BB'), (2,'bb');
+--error ER_BAD_FIELD_ERROR
+DELETE FROM t1 WHERE a=2 RETURNING c;
+
+--echo #
+--echo # Test 4: DELETE ... RETURNING column and expression
+--echo #
+DELETE FROM t1 WHERE a=2 RETURNING a, UPPER(b);
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (2,'BB'), (2,'bb');
+
+--echo #
+--echo # Test 5: DELETE ... RETURNING with no rows matching (empty result set)
+--echo #
+DELETE FROM t1 WHERE a=999 ORDER BY a RETURNING b;
+SELECT * FROM t1;
+
+--echo #
+--echo # Test 6: DELETE ... RETURNING with aggregate function (error)
+--echo #
+--error ER_INVALID_GROUP_FUNC_USE
+DELETE FROM t1 WHERE a=2 RETURNING MAX(b);
+
+--echo #
+--echo # Test 7: DELETE ... RETURNING with correlated scalar subquery
+--echo #
+DELETE FROM t1 WHERE a < 5 RETURNING a, (SELECT MIN(c) FROM t2 WHERE c = a+1);
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 8: DELETE ... RETURNING with subquery using GROUP_CONCAT
+--echo #
+DELETE FROM t2 WHERE c < 5
+  RETURNING (SELECT GROUP_CONCAT(b) FROM t1 GROUP BY a HAVING a = c);
+SELECT * FROM t2;
+DELETE FROM t2;
+INSERT INTO t2 SELECT * FROM t2c;
+
+--echo #
+--echo # Test 9: DELETE ... RETURNING with user-defined function
+--echo #
+DELIMITER |;
+CREATE FUNCTION f1(arg INT) RETURNS TEXT
+BEGIN
+  RETURN (SELECT GROUP_CONCAT(b) FROM t1 WHERE a = arg);
+END|
+DELIMITER ;|
+
+DELETE FROM t2 WHERE c < 5 RETURNING f1(c);
+SELECT * FROM t2;
+DELETE FROM t2;
+INSERT INTO t2 SELECT * FROM t2c;
+DROP FUNCTION f1;
+
+--echo #
+--echo # Test 10: DELETE from updatable view with RETURNING
+--echo #
+CREATE VIEW v1 AS SELECT a, b FROM t1;
+DELETE FROM v1 WHERE a < 3 RETURNING *;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+DROP VIEW v1;
+
+--echo #
+--echo # Test 11: DELETE from non-updatable view (error)
+--echo #
+CREATE VIEW v1 AS SELECT a, COUNT(b) AS cnt FROM t1 GROUP BY a;
+--error ER_NON_UPDATABLE_TABLE
+DELETE FROM v1 WHERE a < 5 RETURNING *;
+DROP VIEW v1;
+
+--echo #
+--echo # Test 12: Multi-table DELETE with RETURNING (error)
+--echo #
+--error ER_PARSE_ERROR
+DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.c RETURNING *;
+
+--echo #
+--echo # Test 13: Prepared statement with DELETE ... RETURNING
+--echo #
+PREPARE stmt FROM "DELETE FROM t1 WHERE a=2 ORDER BY b LIMIT 1 RETURNING a, UPPER(b)";
+EXECUTE stmt;
+SELECT * FROM t1;
+EXECUTE stmt;
+SELECT * FROM t1;
+DEALLOCATE PREPARE stmt;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 14: DELETE ... RETURNING with ORDER BY and LIMIT
+--echo #
+DELETE FROM t1 WHERE a=1 ORDER BY b LIMIT 1 RETURNING a, b;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 15: DELETE ... RETURNING with aliases
+--echo #
+DELETE FROM t1 WHERE a=3 RETURNING a AS id, UPPER(b) AS upper_b, LENGTH(b) AS len;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 16: DELETE ... RETURNING table-qualified column references
+--echo #
+DELETE FROM t1 WHERE a=3 RETURNING t1.a, t1.b;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 17: DELETE ... RETURNING with IN subquery
+--echo #
+DELETE FROM t1 WHERE a=7 RETURNING a, b, a IN (SELECT c FROM t2) AS in_t2;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 18: DELETE ... RETURNING with EXISTS subquery
+--echo #
+DELETE FROM t1 WHERE a=7 RETURNING a, b, EXISTS(SELECT * FROM t2 WHERE c = a) AS exists_t2;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 19: DELETE ... RETURNING with arithmetic expressions and functions
+--echo #
+DELETE FROM t1 WHERE a <= 2
+  RETURNING a, b, a * 10 AS a_times_10, LEAST(a, LENGTH(b)) AS least_val;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 20: Subquery in RETURNING returning more than 1 row (error)
+--echo #
+--error ER_SUBQUERY_NO_1_ROW
+DELETE FROM t1 WHERE a=7 ORDER BY b LIMIT 1 RETURNING (SELECT c FROM t2);
+
+--echo #
+--echo # Test 21: Stored procedure with DELETE ... RETURNING
+--echo #
+DELIMITER |;
+CREATE PROCEDURE p1(IN val INT)
+BEGIN
+  DELETE FROM t1 WHERE a = val RETURNING *;
+  INSERT INTO t1 VALUES (val, 'reinserted');
+END|
+DELIMITER ;|
+
+CALL p1(1);
+SELECT * FROM t1;
+DROP PROCEDURE p1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 22: DELETE ... RETURNING with ONLY_FULL_GROUP_BY sql_mode
+--echo #
+SET @sql_mode_save = @@sql_mode;
+SET sql_mode = 'ONLY_FULL_GROUP_BY';
+DELETE FROM t1 WHERE a > 5 RETURNING *;
+SET sql_mode = @sql_mode_save;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 23: DELETE ... RETURNING all rows (no WHERE)
+--echo #
+DELETE FROM t1 RETURNING a, b;
+SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 24: DELETE ... RETURNING with PARTITION
+--echo #
+CREATE TABLE t3 (a INT, b VARCHAR(32))
+  PARTITION BY HASH(a) PARTITIONS 4;
+INSERT INTO t3 SELECT * FROM t1c;
+
+DELETE FROM t3 PARTITION (p0) WHERE a=4 RETURNING *;
+SELECT * FROM t3 WHERE a=4;
+DROP TABLE t3;
+
+--echo #
+--echo # Test 25: EXPLAIN DELETE ... RETURNING (no data returned, no rows deleted)
+--echo #
+--replace_column 10 X
+EXPLAIN DELETE FROM t1 WHERE a=2 RETURNING *;
+SELECT * FROM t1;
+
+--echo #
+--echo # Test 26: DELETE ... RETURNING with triggers
+--echo #
+CREATE TABLE trigger_log (msg VARCHAR(100));
+
+DELIMITER |;
+CREATE TRIGGER t1_before_del BEFORE DELETE ON t1
+FOR EACH ROW
+BEGIN
+  INSERT INTO trigger_log VALUES (CONCAT('before_del: a=', OLD.a, ' b=', OLD.b));
+END|
+
+CREATE TRIGGER t1_after_del AFTER DELETE ON t1
+FOR EACH ROW
+BEGIN
+  INSERT INTO trigger_log VALUES (CONCAT('after_del: a=', OLD.a, ' b=', OLD.b));
+END|
+DELIMITER ;|
+
+DELETE FROM t1 WHERE a=3 RETURNING a, b;
+SELECT * FROM trigger_log;
+SELECT * FROM t1;
+
+DROP TRIGGER t1_before_del;
+DROP TRIGGER t1_after_del;
+DROP TABLE trigger_log;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 27: RETURNING only shows rows that were actually deleted
+--echo #          (BEFORE trigger rejects some rows)
+--echo #
+DELIMITER |;
+CREATE TRIGGER t1_guard BEFORE DELETE ON t1
+FOR EACH ROW
+BEGIN
+  IF OLD.a = 2 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot delete a=2';
+  END IF;
+END|
+DELIMITER ;|
+
+--error 1644
+DELETE FROM t1 WHERE a IN (1, 2) RETURNING a, b;
+# Verify: no rows were deleted (statement aborted on trigger error)
+SELECT * FROM t1 WHERE a IN (1, 2);
+DROP TRIGGER t1_guard;
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM t1c;
+
+--echo #
+--echo # Test 28: DELETE ... RETURNING requires SELECT privilege
+--echo #
+CREATE DATABASE delret_priv_db;
+CREATE TABLE delret_priv_db.tp (a INT, b VARCHAR(32));
+INSERT INTO delret_priv_db.tp VALUES (1,'one'), (2,'two'), (3,'three');
+
+CREATE USER 'test_delret'@'localhost';
+GRANT DELETE ON delret_priv_db.tp TO 'test_delret'@'localhost';
+# Grant column-level SELECT on 'a' so WHERE a=... works for plain DELETE
+GRANT SELECT(a) ON delret_priv_db.tp TO 'test_delret'@'localhost';
+
+connect (con1, localhost, test_delret,,delret_priv_db);
+connection con1;
+
+# Plain DELETE with WHERE should work (has DELETE + column SELECT on 'a')
+DELETE FROM tp WHERE a=999;
+
+# DELETE ... RETURNING * requires table-level SELECT which we don't have
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM tp WHERE a=2 RETURNING *;
+
+connection default;
+disconnect con1;
+
+# Grant full table-level SELECT and verify RETURNING now works
+GRANT SELECT ON delret_priv_db.tp TO 'test_delret'@'localhost';
+
+connect (con2, localhost, test_delret,,delret_priv_db);
+connection con2;
+
+DELETE FROM tp WHERE a=2 RETURNING a, b;
+
+connection default;
+disconnect con2;
+
+DROP USER 'test_delret'@'localhost';
+DROP DATABASE delret_priv_db;
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1, t2, t1c, t2c;
