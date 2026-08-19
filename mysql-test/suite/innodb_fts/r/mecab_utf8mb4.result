@@ -189,5 +189,17 @@ page_id	page_title
 3	鉄道😊100電車
 2	鉄道😄
 DROP TABLE page;
+call mtr.add_suppression("Mecab: parse\\(\\) failed: too long sentence");
+SET NAMES utf8mb4;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+doc LONGTEXT CHARACTER SET utf8mb4,
+FULLTEXT KEY doc (doc) WITH PARSER mecab
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(1, REPEAT('すもももももももものうち。', 300000));
+Warnings:
+Warning	1105	InnoDB: Full-text parser failed; text may not be indexed and FULLTEXT searches may fail. See the error log for details reported by the parser
+DROP TABLE t1;
 SET GLOBAL innodb_ft_aux_table=default;
 UNINSTALL PLUGIN mecab;
