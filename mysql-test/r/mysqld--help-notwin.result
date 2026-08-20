@@ -29,6 +29,11 @@ The following options may be given as the first argument:
  System. Attempt to specify a network namespace for a
  platform that doesn't support it results in error during
  socket creation.
+ --admin-max-connections=# 
+ The maximum number of concurrent client connections
+ permitted on the administrative interface
+ (admin_address/admin_port). 0 (the default) means no
+ limit.
  --admin-port=#      Port number to use for service connection, built-in
  default (33062)
  --admin-ssl-ca=name CA file in PEM format (check OpenSSL docs) for
@@ -1642,6 +1647,7 @@ Variables (--variable-name=value)
 activate-all-roles-on-login FALSE
 activate-mandatory-roles TRUE
 admin-address (No default value)
+admin-max-connections 0
 admin-port 33062
 admin-ssl-ca (No default value)
 admin-ssl-capath (No default value)

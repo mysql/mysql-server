@@ -1,0 +1,159 @@
+############## mysql-test\suite\sys_vars\t\admin_max_connections_basic.test ###
+#                                                                             #
+# Variable Name: admin_max_connections                                       #
+# Scope: GLOBAL                                                              #
+# Access Type: Dynamic                                                       #
+# Data Type: numeric                                                         #
+# Default Value: 0                                                           #
+# Range: 0-100000                                                            #
+#                                                                            #
+# Description: Test Cases of Dynamic System Variable admin_max_connections  #
+#              that checks the behavior of this variable in the following   #
+#              ways:                                                         #
+#              * Default Value                                               #
+#              * Valid & Invalid values                                      #
+#              * Scope & Access method                                       #
+#              * Data Integrity                                              #
+#                                                                            #
+# Reference: https://bugs.mysql.com/bug.php?id=99917                        #
+#                                                                            #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################
+# Saving initial value of admin_max_connections in a temporary variable #
+######################################################################
+
+SET @start_value = @@global.admin_max_connections;
+SELECT @start_value;
+
+--echo '#--------------------FN_DYNVARS_XXX_01------------------------#'
+######################################################################
+#           Display the DEFAULT value of admin_max_connections       #
+######################################################################
+
+SET @@global.admin_max_connections = 5000;
+SET @@global.admin_max_connections = DEFAULT;
+SELECT @@global.admin_max_connections;
+
+--echo '#---------------------FN_DYNVARS_XXX_02-------------------------#'
+###############################################
+#     Verify default value of variable        #
+###############################################
+
+SET @@global.admin_max_connections = @start_value;
+SELECT @@global.admin_max_connections = 0;
+
+--echo '#--------------------FN_DYNVARS_XXX_03------------------------#'
+######################################################################
+#    Change the value of admin_max_connections to a valid value      #
+######################################################################
+
+SET @@global.admin_max_connections = 100000;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = 99999;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = 65536;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = 0;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = 1;
+SELECT @@global.admin_max_connections;
+
+--echo '#--------------------FN_DYNVARS_XXX_04-------------------------#'
+#####################################################################
+#      Change the value of admin_max_connections to invalid value   #
+#####################################################################
+
+SET @@global.admin_max_connections = -1;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = 100000000000;
+SELECT @@global.admin_max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.admin_max_connections = 10000.01;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = -1024;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = 100001;
+SELECT @@global.admin_max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.admin_max_connections = ON;
+SELECT @@global.admin_max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.admin_max_connections = 'test';
+SELECT @@global.admin_max_connections;
+
+--echo '#-------------------FN_DYNVARS_XXX_05----------------------------#'
+#####################################################################
+#       Test if accessing session admin_max_connections gives error #
+#####################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.admin_max_connections = 4096;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.admin_max_connections;
+
+--echo '#----------------------FN_DYNVARS_XXX_06------------------------#'
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT @@global.admin_max_connections = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_max_connections';
+SELECT @@admin_max_connections = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='admin_max_connections';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_XXX_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.admin_max_connections = TRUE;
+SELECT @@global.admin_max_connections;
+SET @@global.admin_max_connections = FALSE;
+SELECT @@global.admin_max_connections;
+
+--echo '#---------------------FN_DYNVARS_XXX_08----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same global variable   #
+########################################################################################################
+
+SET @@global.admin_max_connections = 5000;
+SELECT @@admin_max_connections = @@global.admin_max_connections;
+
+--echo '#---------------------FN_DYNVARS_XXX_09----------------------#'
+##############################################################################
+#   Check if admin_max_connections can be accessed with and without @@ sign  #
+##############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET admin_max_connections = 6000;
+SELECT @@admin_max_connections;
+--Error ER_PARSE_ERROR
+SET local.admin_max_connections = 7000;
+--Error ER_UNKNOWN_TABLE
+SELECT local.admin_max_connections;
+--Error ER_PARSE_ERROR
+SET global.admin_max_connections = 8000;
+--Error ER_UNKNOWN_TABLE
+SELECT global.admin_max_connections;
+--Error ER_BAD_FIELD_ERROR
+SELECT admin_max_connections;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.admin_max_connections;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.admin_max_connections = @start_value;
+SELECT @@global.admin_max_connections;
+
+########################################################
+#              END OF admin_max_connections TESTS      #
+########################################################
