@@ -1,0 +1,1 @@
+--innodb-adaptive-hash-index=OFF --innodb-adaptive-hash-index-parts=8 --innodb-buffer-pool-size=24M --innodb-buffer-pool-chunk-size=24M --innodb-buffer-pool-instances=1
