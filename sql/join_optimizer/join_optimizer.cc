@@ -4757,8 +4757,7 @@ bool CostingReceiver::evaluate_secondary_engine_optimizer_state_request() {
       m_subgraph_pair_limit = restart_parameters.subgraph_pair_limit;
       DBUG_EXECUTE_IF("verify_hyp_opt_sg_pair_requested", {
         if (TraceStarted(m_thd) && m_subgraph_pair_limit > 0) {
-          Trace(m_thd) << "Hypergraph non zero SG pairs requested"
-                       << "\n";
+          Trace(m_thd) << "Hypergraph non zero SG pairs requested" << "\n";
         }
       });
       return true;
@@ -10038,8 +10037,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       DBUG_EXECUTE_IF("verify_hyp_opt_sg_pair_requested", {
         if (TraceStarted(thd) &&
             root_path_quality_status.subgraph_pair_limit > 0) {
-          Trace(thd) << "Hypergraph non zero SG pairs reset requested"
-                     << "\n";
+          Trace(thd) << "Hypergraph non zero SG pairs reset requested" << "\n";
         }
       });
       return nullptr;

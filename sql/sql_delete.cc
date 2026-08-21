@@ -631,8 +631,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
           break;
         }
 
-        DBUG_LOG("jdv_dml", "DML-DELETE: "
-                                << " table_list->field_translation->name: "
+        DBUG_LOG("jdv_dml",
+                 "DML-DELETE: " << " table_list->field_translation->name: "
                                 << table_list->field_translation->name
                                 << " ->type():"
                                 << table_list->field_translation->item->type());

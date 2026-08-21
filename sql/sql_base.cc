@@ -3229,7 +3229,7 @@ bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx) {
   } else if (table_list->open_strategy == Table_ref::OPEN_STUB)
     return false;
 
-retry_share : {
+retry_share: {
   Table_cache *tc = table_cache_manager.get_cache(thd);
 
   tc->lock();
