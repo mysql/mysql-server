@@ -1,0 +1,532 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: PR CI Reporter
+
+on:
+  workflow_run:
+    workflows: [PR Build, MTR, Format Check]
+    types: [completed]
+
+permissions: {}
+
+# This workflow runs with default-branch privileges. It must never check out,
+# download, or execute pull request content or artifacts. Result labels are
+# informational; only the SHA-bound commit statuses are suitable for gating.
+jobs:
+  resolve:
+    name: Validate and classify source run
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      pull-requests: read
+    outputs:
+      ready: ${{ steps.resolve.outputs.ready }}
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      classification: ${{ steps.resolve.outputs.classification }}
+      run_attempt: ${{ steps.resolve.outputs.run_attempt }}
+      run_id: ${{ steps.resolve.outputs.run_id }}
+      workflow_key: ${{ steps.resolve.outputs.workflow_key }}
+      workflow_name: ${{ steps.resolve.outputs.workflow_name }}
+    steps:
+      - name: Resolve current pull request and classify result
+        id: resolve
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ github.token }}
+          retries: 3
+          script: |
+            core.setOutput('ready', 'false');
+
+            const run = context.payload.workflow_run;
+            const sourceRepository = context.payload.repository;
+            const expectedRepository = `${context.repo.owner}/${context.repo.repo}`;
+            const shaPattern = /^[0-9a-f]{40}$/;
+            const configurations = new Map([
+              ['PR Build', {
+                key: 'build',
+                path: '.github/workflows/pr-build.yml',
+                primarySteps: [
+                  { job: 'Debug build (gcc)', step: 'Build' },
+                  { job: 'Debug build (clang)', step: 'Build' },
+                ],
+              }],
+              ['MTR', {
+                key: 'mtr',
+                path: '.github/workflows/mtr.yml',
+                primarySteps: [
+                  { job: 'MTR (replication)', step: 'Run MTR' },
+                  { job: 'MTR (storage)', step: 'Run MTR' },
+                  { job: 'MTR (core)', step: 'Run MTR' },
+                  { job: 'MTR (services)', step: 'Run MTR' },
+                  { job: 'MTR (services)', step: 'Run unit tests' },
+                ],
+              }],
+              ['Format Check', {
+                key: 'format',
+                path: '.github/workflows/clang-format.yml',
+                primarySteps: [{
+                  job: 'clang-format',
+                  step: 'Check formatting of changed files',
+                }],
+              }],
+            ]);
+
+            const config = configurations.get(run?.name);
+            const runPath = String(run?.path || '').split('@', 1)[0];
+            const headSha = String(run?.head_sha || '').toLowerCase();
+            const headBranch = run?.head_branch;
+            const headOwner = run?.head_repository?.owner?.login;
+            const runId = Number(run?.id);
+            const runAttempt = Number(run?.run_attempt);
+            if (
+              !config ||
+              run?.event !== 'pull_request' ||
+              run?.status !== 'completed' ||
+              runPath !== config.path ||
+              !shaPattern.test(headSha) ||
+              typeof headBranch !== 'string' ||
+              headBranch.length === 0 ||
+              typeof headOwner !== 'string' ||
+              headOwner.length === 0 ||
+              !Number.isSafeInteger(runId) ||
+              runId <= 0 ||
+              !Number.isSafeInteger(runAttempt) ||
+              runAttempt <= 0 ||
+              String(run?.repository?.id) !== String(sourceRepository?.id) ||
+              String(run?.repository?.full_name).toLowerCase() !== expectedRepository.toLowerCase()
+            ) {
+              core.warning('Ignoring a source run whose identity is not trusted.');
+              return;
+            }
+
+            const { data: workflow } = await github.rest.actions.getWorkflow({
+              ...context.repo,
+              workflow_id: config.path,
+            });
+            if (
+              String(workflow.id) !== String(run.workflow_id) ||
+              workflow.path !== config.path ||
+              workflow.name !== run.name
+            ) {
+              core.warning('Ignoring a source run that is not the expected repository workflow.');
+              return;
+            }
+
+            const matchesPull = (pull) => (
+              pull?.state === 'open' &&
+              pull?.base?.ref === 'trunk' &&
+              String(pull?.base?.repo?.id) === String(sourceRepository.id) &&
+              String(pull?.base?.repo?.full_name).toLowerCase() === expectedRepository.toLowerCase() &&
+              String(pull?.head?.repo?.id) === String(run.head_repository.id) &&
+              String(pull?.head?.repo?.full_name).toLowerCase() ===
+                String(run.head_repository.full_name).toLowerCase() &&
+              pull?.head?.ref === headBranch &&
+              String(pull?.head?.sha).toLowerCase() === headSha
+            );
+
+            // workflow_run.pull_requests is empty for many fork runs. Resolve by
+            // fork owner and branch, then validate the repository and immutable SHA.
+            const candidates = await github.paginate(github.rest.pulls.list, {
+              ...context.repo,
+              state: 'open',
+              base: 'trunk',
+              head: `${headOwner}:${headBranch}`,
+              per_page: 100,
+            });
+            const matchingPulls = candidates.filter(matchesPull);
+            if (matchingPulls.length !== 1) {
+              core.warning(`Expected one current pull request; found ${matchingPulls.length}.`);
+              return;
+            }
+
+            const pullNumber = Number(matchingPulls[0].number);
+            if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+              core.warning('Ignoring a source run with an invalid pull request number.');
+              return;
+            }
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            if (!matchesPull(pull)) {
+              core.warning('The pull request changed while its source run was being resolved.');
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: pullNumber,
+              per_page: 100,
+            });
+            const workflowChanged = files.length >= 3000 || files.some((file) => (
+              file.filename === config.path || file.previous_filename === config.path
+            ));
+
+            let result = 'error';
+            if (run.conclusion === 'action_required') {
+              result = 'pending';
+            } else if (!workflowChanged) {
+              // Include every attempt so "Re-run failed jobs" can combine a
+              // retried shard with successful shards from an earlier attempt.
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                {
+                  ...context.repo,
+                  run_id: runId,
+                  filter: 'all',
+                  per_page: 100,
+                },
+              );
+              const primaryConclusions = [];
+              let expectedLayout = true;
+              for (const expected of config.primarySteps) {
+                const matchingJobs = jobs.filter((job) => (
+                  job.name === expected.job &&
+                  Number.isSafeInteger(Number(job.run_attempt)) &&
+                  Number(job.run_attempt) > 0 &&
+                  Number(job.run_attempt) <= runAttempt
+                ));
+                if (matchingJobs.length === 0) {
+                  expectedLayout = false;
+                  break;
+                }
+                const latestAttempt = Math.max(
+                  ...matchingJobs.map((job) => Number(job.run_attempt)),
+                );
+                const latestJobs = matchingJobs.filter(
+                  (job) => Number(job.run_attempt) === latestAttempt,
+                );
+                if (latestJobs.length !== 1 || latestJobs[0].status !== 'completed') {
+                  expectedLayout = false;
+                  break;
+                }
+                const matchingSteps = (latestJobs[0].steps || [])
+                  .filter((step) => step.name === expected.step);
+                if (matchingSteps.length !== 1) {
+                  expectedLayout = false;
+                  break;
+                }
+                primaryConclusions.push(matchingSteps[0].conclusion);
+              }
+
+              if (
+                expectedLayout &&
+                run.conclusion === 'success' &&
+                primaryConclusions.every((conclusion) => conclusion === 'success')
+              ) {
+                result = 'success';
+              } else if (
+                expectedLayout &&
+                run.conclusion === 'failure' &&
+                primaryConclusions.some((conclusion) => conclusion === 'failure')
+              ) {
+                result = 'failure';
+              }
+            }
+
+            // Revalidate the current head after all read-only classification calls.
+            const { data: currentPull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            if (!matchesPull(currentPull)) {
+              core.warning('The pull request changed before the result was finalized.');
+              return;
+            }
+
+            if (workflowChanged) {
+              core.warning('The pull request changes its source workflow; reporting an untrusted result.');
+            }
+            core.setOutput('pr_number', String(pullNumber));
+            core.setOutput('head_sha', headSha);
+            core.setOutput('classification', result);
+            core.setOutput('run_attempt', String(runAttempt));
+            core.setOutput('run_id', String(runId));
+            core.setOutput('workflow_key', config.key);
+            core.setOutput('workflow_name', run.name);
+            core.setOutput('ready', 'true');
+
+  publish:
+    name: Publish validated CI result
+    needs: resolve
+    if: ${{ needs.resolve.outputs.ready == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: pr-ci-report-${{ needs.resolve.outputs.workflow_key }}-${{ needs.resolve.outputs.pr_number }}
+      queue: max
+    permissions:
+      actions: read
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: Publish status and labels
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SOURCE_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          SOURCE_PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
+          SOURCE_RESULT: ${{ needs.resolve.outputs.classification }}
+          SOURCE_RUN_ATTEMPT: ${{ needs.resolve.outputs.run_attempt }}
+          SOURCE_RUN_ID: ${{ needs.resolve.outputs.run_id }}
+          SOURCE_WORKFLOW_KEY: ${{ needs.resolve.outputs.workflow_key }}
+          SOURCE_WORKFLOW_NAME: ${{ needs.resolve.outputs.workflow_name }}
+        with:
+          github-token: ${{ github.token }}
+          retries: 3
+          script: |
+            const sourceRepository = context.payload.repository;
+            const expectedRepository = `${context.repo.owner}/${context.repo.repo}`;
+            const shaPattern = /^[0-9a-f]{40}$/;
+            const configurations = new Map([
+              ['PR Build', {
+                key: 'build',
+                path: '.github/workflows/pr-build.yml',
+                descriptions: {
+                  success: 'GCC and Clang builds passed',
+                  failure: 'A PR build failed',
+                  error: 'PR Build produced no trusted result',
+                  pending: 'PR Build requires approval to run',
+                },
+                labels: [
+                  { name: 'Build Passed', color: '0E8A16', description: 'PR build passed' },
+                  { name: 'Build Failed', color: 'D93F0B', description: 'PR build failed' },
+                ],
+              }],
+              ['MTR', {
+                key: 'mtr',
+                path: '.github/workflows/mtr.yml',
+                descriptions: {
+                  success: 'MySQL Test Run passed',
+                  failure: 'MySQL Test Run failed',
+                  error: 'MTR produced no trusted result',
+                  pending: 'MTR requires approval to run',
+                },
+                labels: [
+                  { name: 'MTR Passed', color: '0E8A16', description: 'MTR suite passed' },
+                  { name: 'MTR Failed', color: 'D93F0B', description: 'MTR suite failed' },
+                ],
+              }],
+              ['Format Check', {
+                key: 'format',
+                path: '.github/workflows/clang-format.yml',
+                descriptions: {
+                  success: 'Formatting check passed',
+                  failure: 'Formatting check failed',
+                  error: 'Format Check produced no trusted result',
+                  pending: 'Format Check requires approval to run',
+                },
+                labels: [],
+              }],
+            ]);
+
+            const workflowName = process.env.SOURCE_WORKFLOW_NAME;
+            const config = configurations.get(workflowName);
+            const result = process.env.SOURCE_RESULT;
+            const headSha = String(process.env.SOURCE_HEAD_SHA || '').toLowerCase();
+            const pullNumber = Number(process.env.SOURCE_PR_NUMBER);
+            const runAttempt = Number(process.env.SOURCE_RUN_ATTEMPT);
+            const runId = Number(process.env.SOURCE_RUN_ID);
+            if (
+              !config ||
+              config.key !== process.env.SOURCE_WORKFLOW_KEY ||
+              !['success', 'failure', 'error', 'pending'].includes(result) ||
+              !shaPattern.test(headSha) ||
+              !Number.isSafeInteger(pullNumber) ||
+              pullNumber <= 0 ||
+              !Number.isSafeInteger(runAttempt) ||
+              runAttempt <= 0 ||
+              !Number.isSafeInteger(runId) ||
+              runId <= 0
+            ) {
+              throw new Error('Validated source outputs are malformed');
+            }
+
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              ...context.repo,
+              run_id: runId,
+            });
+            const runPath = String(run.path || '').split('@', 1)[0];
+            if (
+              run.name !== workflowName ||
+              run.event !== 'pull_request' ||
+              run.status !== 'completed' ||
+              Number(run.run_attempt) !== runAttempt ||
+              runPath !== config.path ||
+              String(run.repository?.id) !== String(sourceRepository.id) ||
+              String(run.repository?.full_name).toLowerCase() !== expectedRepository.toLowerCase() ||
+              String(run.head_sha).toLowerCase() !== headSha
+            ) {
+              core.warning('The source workflow run changed before publication; skipping it.');
+              return;
+            }
+
+            const conclusionMatches = (
+              (result === 'success' && run.conclusion === 'success') ||
+              (result === 'failure' && run.conclusion === 'failure') ||
+              (result === 'pending' && run.conclusion === 'action_required') ||
+              result === 'error'
+            );
+            if (!conclusionMatches) {
+              core.warning('The source conclusion changed before publication; skipping it.');
+              return;
+            }
+
+            const { data: workflow } = await github.rest.actions.getWorkflow({
+              ...context.repo,
+              workflow_id: config.path,
+            });
+            if (
+              String(workflow.id) !== String(run.workflow_id) ||
+              workflow.path !== config.path ||
+              workflow.name !== workflowName
+            ) {
+              core.warning('The source run no longer matches the expected workflow.');
+              return;
+            }
+
+            const isNewestSourceRun = async () => {
+              const sourceRuns = await github.paginate(
+                github.rest.actions.listWorkflowRuns,
+                {
+                  ...context.repo,
+                  workflow_id: config.path,
+                  event: 'pull_request',
+                  head_sha: headSha,
+                  per_page: 100,
+                },
+              );
+              const matchingRuns = sourceRuns.filter((candidate) => (
+                candidate.event === 'pull_request' &&
+                String(candidate.workflow_id) === String(run.workflow_id) &&
+                String(candidate.repository?.id) === String(sourceRepository.id) &&
+                String(candidate.head_repository?.id) === String(run.head_repository?.id) &&
+                candidate.head_branch === run.head_branch &&
+                String(candidate.head_sha).toLowerCase() === headSha
+              ));
+              const newest = matchingRuns.reduce((selected, candidate) => {
+                if (!selected) return candidate;
+                const selectedNumber = Number(selected.run_number);
+                const candidateNumber = Number(candidate.run_number);
+                if (candidateNumber !== selectedNumber) {
+                  return candidateNumber > selectedNumber ? candidate : selected;
+                }
+                return Number(candidate.id) > Number(selected.id) ? candidate : selected;
+              }, null);
+              return (
+                newest &&
+                String(newest.id) === String(runId) &&
+                Number(newest.run_attempt) === runAttempt
+              );
+            };
+            if (!await isNewestSourceRun()) {
+              core.warning('A newer source run exists for this workflow and head; skipping it.');
+              return;
+            }
+
+            const matchesPull = (pull) => (
+              pull?.state === 'open' &&
+              pull?.base?.ref === 'trunk' &&
+              String(pull?.base?.repo?.id) === String(sourceRepository.id) &&
+              String(pull?.base?.repo?.full_name).toLowerCase() === expectedRepository.toLowerCase() &&
+              String(pull?.head?.repo?.id) === String(run.head_repository?.id) &&
+              String(pull?.head?.repo?.full_name).toLowerCase() ===
+                String(run.head_repository?.full_name).toLowerCase() &&
+              pull?.head?.ref === run.head_branch &&
+              String(pull?.head?.sha).toLowerCase() === headSha
+            );
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            if (!matchesPull(pull)) {
+              core.warning('The pull request is no longer open at the validated head; skipping it.');
+              return;
+            }
+
+            // Repeat the ordering check immediately before the SHA-bound status write.
+            if (!await isNewestSourceRun()) {
+              core.warning('A newer source run appeared before status publication; skipping it.');
+              return;
+            }
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,
+              sha: headSha,
+              state: result,
+              context: workflowName,
+              description: config.descriptions[result],
+              target_url: run.html_url,
+            });
+
+            if (config.labels.length === 0) {
+              core.info(`Published ${result} for ${workflowName} on PR #${pullNumber}.`);
+              return;
+            }
+
+            if (result === 'success' || result === 'failure') {
+              for (const label of config.labels) {
+                try {
+                  await github.rest.issues.getLabel({ ...context.repo, name: label.name });
+                  await github.rest.issues.updateLabel({ ...context.repo, ...label });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                  await github.rest.issues.createLabel({ ...context.repo, ...label });
+                }
+              }
+            }
+
+            // Label writes are PR-wide, so revalidate the head immediately before them.
+            const { data: currentPull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            if (!matchesPull(currentPull)) {
+              core.warning('The pull request changed before label publication; labels were not updated.');
+              return;
+            }
+            if (!await isNewestSourceRun()) {
+              core.warning('A newer source run appeared before label publication; labels were not updated.');
+              return;
+            }
+
+            const removeLabel = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: pullNumber,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            if (result === 'success' || result === 'failure') {
+              const selected = result === 'success' ? config.labels[0] : config.labels[1];
+              const opposite = result === 'success' ? config.labels[1] : config.labels[0];
+              await removeLabel(opposite.name);
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: pullNumber,
+                labels: [selected.name],
+              });
+            } else {
+              for (const label of config.labels) {
+                await removeLabel(label.name);
+              }
+            }
+
+            // If a push raced the label write, remove every label from this old head.
+            const { data: afterLabelPull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            if (!matchesPull(afterLabelPull)) {
+              for (const label of config.labels) {
+                await removeLabel(label.name);
+              }
+              core.warning('The pull request changed during label publication; labels were cleared.');
+              return;
+            }
+            core.info(`Published ${result} for ${workflowName} on PR #${pullNumber}.`);

@@ -1,4 +1,4 @@
-# Copyright (c) 2026, Oracle and/or its affiliates.
+<!-- # Copyright (c) 2026, Oracle and/or its affiliates. -->
 <!-- Thanks for contributing to MySQL Server! The prompts below are the few
      things reviewers always need. Delete any that don't apply. -->
 
@@ -17,7 +17,6 @@
 
 ### Contributor checklist
 
-- [ ] I have signed the [OCA](https://oca.opensource.oracle.com) with the email on these commits
 - [ ] Code is formatted (`scripts/ci/format.sh`)
 - [ ] Commits are focused with descriptive messages
 

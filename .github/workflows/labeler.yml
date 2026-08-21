@@ -12,29 +12,40 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Ensure labels have colors
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const labels = [
-              { name: 'innodb', color: '1D76DB', description: 'Changes touching InnoDB storage engine code' },
-              { name: 'optimizer', color: '5319E7', description: 'Changes touching optimizer code' },
-              { name: 'replication', color: '0052CC', description: 'Changes touching replication or binlog code' },
-              { name: 'client', color: '0E8A16', description: 'Changes touching client or libmysql code' },
-              { name: 'pluggable', color: 'FBCA04', description: 'Changes touching plugins or components' },
-              { name: 'build', color: 'D93F0B', description: 'Changes touching build or GitHub automation' },
-              { name: 'tests', color: 'BFDADC', description: 'Changes touching test code or test data' },
-              { name: 'docs', color: '0075CA', description: 'Changes touching documentation' },
+              { name: 'InnoDB', color: '1D76DB', description: 'Changes touching InnoDB storage engine code' },
+              { name: 'Optimizer', color: '5319E7', description: 'Changes touching optimizer code' },
+              { name: 'Replication', color: '0052CC', description: 'Changes touching replication or binlog code' },
+              { name: 'Client', color: '0E8A16', description: 'Changes touching client or libmysql code' },
+              { name: 'Pluggable', color: 'FBCA04', description: 'Changes touching plugins or components' },
+              { name: 'Build', color: 'D93F0B', description: 'Changes touching build or GitHub automation' },
+              { name: 'Tests', color: 'BFDADC', description: 'Changes touching test code or test data' },
+              { name: 'Docs', color: '0075CA', description: 'Changes touching documentation' },
             ];
 
+            const existingLabels = await github.paginate(
+              github.rest.issues.listLabelsForRepo,
+              { ...context.repo, per_page: 100 },
+            );
             for (const label of labels) {
-              try {
-                await github.rest.issues.getLabel({ ...context.repo, name: label.name });
-                await github.rest.issues.updateLabel({ ...context.repo, ...label });
-              } catch (error) {
-                if (error.status !== 404) throw error;
+              const existing = existingLabels.find(
+                (candidate) => candidate.name.toLowerCase() === label.name.toLowerCase(),
+              );
+              if (existing) {
+                await github.rest.issues.updateLabel({
+                  ...context.repo,
+                  name: existing.name,
+                  new_name: label.name,
+                  color: label.color,
+                  description: label.description,
+                });
+              } else {
                 await github.rest.issues.createLabel({ ...context.repo, ...label });
               }
             }
 
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@b8dd2d9be0f68b860e7dae5dae7d772984eacd6d # v6.2.0
         with: { sync-labels: true }

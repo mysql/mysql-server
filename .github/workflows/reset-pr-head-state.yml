@@ -1,0 +1,50 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Reset PR Head State
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    branches: [trunk]
+
+permissions: {}
+
+# These PR-wide labels are informational. Merge policy must rely on checks or
+# commit statuses bound to the current SHA and independently revalidate approval.
+concurrency:
+  group: reset-pr-head-state-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  reset:
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Remove labels inherited from an earlier PR head
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const pullNumber = Number(context.payload.pull_request?.number);
+            if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+              throw new Error('Pull request number is invalid');
+            }
+            const headBoundLabels = [
+              'Build Passed',
+              'Build Failed',
+              'MTR Passed',
+              'MTR Failed',
+              'Integrate',
+            ];
+            for (const name of headBoundLabels) {
+              try {
+                await github.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: pullNumber,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }
+            core.info(`Cleared head-bound labels from PR #${pullNumber}.`);

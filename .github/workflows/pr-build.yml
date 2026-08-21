@@ -1,7 +1,7 @@
 # Copyright (c) 2026, Oracle and/or its affiliates.
 name: PR Build
 on:
-  pull_request_target:
+  pull_request:
     branches: [trunk]
     paths-ignore: ["Docs/**", "**/*.md"]
 
@@ -28,16 +28,16 @@ jobs:
       CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
     steps:
       - name: Check out PR merge commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           fetch-depth: 2
           persist-credentials: false
           path: source
       - name: Check out trusted CI scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
           persist-credentials: false
           sparse-checkout: scripts/ci
           path: trusted
@@ -46,20 +46,26 @@ jobs:
         env:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_MERGE: ${{ github.sha }}
         run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MERGE"
           test "$(git rev-parse HEAD^1)" = "$EXPECTED_BASE"
           test "$(git rev-parse HEAD^2)" = "$EXPECTED_HEAD"
+          test "$(git -C ../trusted rev-parse HEAD)" = "$EXPECTED_BASE"
       - name: Install toolchain
         working-directory: source
         run: ../trusted/scripts/ci/bootstrap.sh
-      # A target workflow may restore trunk caches but must never save PR data.
+      # Fork revisions can poison PR-scoped caches. Restore only for trusted,
+      # same-repository branches, and never save data from this PR workflow.
       - name: Restore Boost cache
-        uses: actions/cache/restore@v4
+        if: ${{ github.event.pull_request.head.repo.id == github.event.repository.id }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/mysql-boost
           key: boost-${{ hashFiles('source/cmake/boost.cmake') }}
       - name: Restore ccache
-        uses: actions/cache/restore@v4
+        if: ${{ github.event.pull_request.head.repo.id == github.event.repository.id }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ccache
           key: ccache-${{ matrix.compiler }}-${{ github.event.pull_request.head.sha }}
@@ -77,59 +83,3 @@ jobs:
         if: always()
         working-directory: source
         run: ccache --show-stats
-
-  report:
-    name: Label build result
-    if: ${{ always() && !cancelled() }}
-    needs: build
-    runs-on: ubuntu-24.04
-    permissions:
-      issues: write
-      pull-requests: write
-      statuses: write
-    steps:
-      - name: Update build result label
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const passed = '${{ needs.build.result }}' === 'success';
-            const labels = [
-              { name: 'Build Passed', color: '0E8A16', description: 'PR build passed' },
-              { name: 'Build Failed', color: 'D93F0B', description: 'PR build failed' },
-            ];
-
-            for (const label of labels) {
-              try {
-                await github.rest.issues.getLabel({ ...context.repo, name: label.name });
-                await github.rest.issues.updateLabel({ ...context.repo, ...label });
-              } catch (error) {
-                if (error.status !== 404) throw error;
-                await github.rest.issues.createLabel({ ...context.repo, ...label });
-              }
-            }
-
-            const selected = passed ? labels[0] : labels[1];
-            const opposite = passed ? labels[1] : labels[0];
-            try {
-              await github.rest.issues.removeLabel({
-                ...context.repo,
-                issue_number: context.payload.pull_request.number,
-                name: opposite.name,
-              });
-            } catch (error) {
-              if (error.status !== 404) throw error;
-            }
-            await github.rest.issues.addLabels({
-              ...context.repo,
-              issue_number: context.payload.pull_request.number,
-              labels: [selected.name],
-            });
-            await github.rest.repos.createCommitStatus({
-              ...context.repo,
-              sha: context.payload.pull_request.head.sha,
-              state: passed ? 'success' : 'failure',
-              context: 'PR Build',
-              description: passed ? 'GCC and Clang builds passed' : 'A PR build failed',
-              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
-            });
-            core.info(`Set PR #${context.payload.pull_request.number} to ${selected.name}.`);

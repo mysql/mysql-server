@@ -2,3 +2,11 @@
 # Temporary default owners for every path. Replace this wildcard with
 # path-specific teams as the external committer model rolls out.
 * @seemasundara @gopshank
+
+# Keep automation and its ownership policy explicitly protected if the
+# temporary wildcard above is replaced with path-specific rules.
+/.github/CODEOWNERS @seemasundara @gopshank
+/.github/codex/** @seemasundara @gopshank
+/.github/dependabot.yml @seemasundara @gopshank
+/.github/workflows/** @seemasundara @gopshank
+/scripts/ci/** @seemasundara @gopshank
