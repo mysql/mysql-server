@@ -280,6 +280,7 @@ SET(SERVER_TESTS
   print_utils
   protocol_classic
   rpl_applier_monitor
+  rpl_cached_event_payload
   rpl_dependency_adapter_lwm
   rpl_resource_monitor
   regexp_engine

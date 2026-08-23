@@ -37,6 +37,14 @@ Cached_event_payload::Cached_event_payload(const Event_payload &payload,
   assert(m_fde_ptr != nullptr);
 }
 
+Cached_event_payload::~Cached_event_payload() {
+  // Free the buffer if decode() never took ownership of it.
+  if (m_data != nullptr) {
+    m_allocator.deallocate(m_data);
+    m_data = nullptr;
+  }
+}
+
 // nothing to reset, event may be read again
 void Cached_event_payload::reset(const Format_description_log_event *) {}
 
@@ -50,8 +58,8 @@ std::shared_ptr<Log_event> Cached_event_payload::decode() {
       m_data, m_length, m_fde_ptr, m_verify_checksum, &event);
   if (read_status.has_error()) {
     m_allocator.deallocate(m_data);
-    return std::shared_ptr<Log_event>();
     m_data = nullptr;
+    return std::shared_ptr<Log_event>();
   }
   // pass m_data ownership to Log_event object
   event->register_temp_buf(
