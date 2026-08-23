@@ -481,6 +481,8 @@ Requires:       perl(POSIX)
 Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
 Requires:       perl(Time::localtime)
+Requires:       perl(lib)
+Requires:       openssl
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
