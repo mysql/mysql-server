@@ -919,8 +919,12 @@ class Rows_event : public Binary_log_event {
   */
   explicit Rows_event(Log_event_type type_arg)
       : Binary_log_event(type_arg),
+        m_type(type_arg),
         m_table_id(0),
+        m_flags(0),
         m_width(0),
+        n_bits_len(0),
+        var_header_len(0),
         columns_before_image(0),
         columns_after_image(0),
         row(0) {}

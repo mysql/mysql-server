@@ -724,7 +724,12 @@ class Log_event_header {
   typedef unsigned char Byte;
 
   explicit Log_event_header(Log_event_type type_code_arg = ENUM_END_EVENT)
-      : type_code(type_code_arg), data_written(0), log_pos(0), flags(0) {
+      : type_code(type_code_arg),
+        unmasked_server_id(0),
+        data_written(0),
+        log_pos(0),
+        flags(0),
+        m_is_valid(true) {
     when.tv_sec = 0;
     when.tv_usec = 0;
   }
