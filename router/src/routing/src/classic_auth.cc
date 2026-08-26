@@ -245,11 +245,27 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
   return AuthBase::public_key_encrypt(plaintext, pkey.get());
 }
 
+stdx::expected<std::string, std::error_code> RsaTlsContext::public_key() const {
+  if (!tls_context_) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+  return AuthBase::public_key_from_ssl_ctx_as_pem(tls_context_->get());
+}
+
+stdx::expected<std::string, std::error_code> RsaTlsContext::decrypt_password(
+    std::string_view encrypted, std::string_view nonce) const {
+  if (!tls_context_) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+  return AuthBase::rsa_decrypt_password(tls_context_->get(), encrypted, nonce);
+}
+
 bool AuthBase::connection_has_public_key(
     MysqlRoutingClassicConnectionBase *connection) {
   if (!connection->context().source_ssl_ctx()) return false;
 
-  SSL_CTX *ssl_ctx = connection->context().source_ssl_ctx()->get();
+  auto tls_context = connection->context().source_ssl_ctx();
+  SSL_CTX *ssl_ctx = tls_context->get();
 
   return SSL_CTX_get0_certificate(ssl_ctx) != nullptr;
 }

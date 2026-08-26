@@ -179,7 +179,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
       const RoutingConfig &routing_config, net::io_context &io_ctx,
       std::shared_ptr<routing_guidelines::Routing_guidelines_engine> guidelines,
       const std::string &route_name = {},
-      TlsServerContext *client_ssl_ctx = nullptr,
+      std::shared_ptr<TlsServerContext> client_ssl_ctx = nullptr,
       DestinationTlsContext *dest_ssl_ctx = nullptr);
 
   /** @brief Runs the service and accept incoming connections

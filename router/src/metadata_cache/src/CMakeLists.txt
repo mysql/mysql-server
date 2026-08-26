@@ -46,6 +46,7 @@ ROUTER_ADD_SHARED_LIBRARY(metadata_cache
   router_utils
   routing_guidelines
   PRIVATE
+  harness_tls
   extra::rapidjson
 
   OUTPUT_NAME "mysqlrouter_metadata_cache"

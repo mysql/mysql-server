@@ -116,6 +116,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   MOCK_METHOD(void, cache_start, (), (override));
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
+  void reload_tls() override {}
   bool is_initialized() noexcept override { return true; }
 
   void instance_name(const std::string &) override {}

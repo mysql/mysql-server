@@ -37,14 +37,17 @@ HttpServerContext::HttpServerContext(
     const uint16_t port, uint64_t max_http_connections,
     uint64_t max_request_body_size, uint64_t max_response_body_size)
     : context_{context},
-      tls_context_{std::move(tls_context)},
       host_(host),
       port_(port),
       ssl_{true},
-      http_{&tls_context_,           io_threads,
-            ssl_ ? nullptr : &bind_, ssl_ ? &bind_ : nullptr,
-            max_http_connections,    max_request_body_size,
-            max_response_body_size,  context_} {}
+      http_{std::make_shared<TlsServerContext>(std::move(tls_context)),
+            io_threads,
+            ssl_ ? nullptr : &bind_,
+            ssl_ ? &bind_ : nullptr,
+            max_http_connections,
+            max_request_body_size,
+            max_response_body_size,
+            context_} {}
 
 HttpServerContext::HttpServerContext(
     net::io_context *context, IoThreads *io_threads, const std::string &host,
@@ -53,10 +56,14 @@ HttpServerContext::HttpServerContext(
     : context_{context},
       host_(host),
       port_(port),
-      http_{&tls_context_,           io_threads,
-            ssl_ ? nullptr : &bind_, ssl_ ? &bind_ : nullptr,
-            max_http_connections,    max_request_body_size,
-            max_response_body_size,  context_} {}
+      http_{std::shared_ptr<TlsServerContext>{},
+            io_threads,
+            ssl_ ? nullptr : &bind_,
+            ssl_ ? &bind_ : nullptr,
+            max_http_connections,
+            max_request_body_size,
+            max_response_body_size,
+            context_} {}
 
 void HttpServerContext::start() {
   http_.set_allowed_methods({0xFFFFFFFF});
@@ -67,6 +74,11 @@ void HttpServerContext::start() {
 void HttpServerContext::stop() { http_.stop(); }
 
 void HttpServerContext::join_all() {}
+
+void HttpServerContext::replace_tls_context(TlsServerContext &&tls_context) {
+  http_.replace_tls_context(
+      std::make_shared<TlsServerContext>(std::move(tls_context)));
+}
 
 void HttpServerContext::add_regex_route(
     const std::string &url_host, const std::string &url_regex,

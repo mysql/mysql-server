@@ -62,10 +62,11 @@ class HTTP_SERVER_LIB_EXPORT HttpServerContext {
                     uint64_t max_request_body_size,
                     uint64_t max_response_body_size);
 
+  void replace_tls_context(TlsServerContext &&tls_context);
+
   void start();
   void stop();
   void join_all();
-
   void add_regex_route(const std::string &url_host,
                        const std::string &url_regex,
                        std::unique_ptr<http::base::RequestHandler> cb);
@@ -87,7 +88,6 @@ class HTTP_SERVER_LIB_EXPORT HttpServerContext {
 
  private:
   net::io_context *context_;
-  TlsServerContext tls_context_;
   std::string host_;
   uint16_t port_;
   bool ssl_{false};

@@ -27,10 +27,11 @@
 
 #ifndef _WIN32
 #include <pwd.h>
-#include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 #include <cstdio>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <streambuf>
@@ -45,7 +46,8 @@
 #include "mysql/harness/vt100_filter.h"
 #include "mysqlrouter/config_files.h"
 #include "mysqlrouter/utils.h"  // substitute_envvar
-#include "router_config.h"      // MYSQL_ROUTER_VERSION
+#include "mysqlrouter/windows/router_service_names.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "router_test_helpers.h"
 #include "scope_guard.h"
 #include "test/helpers.h"
@@ -416,6 +418,104 @@ TEST_F(AppTest, CmdLineHelpShort) {
       HasSubstr(
           "Oracle is a registered trademark of Oracle Corporation and/or its"));
   EXPECT_THAT(out_stream.str(), HasSubstr("Usage\n\nmysqlrouter"));
+}
+
+#ifndef _WIN32
+TEST_F(AppTest, ReloadTlsPidRequiresReloadOption) {
+  const std::vector<std::string> arguments{"--pid", "1"};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error);
+}
+
+TEST_F(AppTest, ReloadTlsRequiresExactlyOneTarget) {
+  const std::vector<std::string> no_target{"--reload-tls"};
+  EXPECT_THROW(MySQLRouter(g_program_name, no_target), std::runtime_error);
+
+  const std::vector<std::string> both_targets{"--reload-tls", "--pid", "1",
+                                              "--pid-file", "/tmp/router.pid"};
+  EXPECT_THROW(MySQLRouter(g_program_name, both_targets), std::runtime_error);
+}
+
+TEST_F(AppTest, ReloadTlsCannotBeUsedWithBootstrap) {
+  const std::vector<std::string> arguments{"--reload-tls", "--pid", "1",
+                                           "--bootstrap", "127.0.0.1:3306"};
+  EXPECT_THROW_LIKE(MySQLRouter(g_program_name, arguments), std::runtime_error,
+                    "--reload-tls cannot be used with --bootstrap");
+}
+
+TEST_F(AppTest, ReloadTlsRejectsInvalidPid) {
+  for (const std::string pid : {"0", "-1", "not-a-pid", "123x", " 123"}) {
+    const std::vector<std::string> arguments{"--reload-tls", "--pid", pid};
+    EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error)
+        << pid;
+  }
+}
+
+TEST_F(AppTest, ReloadTlsRejectsPidOutsidePidTypeRange) {
+  const std::vector<std::string> arguments{"--reload-tls", "--pid",
+                                           "9223372036854775807"};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error);
+}
+
+TEST_F(AppTest, ReloadTlsRejectsUnreadablePidFile) {
+  const std::vector<std::string> arguments{"--reload-tls", "--pid-file",
+                                           "/does/not/exist/router.pid"};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error);
+}
+
+TEST_F(AppTest, ReloadTlsRejectsPidFileWithoutReadPermission) {
+  TempDirectory directory;
+  const auto pid_file = directory.name() + "/router.pid";
+  std::ofstream output{pid_file};
+  output << "1\n";
+  output.close();
+  ASSERT_EQ(0, ::chmod(pid_file.c_str(), 0));
+
+  const std::vector<std::string> arguments{"--reload-tls", "--pid-file",
+                                           pid_file};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error);
+  ASSERT_EQ(0, ::chmod(pid_file.c_str(), S_IRUSR | S_IWUSR));
+}
+
+TEST_F(AppTest, ReloadTlsRejectsMalformedPidFile) {
+  TempDirectory directory;
+  const auto pid_file = directory.name() + "/router.pid";
+
+  for (const std::string contents :
+       {"not-a-pid\n", "12x\n", "12\n13\n", "12\n\n13\n"}) {
+    std::ofstream output{pid_file, std::ios::trunc};
+    output << contents;
+    output.close();
+    const std::vector<std::string> arguments{"--reload-tls", "--pid-file",
+                                             pid_file};
+    EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error)
+        << contents;
+  }
+}
+
+TEST_F(AppTest, ReloadTlsReportsSignalDeliveryFailure) {
+  const std::vector<std::string> arguments{"--reload-tls", "--pid", "99999999"};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::system_error);
+}
+
+#else
+TEST_F(AppTest, ReloadTlsServiceNameRequiresReloadOption) {
+  const std::vector<std::string> arguments{"--service-name", "CustomRouter"};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error);
+}
+
+TEST_F(AppTest, ReloadTlsRejectsPidFileOnWindows) {
+  const std::vector<std::string> arguments{"--reload-tls", "--pid-file",
+                                           "router.pid"};
+  EXPECT_THROW(MySQLRouter(g_program_name, arguments), std::runtime_error);
+}
+#endif
+
+TEST_F(AppTest, TlsReloadEventNamesAreServiceSpecific) {
+  EXPECT_EQ("Global\\MySQLRouterTlsReload_MySQLRouter",
+            tls_reload_event_name(kDefaultServiceName));
+  EXPECT_EQ("Global\\MySQLRouterTlsReload_CustomRouter",
+            tls_reload_event_name("CustomRouter"));
+  EXPECT_EQ("D:(A;;0x2;;;SY)(A;;0x2;;;BA)", kTlsReloadEventSecurityDescriptor);
 }
 
 TEST_F(AppTest, ConfigFileParseError) {

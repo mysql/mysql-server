@@ -53,9 +53,9 @@ class TlsBase {
   using socket_type = typename LowerLayer::native_handle_type;
   using protocol_type = typename LowerLayer::protocol_type;
 
-  TlsBase(LowerLayer &&layer, TlsContext *tls_context)
+  TlsBase(LowerLayer &&layer, std::shared_ptr<TlsContext> tls_context)
       : lower_layer_(std::forward<LowerLayer>(layer)),
-        tls_context_{tls_context} {
+        tls_context_{std::move(tls_context)} {
     ssl_.reset(SSL_new(tls_context_->get()));
     BIO *internal_bio;
     BIO *external_bio;
@@ -68,20 +68,22 @@ class TlsBase {
   using LowerLayerType = LowerLayer;
 
   template <typename... Args>
-  TlsBase(TlsServerContext *tls_context, Args &&...args)
-      : TlsBase(LowerLayer{std::forward<Args>(args)...}, tls_context) {
+  TlsBase(std::shared_ptr<TlsServerContext> tls_context, Args &&...args)
+      : TlsBase(LowerLayer{std::forward<Args>(args)...},
+                std::move(tls_context)) {
     SSL_set_accept_state(ssl_.get());
   }
 
   template <typename... Args>
-  TlsBase(TlsClientContext *tls_context, Args &&...args)
-      : TlsBase(LowerLayer{std::forward<Args>(args)...}, tls_context) {
+  TlsBase(std::shared_ptr<TlsClientContext> tls_context, Args &&...args)
+      : TlsBase(LowerLayer{std::forward<Args>(args)...},
+                std::move(tls_context)) {
     SSL_set_connect_state(ssl_.get());
   }
 
   TlsBase(TlsBase &&other)
       : lower_layer_{std::move(other.lower_layer_)},
-        tls_context_{other.tls_context_},
+        tls_context_{std::move(other.tls_context_)},
         ssl_{std::move(other.ssl_)},
         network_bio_{std::move(other.network_bio_)} {}
 
@@ -93,7 +95,7 @@ class TlsBase {
   constexpr static uint32_t k_tls_buffer_size = 32000;
 
   LowerLayer lower_layer_;
-  TlsContext *tls_context_;
+  std::shared_ptr<TlsContext> tls_context_;
   SslPtr ssl_;
   BioPtr network_bio_;
   uint8_t output_buffer_[k_tls_buffer_size];

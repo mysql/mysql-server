@@ -39,6 +39,7 @@
 
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -84,6 +85,9 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
    * Disconnect and release the connection to the metadata node.
    */
   ~ClusterMetadata() override;
+
+  /** Reapply the TLS material used for subsequently created sessions. */
+  void reload_tls();
 
   /** @brief Connects with the Metadata server and sets up the session
    * parameters
@@ -197,7 +201,12 @@ mysql_innodb_cluster_metadata.routing_guidelines WHERE guideline_id = (
 
   // Metadata node generic information
   mysql_ssl_mode ssl_mode_;
+  void validate_tls_options(const mysqlrouter::SSLOptions &ssl_options) const;
+
+  // Never changes after startup. A reload validates these original paths and
+  // publishes the resulting effective options for new metadata connections.
   mysqlrouter::SSLOptions ssl_options_;
+  mutable std::mutex ssl_options_m_;
 
   metadata_cache::MetadataCacheMySQLSessionConfig session_config_;
 

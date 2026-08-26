@@ -37,6 +37,7 @@ SET(test_files
   test_block_clients.cc
   # test_connection.cc
   test_connection_container.cc
+  test_destination_ssl_context.cc
   test_metadata_cache_group.cc
   test_static_routing.cc
   test_routing.cc

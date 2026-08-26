@@ -97,6 +97,9 @@ class METADATA_CACHE_EXPORT MetadataCache
    */
   void stop() noexcept;
 
+  /** Reapply TLS material for metadata sessions created after this call. */
+  void reload_tls();
+
   /** @brief Returns list of managed servers in a cluster
    *
    *

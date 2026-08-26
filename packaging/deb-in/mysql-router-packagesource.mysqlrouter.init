@@ -136,6 +136,19 @@ do_status() {
   status_of_proc -p $PID $DAEMON "$NAME"
 }
 
+do_reload() {
+  log_daemon_msg "Reloading TLS certificates and verification data for $NAME"
+  start-stop-daemon --stop \
+    --signal HUP \
+    --pidfile "$PID" \
+    --exec "$DAEMON" \
+    --user mysqlrouter \
+    --quiet
+  local retval=$?
+  log_end_msg $retval
+  return $retval
+}
+
 case "$1" in
   start)
     do_start
@@ -148,11 +161,14 @@ case "$1" in
     sleep 1
     do_start
     ;;
+  reload)
+    do_reload
+    ;;
   stop)
     do_stop
     sleep 1
     ;;
   *)
-    >2& echo "Usage: /etc/init.d/mysqlrouter {start|stop|status|restart|force-reload}"
+    >2& echo "Usage: /etc/init.d/mysqlrouter {start|stop|status|restart|reload|force-reload}"
     exit 3
 esac

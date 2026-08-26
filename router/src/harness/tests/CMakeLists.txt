@@ -78,6 +78,7 @@ SET(TESTS
   test_dynamic_config.cc
   test_destination.cc
   test_plugin_state.cc
+  test_tls_reload_component.cc
 )
 
 IF(NOT SOLARIS)

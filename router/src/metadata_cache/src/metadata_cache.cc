@@ -24,6 +24,7 @@
 */
 
 #include "metadata_cache.h"
+#include "cluster_metadata.h"
 
 #include <cassert>
 #include <cmath>  // fabs()
@@ -75,6 +76,13 @@ MetadataCache::MetadataCache(
 
 MetadataCache::~MetadataCache() {
   meta_data_->shutdown_notifications_listener();
+}
+
+void MetadataCache::reload_tls() {
+  if (auto cluster_metadata =
+          std::dynamic_pointer_cast<ClusterMetadata>(meta_data_)) {
+    cluster_metadata->reload_tls();
+  }
 }
 
 void *MetadataCache::run_thread(void *context) {

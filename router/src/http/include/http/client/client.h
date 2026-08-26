@@ -91,7 +91,7 @@ class HTTP_CLIENT_EXPORT Client {
   std::error_code error_code_;
   Endpoint connected_endpoint_;
   io_context &io_context_;
-  TlsClientContext tls_context_;
+  std::shared_ptr<TlsClientContext> tls_context_;
   std::unique_ptr<http::base::ConnectionInterface> connection_;
   std::unique_ptr<CallbacksImpl> callbacks_;
   Request *fill_request_by_callback_{nullptr};

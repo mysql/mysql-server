@@ -152,6 +152,8 @@ TARGET_LINK_LIBRARIES(router_frontend_lib
 IF(WIN32)
   # for the password_vault.cc
   TARGET_LINK_LIBRARIES(router_frontend_lib Crypt32)
+  TARGET_COMPILE_DEFINITIONS(router_frontend_lib
+    PRIVATE MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD=1)
 ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(router_frontend_lib

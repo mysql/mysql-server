@@ -47,9 +47,9 @@ class ConnectedTlsPairStreams {
     Pair_stream socket2_{context, &socket1_};
 
     out_server.reset(
-        new Stream(&tls_context_.ssl_ctxt_server_, std::move(socket1_)));
+        new Stream(tls_context_.ssl_ctxt_server_, std::move(socket1_)));
     out_client.reset(
-        new Stream(&tls_context_.ssl_ctxt_client_, std::move(socket2_)));
+        new Stream(tls_context_.ssl_ctxt_client_, std::move(socket2_)));
   }
 
   void change_non_blocking(const bool /*non_blocking*/) {
