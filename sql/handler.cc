@@ -2720,8 +2720,14 @@ err:
 }
 
 void handler::ha_statistic_increment(
-    ulonglong System_status_var::*offset) const {
-  if (table && table->in_use) (table->in_use->status_var.*offset)++;
+    ulonglong System_status_var::*offset,
+    std::atomic_uint64_t aggregated_stats_buffer::*shard_offset) const {
+  if (table && table->in_use) {
+    (table->in_use->status_var.*offset)++;
+    (global_aggregated_stats.get_shard(table->in_use->thread_id()).*
+     shard_offset)
+        .fetch_add(1, std::memory_order_relaxed);
+  }
 }
 
 THD *handler::ha_thd() const {
@@ -3572,7 +3578,8 @@ int handler::ha_read_first_row(uchar *buf, uint primary_key) {
   int error;
   DBUG_TRACE;
 
-  ha_statistic_increment(&System_status_var::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count,
+                         &aggregated_stats_buffer::ha_read_first_count);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -6654,6 +6661,8 @@ int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
   if (is_mrr_assoc) {
     assert(!thd->status_var_aggregated);
     table->in_use->status_var.ha_multi_range_read_init_count++;
+    global_aggregated_stats.get_shard(table->in_use->thread_id())
+        .ha_multi_range_read_init_count++;
   }
 
   rowids_buf_end = buf->buffer_end;
@@ -8023,7 +8032,8 @@ int handler::ha_external_lock(THD *thd, int lock_type) {
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   assert(inited == NONE || table->open_by_handler);
 
-  ha_statistic_increment(&System_status_var::ha_external_lock_count);
+  ha_statistic_increment(&System_status_var::ha_external_lock_count,
+                         &aggregated_stats_buffer::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
                         { error = external_lock(thd, lock_type); })

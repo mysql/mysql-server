@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <algorithm>
+#include <atomic>
 #include <bitset>
 #include <functional>
 #include <map>
@@ -91,6 +92,7 @@ class THD;
 class handler;
 class partition_info;
 struct System_status_var;
+struct aggregated_stats_buffer;
 
 namespace dd {
 class Properties;
@@ -6597,7 +6599,9 @@ class handler {
 
  protected:
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulonglong System_status_var::*offset) const;
+  void ha_statistic_increment(
+      ulonglong System_status_var::*offset,
+      std::atomic_uint64_t aggregated_stats_buffer::*shard_offset) const;
   THD *ha_thd() const;
 
   /**

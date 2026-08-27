@@ -31,6 +31,7 @@ Code for native partitioning in InnoDB.
 Created Nov 22, 2013 Mattias Jonsson */
 
 /* Include necessary SQL headers */
+#include <aggregated_stats_buffer.h>
 #include <debug_sync.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -2146,7 +2147,8 @@ int ha_innopart::rnd_next_in_part(uint part_id, uchar *buf) {
     }
     m_start_of_scan = false;
   } else {
-    ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+    ha_statistic_increment(&System_status_var::ha_read_rnd_next_count,
+                           &aggregated_stats_buffer::ha_read_rnd_next_count);
     error = ha_innobase::general_fetch(buf, ROW_SEL_NEXT, 0);
   }
 
@@ -2168,7 +2170,8 @@ int ha_innopart::rnd_pos(uchar *buf, uchar *pos) {
   static_assert(PARTITION_BYTES_IN_POS == 2);
   DBUG_DUMP("pos", pos, ref_length);
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count,
+                         &aggregated_stats_buffer::ha_read_rnd_count);
 
   ut_ad(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
