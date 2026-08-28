@@ -36,6 +36,7 @@
 #include <memory>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "ft_global.h"
 #include "m_string.h"
@@ -2256,47 +2257,116 @@ Table_ref *unique_table(const Table_ref *table, Table_ref *table_list,
   return dup;
 }
 
+/// True if this referential action modifies rows in the referencing table.
+static bool fk_rule_modifies_child(dd::Foreign_key::enum_rule rule) {
+  return rule != dd::Foreign_key::RULE_RESTRICT &&
+         rule != dd::Foreign_key::RULE_NO_ACTION;
+}
+
+/// Find the share of an open table matching the given name, or nullptr.
+/// The list is walked through next_global, so prelocked tables are seen too.
+static const TABLE_SHARE *find_open_table_share(const Table_ref *tables,
+                                                const char *db,
+                                                const char *table_name) {
+  for (const Table_ref *tl = tables; tl != nullptr; tl = tl->next_global) {
+    if (tl->table == nullptr) continue;
+    const TABLE_SHARE *share = tl->table->s;
+    if (my_strcasecmp(table_alias_charset, share->db.str, db) == 0 &&
+        my_strcasecmp(table_alias_charset, share->table_name.str, table_name) ==
+            0)
+      return share;
+  }
+  return nullptr;
+}
+
 /**
-  Test whether deleting a row from the subject table of a multi-table DELETE
-  can cascade to another table which the same statement reads.
+  Test whether modifying rows of the subject table of a multi-table DELETE
+  or UPDATE can, through referential actions, modify rows of another table
+  which the same statement reads.
 
-  Deleting from such a table while the join is still scanning is unsafe for
-  row-based replication: the cascade removes the child rows on the source and
-  logs row events for them, while the statement also logs the row events for
-  the child rows it deletes itself. On the replica the cascade has already
-  removed those rows by the time the logged child events are applied, which
-  breaks the applier with ER_KEY_NOT_FOUND. Deferring the delete until the
-  join has finished avoids the overlap.
+  Modifying such a table while the join is still scanning gives wrong
+  results: the referential action deletes or updates rows of the other
+  table that the join has not read yet, so the join sees a mix of old and
+  new rows. It also breaks row-based replication, since the row events
+  logged for the statement no longer match what the referential action
+  already did on the replica. Deferring the modification until the join has
+  finished avoids both.
 
-  Only ON DELETE CASCADE deletes child rows, so only that rule is considered.
-  ON DELETE SET NULL updates the child rows instead, which leaves them
-  findable for the logged events and replicates correctly.
+  Every referential action except RESTRICT and NO ACTION modifies rows in
+  the referencing table. The check follows the actions transitively: a
+  delete cascading from t1 into t2 can trigger t2's own referential actions
+  into t3, so t3 being part of the query makes immediate deletes from t1
+  unsafe even when t2 is not in the query. Whether a table's children are
+  affected through their delete rule or their update rule depends on
+  whether the action deletes or updates that table's rows.
 
   @param  table       table to be checked (must be updatable base table)
-  @param  leaf_tables leaf tables of the query block to check against
+  @param  query_block query block of the DELETE or UPDATE statement
+  @param  is_delete   true for DELETE, false for UPDATE
 
-  @retval true  Deleting from @p table cascades to one of @p leaf_tables.
-  @retval false No cascading dependency within the query.
+  @retval true  A referential action triggered by modifying @p table can
+                modify rows of a table read by the query.
+  @retval false No such dependency within the query.
 */
 
-bool delete_cascades_to_queried_table(const Table_ref *table,
-                                      const Table_ref *leaf_tables) {
+bool fk_actions_affect_queried_table(const Table_ref *table,
+                                     const Query_block *query_block,
+                                     bool is_delete) {
   assert(table->table != nullptr);
 
-  const TABLE_SHARE *share = table->table->s;
-  for (const TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p =
-           share->foreign_key_parent;
-       fk_p < share->foreign_key_parent + share->foreign_key_parents; ++fk_p) {
-    if (fk_p->delete_rule != dd::Foreign_key::RULE_CASCADE) continue;
+  const Table_ref *all_tables = query_block->parent_lex->query_tables;
 
-    for (const Table_ref *tl = leaf_tables; tl != nullptr; tl = tl->next_leaf) {
-      if (tl->table == nullptr) continue;  // View or derived table.
-      const TABLE_SHARE *child_share = tl->table->s;
-      if (my_strcasecmp(table_alias_charset, child_share->db.str,
-                        fk_p->referencing_table_db.str) == 0 &&
-          my_strcasecmp(table_alias_charset, child_share->table_name.str,
-                        fk_p->referencing_table_name.str) == 0)
+  // Depth-first walk over the tables whose rows the statement's referential
+  // actions may modify. The bool tracks whether rows of that table get
+  // deleted (true) or updated (false), which decides whether its children
+  // are affected through their delete rule or their update rule.
+  std::vector<std::pair<const TABLE_SHARE *, bool>> pending;
+  std::vector<const TABLE_SHARE *> visited;
+  pending.emplace_back(table->table->s, is_delete);
+  visited.push_back(table->table->s);
+
+  while (!pending.empty()) {
+    const auto [share, rows_deleted] = pending.back();
+    pending.pop_back();
+
+    for (const TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p =
+             share->foreign_key_parent;
+         fk_p < share->foreign_key_parent + share->foreign_key_parents;
+         ++fk_p) {
+      const dd::Foreign_key::enum_rule rule =
+          rows_deleted ? fk_p->delete_rule : fk_p->update_rule;
+      if (!fk_rule_modifies_child(rule)) continue;
+
+      // A modified child that the query reads makes immediate modification
+      // of the subject table unsafe.
+      for (const Table_ref *tl = query_block->leaf_tables; tl != nullptr;
+           tl = tl->next_leaf) {
+        if (tl->table == nullptr) continue;  // View or derived table.
+        const TABLE_SHARE *leaf_share = tl->table->s;
+        if (my_strcasecmp(table_alias_charset, leaf_share->db.str,
+                          fk_p->referencing_table_db.str) == 0 &&
+            my_strcasecmp(table_alias_charset, leaf_share->table_name.str,
+                          fk_p->referencing_table_name.str) == 0)
+          return true;
+      }
+
+      // Follow the chain: the child's own referential actions may modify
+      // further tables. The child is expected to be found among the open
+      // tables, since prelocking adds all tables reachable through
+      // referential actions; if it is not found, assume the worst.
+      const TABLE_SHARE *child_share =
+          find_open_table_share(all_tables, fk_p->referencing_table_db.str,
+                                fk_p->referencing_table_name.str);
+      if (child_share == nullptr) {
+        assert(false);
         return true;
+      }
+      if (std::find(visited.begin(), visited.end(), child_share) ==
+          visited.end()) {
+        visited.push_back(child_share);
+        pending.emplace_back(
+            child_share, rows_deleted && rule == dd::Foreign_key::RULE_CASCADE);
+      }
     }
   }
 

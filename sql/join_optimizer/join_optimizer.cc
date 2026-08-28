@@ -7324,7 +7324,8 @@ bool IsImmediateDeleteCandidate(const Table_ref *table_ref,
   // Cannot delete from the table immediately if the delete cascades to another
   // table in the query, as the cascade would remove rows that the query still
   // reads and deletes itself. See Bug#80821 and Bug#102586.
-  if (delete_cascades_to_queried_table(table_ref, query_block->leaf_tables)) {
+  if (fk_actions_affect_queried_table(table_ref, query_block,
+                                      /*is_delete=*/true)) {
     return false;
   }
 
@@ -7354,6 +7355,14 @@ bool IsImmediateUpdateCandidate(const Table_ref *table_ref, int node_idx,
   // Cannot update the table immediately if it's joined with itself.
   if (unique_table(table_ref, graph.query_block()->leaf_tables,
                    /*check_alias=*/false) != nullptr) {
+    return false;
+  }
+
+  // Cannot update the table immediately if its referential actions can
+  // modify rows of another table in the query. See Bug#80821 and
+  // Bug#102586.
+  if (fk_actions_affect_queried_table(table_ref, graph.query_block(),
+                                      /*is_delete=*/false)) {
     return false;
   }
 

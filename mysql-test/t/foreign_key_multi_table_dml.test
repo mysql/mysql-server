@@ -1,0 +1,189 @@
+# ==== Purpose ====
+#
+# Check that a multi-table DELETE or UPDATE on a table whose referential
+# actions modify another table used by the same statement produces correct
+# results.
+#
+# Before this fix, the first table in the join order could be modified while
+# the join was still scanning. The referential action then deleted or updated
+# rows of the other tables before the join had read them, so the join saw a
+# mix of old and new rows. This gave wrong results on a single server and
+# also broke row-based replication, since the row events logged for the
+# statement no longer matched what the referential action had already done on
+# the replica.
+#
+# ==== References ====
+#
+# Bug#80821: Replication breaks if multi-table DELETE is used in conjunction
+#            with Foreign Key
+# Bug#102586: Foreign Key ON DELETE CASCADE breaks with RBR and multiple-table
+#             DELETE
+#
+###############################################################################
+
+--echo #
+--echo # Multi-table DELETE with ON DELETE CASCADE
+--echo #
+
+CREATE TABLE t1(id INT PRIMARY KEY, i INT);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 1), (4, 2), (5, 1), (6, 2), (7, 1);
+
+CREATE TABLE t2(
+  id INT PRIMARY KEY,
+  t1_id INT,
+  FOREIGN KEY (t1_id) REFERENCES t1(id) ON DELETE CASCADE
+);
+
+INSERT INTO t2 VALUES
+  (1, 1), (2, 1), (3, 1), (4, 1), (5, NULL), (6, 6), (7, 7), (8, 1), (9, 2),
+  (10, 3), (11, 4), (12, 5), (13, 6), (14, 7), (15, 1), (16, 2), (17, 3),
+  (18, 4), (19, 5), (20, 6), (21, 7), (22, NULL), (23, 1), (24, 2), (25, 3);
+
+ANALYZE TABLE t1, t2;
+
+# Every row in t1 matches a row in t2, so all rows in t1 should be deleted,
+# and the cascade should keep only the t2 rows that reference no t1 row.
+DELETE t1 FROM t1, t2 WHERE t1.i = t2.id;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+DROP TABLE t2, t1;
+
+--echo #
+--echo # Multi-table DELETE with ON DELETE SET NULL
+--echo #
+
+CREATE TABLE t1(id INT PRIMARY KEY, i INT);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 1), (4, 2), (5, 1), (6, 2), (7, 1);
+
+CREATE TABLE t2(
+  id INT PRIMARY KEY,
+  t1_id INT,
+  FOREIGN KEY (t1_id) REFERENCES t1(id) ON DELETE SET NULL
+);
+
+INSERT INTO t2 VALUES
+  (1, 1), (2, 1), (3, 1), (4, 1), (5, NULL), (6, 6), (7, 7), (8, 1), (9, 2),
+  (10, 3), (11, 4), (12, 5), (13, 6), (14, 7), (15, 1), (16, 2), (17, 3),
+  (18, 4), (19, 5), (20, 6), (21, 7), (22, NULL), (23, 1), (24, 2), (25, 3);
+
+ANALYZE TABLE t1, t2;
+
+# Every row in t1 matches a row in t2 that satisfies the predicate at the
+# start of the statement, so all rows in t1 should be deleted, and the SET
+# NULL action should clear t1_id in every t2 row.
+DELETE t1 FROM t1, t2 WHERE t1.i = t2.id AND t1_id IS NOT NULL;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+DROP TABLE t2, t1;
+
+--echo #
+--echo # Multi-table DELETE cascading through a table that is not in the query
+--echo #
+
+CREATE TABLE t1(id INT PRIMARY KEY, i INT);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 1), (4, 2), (5, 1), (6, 2), (7, 1);
+
+CREATE TABLE t_mid(
+  id INT PRIMARY KEY,
+  t1_id INT,
+  FOREIGN KEY (t1_id) REFERENCES t1(id) ON DELETE CASCADE
+);
+
+INSERT INTO t_mid VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),
+  (7, 7);
+
+CREATE TABLE t3(
+  id INT PRIMARY KEY,
+  mid_id INT,
+  FOREIGN KEY (mid_id) REFERENCES t_mid(id) ON DELETE CASCADE
+);
+
+INSERT INTO t3 VALUES
+  (1, 1), (2, 1), (3, 1), (4, 1), (5, NULL), (6, 6), (7, 7), (8, 1), (9, 2),
+  (10, 3), (11, 4), (12, 5), (13, 6), (14, 7), (15, 1), (16, 2), (17, 3),
+  (18, 4), (19, 5), (20, 6), (21, 7), (22, NULL), (23, 1), (24, 2), (25, 3);
+
+ANALYZE TABLE t1, t_mid, t3;
+
+# Deleting from t1 cascades into t_mid and from there into t3, which the
+# query reads, even though t_mid itself is not in the query. Every row in t1
+# matches a row in t3, so all rows in t1 and t_mid should be deleted, and
+# only the t3 rows that reference no t_mid row should remain.
+DELETE t1 FROM t1, t3 WHERE t1.i = t3.id;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t_mid ORDER BY id;
+SELECT * FROM t3 ORDER BY id;
+
+DROP TABLE t3, t_mid, t1;
+
+--echo #
+--echo # Multi-table UPDATE with ON UPDATE SET NULL
+--echo #
+
+CREATE TABLE t1(id INT PRIMARY KEY, i INT);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 1), (4, 2), (5, 1), (6, 2), (7, 1);
+
+CREATE TABLE t2(
+  id INT PRIMARY KEY,
+  t1_id INT,
+  FOREIGN KEY (t1_id) REFERENCES t1(id) ON UPDATE SET NULL
+);
+
+INSERT INTO t2 VALUES
+  (1, 1), (2, 1), (3, 1), (4, 1), (5, NULL), (6, 6), (7, 7), (8, 1), (9, 2),
+  (10, 3), (11, 4), (12, 5), (13, 6), (14, 7), (15, 1), (16, 2), (17, 3),
+  (18, 4), (19, 5), (20, 6), (21, 7), (22, NULL), (23, 1), (24, 2), (25, 3);
+
+ANALYZE TABLE t1, t2;
+
+# Every row in t1 matches a row in t2 that satisfies the predicate at the
+# start of the statement, so all rows in t1 should be updated, and the SET
+# NULL action should clear t1_id in every t2 row.
+UPDATE t1, t2 SET t1.id = t1.id + 100
+  WHERE t1.i = t2.id AND t2.t1_id IS NOT NULL;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+DROP TABLE t2, t1;
+
+--echo #
+--echo # Multi-table UPDATE with ON UPDATE CASCADE
+--echo #
+
+CREATE TABLE t1(id INT PRIMARY KEY, i INT);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 1), (4, 2), (5, 1), (6, 2), (7, 1);
+
+CREATE TABLE t2(
+  id INT PRIMARY KEY,
+  t1_id INT,
+  FOREIGN KEY (t1_id) REFERENCES t1(id) ON UPDATE CASCADE
+);
+
+INSERT INTO t2 VALUES
+  (1, 1), (2, 1), (3, 1), (4, 1), (5, NULL), (6, 6), (7, 7), (8, 1), (9, 2),
+  (10, 3), (11, 4), (12, 5), (13, 6), (14, 7), (15, 1), (16, 2), (17, 3),
+  (18, 4), (19, 5), (20, 6), (21, 7), (22, NULL), (23, 1), (24, 2), (25, 3);
+
+ANALYZE TABLE t1, t2;
+
+# Every row in t1 matches a row in t2 that satisfies the predicate at the
+# start of the statement, so all rows in t1 should be updated, and the
+# cascade should add 100 to every non-NULL t1_id in t2.
+UPDATE t1, t2 SET t1.id = t1.id + 100
+  WHERE t1.i = t2.id AND t2.t1_id <= 7;
+
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+DROP TABLE t2, t1;
