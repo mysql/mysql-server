@@ -2319,11 +2319,14 @@ bool fk_actions_affect_queried_table(const Table_ref *table,
   // Depth-first walk over the tables whose rows the statement's referential
   // actions may modify. The bool tracks whether rows of that table get
   // deleted (true) or updated (false), which decides whether its children
-  // are affected through their delete rule or their update rule.
+  // are affected through their delete rule or their update rule. Since the
+  // two rules can lead to different descendants, a table reached both ways
+  // must be walked once per state, so visited entries are (table, state)
+  // pairs rather than tables.
   std::vector<std::pair<const TABLE_SHARE *, bool>> pending;
-  std::vector<const TABLE_SHARE *> visited;
+  std::vector<std::pair<const TABLE_SHARE *, bool>> visited;
   pending.emplace_back(table->table->s, is_delete);
-  visited.push_back(table->table->s);
+  visited.emplace_back(table->table->s, is_delete);
 
   while (!pending.empty()) {
     const auto [share, rows_deleted] = pending.back();
@@ -2351,21 +2354,20 @@ bool fk_actions_affect_queried_table(const Table_ref *table,
       }
 
       // Follow the chain: the child's own referential actions may modify
-      // further tables. The child is expected to be found among the open
-      // tables, since prelocking adds all tables reachable through
-      // referential actions; if it is not found, assume the worst.
+      // further tables. The child is not among the open tables when the
+      // storage engine handles referential actions internally, so that
+      // prelocking did not add it; assume the worst in that case, since the
+      // engine-internal action poses the same hazard.
       const TABLE_SHARE *child_share =
           find_open_table_share(all_tables, fk_p->referencing_table_db.str,
                                 fk_p->referencing_table_name.str);
-      if (child_share == nullptr) {
-        assert(false);
-        return true;
-      }
-      if (std::find(visited.begin(), visited.end(), child_share) ==
+      if (child_share == nullptr) return true;
+      const std::pair<const TABLE_SHARE *, bool> child_state(
+          child_share, rows_deleted && rule == dd::Foreign_key::RULE_CASCADE);
+      if (std::find(visited.begin(), visited.end(), child_state) ==
           visited.end()) {
-        visited.push_back(child_share);
-        pending.emplace_back(
-            child_share, rows_deleted && rule == dd::Foreign_key::RULE_CASCADE);
+        visited.push_back(child_state);
+        pending.push_back(child_state);
       }
     }
   }
