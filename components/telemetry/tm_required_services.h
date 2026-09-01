@@ -31,7 +31,6 @@
 #include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/log_builtins.h>
-#include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_mutex_service.h>
@@ -44,7 +43,6 @@
 #include <mysql/components/services/pfs_notification.h>
 #include <mysql/components/services/psi_idle_service.h>
 #include <mysql/components/services/psi_metric_service.h>
-#include <mysql/components/services/psi_stage_service.h>
 #include <mysql/components/services/psi_thread_service.h>
 #include <mysql/components/services/registry.h>
 
@@ -83,10 +81,8 @@ extern REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_string_factory,
                                        string_factory_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_string_converter,
                                        string_converter_srv);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_cond_v1, cond_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_mutex_v1, mutex_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(psi_metric_v1, metric_srv);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(psi_stage_v1, stage_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(psi_thread_v7, thread_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(psi_idle_v1, idle_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration, reg_reg);

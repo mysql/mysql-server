@@ -31,32 +31,17 @@
 
 namespace telemetry {
 
-PSI_mutex_key g_notify_mutex_key = PSI_NOT_INSTRUMENTED;
 PSI_mutex_key g_metric_mutex_key = PSI_NOT_INSTRUMENTED;
 PSI_mutex_key g_meter_mutex_key = PSI_NOT_INSTRUMENTED;
 PSI_mutex_key g_option_usage_mutex_key = PSI_NOT_INSTRUMENTED;
 
 static PSI_mutex_info all_mutexes[] = {
-    {&g_notify_mutex_key, "session_notify", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
     {&g_metric_mutex_key, "MySQLMetric::m_lock", 0, 0, PSI_DOCUMENT_ME},
     {&g_meter_mutex_key, "MySQLMeter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&g_option_usage_mutex_key, "option_usage", PSI_FLAG_SINGLETON, 0,
      "Serialize access to option_usage"},
     {&g_metric_mutex_key, "MySQLMetric::m_lock", 0, 0, PSI_DOCUMENT_ME},
 };
-
-PSI_cond_key g_notify_cond_key = PSI_NOT_INSTRUMENTED;
-
-static PSI_cond_info all_conds[] = {
-    {&g_notify_cond_key, "session_notify", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
-};
-
-PSI_stage_info g_session_stage = {0, "session", PSI_FLAG_STAGE_PROGRESS,
-                                  PSI_DOCUMENT_ME};
-
-static PSI_stage_info *all_stages[] = {&g_session_stage};
 
 PSI_thread_key g_otel_bsp_thread_key = PSI_NOT_INSTRUMENTED;
 PSI_thread_key g_otel_metric_periodic_reader_thread_key = PSI_NOT_INSTRUMENTED;
@@ -90,17 +75,10 @@ void register_performance_schema() {
 
   mutex_srv->register_info(component, all_mutexes, std::size(all_mutexes));
 
-  cond_srv->register_info(component, all_conds, std::size(all_conds));
-
-  stage_srv->register_stage(component, all_stages, std::size(all_stages));
-
   thread_srv->register_thread(component, all_threads, std::size(all_threads));
 }
 
 void init_mutexes() {
-  mutex_srv->init(g_notify_mutex_key, &g_session_notify_mutex, nullptr,
-                  __FILE__, __LINE__);
-  cond_srv->init(g_notify_cond_key, &g_session_notify_cond, __FILE__, __LINE__);
   mutex_srv->init(g_meter_mutex_key, &g_all_meters_mutex, nullptr, __FILE__,
                   __LINE__);
   mutex_srv->init(g_option_usage_mutex_key, &g_option_usage_mutex, nullptr,
@@ -108,8 +86,6 @@ void init_mutexes() {
 }
 
 void cleanup_mutexes() {
-  mutex_srv->destroy(&g_session_notify_mutex, __FILE__, __LINE__);
-  cond_srv->destroy(&g_session_notify_cond, __FILE__, __LINE__);
   mutex_srv->destroy(&g_all_meters_mutex, __FILE__, __LINE__);
   mutex_srv->destroy(&g_option_usage_mutex, __FILE__, __LINE__);
 }
