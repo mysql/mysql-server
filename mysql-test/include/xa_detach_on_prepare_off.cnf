@@ -1,0 +1,5 @@
+# ==== Purpose ====
+# Run selected XA tests with attached XA transaction semantics.
+
+[mysqld]
+xa-detach-on-prepare=OFF
