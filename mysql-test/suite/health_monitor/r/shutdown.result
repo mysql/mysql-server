@@ -1,0 +1,60 @@
+##
+## Health Monitor component
+##
+## Verify that the Health Monitor detects when the server is shutting down.
+## Requires debug build.
+##
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Configure the disk collector
+
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+truncate performance_schema.health_block_device;
+
+# Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+# Wait for 2 collection cycles
+
+# Restart the server
+# restart
+
+#
+# Verify shutdown was detected
+#
+Pattern "Server shutdown detected" found
+
+##
+## Clean up
+##
+
+uninstall component 'file://component_health_monitor';;

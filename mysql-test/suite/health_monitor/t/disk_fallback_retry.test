@@ -1,0 +1,101 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test the response to SUPER_READ_ONLY being blocked.
+--echo ##
+--echo ## If the Health Monitor is blocked from setting SUPER_READ_ONLY,
+--echo ## it will make 3 attempts before giving up. This test sets a table lock
+--echo ## to block SUPER_READ_ONLY, then release the lock in time for the
+--echo ## server to be fenced.
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Enable low disk space fencing explicitly for this fencing test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo Connection default
+--connection default
+
+--echo
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to CRITICAL level to fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Connection 1
+connect(con1, localhost, root,,);
+use test;
+create table t1 (s1 int);
+lock tables t1 write;
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo
+--echo # Start the disk collector
+--disable_query_log
+select now(6) into @retry_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Sleep for 3 seconds to help keep connections serialized
+--sleep 3
+
+--echo
+--echo # Wait for one retry attempt then release the table lock
+let $wait_timeout = 30;
+let $wait_condition = select count(*) from performance_schema.error_log
+                        where data like "%attempts remaining%"
+                          and logged > @retry_start;
+--source include/wait_condition.inc
+
+--echo
+--echo # Connection 1 - Release table lock
+--connection con1
+unlock tables;
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo # Wait for SUPER_READ_ONLY = ON after retry
+let $wait_timeout = 60;
+let $wait_condition = select count(*) from performance_schema.error_log
+                        where data like "%SUPER_READ_ONLY = ON%"
+                          and logged > @retry_start;
+--source include/wait_condition.inc
+
+--echo
+--echo # Verify server is fenced
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+drop table test.t1;
+--disconnect con1
+
+--echo
+--eval uninstall component 'file://component_health_monitor';

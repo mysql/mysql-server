@@ -1,0 +1,84 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## WL#15855: System variable metadata and attribute data
+--echo ##
+--echo ## Force Health Monitor to trigger the system offline mode (stating its custom reason).
+--echo ## Try connecting with a non-privileged user to verify that the
+--echo ## ER_SERVER_OFFLINE_MODE error text has been customized.
+--echo ##
+
+#--source include/have_server_telemetry_metrics.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Enable low disk space fencing explicitly for this offline-mode message test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+CREATE USER 'user1'@'localhost';
+
+--echo ##
+--echo ## Trigger fallback mode 1
+--echo ##
+--echo
+
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the server to be fenced (should be immediate)
+let $wait_condition = select @@global.super_read_only;
+let $wait_timeout = 30;
+--source include/wait_condition.inc
+
+--echo
+--echo # Run in CRITICAL state for two cycles
+--echo Sleep 20
+--sleep 20
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Verify server is fenced
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo # Check that the 'reason' attribute is visible in the Performance Schema
+select * from performance_schema.global_variable_attributes;
+
+--echo
+--echo # Validate new session gets rejected with a custom message (including Health Monitor's reason)
+
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--replace_regex /mode since .*, reason/mode since TIMESTAMP, reason/
+--error ER_SERVER_OFFLINE_MODE_REASON
+--connect(conu1, localhost, user1)
+
+--echo
+--echo ##
+--echo ## Cleanup
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+drop user 'user1'@'localhost';
+--echo
+uninstall component 'file://component_health_monitor';

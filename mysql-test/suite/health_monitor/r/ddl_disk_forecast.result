@@ -1,0 +1,46 @@
+##
+## Test the Health Monitor component
+##
+## Test cases:
+##   1. Load the component
+##   2. DDL operations on disk_forecast
+##   3. Unload the component
+
+#
+# Install the Health Monitor component
+#
+install component 'file://component_health_monitor';;
+
+###
+### Table Operations: DDL
+###
+
+#
+# disk_forecast
+#
+use performance_schema;
+
+drop table disk_forecast;
+ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'disk_forecast'
+
+alter table disk_forecast
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+
+alter table disk_forecast
+add index test_index(timestamp);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+
+create table test.create_select
+as select * from performance_schema.disk_forecast;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+drop table test.create_select;
+
+###
+### Uninstall
+###
+
+uninstall component 'file://component_health_monitor';;

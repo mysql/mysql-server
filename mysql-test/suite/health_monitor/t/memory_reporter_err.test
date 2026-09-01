@@ -1,0 +1,118 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ## Specifically, we will test error handling of the memory reporting
+--echo ## The relevant test cases are only part of the debug builds.
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Verify error handling for parse errors,
+--echo ##      various other conditions, sql mode, etc.
+--echo ##
+
+--echo ## Temporarily disabled
+exit;
+
+--source include/have_debug.inc
+--source include/have_log_diagnostic.inc
+
+--echo # Enable diagnostics.
+--let $MYSQLD_DIAGNOSTIC_LOG= $MYSQL_TMP_DIR/diagnostic.log
+--let $restart_parameters= "restart:  --log-diagnostic-enable=1 --log-diagnostic=$MYSQLD_DIAGNOSTIC_LOG"
+--replace_result $MYSQLD_DIAGNOSTIC_LOG MYSQLD_DIAGNOSTIC_LOG
+
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--source ../include/health_monitor_setup.inc
+
+--echo #
+--echo # Allow mysql.session to select from sys views and execute sys procedures.
+--echo # This is a pre requisite to query sys views from the component.
+--echo #
+GRANT PROCESS ON *.* TO 'mysql.session'@localhost;
+GRANT SELECT ON sys.* TO 'mysql.session'@localhost;
+GRANT EXECUTE ON sys.* TO 'mysql.session'@localhost;
+
+--echo #
+--echo # Set memory report definition to prvoke errors
+--echo #
+set @@global.health_monitor.memory_report_definition = '
+[{
+   "title" : "===== MEMORY REPORT ERROR TEST BEGIN =====",
+   "footer" : "===== MEMORY REPORT ERROR TEST END =====",
+   "queries" : [
+      {"query" : "hm_err_parse_error"},
+      {"query" : "hm_err_empty_result_set"},
+      {"query" : "hm_err_no_such_table"},
+      {"query" : "hm_err_missing_privilege"},
+      {"query" : "hm_err_show_sql_mode"},
+      {"query" : "hm_err_bad_sql_mode"}
+   ]
+}]';
+
+--echo
+--echo #
+--echo # Test configuration: 8 rows, 1 second sample rate
+--echo #
+set @@global.health_monitor.memory_retention = 8;
+set @@global.health_monitor.memory_sample_rate = 1;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo #
+--echo # Make sure reports are emitted
+--echo #
+--echo
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.memory_reporting = on;
+set @@global.health_monitor.memory_usage_warning_level_1 = @force_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+--sleep 3
+
+--echo
+--echo # Set global sql mode to show the reporter uses a session override
+--echo #
+
+SET @@GLOBAL.sql_mode='ANSI_QUOTES';
+
+--echo # Verify provoked issues were handled
+--echo #
+
+--let SEARCH_FILE=$MYSQLD_DIAGNOSTIC_LOG
+--let SEARCH_PATTERN=You have an error in your SQL syntax
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=Table 'performance_schema.no_such_table' doesn't exist
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=DROP command denied to user 'mysql.session'@'localhost' for table 'user'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=ERROR WHEN SQL_MODE = ANSI_QUOTES
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN=Unknown column 'ERROR WHEN SQL_MODE = ANSI_QUOTES' in 'field list'
+--source include/search_pattern.inc
+
+--echo
+--echo ###
+--echo ### Stop, revoke and uninstall
+--echo ###
+--echo
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.memory_reporting = off;
+SET @@GLOBAL.sql_mode=DEFAULT;
+
+REVOKE PROCESS ON *.* FROM 'mysql.session'@localhost;
+REVOKE SELECT ON sys.* FROM 'mysql.session'@localhost;
+REVOKE EXECUTE ON sys.* FROM 'mysql.session'@localhost;
+
+set @@global.health_monitor.memory_report_definition = DEFAULT;
+
+--echo
+--eval uninstall component 'file://component_health_monitor';
+--remove_file $MYSQLD_DIAGNOSTIC_LOG
+

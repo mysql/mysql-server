@@ -1,0 +1,152 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Stat buffer resize
+--echo ##   2. Verify shared library unloads after selecting on-demand tables
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+let $manager_debug = 0;
+
+--echo
+--echo #
+--echo # Stress stat buffer resizing
+--echo #
+set @@global.health_monitor.memory_sample_rate = 1;
+truncate health_system_memory;
+set @@global.health_monitor.memory_running = on;
+
+--disable_query_log
+select now(6) into @retention_update_start;
+--enable_query_log
+set @@global.health_monitor.memory_retention = 1;
+set @@global.health_monitor.memory_retention = 2;
+set @@global.health_monitor.memory_retention = 3;
+set @@global.health_monitor.memory_retention = 4;
+set @@global.health_monitor.memory_retention = 5;
+set @@global.health_monitor.memory_retention = 6;
+set @@global.health_monitor.memory_retention = 7;
+set @@global.health_monitor.memory_retention = 8;
+set @@global.health_monitor.memory_retention = 9;
+set @@global.health_monitor.memory_retention = 10;
+set @@global.health_monitor.memory_retention = 11;
+set @@global.health_monitor.memory_retention = 12;
+set @@global.health_monitor.memory_retention = 13;
+set @@global.health_monitor.memory_retention = 14;
+set @@global.health_monitor.memory_retention = 15;
+set @@global.health_monitor.memory_retention = 16;
+set @@global.health_monitor.memory_retention = 17;
+set @@global.health_monitor.memory_retention = 18;
+set @@global.health_monitor.memory_retention = 19;
+set @@global.health_monitor.memory_retention = 20;
+set @@global.health_monitor.memory_retention = 21;
+set @@global.health_monitor.memory_retention = 22;
+set @@global.health_monitor.memory_retention = 23;
+set @@global.health_monitor.memory_retention = 24;
+set @@global.health_monitor.memory_retention = 25;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Memory Collector: Settings:%max samples=25%'
+     and logged > @retention_update_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # Final retention setting was applied
+select count(*) > 0 as final_memory_retention_applied
+  from performance_schema.error_log
+ where data like '%Memory Collector: Settings:%max samples=25%'
+   and logged > @retention_update_start;
+
+--echo
+--echo Wait for 25 rows
+--echo
+let $count = 25;
+let $table = health_system_memory;
+--source include/wait_until_rows_count.inc
+
+--echo
+set @@global.health_monitor.memory_running = off;
+
+--echo
+--echo ###
+--echo ### Load/unload/load to verify shared library is actually unloaded
+--echo ###
+--echo
+--echo # Bug#33757159	WL14803: Assertion `mh->m_magic == PSI_MEMORY_MAGIC' failed.
+--echo #
+--echo # Assertion occurred when the shared library component_health_monitor.so failed to unload
+--echo # because thread-local shared_ptr retained a weak pointer to a system_cpu_stat buffer.
+--echo
+--echo # Start the system collector
+--echo
+set @@global.health_monitor.system_running = on;
+
+--echo
+--echo # Select from all on-demand tables to create thread-local stat buffers
+--echo
+select count(*) from system_cpu_stats into @cpu;
+select count(*) from system_disk_stats into @disk;
+select count(*) from system_memory_stats into @memory;
+select count(*) from system_process_stats into @process;
+
+--echo
+--echo # Confirm the stat buffers were created
+--echo
+select @cpu > 0  as 'Expect 1';
+select ((@disk > 0) = (convert(@@version_compile_os using latin1) IN ('Linux'))) as 'Expect 1';
+select @memory > 0 as 'Expect 1';
+select @process > 0 as 'Expect 1';
+
+--echo
+--echo # Uninstall the component
+--echo
+--eval uninstall component 'file://component_health_monitor';
+
+--echo
+--echo # Verify the on-demand tables don't exist
+--echo
+--error ER_NO_SUCH_TABLE
+select * from system_cpu_stats;
+--echo
+--error ER_NO_SUCH_TABLE
+select * from system_disk_stats;
+--echo
+--error ER_NO_SUCH_TABLE
+select * from system_memory_stats;
+--echo
+--error ER_NO_SUCH_TABLE
+select * from system_process_stats;
+
+--echo
+--echo # Reinstall the component
+--echo
+--eval install component 'file://component_health_monitor';
+
+--echo
+--echo # Verify content of the on-demand tables -- this is where the crash occurred
+--echo
+select count(*) from system_cpu_stats into @cpu;
+select count(*) from system_disk_stats into @disk;
+select count(*) from system_memory_stats into @memory;
+select count(*) from system_process_stats into @process;
+
+--echo
+--echo # Confirm the stat buffers were created
+--echo
+select @cpu > 0  as 'Expect 1';
+select ((@disk > 0) = (convert(@@version_compile_os using latin1) IN ('Linux'))) as 'Expect 1';
+select @memory > 0 as 'Expect 1';
+select @process > 0 as 'Expect 1';
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

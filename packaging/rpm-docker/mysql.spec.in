@@ -623,6 +623,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
@@ -747,6 +748,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Sun Aug 30 2026 MySQL Release Engineering <mysql-build@oss.oracle.com> - 26.10.0
+- Added component_health_monitor to community
+
 * Fri Feb  6 2026 Harin Vadodaria <harin.vadodaria@oracle.com> - 9.7.0
 - Added component_object_policy
 

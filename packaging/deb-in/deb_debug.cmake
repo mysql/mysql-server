@@ -96,6 +96,7 @@ usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
 usr/lib/mysql/plugin/debug/component_classic_hashing.so
+usr/lib/mysql/plugin/debug/component_health_monitor.so
 usr/lib/mysql/plugin/debug/component_replication_applier_metrics.so
 usr/lib/mysql/plugin/debug/component_group_replication_flow_control_stats.so
 usr/lib/mysql/plugin/debug/component_group_replication_resource_manager.so

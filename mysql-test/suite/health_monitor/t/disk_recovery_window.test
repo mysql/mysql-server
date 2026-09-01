@@ -1,0 +1,169 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test the recovery cycle window.
+--echo ##
+--echo ## The Health Monitor defines a recovery 'window' in seconds that limits
+--echo ## the number of fence/recovery cycles within a given time period. The recovery
+--echo ## process will proceed only if the number of recovery cycles does not exceed
+--echo ## disk_recovery_max_cycles within the recovery window.
+--echo ##
+--echo ## Once the time window expires, then the recovery cycle count is reset and
+--echo ## recovery can continue.
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo ##
+--echo ## Trigger fallback mode 1
+--echo ##
+--echo
+--echo # Enable low disk space fencing explicitly for this recovery test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the server to be fenced (should be immediate)
+let $wait_condition = select @@global.super_read_only;
+let $wait_timeout = 30;
+--source include/wait_condition.inc
+
+--echo
+--echo # Run in CRITICAL state for two cycles
+--echo Sleep 20
+--sleep 20
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Verify server is fenced
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo # Set recovery cycles = 1 and a short recovery window to ensure that
+--echo # window expires, the recovery count is reset and that we can do
+--echo # one more recovery.
+--echo
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_recovery_level = 0;
+set @@global.health_monitor.disk_recovery_time_1 = 15;
+set @@global.health_monitor.disk_recovery_time_2 = 15;
+set @@global.health_monitor.disk_recovery_increment = 1;
+set @@global.health_monitor.disk_recovery_max_cycles = 1;
+set @@global.health_monitor.disk_recovery_window = 30;
+set @@global.health_monitor.disk_recovery_enable = on;
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for status 'super_read_only_disk_full = OFF'
+let $wait_timeout = 90;
+let $wait_condition = select variable_value = 'OFF' from performance_schema.global_status
+                        where variable_name like 'super_read_only_disk_full';
+--source include/wait_condition.inc
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Expect both recovery timers to have expired
+
+--let $assert_text = Recovery: Timer 1: Expired
+--let $assert_cond = "[select count(*) from error_log where data like \'%Recovery: Timer 1: Expired%\']" > 0
+--source include/assert.inc
+
+--let $assert_text = Recovery: Timer 2: Expired
+--let $assert_cond = "[select count(*) from error_log where data like \'%Recovery: Timer 2: Expired%\']" > 0
+--source include/assert.inc
+
+--echo
+--echo # Verify server is unfenced
+--source ../include/health_monitor_verify_unfenced.inc
+
+--echo
+--echo ##
+--echo ## Fallback/recovery 2 - Repeat the fallback/recovery cycle 1 more time
+--echo ##
+
+--echo
+--echo # Set the critical level to the maximum level to force fallback mode
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--echo # Start the disk collector
+call mtr.add_suppression("Disk Collector: Critical Level");
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the offline mode to be triggered (should be immediate)
+let $wait_condition = select @@global.super_read_only;
+let $wait_timeout = 30;
+--source include/wait_condition.inc
+
+--echo
+--echo # Run in CRITICAL state for a few cycles
+--echo Sleep 20
+--sleep 20
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Verify OFFLINE_MODE is ON
+--let $assert_text = Expect OFFLINE_MODE = ON
+--let $assert_variable_name = offline_mode
+--let $assert_variable_value = 1
+--source include/assert_variable.inc
+
+--echo
+--echo # Trigger fallback recovery
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_recovery_enable = on;
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for status 'super_read_only_disk_full' = OFF
+let $wait_timeout = 90;
+let $wait_condition = select variable_value = 'OFF' from performance_schema.global_status
+                        where variable_name like 'super_read_only_disk_full';
+--source include/wait_condition.inc
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Verify max recovery cycles reached
+--let $assert_text = Recovery window expired, resetting cycle count
+--let $assert_cond = "[select count(*) from error_log where data like \'%resetting recovery cycle count%\']" > 0
+--source include/assert.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+--echo
+--eval uninstall component 'file://component_health_monitor';

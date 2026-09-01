@@ -1,0 +1,82 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test the low disk space countdown timer to offline mode.
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Enable low disk space fencing explicitly for this fencing test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_percent = 100;
+
+--echo
+--echo # Set the low space duration to the minumum 30s
+set @@global.health_monitor.disk_low_space_duration = 30;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the fallback timer to expire
+let $wait_condition = select @@global.super_read_only;
+let $wait_timeout = 60;
+--source include/wait_condition.inc
+
+--echo
+--echo # Coverage: Run in LOW LEVEL state for two cycles
+--echo Sleep 20
+--sleep 20
+
+--echo
+--echo # Verify server is fenced
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo # Coverage: Transition from LOW LEVEL to CRITICAL
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_level = 0;
+
+--echo
+--echo Sleep 10
+--sleep 10
+
+--echo
+--echo # Coverage: Transition from CRITICAL to WARNING
+set @@global.health_monitor.disk_usage_warning_level_1 = @force_disk_warning;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_low_space_level = 0;
+
+--echo
+--echo Sleep 10
+--sleep 10
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+--echo
+--eval uninstall component 'file://component_health_monitor';

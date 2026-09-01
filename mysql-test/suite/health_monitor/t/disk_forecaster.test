@@ -1,0 +1,116 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Disk usage forecasting general tests
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Turn off the unused collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+--echo
+--echo # Ensure the disk collectors are on
+set @@global.health_monitor.disk_running = on;
+set @@global.health_monitor.disk_forecast_running = on;
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 1. System variables
+--echo ## ----------------------------------------------------------------------
+--echo
+--echo # Report interval updates retain minute units
+--disable_query_log
+select now(6) into @report_interval_start;
+--enable_query_log
+set @@global.health_monitor.disk_forecast_report_interval=1;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Settings:%report interval=1m%'
+     and logged > @report_interval_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # Run mode: NORMAL, STANDBY, TEST
+--echo
+set @@global.health_monitor.disk_forecast_run_mode=STANDBY;
+
+--echo
+--echo # Wait for status 'disk_forecaster_run_mode' = STANDBY
+# Note: Wait for one cycle, >= 10 seconds
+let $wait_timeout = 15;
+let $wait_condition = select count(*) from performance_schema.global_status
+                        where variable_name in ('disk_forecaster_run_mode')
+                          and variable_value = 'STANDBY';
+--source include/wait_condition.inc
+
+--echo
+--echo # Run mode = TEST triggers the unit test, so use a percent-containing dummy file name
+set @@global.health_monitor.disk_forecast_test_filename="PERCENT%s";
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+--echo
+--echo # Wait for status 'disk_forecaster_run_mode' = TEST
+let $wait_timeout = 15;
+let $wait_condition = select count(*) from performance_schema.global_status
+                        where variable_name in ('disk_forecaster_run_mode')
+                          and variable_value = 'TEST';
+--source include/wait_condition.inc
+
+--echo
+--echo # Sleep for one cycle then verify "Cannot open test data file"
+--sleep 10
+--let $count_warn = `select count(*) from performance_schema.error_log where data like '%Cannot open test data fil%'`
+--assert($count_warn > 0)
+--let $literal_filename_logged = `select count(*) from performance_schema.error_log where data like '%Cannot open test data fil%' and locate('PERCENT%s', data) > 0`
+--assert($literal_filename_logged > 0)
+
+--echo
+set @@global.health_monitor.disk_forecast_run_mode=NORMAL;
+
+--echo
+--echo # Wait for status 'disk_forecaster_run_mode' = NORMAL
+let $wait_timeout = 15;
+let $wait_condition = select count(*) from performance_schema.global_status
+                        where variable_name in ('disk_forecaster_run_mode')
+                          and variable_value = 'NORMAL';
+--source include/wait_condition.inc
+
+# Error 1231
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_forecast_run_mode=SIMULATION;
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_forecast_run_mode=FOOBAR;
+
+# Error 1232
+--echo
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.health_monitor.disk_forecast_report_interval=abc;
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 2. Collect metrics
+--echo ## ----------------------------------------------------------------------
+--echo
+truncate performance_schema.disk_metric;
+--echo
+--echo # Wait for at least one metric to be collected, 60 seconds minimum
+let $count = 1;
+let $table = performance_schema.disk_metric;
+let $wait_timeout = 90;
+--source include/wait_until_rows_count.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+
+--echo
+--eval uninstall component 'file://component_health_monitor'

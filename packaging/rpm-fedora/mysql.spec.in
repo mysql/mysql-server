@@ -936,6 +936,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
@@ -991,6 +992,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
@@ -1508,6 +1510,9 @@ fi
 %endif # with_router
 
 %changelog
+* Sun Aug 30 2026 MySQL Release Engineering <mysql-build@oss.oracle.com> - 26.10.0
+- Added component_health_monitor to community
+
 * Mon Feb  2 2026 Marc Alff <marc.alff@oracle.com> - 9.7.0
 - Added component_telemetry to community
 

@@ -66,6 +66,9 @@ perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=gro
 perl mysql-test-run.pl --debug-server --big-test --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl   --no-skip
 perl mysql-test-run.pl --debug-server --big-test --timer --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip
 
+# Health Monitor
+perl mysql-test-run.pl --timer --debug-server --force --comment=health_monitor --vardir=var-health-monitor --suite=health_monitor --no-skip --exclude-platform=windows
+
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
 ######## SECTION 3: EXTENDED RUNS FOR REPLICATION AND BINLOG#######

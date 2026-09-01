@@ -33,3 +33,6 @@ perl mysql-test-run.pl --debug-server --timer --force --comment=multi_factor_aut
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --debug-server --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+
+# Health Monitor
+perl mysql-test-run.pl --timer --force --comment=health_monitor --vardir=var-health-monitor --suite=health_monitor --no-skip --exclude-platform=windows

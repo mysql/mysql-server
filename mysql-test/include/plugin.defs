@@ -139,6 +139,7 @@ component_test_system_variable_source plugin_output_directory  no TEST_SYSTEM_VA
 
 # password validation component
 component_validate_password     plugin_output_directory  no  VALIDATE_PASSWORD_COMPONENT
+component_health_monitor        plugin_output_directory  no  HEALTH_MONITOR_COMPONENT
 
 # test application signal
 component_test_host_application_signal  plugin_output_directory  no  TEST_HOST_APPLICATION_SIGNAL_COMPONENT

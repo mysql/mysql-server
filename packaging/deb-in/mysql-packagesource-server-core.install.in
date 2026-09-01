@@ -162,6 +162,7 @@ usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_connection_control.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/component_classic_hashing.so
+usr/lib/mysql/plugin/component_health_monitor.so
 usr/lib/mysql/plugin/component_query_attributes.so
 usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/component_telemetry.so

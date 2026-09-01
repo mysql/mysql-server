@@ -972,6 +972,7 @@ fi
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1081,6 +1082,7 @@ fi
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1675,6 +1677,9 @@ fi
 %endif # with_router
 
 %changelog
+* Sun Aug 30 2026 MySQL Release Engineering <mysql-build@oss.oracle.com> - 26.10.0
+- Added component_health_monitor to community
+
 * Fri Feb  6 2026 Harin Vadodaria <harin.vadodaria@oracle.com> - 9.7.0
 - Added component_object_policy
 

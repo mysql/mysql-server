@@ -1,0 +1,184 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify that the Health Monitor will *not* fence a group replication secondary.
+--echo ##
+--echo
+--echo ## Procedure:
+--echo ##   0. This test requires two servers in single primary mode
+--echo ##   1. Bootstrap the group with server1
+--echo ##   2. Verify error log verbosity, necessary to validate Health Monitor response
+--echo ##   3. Install the Health Monitor component on server 1
+--echo ##   4. Confirm server 1 is the primary node
+--echo ##   5. Start server 2
+--echo ##   6. Verify log verbosity
+--echo ##   7. Install the Health Monitor component on server 2 before starting group replication
+--echo ##   8. Start group replication on server 2
+--echo ##   9. Confirm that server 2 is a secondary member
+--echo ##  10. Force critical low disk space on server 2
+--echo ##  11. Set low sample rate and status interval to get status messages every measurement cycle
+--echo ##  12. Set the low space critical level to maximum to trigger a fallback attempt
+--echo ##  13. Start the disk collector
+--echo ##  14. Wait for the fence to be attempted
+--echo ##  15. Run the collector at critical level for a few seconds
+--echo ##  16. Stop the disk collector
+--echo ##  17. Verify that offline_mode and super_read_only are unchanged
+--echo ##  18. Clean up
+--echo
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap the group with server 1
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Verify log verbosity
+--let $assert_text = Verify log verbosity = 3
+--let $assert_variable_name = global.log_error_verbosity
+--let $assert_variable_value = 3
+--source include/assert_variable.inc
+
+--echo
+--echo # 3. Install the Health Monitor on server 1
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # 4. Confirm primary member
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 5. Start server 2
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--echo
+--echo # 6. Confirm error log verbosity
+--let $assert_text = Confirm error log verbosity = 3
+--let $assert_variable_name = global.log_error_verbosity
+--let $assert_variable_value = 3
+--source include/assert_variable.inc
+
+--echo
+--echo # 7. Install the Health Monitor on server 2 before starting group replication,
+--echo #    otherwise super_read_only will prevent loading the component
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # 8. Start group replication for server 2
+--source include/start_group_replication.inc
+--let $server2_uuid = query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 9. Confirm secondary member
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 10. Force critical level on server 2, server is not fenced
+
+--echo
+--echo # Enable low disk space fencing explicitly for this Group Replication test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--disable_warnings
+
+--echo
+--echo # 11. Set a low sample rate and status interval to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # 12. Set up the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # 13. Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # 14. Wait for transition to CRITICAL level, attempt to fence the server should be immediate
+let $wait_condition = select count(*) from performance_schema.error_log
+                        where data like "%Disk: Critical Level%";
+--source include/wait_condition.inc
+
+--echo Run at CRITICAL for two cycles
+--echo Sleep 20
+--sleep 20
+
+--echo
+--echo ## Verify that the Health Monitor recognizes the server as a secondary
+--let $assert_text = Server is a group replication secondary
+--let $assert_cond = "[select count(*) from performance_schema.error_log where data like \'%Server is a group replication secondary%\']" > 0
+--source include/assert.inc
+
+--echo
+--echo # 15. Run in CRITICAL state for two cycles
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+--echo
+--echo Sleep 20
+--sleep 20
+
+--echo
+--echo # 16. Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # 17. Verify server is not fenced, but that SUPER_READ_ONLY remained ON
+--let $assert_text = Expect SUPER_READ_ONLY = ON
+--let $assert_variable_name = global.super_read_only
+--let $assert_variable_value = 1
+--source include/assert_variable.inc
+
+--let $assert_text = Expect OFFLINE_MODE = OFF
+--let $assert_variable_name = offline_mode
+--let $assert_variable_value = 0
+--source include/assert_variable.inc
+
+--let $assert_text = Expect status 'super_read_only_disk_full' = OFF
+--let $assert_cond = "[show status like \"super_read_only_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+
+--let $assert_text = Expect status 'offline_mode_disk_full' = OFF
+--let $assert_cond = "[show status like \"offline_mode_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+
+--enable_warnings
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+
+--echo
+--echo # Switch to server 1
+--let $rpl_connection_name= server1
+--source include/connection.inc
+set @@global.super_read_only = 0;
+
+--echo
+--echo # Uninstall Health Monitor, server 1
+--eval uninstall component 'file://component_health_monitor'
+
+--echo
+--echo # Switch to server 2
+--let $rpl_connection_name= server2
+--source include/connection.inc
+set @@global.super_read_only = 0;
+
+--echo
+--echo # Uninstall Health Monitor, server 2
+--eval uninstall component 'file://component_health_monitor'
+
+--echo
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc
