@@ -25,9 +25,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "sql/binlog.h"
 #include "sql/binlog/binlog_ofile.h"
-#include "sql/binlog/cache_data.h"
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"
-#include "sql/binlog/large_trx_commit.h"
 #include "sql/binlog/thd_backup_and_restore.h"
 #include "sql/clone_handler.h"
 #include "sql/debug_sync.h"
@@ -48,25 +46,21 @@ int Binlog_tc_log::prepare(MYSQL_BIN_LOG *binlog, THD *thd, bool all) {
 
   assert(opt_bin_log);
 
-  binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
-  const bool large_trx_promotion =
-      cache_mngr != nullptr && is_large_trx_promotion_eligible(cache_mngr);
-
   /*
-    Non-BOLT transactions use HA_IGNORE_DURABILITY so the prepared record is
-    not flushed to the storage engine log (e.g. InnoDB redo) during prepare.
-    Instead, prepared records are flushed to the engine log in a group right
-    before flushing them to the binary log during the binlog group commit
-    flush stage. (Reset to HA_REGULAR_DURABILITY at the start of parsing the
-    next command.)
+    Set HA_IGNORE_DURABILITY to not flush the prepared record of the
+    transaction to the log of storage engine (for example, InnoDB
+    redo log) during the prepare phase. So that we can flush prepared
+    records of transactions to the log of storage engine in a group
+    right before flushing them to binary log during binlog group
+    commit flush stage. Reset to HA_REGULAR_DURABILITY at the
+    beginning of parsing next command.
 
-    BOLT bypasses that group-commit flush stage, so there is no group flush to
-    make the prepared engine state durable before the binary log decision. A
-    qualifying BOLT transaction therefore prepares with HA_REGULAR_DURABILITY
-    so its prepared record is durable on its own.
+    This holds for every transaction, including one that goes on to commit
+    through the binlog large transaction optimization (BOLT). BOLT bypasses the
+    group-commit flush stage, it repays the same debt itself: see the
+    ha_flush_logs(true) call in MYSQL_BIN_LOG::commit_large_transaction().
   */
-  thd->durability_property =
-      large_trx_promotion ? HA_REGULAR_DURABILITY : HA_IGNORE_DURABILITY;
+  thd->durability_property = HA_IGNORE_DURABILITY;
 
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_prepare_in_engines");
 

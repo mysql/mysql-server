@@ -23,6 +23,7 @@ SELECT @@global.binlog_cache_size;
 SET @@global.binlog_cache_size = 4294967295;
 Warnings:
 Warning	1292	Truncated incorrect binlog_cache_size value: '4294967295'
+Warning	6914	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 134217728 bytes to 4294963200 bytes to match binlog_cache_size.
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 4294963200

@@ -91,8 +91,9 @@ void Log_sanitizer::process_large_trx_header_event(
   }
 
   if (reader.is_checksum_verification_enabled()) {
-    // The BOLT recovery optimization that skips the transaction body is not
-    // applicable when source checksum verification is enabled.
+    // The binlog large transaction optimization's recovery shortcut, which
+    // skips the transaction body, is not applicable when source checksum
+    // verification is enabled.
     LogErr(WARNING_LEVEL,
            ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION);
     return;
@@ -115,9 +116,8 @@ void Log_sanitizer::process_large_trx_header_event(
 }
 
 bool Log_sanitizer::validate_large_trx_terminal_event(Log_event const &ev) {
-  const my_off_t event_start_pos =
-      static_cast<my_off_t>(ev.common_header->log_pos -
-                            ev.common_header->data_written);
+  const my_off_t event_start_pos = static_cast<my_off_t>(
+      ev.common_header->log_pos - ev.common_header->data_written);
   if (event_start_pos != m_large_trx_xid_offset) return true;
 
   if (static_cast<uint8_t>(ev.get_type_code()) == m_large_trx_xid_type) {

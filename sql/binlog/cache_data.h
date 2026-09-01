@@ -18,6 +18,28 @@
 #include "sql/sql_class.h"
 #include "sql/xa.h"
 
+/**
+  @file
+  @brief The per-session binary log caches, where a session's binary log
+  events are buffered before they are written to a binary log file.
+
+  binlog_cache_data
+    Base class. Serializes Log_events into its Binlog_cache_storage, which
+    buffers them in memory and spills to a temporary file once
+    binlog_cache_size is exceeded.
+
+  binlog_stmt_cache_data
+    The statement cache, holding changes to non-transactional tables.
+
+  binlog_trx_cache_data
+    The transaction cache, holding changes to transactional tables until
+    commit.
+
+  binlog_cache_mngr
+    Owns one statement cache and one transaction cache per session, and
+    records a logging incident when events could not be cached.
+*/
+
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 
 /**
@@ -102,144 +124,101 @@ class binlog_cache_data {
     Returns the checksum algorithm the events of this cache are
     serialized with, recorded at the transaction's first event (see
     write_event).
+
+    @return The algorithm, or BINLOG_CHECKSUM_ALG_UNDEF when no checksum is
+            written into this cache.
   */
-  mysql::binlog::event::enum_binlog_checksum_alg checksum_trx_start() const {
-    return m_checksum_trx_start;
+  mysql::binlog::event::enum_binlog_checksum_alg checksum_alg_in_cache() const {
+    return m_checksum_alg_in_cache;
   }
 
   /**
     Returns true when the events in this cache carry a checksum
     (see write_event).
+
+    @retval true   The events carry their own checksum.
+    @retval false  They do not, so a checksum is added when the cache is
+                   copied into the binary log.
   */
   bool is_checksum_computed() const {
-    return m_checksum_trx_start !=
+    return m_checksum_alg_in_cache !=
                mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF &&
-           m_checksum_trx_start !=
+           m_checksum_alg_in_cache !=
                mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
   }
 
-  void latch_large_trx_optimization() {
-    if (!m_large_trx_optimization_latched) {
-      m_large_trx_optimization_enabled =
-          opt_binlog_large_transaction_optimization_enabled;
-      m_large_trx_optimization_threshold =
-          opt_binlog_large_transaction_optimization_threshold;
-      m_large_trx_optimization_latched = true;
-      /*
-        Give the spill file a promotable (named) form only when the
-        optimization is enabled for this transaction, so a disabled knob leaves
-        no visible bolt_ files. This uses the same knob value captured here for
-        the promotion decision, so naming and eligibility always agree. The
-        reserved header region is applied regardless (see
-        IO_CACHE_binlog_cache_storage::open); only the naming is gated.
-      */
-      m_cache.set_named_file(m_large_trx_optimization_enabled);
-    }
-  }
+  /**
+    Captures the large transaction optimization's settings for the whole
+    transaction, on the first event written to the cache.
 
+    Called on every write but effective only once, so a change to
+    binlog_large_transaction_optimization_enabled or
+    binlog_large_transaction_optimization_threshold mid-transaction
+    cannot change how that transaction commits.
+
+    The captured values are read back through large_trx_optimization_enabled()
+    and large_trx_optimization_threshold().
+  */
+  void latch_large_trx_optimization();
+
+  /**
+    @return Whether this transaction may use the binlog large transaction
+            optimization, as captured by latch_large_trx_optimization() at the
+            transaction's first event.
+  */
   bool large_trx_optimization_enabled() const {
     return m_large_trx_optimization_enabled;
   }
 
+  /**
+    @return The spilled size, in bytes, above which this transaction is a
+            promotion candidate, as captured by latch_large_trx_optimization()
+            at the transaction's first event.
+  */
   ulonglong large_trx_optimization_threshold() const {
     return m_large_trx_optimization_threshold;
   }
 
   /**
-    Returns the offset and type of the transaction's terminating event in a
-    promoted binary log file. Both values are recorded by finalize().
+    Returns where the transaction's terminating event begins in a promoted
+    binary log file, so recovery can seek to it. Recorded by finalize(),
+    together with the event's type.
+
+    @return The byte offset from the start of the promoted file, or 0 when the
+            transaction has no terminating event. Only a real end event
+            (COMMIT / XID / XA_PREPARE) counts; an immediately-logged
+            statement finalizes without one.
   */
   my_off_t terminating_event_offset() const {
     return m_terminating_event_offset;
   }
+
+  /**
+    Returns the type of the transaction's terminating event in a promoted
+    binary log file. Recorded by finalize(), together with its offset.
+
+    @return The event type, meaningful only when terminating_event_offset() is
+            nonzero.
+  */
   mysql::binlog::event::Log_event_type terminating_event_type() const {
     return m_terminating_event_type;
   }
 
   my_off_t get_byte_position() const { return m_cache.length(); }
 
-  void cache_state_checkpoint(my_off_t pos_to_checkpoint) {
-    // We only need to store the cache state for pos > 0
-    if (pos_to_checkpoint) {
-      cache_state state;
-      state.with_rbr = flags.with_rbr;
-      state.with_sbr = flags.with_sbr;
-      state.with_start = flags.with_start;
-      state.with_end = flags.with_end;
-      state.with_content = flags.with_content;
-      state.event_counter = m_event_counter;
-      cache_state_map[pos_to_checkpoint] = state;
-    }
-  }
+  void cache_state_checkpoint(my_off_t pos_to_checkpoint);
 
-  void cache_state_rollback(my_off_t pos_to_rollback) {
-    if (pos_to_rollback) {
-      std::map<my_off_t, cache_state>::iterator it;
-      it = cache_state_map.find(pos_to_rollback);
-      if (it != cache_state_map.end()) {
-        flags.with_rbr = it->second.with_rbr;
-        flags.with_sbr = it->second.with_sbr;
-        flags.with_start = it->second.with_start;
-        flags.with_end = it->second.with_end;
-        flags.with_content = it->second.with_content;
-        m_event_counter = it->second.event_counter;
-      } else
-        assert(it == cache_state_map.end());
-    }
-    // Rolling back to pos == 0 means cleaning up the cache.
-    else {
-      flags.with_rbr = false;
-      flags.with_sbr = false;
-      flags.with_start = false;
-      flags.with_end = false;
-      flags.with_content = false;
-      m_event_counter = 0;
-    }
-  }
+  void cache_state_rollback(my_off_t pos_to_rollback);
 
   /**
      Reset the cache to unused state when the transaction is finished. It
-     drops all data and clears the transaction flags. If the caller has
-     promoted a spilled file, preserve_spilled_file retains that file while
-     resetting the cache.
+     drops all data and clears the transaction flags.
+
+     @param preserve_spilled_file  When true, the spilled file is retained
+            rather than deleted, because the caller has promoted it into the
+            binary log sequence and now owns it.
   */
-  virtual void reset(bool preserve_spilled_file = false) {
-    compute_statistics();
-    remove_pending_event();
-
-    if (m_cache.reset(preserve_spilled_file)) {
-      LogErr(WARNING_LEVEL, ER_BINLOG_CANT_RESIZE_CACHE);
-    }
-
-    flags.with_xid = false;
-    flags.immediate = false;
-    flags.finalized = false;
-    flags.with_sbr = false;
-    flags.with_rbr = false;
-    flags.with_start = false;
-    flags.with_end = false;
-    flags.with_content = false;
-
-    /*
-      The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
-      which may increase disk_writes. This breaks the disk_writes use by the
-      binary log which aims to compute the ratio between in-memory cache usage
-      and disk cache usage. To avoid this undesirable behavior, we reset the
-      variable after truncating the cache.
-    */
-    cache_state_map.clear();
-    m_event_counter = 0;
-    m_checksum_trx_start = mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
-    m_large_trx_optimization_latched = false;
-    m_large_trx_optimization_enabled = false;
-    m_large_trx_optimization_threshold = 0;
-    m_terminating_event_offset = 0;
-    m_terminating_event_type = mysql::binlog::event::UNKNOWN_EVENT;
-    m_compressed_size = 0;
-    m_decompressed_size = 0;
-    m_compression_type = mysql::binlog::event::compression::NONE;
-    assert(is_binlog_empty());
-  }
+  virtual void reset(bool preserve_spilled_file = false);
 
   /**
     Returns information about the cache content with respect to
@@ -270,25 +249,7 @@ class binlog_cache_data {
     @return true  The binlog cache contains an empty transaction.
     @return false Otherwise.
   */
-  bool has_empty_transaction() {
-    /*
-      The empty transaction has two events in trx/stmt binlog cache
-      and no changes: one is a transaction start and other is a transaction
-      end (there should be no SBR changing content and no RBR events).
-    */
-    if (flags.with_start &&   // Has transaction start statement
-        flags.with_end &&     // Has transaction end statement
-        !flags.with_content)  // Has no other content than START/END
-    {
-      assert(m_event_counter == 2);  // Two events in the cache only
-      assert(!flags.with_sbr);       // No statements changing content
-      assert(!flags.with_rbr);       // No rows changing content
-      assert(!flags.immediate);      // Not a DDL
-      assert(!flags.with_xid);  // Not a XID trx and not an atomic DDL Query
-      return true;
-    }
-    return false;
-  }
+  bool has_empty_transaction();
 
   /**
     Check if the binlog cache is empty or contains an empty transaction,
@@ -326,22 +287,48 @@ class binlog_cache_data {
   */
   size_t m_event_counter = 0;
 
-  /*
+  /**
     Checksum algorithm the events of this cache are serialized with,
-    recorded at the transaction's first event (see write_event).
+    recorded at the transaction's first event (see write_event). Stays
+    BINLOG_CHECKSUM_ALG_UNDEF while no checksum is written into this cache,
+    which is the case for the statement cache and whenever the large
+    transaction optimization is disabled.
   */
-  mysql::binlog::event::enum_binlog_checksum_alg m_checksum_trx_start =
+  mysql::binlog::event::enum_binlog_checksum_alg m_checksum_alg_in_cache =
       mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
 
+  /**
+    Whether the capture has happened, so that only the transaction's first
+    event decides and later events leave the values alone.
+  */
   bool m_large_trx_optimization_latched = false;
+  /**
+    Whether this transaction may use the large transaction optimization: the
+    value of binlog_large_transaction_optimization_enabled at the transaction's
+    first event.
+
+    Group Replication check is folded in here rather than
+    reported as a fallback reason, because it must be known before the first
+    event is serialized.
+  */
   bool m_large_trx_optimization_enabled = false;
+  /**
+    Value of binlog_large_transaction_optimization_threshold at the
+    transaction's first event, in bytes. Compared against the spilled size at
+    commit.
+  */
   ulonglong m_large_trx_optimization_threshold = 0;
 
-  /*
-    Offset and type of the transaction's terminating event in a promoted
-    binary log file, recorded together at finalize().
+  /**
+    Offset of the transaction's terminating event in a promoted binary log
+    file, recorded at finalize() together with its type. Stays 0 when the
+    transaction has no terminating event.
   */
   my_off_t m_terminating_event_offset = 0;
+  /**
+    Type of the transaction's terminating event in a promoted binary log file,
+    recorded at finalize() together with its offset.
+  */
   mysql::binlog::event::Log_event_type m_terminating_event_type =
       mysql::binlog::event::UNKNOWN_EVENT;
 
@@ -354,34 +341,17 @@ class binlog_cache_data {
     pending event. It corresponds to rollback statement or rollback to
     a savepoint. It doesn't change transaction state.
    */
-  void truncate(my_off_t pos) {
-    DBUG_PRINT("info", ("truncating to position %lu", (ulong)pos));
-    remove_pending_event();
-
-    // TODO: check the return value.
-    (void)m_cache.truncate(pos);
-  }
+  void truncate(my_off_t pos);
 
   /**
      Flush pending event to the cache buffer.
    */
-  int flush_pending_event(THD *thd) {
-    if (m_pending) {
-      m_pending->set_flags(Rows_log_event::STMT_END_F);
-      if (int error = write_event(m_pending)) return error;
-      thd->clear_binlog_table_maps();
-    }
-    return 0;
-  }
+  int flush_pending_event(THD *thd);
 
   /**
     Remove the pending event.
    */
-  int remove_pending_event() {
-    delete m_pending;
-    m_pending = nullptr;
-    return 0;
-  }
+  int remove_pending_event();
   struct Flags {
     /*
       Defines if this is either a trx-cache or stmt-cache, respectively, a
@@ -473,12 +443,7 @@ class binlog_cache_data {
   /**
     This function computes binlog cache and disk usage.
   */
-  void compute_statistics() {
-    if (!is_binlog_empty()) {
-      (*ptr_binlog_cache_use)++;
-      if (m_cache.disk_writes() != 0) (*ptr_binlog_cache_disk_use)++;
-    }
-  }
+  void compute_statistics();
 
   /*
     Stores a pointer to the status variable that keeps track of the in-memory
@@ -510,6 +475,7 @@ class binlog_stmt_cache_data : public binlog_cache_data {
 
   int finalize(THD *thd);
 };
+
 class binlog_trx_cache_data : public binlog_cache_data {
  public:
   binlog_trx_cache_data(binlog_cache_mngr &cache_mngr, bool trx_cache_arg,
@@ -520,15 +486,7 @@ class binlog_trx_cache_data : public binlog_cache_data {
         m_cannot_rollback(false),
         before_stmt_pos(MY_OFF_T_UNDEF) {}
 
-  void reset(bool preserve_spilled_file = false) override {
-    DBUG_TRACE;
-    DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    m_cannot_rollback = false;
-    before_stmt_pos = MY_OFF_T_UNDEF;
-    binlog_cache_data::reset(preserve_spilled_file);
-    DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    return;
-  }
+  void reset(bool preserve_spilled_file = false) override;
 
   bool cannot_rollback() const { return m_cannot_rollback; }
 
@@ -536,39 +494,11 @@ class binlog_trx_cache_data : public binlog_cache_data {
 
   my_off_t get_prev_position() const { return before_stmt_pos; }
 
-  void set_prev_position(my_off_t pos) {
-    DBUG_TRACE;
-    DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    before_stmt_pos = pos;
-    cache_state_checkpoint(before_stmt_pos);
-    DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    return;
-  }
+  void set_prev_position(my_off_t pos);
 
-  void restore_prev_position() {
-    DBUG_TRACE;
-    DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    binlog_cache_data::truncate(before_stmt_pos);
-    cache_state_rollback(before_stmt_pos);
-    before_stmt_pos = MY_OFF_T_UNDEF;
-    /*
-      Binlog statement rollback clears with_xid now as the atomic DDL statement
-      marker which can be set as early as at event creation and caching.
-    */
-    flags.with_xid = false;
-    DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    return;
-  }
+  void restore_prev_position();
 
-  void restore_savepoint(my_off_t pos) {
-    DBUG_TRACE;
-    DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    binlog_cache_data::truncate(pos);
-    if (pos <= before_stmt_pos) before_stmt_pos = MY_OFF_T_UNDEF;
-    cache_state_rollback(pos);
-    DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
-    return;
-  }
+  void restore_savepoint(my_off_t pos);
 
   using binlog_cache_data::truncate;
 
@@ -611,11 +541,7 @@ class binlog_cache_mngr {
         trx_cache(*this, true, ptr_binlog_cache_use_arg,
                   ptr_binlog_cache_disk_use_arg) {}
 
-  bool init() {
-    return stmt_cache.open(binlog_stmt_cache_size,
-                           max_binlog_stmt_cache_size) ||
-           trx_cache.open(binlog_cache_size, max_binlog_cache_size);
-  }
+  bool init();
 
   binlog_cache_data *get_binlog_cache_data(bool is_transactional) {
     if (is_transactional)
@@ -647,10 +573,7 @@ class binlog_cache_mngr {
   /*
     clear stmt_cache and trx_cache if they are not empty
   */
-  void reset() {
-    if (!stmt_cache.is_binlog_empty()) stmt_cache.reset();
-    if (!trx_cache.is_binlog_empty()) trx_cache.reset();
-  }
+  void reset();
 
 #ifndef NDEBUG
   bool dbug_any_finalized() const {
@@ -658,9 +581,10 @@ class binlog_cache_mngr {
   }
 #endif
 
-  /*
+  /**
     Convenience method to flush both caches to the binary log.
 
+    @param thd           The session owning the caches being flushed.
     @param bytes_written Pointer to variable that will be set to the
                          number of bytes written for the flush.
     @param wrote_xid     Pointer to variable that will be set to @c
@@ -669,31 +593,7 @@ class binlog_cache_mngr {
                          be touched.
     @return Error code on error, zero if no error.
    */
-  int flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid) {
-    my_off_t stmt_bytes = 0;
-    my_off_t trx_bytes = 0;
-    assert(stmt_cache.has_xid() == 0);
-
-    bool parallelization_barrier = false;
-    if (has_incident()) {
-      if (int error = handle_deferred_cache_write_incident(thd)) return error;
-      // Request force rotate
-      thd->rpl_thd_ctx.binlog_group_commit_ctx().set_force_rotate();
-      // Set as parallelization_barrier so that dependency tracker marks all
-      // subsequent transactions to depend on it.
-      parallelization_barrier = true;
-    }
-
-    int error =
-        stmt_cache.flush(thd, &stmt_bytes, wrote_xid, parallelization_barrier);
-    if (error) return error;
-    DEBUG_SYNC(thd, "after_flush_stm_cache_before_flush_trx_cache");
-    error =
-        trx_cache.flush(thd, &trx_bytes, wrote_xid, parallelization_barrier);
-    if (error) return error;
-    *bytes_written = stmt_bytes + trx_bytes;
-    return 0;
-  }
+  int flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid);
 
   /**
     Check if at least one of transactions and statement binlog caches
@@ -705,11 +605,7 @@ class binlog_cache_mngr {
                   or contains an empty transaction.
     @return false Otherwise.
   */
-  bool has_empty_transaction() {
-    return (trx_cache.is_empty_or_has_empty_transaction() &&
-            stmt_cache.is_empty_or_has_empty_transaction() &&
-            !is_binlog_empty());
-  }
+  bool has_empty_transaction();
 
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;

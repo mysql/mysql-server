@@ -42,6 +42,7 @@ SET(TARGET_HEADERS
   debug_vars.h
   event_reader_macros.h
   event_reader.h
+  large_transaction_header_event.h
   load_data_events.h
   rows_event.h
   statement_events.h

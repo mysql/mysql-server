@@ -1,6 +1,9 @@
 Created 3 managed BOLT spill files
 # restart
 Startup cleanup removed all managed BOLT spill files
+# Remove a pre-rename mkstemp name containing upper case.
+# restart
+Startup cleanup removed the pre-rename mkstemp files
 # Reject a symbolic link for #binlog_temp_files.
 # restart
 # Reject an unrecognized regular entry.

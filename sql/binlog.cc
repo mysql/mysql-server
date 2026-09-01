@@ -98,12 +98,11 @@
 #include "sql/binlog/decompressing_event_object_istream.h"
 #include "sql/binlog/global.h"
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
-#include "sql/binlog/large_trx_commit.h"  // get_cache_to_promote
-#include "sql/binlog/transaction_commit_helper.h"
-#include "sql/binlog/binlog_ofile.h"      // MYSQL_BIN_LOG::Binlog_ofile
-#include "sql/binlog/recovery.h"  // binlog::Binlog_recovery
+#include "sql/binlog/large_trx_commit.h"  // get_cache_for_large_trx_commit
+#include "sql/binlog/recovery.h"          // binlog::Binlog_recovery
 #include "sql/binlog/services/iterator/file_storage.h"
 #include "sql/binlog/thd_backup_and_restore.h"
+#include "sql/binlog/transaction_commit_helper.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
 #include "sql/create_field.h"
@@ -374,7 +373,6 @@ static bool check_auto_purge_conditions() {
   @warning The class is not designed to be inherited from.
  */
 
-
 int binlog_stmt_cache_data::finalize(THD *thd) {
   if (flags.immediate) {
     if (int error = finalize(thd, nullptr)) return error;
@@ -385,7 +383,6 @@ int binlog_stmt_cache_data::finalize(THD *thd) {
   }
   return 0;
 }
-
 
 binlog_cache_mngr *thd_get_cache_mngr(const THD *thd) {
   /*
@@ -559,7 +556,28 @@ class Binlog_event_writer : public Basic_ostream {
     /* The event's bytes to copy; the stale checksum is not copied, it
        is skipped after them (see skip_len). */
     event_len = event_len_incoming;
-    if (is_checksum_computed()) event_len -= BINLOG_CHECKSUM_LEN;
+    /*
+      write() later reduces this by the header it has emitted, so require room
+      for the header as well as the checksum: the smallest checksummed event is
+      a bare header followed by its checksum.
+    */
+    if (is_checksum_computed() &&
+        event_len >= LOG_EVENT_HEADER_LEN + BINLOG_CHECKSUM_LEN)
+      event_len -= BINLOG_CHECKSUM_LEN;
+  }
+
+  /**
+    Finish the event just copied: write the checksum computed over its
+    rewritten header and body, then arrange for the stale checksum it
+    carried in the cache to be skipped.
+
+    @retval false  Success
+    @retval true   Error
+  */
+  bool finish_event() {
+    if (have_checksum && write_checksum()) return true;
+    if (is_checksum_computed()) skip_len = BINLOG_CHECKSUM_LEN;
+    return false;
   }
 
   /**
@@ -607,6 +625,9 @@ class Binlog_event_writer : public Basic_ostream {
 
           event_len -= header_len;
           header_len = 0;
+
+          /* An event with an empty body is complete already. */
+          if (event_len == 0 && finish_event()) return true;
         }
       } else {
         my_off_t write_bytes = std::min<uint64>(length, event_len);
@@ -623,10 +644,7 @@ class Binlog_event_writer : public Basic_ostream {
 
         // The whole event is copied: write its checksum, skip its
         // stale one.
-        if (event_len == 0) {
-          if (have_checksum && write_checksum()) return true;
-          if (is_checksum_computed()) skip_len = BINLOG_CHECKSUM_LEN;
-        }
+        if (event_len == 0 && finish_event()) return true;
       }
     }
     return false;
@@ -713,11 +731,11 @@ int binlog_cache_data::write_event(Log_event *ev) {
     /*
       Set the event's log_pos assuming this cache becomes the start of a new
       binlog file: offset = reserved header region + bytes written so far.
-      - Small / non-promoted transaction: at commit the cache is copied into
-        the active binlog, and Binlog_event_writer overwrites log_pos with the
-        real destination offset.
-      - Large / promoted transaction: the spilled file becomes the next binlog
-        file with this transaction at its start, so this log_pos is already
+      - Small / non-bolt-promoted transaction: at commit the cache is copied
+      into the active binlog, and Binlog_event_writer overwrites log_pos with
+      the real destination offset.
+      - Large / bolt-promoted transaction: the spilled file becomes the next
+      binlog file with this transaction at its start, so this log_pos is already
         correct and is used as is.
     */
     ev->common_header->log_pos = m_cache.reserved_bytes() + m_cache.length();
@@ -728,14 +746,25 @@ int binlog_cache_data::write_event(Log_event *ev) {
       within one cache. Compressible transactions record
       BINLOG_CHECKSUM_ALG_OFF, because events inside a compressed payload carry
       no checksum.
+
+      Only compute the checksum when writing to the cache when the binlog large
+      transaction optimization is enabled and this is the transaction cache
+      (m_large_trx_optimization_enabled is false for the statement cache).
+      The latch is per cache, so a transaction using both gets a checksummed
+      transaction cache and an unchecksummed statement cache. That is safe
+      because each cache is copied by its own Binlog_event_writer, which
+      knows whether to strip a stale checksum.
     */
-    if (m_checksum_trx_start ==
-        mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF)
-      m_checksum_trx_start =
-          (ev->thd != nullptr && ev->thd->variables.binlog_trx_compression)
-              ? mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF
-              : static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
-    ev->common_footer->checksum_alg = m_checksum_trx_start;
+    if (m_large_trx_optimization_enabled) {
+      if (m_checksum_alg_in_cache ==
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF)
+        m_checksum_alg_in_cache =
+            (ev->thd != nullptr && ev->thd->variables.binlog_trx_compression)
+                ? mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF
+                : static_cast<enum_binlog_checksum_alg>(
+                      binlog_checksum_options);
+      ev->common_footer->checksum_alg = m_checksum_alg_in_cache;
+    }
 
     if (binary_event_serialize(ev, &m_cache)) {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending", {
@@ -868,10 +897,9 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
       metadata.immediate_server_version());
 
   // Set the transaction length, based on cache info
-  gtid_event.set_trx_length_by_cache_size(cache_data->get_byte_position(),
-                                          writer->is_checksum_enabled(),
-                                          cache_data->is_checksum_computed(),
-                                          cache_data->get_event_counter());
+  gtid_event.set_trx_length_by_cache_size(
+      cache_data->get_byte_position(), writer->is_checksum_enabled(),
+      cache_data->is_checksum_computed(), cache_data->get_event_counter());
 
   DBUG_PRINT("debug", ("cache_data->get_byte_position()= %llu",
                        cache_data->get_byte_position()));
@@ -888,7 +916,7 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
   if (ret) goto end;
 
   /* The Gtid event above carried no checksum; the cache's events may. */
-  writer->set_checksum_trx_start(cache_data->checksum_trx_start());
+  writer->set_checksum_trx_start(cache_data->checksum_alg_in_cache());
 
   /*
     finally write the transaction data, if it was not compressed
@@ -1424,8 +1452,7 @@ int binlog_cache_data::finalize(THD *thd, Log_event *end_event) {
       record no terminating metadata.
     */
     if (end_event != nullptr) {
-      m_terminating_event_offset =
-          m_cache.reserved_bytes() + m_cache.length();
+      m_terminating_event_offset = m_cache.reserved_bytes() + m_cache.length();
       m_terminating_event_type = end_event->get_type_code();
     }
     if (int error = write_event(end_event)) return error;
@@ -1521,17 +1548,16 @@ my_off_t get_binlog_temp_file_reserved_bytes() {
       binlog_temp_file_previous_gtids_size.load(std::memory_order_relaxed);
   const my_off_t required_size =
       previous_gtids_size + kBinlogTempFilePreviousGtidsHeadroomBytes;
-  const my_off_t remainder =
-      required_size % kBinlogTempFileReservedBytes;
-  return remainder == 0 ? required_size
-                        : required_size + kBinlogTempFileReservedBytes -
-                                              remainder;
+  const my_off_t remainder = required_size % kBinlogTempFileReservedBytes;
+  return remainder == 0
+             ? required_size
+             : required_size + kBinlogTempFileReservedBytes - remainder;
 }
 
 void update_binlog_temp_file_previous_gtids_size_estimate(
     my_off_t previous_gtids_size) {
   binlog_temp_file_previous_gtids_size.store(previous_gtids_size,
-                                              std::memory_order_relaxed);
+                                             std::memory_order_relaxed);
 }
 
 bool binlog_cache_data::open(my_off_t cache_size, my_off_t max_cache_size) {
@@ -2975,11 +3001,11 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
   @param new_index_number    The binary log file index number to start from
                              after the RESET BINARY LOGS AND GTIDS command is
                              called.
-  @param existing            When true, the file already exists on disk with
-                             its contents in place (a promoted BOLT temp file):
+  @param mode                kOpenExisting when the file already exists on disk
+                             with its contents in place (a promoted spill file):
                              it is opened for append (positioned at its end)
                              rather than created fresh, and no new file header
-                             or encryption header is written. False for a
+                             or encryption header is written. kCreateNew for a
                              normal, newly created log file.
 
   @return true if error, false otherwise.
@@ -2987,9 +3013,10 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
 
 bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
                          const char *new_name, uint32 new_index_number,
-                         bool existing) {
+                         Binlog_file_mode mode) {
   DBUG_TRACE;
   bool ret = false;
+  const bool existing = (mode == Binlog_file_mode::kOpenExisting);
 
   write_error = false;
   myf flags = MY_WME | MY_NABP | MY_WAIT_IF_FULL;
@@ -3556,13 +3583,21 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
     const my_off_t gtid_start =
         is_gtid_event ? binlog_file_reader.event_start_pos() : 0;
     const ulonglong trx_length =
-        is_gtid_event ? static_cast<Gtid_log_event *>(ev)->get_trx_length()
-                      : 0;
+        is_gtid_event ? static_cast<Gtid_log_event *>(ev)->get_trx_length() : 0;
     delete ev;
     /*
-      The header's offset is usable only after its GTID event. Verify that it
-      resolves to the exact end of that transaction before seeking; otherwise
-      discard the hint and continue scanning sequentially.
+      Skip reading the transaction body when a large transaction header event
+      has been seen, using the offset of the terminating event that the header
+      recorded to seek to the transaction end.
+
+      The header does not act on that offset when it is read: it waits until
+      reading the transaction's Gtid event, which carries the transaction
+      length the offset is checked against. So the header only records the
+      offset and it is consumed when a Gtid event is read, which is one event
+      after the header event.
+
+      A large transaction in a promoted binlog file carries one header,
+      immediately followed by its Gtid.
     */
     if (large_trx_end_offset != 0 && is_gtid_event && !done) {
       const my_off_t target = large_trx_end_offset;
@@ -3571,14 +3606,14 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
       large_trx_terminating_event_type = 0;
       const bool trx_length_fits =
           trx_length <= static_cast<ulonglong>(
-                            std::numeric_limits<my_off_t>::max() -
-                            gtid_start);
+                            std::numeric_limits<my_off_t>::max() - gtid_start);
       if (trx_length_fits) {
         const my_off_t expected_end =
             gtid_start + static_cast<my_off_t>(trx_length);
-        // ERROR here is from seek() failing (returns true on error), not from
-        // the event being valid; the seek only runs once the event is valid.
-        if (target > binlog_file_reader.position() &&
+        // seek() returns true on failure, so ERROR here means the seek itself
+        // failed. A rejected offset is not an error: the scan continues from
+        // where it is.
+        if (target > binlog_file_reader.position() /* must point forward */ &&
             is_valid_large_trx_terminating_event(
                 filename, target, binlog_file_reader.ifile()->length(),
                 expected_end, expected_type) &&
@@ -3588,6 +3623,14 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
         }
       }
     } else if (large_trx_end_offset != 0 && !is_large_trx_header) {
+      /*
+        Any event other than another large transaction header means the offset
+        does not describe what follows, so drop it.
+
+        A large transaction in a promoted binlog file should carry only one
+        header. A second one is tolerated rather than treated as an error,
+        because every recorded offset is validated before use.
+      */
       large_trx_end_offset = 0;
       large_trx_terminating_event_type = 0;
     }
@@ -4052,18 +4095,30 @@ bool MYSQL_BIN_LOG::open_binlog(
     const char *log_name, const char *new_name, ulong max_size_arg,
     bool null_created_arg, bool need_lock_index, bool need_tsid_lock,
     Format_description_log_event *extra_description_event,
-    uint32 new_index_number, const char *promoted_log_name,
-    bool promoted_file_is_renamed) {
+    uint32 new_index_number, const char *promoted_log_name) {
   // lock_index must be acquired *before* tsid_lock.
   assert(need_tsid_lock || !need_lock_index);
-  assert(!promoted_file_is_renamed || promoted_log_name != nullptr);
+  /*
+    Only commit_large_transaction() supplies a promoted file name, and it
+    operates on the binary log. Rejected at runtime rather than asserted,
+    because publishing a spilled transaction file into the relay log sequence
+    would not be locally detectable.
+  */
+  if (promoted_log_name != nullptr && is_relay_log) {
+    if (m_binlog_index_monitor.is_inited_purge_index_file()) {
+      (void)purge_index_entry(nullptr, nullptr, need_lock_index);
+      m_binlog_index_monitor.close_purge_index_file();
+    }
+    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_RELAY_LOG_PROMOTION, promoted_log_name);
+    return true;
+  }
   DBUG_TRACE;
   DBUG_PRINT("enter", ("base filename: %s", log_name));
 
   mysql_mutex_assert_owner(get_log_lock());
 
   if (init_and_set_log_file_name(log_name, new_name, new_index_number)) {
-    if (promoted_file_is_renamed) {
+    if (promoted_log_name != nullptr) {
       (void)purge_index_entry(nullptr, nullptr, need_lock_index);
       m_binlog_index_monitor.close_purge_index_file();
     }
@@ -4075,7 +4130,11 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
 
-  if (!promoted_file_is_renamed &&
+  /*
+    For a promoted file, promote_spilled_file() creates the record in the purge
+    index file before it renames the temporary file.
+  */
+  if (promoted_log_name == nullptr &&
       (m_binlog_index_monitor.open_purge_index_file(true) ||
        m_binlog_index_monitor.register_create_index_entry(log_file_name) ||
        m_binlog_index_monitor.sync_purge_index_file() ||
@@ -4095,40 +4154,21 @@ bool MYSQL_BIN_LOG::open_binlog(
     LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_SYNC_INDEX_FILE_IN_OPEN);
     return true;
   }
-  if (promoted_log_name != nullptr && !promoted_file_is_renamed)
-    DBUG_EXECUTE_IF("crash_bolt_after_purge_index_sync", DBUG_SUICIDE(););
-  if (promoted_file_is_renamed)
-    assert(m_binlog_index_monitor.is_inited_purge_index_file());
+  assert(promoted_log_name == nullptr ||
+         m_binlog_index_monitor.is_inited_purge_index_file());
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index",
                   DBUG_SUICIDE(););
 
   write_error = false;
-  bool promoted_file_renamed = promoted_file_is_renamed;
 
-  /*
-    Promote a spilled large transaction's temporary file into the binary
-    log sequence. The BOLT path registers and renames the file before its
-    Rotate event; legacy callers do both operations here.
-  */
-  if (promoted_log_name != nullptr && !promoted_file_is_renamed) {
-    assert(!is_relay_log);
-    if (my_rename(promoted_log_name, log_file_name, MYF(MY_WME))) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_USE_FOR_LOGGING, log_file_name,
-             errno);
-      m_binlog_index_monitor.close_purge_index_file();
-      return true;
-    }
-    promoted_file_renamed = true;
-    DBUG_EXECUTE_IF("crash_bolt_after_promote_rename", DBUG_SUICIDE(););
-  }
-
-  /* open the main log file */
+  /* open the main log file. */
   if (open(m_key_file_log, log_name, new_name, new_index_number,
-           promoted_log_name != nullptr /*existing*/)) {
+           promoted_log_name != nullptr ? Binlog_file_mode::kOpenExisting
+                                        : Binlog_file_mode::kCreateNew)) {
     if (m_binlog_index_monitor.is_inited_purge_index_file())
       (void)purge_index_entry(nullptr, nullptr, need_lock_index);
     m_binlog_index_monitor.close_purge_index_file();
-    if (promoted_file_renamed) my_delete(log_file_name, MYF(0));
+    if (promoted_log_name != nullptr) my_delete(log_file_name, MYF(0));
     return true; /* all warnings issued */
   }
 
@@ -4301,6 +4341,7 @@ bool MYSQL_BIN_LOG::open_binlog(
       goto err;
     bytes_written += extra_description_event->common_header->data_written;
   }
+
 promoted_add_to_index:
   if (m_binlog_file->flush_and_sync()) goto err;
 
@@ -4329,10 +4370,7 @@ promoted_add_to_index:
 
     DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
     if (promoted_log_name != nullptr)
-      DBUG_EXECUTE_IF("crash_bolt_after_main_index_update", {
-        (void)ha_flush_logs(true);
-        DBUG_SUICIDE();
-      });
+      DBUG_EXECUTE_IF("crash_bolt_after_main_index_update", DBUG_SUICIDE(););
   }
 
   atomic_log_state = LOG_OPENED;
@@ -4345,12 +4383,13 @@ promoted_add_to_index:
 
   m_binlog_index_monitor.close_purge_index_file();
   if (promoted_log_name != nullptr)
-    DBUG_EXECUTE_IF("crash_bolt_after_purge_index_remove", {
-      (void)ha_flush_logs(true);
-      DBUG_SUICIDE();
-    });
+    DBUG_EXECUTE_IF("crash_bolt_after_purge_index_remove", DBUG_SUICIDE(););
 
-  update_binlog_end_pos();
+  /*
+    BOLT promotion defers this to promote_spilled_file(), which calls it after
+    the after_flush hook.
+  */
+  if (promoted_log_name == nullptr) update_binlog_end_pos();
   return false;
 
 err:
@@ -4367,7 +4406,7 @@ err:
            (new_name) ? new_name : name, errno);
     close(LOG_CLOSE_INDEX, false, need_lock_index);
     /* Undo the promotion rename before the caller relinquishes ownership. */
-    if (promoted_file_renamed) my_delete(log_file_name, MYF(0));
+    if (promoted_log_name != nullptr) my_delete(log_file_name, MYF(0));
   }
   return true;
 }
@@ -4992,17 +5031,22 @@ int MYSQL_BIN_LOG::new_file_without_locking(
   return new_file_impl(false /*need_lock_log=false*/, extra_description_event);
 }
 
-int MYSQL_BIN_LOG::persist_gtids_on_rotate(bool use_dedicated_thd,
-                                  bool *keep_current_binlog) {
-  assert(keep_current_binlog != nullptr);
+std::pair<int, bool> MYSQL_BIN_LOG::persist_gtids_on_rotate(
+    Gtid_persist_thd thd_mode) {
   mysql_mutex_assert_owner(&LOCK_log);
   m_binlog_index_monitor.assert_owner();
 
-  *keep_current_binlog = false;
+  bool keep_current_binlog = false;
   const bool use_client_thd_for_debug_readonly =
       DBUG_EVALUATE_IF("gtid_executed_readonly", true, false);
   THD *saved_current_thd = nullptr;
-  if (use_dedicated_thd && !use_client_thd_for_debug_readonly) {
+  /*
+    Nulling current_thd is the mechanism that forces a dedicated THD: the
+    gtid_executed persister creates one when it finds none (see
+    Gtid_table_access_context::init).
+  */
+  if (thd_mode == Gtid_persist_thd::kDedicated &&
+      !use_client_thd_for_debug_readonly) {
     saved_current_thd = current_thd;
     current_thd = nullptr;
   }
@@ -5011,11 +5055,11 @@ int MYSQL_BIN_LOG::persist_gtids_on_rotate(bool use_dedicated_thd,
   if (saved_current_thd != nullptr) saved_current_thd->store_globals();
 
   if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
-    *keep_current_binlog =
+    keep_current_binlog =
         m_binlog_file->get_real_file_size() < static_cast<my_off_t>(max_size) &&
         !DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false);
   }
-  return error;
+  return {error, keep_current_binlog};
 }
 
 /**
@@ -5076,10 +5120,13 @@ int MYSQL_BIN_LOG::new_file_impl(
   }
 
   if (!is_relay_log) {
-    /* Save the last binlog's GTID set before rotation. */
-    bool keep_current_binlog = false;
-    if ((error = persist_gtids_on_rotate(false /*use_dedicated_thd*/,
-                               &keep_current_binlog))) {
+    /*
+      Save the last binlog's GTID set before rotation.
+    */
+    const auto [persist_error, keep_current_binlog] =
+        persist_gtids_on_rotate(Gtid_persist_thd::kCurrent);
+    error = persist_error;
+    if (error != 0) {
       if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
         close_on_error = !keep_current_binlog;
 
@@ -6407,10 +6454,9 @@ void MYSQL_BIN_LOG::close() {}
 */
 int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
   DBUG_TRACE;
-  DBUG_EXECUTE_IF("crash_bolt_before_tc_prepare", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_before_tc_prepare", DBUG_SUICIDE(););
   const int error = m_tc_log_processing->prepare(this, thd, all);
-  if (!error)
-    DBUG_EXECUTE_IF("crash_bolt_after_tc_prepare", DBUG_SUICIDE(););
+  if (!error) DBUG_EXECUTE_IF("crash_after_tc_prepare", DBUG_SUICIDE(););
   return error;
 }
 
@@ -6683,12 +6729,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       return RESULT_ABORTED;
     }
 
-    binlog_cache_data *cache_to_promote = get_cache_to_promote(cache_mngr);
+    binlog_cache_data *cache_to_promote =
+        get_cache_for_large_trx_commit(cache_mngr);
     const bool used_bolt_promotion = cache_to_promote != nullptr;
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_inconsistency", true, false) ||
         (used_bolt_promotion
-             ? commit_large_transaction(thd, all, skip_commit,
-                                           cache_to_promote)
+             ? commit_large_transaction(thd, all, skip_commit, cache_to_promote)
              : ordered_commit(thd, all, skip_commit))) {
       thd_get_cache_mngr(thd)->reset();
       if (thd->get_stmt_da()->is_ok())
@@ -7694,7 +7740,7 @@ bool THD::binlog_configure_trx_cache_size(ulong new_size) {
     return true;
   }
 
-  // Close and reopen with new value and a fresh Previous_gtids snapshot.
+  // Close and reopen with new value
   binlog_cache_data *const cache_data = &cache_mngr->trx_cache;
   cache_data->get_cache()->close();
   return cache_data->open(new_size, max_binlog_cache_size);

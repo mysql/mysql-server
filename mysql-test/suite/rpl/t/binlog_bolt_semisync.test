@@ -1,0 +1,264 @@
+# === Purpose ===
+# Verify that semisynchronous replication keeps its guarantee for transactions
+# committed through BOLT. BOLT commits on its own path rather than through
+# MYSQL_BIN_LOG::ordered_commit(), so it has to invoke the same replication
+# hooks, in the same order, with the same locks held. If it did not, a promoted
+# transaction would be acknowledged to the client without any replica having
+# confirmed it, and the loss would be silent: nothing else reports it.
+#
+# === Requirements ===
+# R1. A promoted transaction is acknowledged by the replica before the source
+#     returns, at the default AFTER_SYNC wait point.
+# R2. The same holds at the AFTER_COMMIT wait point.
+# R3. Semisync is still active after promotions, so the transactions above were
+#     not counted by a source that had silently switched semisync off.
+# R4. A promoted transaction is applied in full on the replica.
+# R5. The after_flush hook runs before the promoted file's end position is
+#     published, so a dump thread cannot read the transaction's events before
+#     the source has registered that it owes an acknowledgement for them.
+#
+# Every case asserts Binlog_large_transaction_optimization_count moved, because
+# a transaction that quietly fell back to the standard commit path would satisfy
+# all the semisync assertions while testing none of this code.
+#
+# === Implementation ===
+# 1. Bring up one source and one replica and enable semisync on both.
+# 2. Commit a 12 MiB transaction, above the 10 MiB threshold, so its cache
+#    spills and is promoted; check the yes_tx/no_tx counters moved as they would
+#    for any acknowledged transaction, and that promotion did happen.
+# 3. Repeat at the AFTER_COMMIT wait point.
+# 4. Use the after_call_after_sync_observer debug sync point to hold the source
+#    inside the after_sync hook and confirm from another session that the rows
+#    are not yet visible, which places the hook before the engine commit.
+#
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/rpl/init_source_replica.inc
+--source include/have_semisync_plugin.inc
+
+--let $bolt_rows = 3
+--let $bolt_payload_bytes = 12000000
+
+############################################################################
+# Setup
+############################################################################
+--source include/rpl/connection_source.inc
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
+--source include/rpl/install_semisync_source.inc
+--source include/suppress_tls_off.inc
+
+--let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $source_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $source_save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+--let $source_save_timeout = query_get_value(SELECT @@GLOBAL.rpl_semi_sync_source_timeout, @@GLOBAL.rpl_semi_sync_source_timeout, 1)
+--let $source_save_wait_point = query_get_value(SELECT @@GLOBAL.rpl_semi_sync_source_wait_point, @@GLOBAL.rpl_semi_sync_source_wait_point, 1)
+
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_transaction_compression = OFF;
+# A 12 MiB transaction can take a while to reach the replica on a loaded test
+# machine. Without this the wait can time out, which would turn an
+# acknowledged transaction into a no_tx and fail the test for an unrelated
+# reason.
+SET GLOBAL rpl_semi_sync_source_timeout = 600000;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+--source include/rpl/install_semisync_replica.inc
+--source include/suppress_tls_off.inc
+
+--source include/rpl/connection_source.inc
+# The replica registers as a semisync client asynchronously, so wait for it
+# before measuring anything.
+--source include/rpl/wait_for_semisync_source_status_on.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+
+############################################################################
+# Case 1: Promotion at the AFTER_SYNC wait point (the default).
+############################################################################
+--source include/rpl/connection_source.inc
+--echo # A promoted transaction is acknowledged at the AFTER_SYNC wait point.
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/save_semisync_yesno_tx.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+
+--let $semi_sync_yes_tx_increment = 1
+--let $semi_sync_no_tx_increment = 0
+--source include/rpl/assert_semisync_yesno_tx_increment.inc
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The AFTER_SYNC transaction took the BOLT commit path.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = The AFTER_SYNC promotion opens a new active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--let $assert_text = The replica applies every row of the AFTER_SYNC promotion.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = $bolt_rows
+--source include/assert.inc
+--let $assert_text = The replica receives the full AFTER_SYNC payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = $bolt_payload_bytes
+--source include/assert.inc
+
+############################################################################
+# Case 2: Promotion at the AFTER_COMMIT wait point.
+#
+# BOLT does not call the after_commit hook itself; it reaches it through
+# finish_commit(). This case is the regression check that the promoted path
+# still gets there.
+############################################################################
+--source include/rpl/connection_source.inc
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_source.inc
+SET GLOBAL rpl_semi_sync_source_wait_point = AFTER_COMMIT;
+--echo # A promoted transaction is acknowledged at the AFTER_COMMIT wait point.
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/save_semisync_yesno_tx.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+COMMIT;
+
+--let $semi_sync_yes_tx_increment = 1
+--let $semi_sync_no_tx_increment = 0
+--source include/rpl/assert_semisync_yesno_tx_increment.inc
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The AFTER_COMMIT transaction took the BOLT commit path.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = The AFTER_COMMIT promotion opens a new active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--let $assert_text = The replica applies every row of the AFTER_COMMIT promotion.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = $bolt_rows
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+--eval SET GLOBAL rpl_semi_sync_source_wait_point = $source_save_wait_point
+
+############################################################################
+# Case 3: Semisync is still active on both servers.
+#
+# If the source had dropped out of semisync at some point, the counters above
+# could have been satisfied without any replica involvement.
+############################################################################
+--source include/rpl/connection_source.inc
+--source include/assert_semisync_source_status_on.inc
+--let $semisync_clients = query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_clients', Value, 1)
+--let $assert_text = The replica is still attached as a semisync client.
+--let $assert_cond = $semisync_clients = 1
+--source include/assert.inc
+
+--source include/rpl/connection_replica.inc
+--let $semisync_replica_status = query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_replica_status', Value, 1)
+--let $assert_text = Semisync is still enabled on the replica.
+--let $assert_cond = "$semisync_replica_status" = "ON"
+--source include/assert.inc
+
+############################################################################
+# Case 4: The after_sync hook runs before the engine commit.
+#
+# Hold the committing session inside the after_sync hook, at the
+# after_call_after_sync_observer sync point in Binlog_storage_delegate, and
+# check from a second session that the transaction's rows are not yet visible.
+# That is what makes the wait meaningful: at AFTER_SYNC the source must not
+# have committed in the engine while it is still waiting for the replica.
+############################################################################
+--source include/rpl/connection_source.inc
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+connect (bolt_observer, localhost, root,,);
+--source include/rpl/connection_source.inc
+
+--echo # The after_sync hook runs before the promoted transaction is visible.
+# Only the COMMIT blocks, so only it needs to be sent asynchronously.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 4000000));
+SET DEBUG_SYNC = 'after_call_after_sync_observer SIGNAL bolt_in_after_sync WAIT_FOR bolt_observer_done';
+--send COMMIT
+
+connection bolt_observer;
+SET DEBUG_SYNC = 'now WAIT_FOR bolt_in_after_sync';
+# The committing session has been through the after_sync hook, so the replica
+# has acknowledged, but finish_commit() has not run yet, so nothing is visible.
+--let $assert_text = The promoted transaction is not yet committed while the after_sync hook runs.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+SET DEBUG_SYNC = 'now SIGNAL bolt_observer_done';
+
+--source include/rpl/connection_source.inc
+--reap
+SET DEBUG_SYNC = 'RESET';
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = The after_sync ordering case took the BOLT commit path.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = The promoted transaction is committed once the hook returns.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = $bolt_rows
+--source include/assert.inc
+
+connection bolt_observer;
+disconnect bolt_observer;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+############################################################################
+# Cleanup
+############################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/uninstall_semisync_replica.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+# Restore the plugin's own variable before uninstalling the plugin. It ceases to
+# exist along with the plugin, so setting it afterwards fails with
+# ER_UNKNOWN_SYSTEM_VARIABLE.
+--disable_query_log
+--eval SET GLOBAL rpl_semi_sync_source_timeout = $source_save_timeout
+--enable_query_log
+--source include/rpl/uninstall_semisync_source.inc
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $source_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $source_save_threshold
+--eval SET SESSION binlog_transaction_compression = $source_save_compression
+--enable_query_log
+
+--source include/rpl/deinit.inc

@@ -9,11 +9,20 @@
 # R2. A spilled cache above binlog_cache_size but below the BOLT threshold
 #     commits normally.
 # R3. A spilled cache above the BOLT threshold promotes a new active binlog.
+# R4. A case that commits normally was never a BOLT candidate, rather than a
+#     candidate that fell back. Neither counter moves.
+# R5. A promoted file whose spilled cache was trimmed by a savepoint rollback
+#     is structurally valid.
 #
 # === Implementation ===
 # Configure a 1 MiB cache and a 10 MiB BOLT threshold. Each case spills the
 # transaction cache, rolls back to a savepoint, commits, and checks the final
-# active binary-log filename and retained rows.
+# active binary-log filename, both BOLT status counters, and the retained rows.
+#
+# Both counters are asserted everywhere. The filename alone would not be enough:
+# the non-promoting cases expect it unchanged, which is also what a server with
+# BOLT disabled produces. The missed counter is what separates "never a
+# candidate" from "was a candidate and fell back".
 #
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
@@ -21,6 +30,9 @@
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 --let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
+
+# The shared promoted-file validator resolves $bolt_header_file against this.
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
 
 # Setup
 --disable_query_log
@@ -37,6 +49,8 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 # Expected behavior: copy the retained cache to the current active binlog.
 ############################################################################
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --echo # Savepoint rollback below binlog_cache_size keeps the active binlog.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 512000));
@@ -45,8 +59,16 @@ INSERT INTO t1 VALUES (2, REPEAT('b', 2000000));
 ROLLBACK TO SAVEPOINT before_spill;
 COMMIT;
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $assert_text = A final cache below binlog_cache_size is copied to the active binlog.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A final cache below binlog_cache_size does not promote.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A final cache below binlog_cache_size was never a candidate.
+--let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
 --let $assert_text = Savepoint rollback retains only the pre-spill row.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
@@ -63,6 +85,8 @@ TRUNCATE t1;
 # Expected behavior: copy the retained cache to the current active binlog.
 ############################################################################
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --echo # Savepoint rollback below the BOLT threshold keeps the active binlog.
 BEGIN;
 INSERT INTO t1 VALUES (11, REPEAT('c', 2000000));
@@ -71,8 +95,16 @@ INSERT INTO t1 VALUES (12, REPEAT('d', 3000000));
 ROLLBACK TO SAVEPOINT before_discard;
 COMMIT;
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $assert_text = A final cache below the BOLT threshold is copied to the active binlog.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A final cache below the BOLT threshold does not promote.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A final cache below the BOLT threshold was never a candidate.
+--let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
 --let $assert_text = Savepoint rollback retains the above-cache pre-savepoint row.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
@@ -89,6 +121,8 @@ TRUNCATE t1;
 # Expected behavior: promote a new active binlog.
 ############################################################################
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --echo # Savepoint rollback above the BOLT threshold promotes a new binlog.
 BEGIN;
 INSERT INTO t1 VALUES (21, REPEAT('e', 4000000));
@@ -99,8 +133,16 @@ INSERT INTO t1 VALUES (24, REPEAT('h', 2000000));
 ROLLBACK TO SAVEPOINT before_discard;
 COMMIT;
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $assert_text = A final cache above the BOLT threshold promotes a new active binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A final cache above the BOLT threshold increments the optimization counter once.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = A promoted savepoint transaction does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
 --let $assert_text = Savepoint rollback retains the promoted pre-savepoint rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
@@ -108,7 +150,99 @@ COMMIT;
 --let $assert_text = Savepoint rollback discards the promoted post-savepoint row.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 66
 --source include/assert.inc
+# The promoted file's spilled cache was trimmed by the savepoint rollback, so
+# validate that its header still describes the file it ended up being.
+--let $bolt_header_file = $binlog_file_after
+--source ../inc/validate_bolt_header.inc
 
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+############################################################################
+# Case 4: Rollback, then re-append while staying below the threshold.
+# Expected behavior: copy the retained cache to the current active binlog.
+############################################################################
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--echo # Re-append after rollback below the threshold keeps the active binlog.
+BEGIN;
+INSERT INTO t1 VALUES (31, REPEAT('a', 2000000));
+SAVEPOINT sp_reappend;
+INSERT INTO t1 VALUES (32, REPEAT('b', 3000000));
+ROLLBACK TO SAVEPOINT sp_reappend;
+INSERT INTO t1 VALUES (33, REPEAT('c', 3000000));
+COMMIT;
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A re-appended cache below the threshold is copied to the active binlog.
+--let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A re-appended cache below the threshold does not promote.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A re-appended cache below the threshold was never a candidate.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = Re-append after rollback keeps the pre-savepoint and re-appended rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+--let $assert_text = Re-append after rollback discards only the rolled-back row.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 64
+--source include/assert.inc
+--let $assert_text = The rolled-back row is absent after re-append.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 32, count, 1] = 0
+--source include/assert.inc
+--let $assert_text = The re-appended row has its full length.
+--let $assert_cond = [SELECT LENGTH(data) AS len FROM t1 WHERE id = 33, len, 1] = 3000000
+--source include/assert.inc
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+############################################################################
+# Case 5: Rollback below the threshold, then re-append back above it.
+# Expected behavior: promote a new active binlog.
+############################################################################
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--echo # Re-append after rollback above the threshold promotes a new binlog.
+BEGIN;
+INSERT INTO t1 VALUES (41, REPEAT('d', 5000000));
+SAVEPOINT sp_recross;
+INSERT INTO t1 VALUES (42, REPEAT('e', 8000000));
+ROLLBACK TO SAVEPOINT sp_recross;
+INSERT INTO t1 VALUES (43, REPEAT('f', 8000000));
+COMMIT;
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A re-appended cache above the threshold promotes a new active binlog.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A re-appended cache above the threshold increments the optimization counter once.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = A re-crossed promotion does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = Re-crossing the threshold keeps the pre-savepoint and re-appended rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+--let $assert_text = Re-crossing the threshold discards only the rolled-back row.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 84
+--source include/assert.inc
+--let $assert_text = The rolled-back row is absent after promotion.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 42, count, 1] = 0
+--source include/assert.inc
+--let $assert_text = The re-appended row has its full length in the promoted file.
+--let $assert_cond = [SELECT LENGTH(data) AS len FROM t1 WHERE id = 43, len, 1] = 8000000
+--source include/assert.inc
+# Re-crossing the threshold after a trim is the other way a promoted file can
+# have been rewritten, so validate this one too.
+--let $bolt_header_file = $binlog_file_after
+--source ../inc/validate_bolt_header.inc
 # Cleanup
 DROP TABLE t1;
 --disable_query_log

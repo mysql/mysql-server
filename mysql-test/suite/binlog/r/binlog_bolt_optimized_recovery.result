@@ -12,7 +12,7 @@ INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
 INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
 include/assert.inc [The transaction was promoted into a new binary log file.]
-# Kill and restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --max-binlog-size=1G
+# Kill and restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --max-binlog-size=1G --binlog-transaction-compression=OFF
 # Recovery logs the optimized large-transaction seek.
 Pattern "Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset" found
 include/assert.inc [The committed promoted transaction survives recovery.]

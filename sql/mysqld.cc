@@ -794,10 +794,10 @@ MySQL clients support the protocol:
 #include "sql/auth/authentication_policy.h"
 #include "sql/auth/sql_authentication.h"  // init_rsa_keys
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/auto_thd.h"   // Auto_THD
-#include "sql/binlog.h"  // mysql_bin_log
+#include "sql/auto_thd.h"        // Auto_THD
+#include "sql/binlog.h"          // mysql_bin_log
 #include "sql/binlog_ostream.h"  // binlog_temp_files_dir
-#include "sql/bootstrap.h"  // bootstrap
+#include "sql/bootstrap.h"       // bootstrap
 #include "sql/check_stack.h"
 #include "sql/conn_handler/connection_acceptor.h"  // Connection_acceptor
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler

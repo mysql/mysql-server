@@ -32,11 +32,31 @@
 #################################################################
 
 #########################################################################
+# Raising binlog_cache_size above                                       #
+# binlog_large_transaction_optimization_threshold adjusts the threshold  #
+# to match and reports it in the error log. This test sets              #
+# binlog_cache_size across its whole range, so the adjustment is         #
+# expected here.                                                        #
+#########################################################################
+--disable_query_log
+CALL mtr.add_suppression("was adjusted from .* to match binlog_cache_size");
+--enable_query_log
+
+#########################################################################
 # Saving initial value of binlog_cache_size in a temporary variable     #
 #########################################################################
 
 SET @start_value = @@global.binlog_cache_size;
 SELECT @start_value;
+
+# Raising binlog_cache_size above
+# binlog_large_transaction_optimization_threshold raises the threshold to match,
+# and the threshold is not lowered again when binlog_cache_size is restored.
+# Save it here so this test leaves the threshold as it found it.
+--disable_query_log
+SET @start_bolt_threshold =
+    @@global.binlog_large_transaction_optimization_threshold;
+--enable_query_log
 
 --echo '#--------------------FN_DYNVARS_006_01------------------------#'
 ######################################################################### 
@@ -195,6 +215,13 @@ SELECT @@session.binlog_cache_size;
 
 SET @@global.binlog_cache_size = @start_value;
 SELECT @@global.binlog_cache_size;
+
+# Restore the threshold after binlog_cache_size, so the saved value is not
+# raised again to match a still-large binlog_cache_size.
+--disable_query_log
+SET @@global.binlog_large_transaction_optimization_threshold =
+    @start_bolt_threshold;
+--enable_query_log
 
 
 ###########################################################

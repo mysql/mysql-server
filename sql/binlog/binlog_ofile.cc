@@ -157,11 +157,9 @@ bool MYSQL_BIN_LOG::Binlog_ofile::position_at(my_off_t offset) {
   assert(m_pipeline_head != nullptr);
   /*
     The caller passes a physical file offset (e.g. the promoted file's size) as
-    the logical position. That equality only holds for an unencrypted file; an
-    encrypted file's physical size includes the encryption header. The only
-    caller (opening a promoted binary log file) never encrypts, so require it.
+    the logical position. Those two agree only for an unencrypted file.
   */
-  assert(!is_encrypted());
+  if (get_encrypted_header_size() != 0) return true;
 
   if (m_pipeline_head->seek(offset)) return true;
   m_position = offset;

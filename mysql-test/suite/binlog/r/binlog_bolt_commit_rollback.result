@@ -27,6 +27,14 @@ COMMIT;
 include/assert.inc [Retry promotes one new active binary log.]
 include/assert.inc [Retry changes the active binary log file.]
 include/assert.inc [Retry commits the four rows exactly once.]
+# The first of two consecutive promotions on one session.
+# The second promotion, whose predecessor is itself a promoted file.
+include/assert.inc [Two consecutive transactions promote twice.]
+include/assert.inc [Neither consecutive promotion is a missed optimization.]
+include/assert.inc [The first promotion leaves the original active binary log.]
+include/assert.inc [The second promotion opens a file of its own.]
+include/assert.inc [Both consecutive promotions commit all eight rows.]
+include/assert.inc [Both consecutive promotions preserve every payload in full.]
 # XA PREPARE promotes the large transaction; XA COMMIT makes it visible.
 XA START 'bolt_prepare_commit';
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));

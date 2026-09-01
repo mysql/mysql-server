@@ -116,11 +116,7 @@ class Log_sanitizer {
   virtual PSI_memory_key &get_memory_key() const = 0;
 
   /// @brief Whether this sanitizer is recovering a relay log rather than a
-  /// binary log. A Large_transaction_header_log_event's recorded offset
-  /// refers to the source's binary log, so it is only actionable during
-  /// binary-log recovery; relay-log recovery must ignore it. This cannot be
-  /// derived from the event itself, because a header relayed from the source
-  /// does not carry LOG_EVENT_RELAY_LOG_F.
+  /// binary log.
   /// @returns true for relay-log recovery, false for binary-log recovery.
   virtual bool is_relay_log_recovery() const { return false; }
 

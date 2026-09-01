@@ -1,0 +1,89 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
+include/rpl/install_semisync_source.inc
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_transaction_compression = OFF;
+SET GLOBAL rpl_semi_sync_source_timeout = 600000;
+[connection slave]
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+include/rpl/install_semisync_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+include/rpl/sync_to_replica.inc
+[connection master]
+# A promoted transaction is acknowledged at the AFTER_SYNC wait point.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 1 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 0 + 0]
+include/assert.inc [The AFTER_SYNC transaction took the BOLT commit path.]
+include/assert.inc [The AFTER_SYNC promotion opens a new active binary log.]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/assert.inc [The replica applies every row of the AFTER_SYNC promotion.]
+include/assert.inc [The replica receives the full AFTER_SYNC payload.]
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection master]
+SET GLOBAL rpl_semi_sync_source_wait_point = AFTER_COMMIT;
+# A promoted transaction is acknowledged at the AFTER_COMMIT wait point.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+COMMIT;
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 3 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 0 + 0]
+include/assert.inc [The AFTER_COMMIT transaction took the BOLT commit path.]
+include/assert.inc [The AFTER_COMMIT promotion opens a new active binary log.]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/assert.inc [The replica applies every row of the AFTER_COMMIT promotion.]
+[connection master]
+SET GLOBAL rpl_semi_sync_source_wait_point = AFTER_SYNC;
+[connection master]
+include/assert.inc [Semisync master is on]
+include/assert.inc [The replica is still attached as a semisync client.]
+[connection slave]
+include/assert.inc [Semisync is still enabled on the replica.]
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection master]
+[connection master]
+# The after_sync hook runs before the promoted transaction is visible.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 4000000));
+SET DEBUG_SYNC = 'after_call_after_sync_observer SIGNAL bolt_in_after_sync WAIT_FOR bolt_observer_done';
+COMMIT;
+SET DEBUG_SYNC = 'now WAIT_FOR bolt_in_after_sync';
+include/assert.inc [The promoted transaction is not yet committed while the after_sync hook runs.]
+SET DEBUG_SYNC = 'now SIGNAL bolt_observer_done';
+[connection master]
+SET DEBUG_SYNC = 'RESET';
+include/assert.inc [The after_sync ordering case took the BOLT commit path.]
+include/assert.inc [The promoted transaction is committed once the hook returns.]
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_replica.inc
+include/rpl/uninstall_semisync_replica.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/uninstall_semisync_source.inc
+include/rpl/deinit.inc

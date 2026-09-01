@@ -9,6 +9,11 @@
 #include "sql/sql_class.h"
 #include "sql/transaction_info.h"
 
+/**
+  @file
+  @brief Implementations for sql/binlog/transaction_commit_helper.h.
+*/
+
 void init_thd_variables(THD *thd, bool all, bool skip_commit,
                         [[maybe_unused]] bool ready_preempt) {
   /* These values are reset before a transaction enters commit processing. */

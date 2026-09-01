@@ -13,6 +13,9 @@
 
 #include "mysql/binlog/event/binlog_event.h"
 
+/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @{
+
 namespace mysql::binlog::event {
 
 /**
@@ -82,8 +85,8 @@ class Large_transaction_header_event : public Binary_log_event {
     @param buf  Contains the serialized event.
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Large_transaction_header_event(
-      const char *buf, const Format_description_event *fde);
+  Large_transaction_header_event(const char *buf,
+                                 const Format_description_event *fde);
 
   /**
     Creates an event with the given terminating-event metadata and
@@ -103,13 +106,23 @@ class Large_transaction_header_event : public Binary_log_event {
 
   ~Large_transaction_header_event() override = default;
 
+  /// @return Format version of this event's body, so a later server can tell
+  ///         which fields are present.
   uint8_t get_version() const { return m_version; }
+
+  /// @return Byte offset, from the start of the file, at which the
+  ///         transaction's terminating event begins.
   uint64_t get_terminating_event_offset() const {
     return m_terminating_event_offset;
   }
+
+  /// @return Type code of the transaction's terminating event.
   uint8_t get_terminating_event_type() const {
     return m_terminating_event_type;
   }
+
+  /// @return Number of filler bytes this event carries in order to occupy the
+  ///         remainder of the file's reserved header region exactly.
   uint64_t get_padding_size() const { return m_padding_size; }
 
 #ifndef HAVE_MYSYS
@@ -129,5 +142,7 @@ class Large_transaction_header_event : public Binary_log_event {
 };
 
 }  // namespace mysql::binlog::event
+
+/// @}
 
 #endif  // MYSQL_BINLOG_EVENT_LARGE_TRANSACTION_HEADER_EVENT_H

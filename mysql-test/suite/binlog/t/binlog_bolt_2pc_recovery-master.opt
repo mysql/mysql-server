@@ -1,3 +1,5 @@
 --binlog-large-transaction-optimization-enabled=ON
 --binlog-large-transaction-optimization-threshold=10M
 --max-binlog-size=1G
+--innodb-flush-log-at-trx-commit=1
+--binlog-transaction-compression=OFF

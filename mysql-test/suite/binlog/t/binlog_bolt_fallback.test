@@ -7,25 +7,24 @@
 #
 # === Requirements ===
 # R1. Large STATEMENT and MIXED transactions do not promote.
-# R2. A checksum change during a transaction prevents promotion.
+# R2. A checksum change during a transaction prevents promotion, and restoring
+#     it before commit preserves eligibility.
 # R3. A Previous_gtids event larger than 64 KiB expands the reservation and
 #     permits promotion.
 # R4. A row statement touching InnoDB and MyISAM falls back for its
 #     statement-cache transaction while still promoting its InnoDB cache.
-# R5. Binary-log encryption prevents promotion.
-# R6. Restoring binlog_checksum before commit preserves promotion eligibility.
 #
 # === Implementation ===
-# Each case creates a spilled transaction above the 10 MiB threshold and
-# verifies either the normal commit path or promotion as appropriate. The
-# large-header case writes 1,700 explicitly assigned GTIDs, rotates to publish
-# the serialized Previous_gtids size, and uses a fresh session so its cache
-# opens with the dynamic reservation. Encryption is tested last because it
-# requires restart.
+# Each case spills a transaction above the 10 MiB threshold and checks the two
+# BOLT status counters, the active binary-log filename, and the reason reported
+# in the error log.
+#
+# Every condition here is reachable by configuration, so this file also runs on
+# release builds. The reasons that need a debug symbol are in
+# binlog_bolt_fallback_debug; encryption is in binlog_bolt_encryption.
 #
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
---source include/have_component_keyring_file.inc
 
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
@@ -149,7 +148,8 @@ COMMIT;
 --let $assert_text = A checksum-change fallback commits all rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
---exec grep -q "binlog_checksum changed during the transaction" $MYSQLTEST_VARDIR/log/mysqld.1.err
+# BINLOG_CHECKSUM_ALG_OFF while binlog_checksum is CRC32.
+--exec grep -q "checksum algorithm does not match binlog_checksum" $MYSQLTEST_VARDIR/log/mysqld.1.err
 connection checksum_change;
 disconnect checksum_change;
 connection default;
@@ -310,51 +310,6 @@ COMMIT;
 --source include/assert.inc
 --exec grep -q "statement cache is nonempty" $MYSQLTEST_VARDIR/log/mysqld.1.err
 
-############################################################################
-# Case 7: Binary-log encryption.
-############################################################################
---disable_query_log
-RESET BINARY LOGS AND GTIDS;
---enable_query_log
---source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
---echo # Restart the server with binary-log encryption enabled.
---let $restart_parameters = restart:--binlog_encryption=ON $PLUGIN_DIR_OPT
---source include/restart_mysqld_no_echo.inc
-
---disable_query_log
---disable_warnings
-SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
-SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
-SET SESSION binlog_format = ROW;
-SET SESSION binlog_transaction_compression = OFF;
-TRUNCATE t1;
---enable_warnings
---enable_query_log
---let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
---let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---echo # An encrypted binary log uses the standard commit path.
-BEGIN;
-INSERT INTO t1 VALUES (1, REPEAT('j', 5000000));
-INSERT INTO t1 VALUES (2, REPEAT('k', 5000000));
-INSERT INTO t1 VALUES (3, REPEAT('l', 5000000));
-COMMIT;
---let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
---let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = An encrypted binary log does not promote a binary log.
---let $assert_cond = $bolt_count_after = $bolt_count_before
---source include/assert.inc
---let $assert_text = An encrypted binary log increments the missed counter once.
---let $assert_cond = $missed_after = $missed_before + 1
---source include/assert.inc
---let $assert_text = An encrypted fallback stays in the active binary log.
---let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
---source include/assert.inc
---let $assert_text = An encrypted fallback commits all rows.
---let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
---source include/assert.inc
---exec grep -q "binary log encryption is enabled" $MYSQLTEST_VARDIR/log/mysqld.1.err
 
 # Cleanup
 DROP TABLE t2;
@@ -368,4 +323,3 @@ DROP TABLE t1;
 --eval SET SESSION binlog_transaction_compression = $save_compression
 --enable_warnings
 --enable_query_log
---source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

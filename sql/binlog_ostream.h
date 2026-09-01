@@ -173,6 +173,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
      file. Set per transaction, before the first spill.
   */
   void set_named_file(bool named) { m_io_cache.named_file = named; }
+
  private:
   /** Rename a newly spilled generic cache file to a managed bolt_ name. */
   bool rename_spilled_file();
@@ -240,7 +241,8 @@ class Binlog_cache_storage : public Basic_ostream {
 
   /**
      Reset status and drop all data. When preserve_spilled_file is true, the
-     cache closes without deleting a file BOLT has already promoted.
+     cache closes without deleting a file the binlog large transaction
+     optimization has already promoted.
   */
   bool reset(bool preserve_spilled_file = false) {
     return m_file.reset(preserve_spilled_file);
@@ -375,12 +377,37 @@ inline constexpr const char *kBinlogTempFilesDirName = "#binlog_temp_files";
 inline constexpr my_off_t kBinlogTempFileReservedBytes = 64 * 1024;
 
 // Minimum space left after the Previous_gtids payload in a temp-file header.
-inline constexpr my_off_t kBinlogTempFilePreviousGtidsHeadroomBytes =
-    32 * 1024;
+inline constexpr my_off_t kBinlogTempFilePreviousGtidsHeadroomBytes = 32 * 1024;
 
-// Managed large-transaction spill files are named bolt_<server-start time>_<serial>
-// (both hex), which is unique within a server run and lets startup cleanup
-// recognize only files created by this feature.
+// Managed large-transaction spill files are named
+// bolt_<server-start time>_<serial> (both hex), which is unique within a
+// server run and lets startup cleanup recognize only files created by this
+// feature.
+inline constexpr char kBinlogTempFilePrefix[] = "bolt_";
+
+/**
+  Returns true if 'name' is a binary log cache spill file, i.e. matches the
+  bolt_<id> pattern that IO_CACHE_binlog_cache_storage gives its spill files.
+
+  A true result does NOT mean the file was, or will be, promoted into the
+  binary log sequence. Every binlog cache spill file uses this name, including
+  transactions that commit through the standard path (below the threshold,
+  encrypted, compressed, and so on). This is purely an ownership check, so that
+  startup cleanup of \#binlog_temp_files only deletes files the binary log cache
+  created.
+
+  Declared here, rather than kept local to binlog_ostream.cc, so a unit test can
+  exercise the whole name space cheaply. Getting this predicate wrong is
+  expensive: a name it wrongly rejects becomes an "unsafe entry" that aborts
+  startup, which is how the missing A-Z range in the original character class
+  behaved, since mkstemp() also produces upper case.
+
+  @param name  Base name of a directory entry, without any directory part.
+
+  @retval true   The binary log cache created this file.
+  @retval false  It did not, so cleanup must leave the file alone.
+*/
+bool is_bolt_temp_file(const char *name);
 
 class Binlog_temp_files_dir {
  public:

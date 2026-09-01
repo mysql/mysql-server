@@ -1155,9 +1155,10 @@ bool Log_event::need_checksum() {
          ((common_footer->checksum_alg ==
                static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
            /*
-              Cached events carry the algorithm recorded at their
-              transaction's first event, which a concurrent change of
-              binlog_checksum may outdate.
+              Cached events may carry the algorithm recorded at their first
+              event write to the transaction cache when the binlog large
+              transaction optimization is enabled. A recorded algorithm may
+              differ from the server's binlog_checksum_options.
            */
            event_cache_type != Log_event::EVENT_NO_CACHE ||
            /*
@@ -12991,24 +12992,20 @@ void Ignorable_log_event::print(FILE *,
 }
 #endif
 
-Large_transaction_header_log_event::
-    Large_transaction_header_log_event(
-        const char *buf, const Format_description_event *descr_event)
-    : mysql::binlog::event::Large_transaction_header_event(
-          buf, descr_event),
+Large_transaction_header_log_event::Large_transaction_header_log_event(
+    const char *buf, const Format_description_event *descr_event)
+    : mysql::binlog::event::Large_transaction_header_event(buf, descr_event),
       Log_event(header(), footer()) {
   DBUG_TRACE;
 }
 
-void Large_transaction_header_log_event::claim_memory_ownership(
-    bool claim) {
+void Large_transaction_header_log_event::claim_memory_ownership(bool claim) {
   my_claim(temp_buf, claim);
   my_claim(this, claim);
 }
 
 #ifdef MYSQL_SERVER
-int Large_transaction_header_log_event::pack_info(
-    Protocol *protocol) {
+int Large_transaction_header_log_event::pack_info(Protocol *protocol) {
   char buf[256];
   const size_t bytes =
       snprintf(buf, sizeof(buf),
@@ -13026,8 +13023,7 @@ bool Large_transaction_header_log_event::write_data_body(
   uchar fixed[Large_transaction_header_event::kFixedBodyLength];
   fixed[0] = m_version;
   int8store(fixed + 1, m_terminating_event_offset);
-  fixed[1 + sizeof(m_terminating_event_offset)] =
-      m_terminating_event_type;
+  fixed[1 + sizeof(m_terminating_event_offset)] = m_terminating_event_type;
   if (wrapper_my_b_safe_write(ostream, fixed, sizeof(fixed))) return true;
 
   /* Write the padding in bounded chunks; its contents are undefined and
@@ -13041,8 +13037,7 @@ bool Large_transaction_header_log_event::write_data_body(
   return false;
 }
 
-int Large_transaction_header_log_event::do_apply_event(
-    Relay_log_info const *) {
+int Large_transaction_header_log_event::do_apply_event(Relay_log_info const *) {
   DBUG_TRACE;
   /* Nothing to apply: the event only carries recovery metadata for the
      file it was written into. */
@@ -13805,15 +13800,13 @@ Log_event::enum_skip_reason Gtid_log_event::do_shall_skip(Relay_log_info *rli) {
   @param event_counter       Number of events in the transaction.
   @return The adjusted transaction length.
 */
-static ulonglong adjust_trx_length_to_checksum_changes(ulonglong cache_size,
-                                                    bool is_checksum_enabled,
-                                                    bool is_checksum_computed,
-                                                    int event_counter) {
+static ulonglong adjust_trx_length_to_checksum_changes(
+    ulonglong cache_size, bool is_checksum_enabled, bool is_checksum_computed,
+    int event_counter) {
   ulonglong length = cache_size;
   if (is_checksum_enabled) {
     length += BINLOG_CHECKSUM_LEN;
-    if (!is_checksum_computed)
-      length += event_counter * BINLOG_CHECKSUM_LEN;
+    if (!is_checksum_computed) length += event_counter * BINLOG_CHECKSUM_LEN;
   } else if (is_checksum_computed) {
     length -= event_counter * BINLOG_CHECKSUM_LEN;
   }
@@ -13823,11 +13816,10 @@ static ulonglong adjust_trx_length_to_checksum_changes(ulonglong cache_size,
 void Gtid_log_event::set_trx_length_by_cache_size_tagged(
     ulonglong cache_size, bool is_checksum_enabled, bool is_checksum_computed,
     int event_counter) {
-  auto transaction_length_overhead =
-      adjust_trx_length_to_checksum_changes(cache_size, is_checksum_enabled,
-                                            is_checksum_computed,
-                                            event_counter) +
-      LOG_EVENT_HEADER_LEN;
+  auto transaction_length_overhead = adjust_trx_length_to_checksum_changes(
+                                         cache_size, is_checksum_enabled,
+                                         is_checksum_computed, event_counter) +
+                                     LOG_EVENT_HEADER_LEN;
   update_tagged_transaction_length(transaction_length_overhead);
 }
 

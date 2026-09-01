@@ -13,6 +13,8 @@ INSERT INTO t1 VALUES (2, REPEAT('b', 2000000));
 ROLLBACK TO SAVEPOINT before_spill;
 COMMIT;
 include/assert.inc [A final cache below binlog_cache_size is copied to the active binlog.]
+include/assert.inc [A final cache below binlog_cache_size does not promote.]
+include/assert.inc [A final cache below binlog_cache_size was never a candidate.]
 include/assert.inc [Savepoint rollback retains only the pre-spill row.]
 include/assert.inc [Savepoint rollback discards the post-savepoint row.]
 # Savepoint rollback below the BOLT threshold keeps the active binlog.
@@ -23,6 +25,8 @@ INSERT INTO t1 VALUES (12, REPEAT('d', 3000000));
 ROLLBACK TO SAVEPOINT before_discard;
 COMMIT;
 include/assert.inc [A final cache below the BOLT threshold is copied to the active binlog.]
+include/assert.inc [A final cache below the BOLT threshold does not promote.]
+include/assert.inc [A final cache below the BOLT threshold was never a candidate.]
 include/assert.inc [Savepoint rollback retains the above-cache pre-savepoint row.]
 include/assert.inc [Savepoint rollback discards the above-cache post-savepoint row.]
 # Savepoint rollback above the BOLT threshold promotes a new binlog.
@@ -35,6 +39,38 @@ INSERT INTO t1 VALUES (24, REPEAT('h', 2000000));
 ROLLBACK TO SAVEPOINT before_discard;
 COMMIT;
 include/assert.inc [A final cache above the BOLT threshold promotes a new active binlog.]
+include/assert.inc [A final cache above the BOLT threshold increments the optimization counter once.]
+include/assert.inc [A promoted savepoint transaction does not increment the missed counter.]
 include/assert.inc [Savepoint rollback retains the promoted pre-savepoint rows.]
 include/assert.inc [Savepoint rollback discards the promoted post-savepoint row.]
+# Re-append after rollback below the threshold keeps the active binlog.
+BEGIN;
+INSERT INTO t1 VALUES (31, REPEAT('a', 2000000));
+SAVEPOINT sp_reappend;
+INSERT INTO t1 VALUES (32, REPEAT('b', 3000000));
+ROLLBACK TO SAVEPOINT sp_reappend;
+INSERT INTO t1 VALUES (33, REPEAT('c', 3000000));
+COMMIT;
+include/assert.inc [A re-appended cache below the threshold is copied to the active binlog.]
+include/assert.inc [A re-appended cache below the threshold does not promote.]
+include/assert.inc [A re-appended cache below the threshold was never a candidate.]
+include/assert.inc [Re-append after rollback keeps the pre-savepoint and re-appended rows.]
+include/assert.inc [Re-append after rollback discards only the rolled-back row.]
+include/assert.inc [The rolled-back row is absent after re-append.]
+include/assert.inc [The re-appended row has its full length.]
+# Re-append after rollback above the threshold promotes a new binlog.
+BEGIN;
+INSERT INTO t1 VALUES (41, REPEAT('d', 5000000));
+SAVEPOINT sp_recross;
+INSERT INTO t1 VALUES (42, REPEAT('e', 8000000));
+ROLLBACK TO SAVEPOINT sp_recross;
+INSERT INTO t1 VALUES (43, REPEAT('f', 8000000));
+COMMIT;
+include/assert.inc [A re-appended cache above the threshold promotes a new active binlog.]
+include/assert.inc [A re-appended cache above the threshold increments the optimization counter once.]
+include/assert.inc [A re-crossed promotion does not increment the missed counter.]
+include/assert.inc [Re-crossing the threshold keeps the pre-savepoint and re-appended rows.]
+include/assert.inc [Re-crossing the threshold discards only the rolled-back row.]
+include/assert.inc [The rolled-back row is absent after promotion.]
+include/assert.inc [The re-appended row has its full length in the promoted file.]
 DROP TABLE t1;

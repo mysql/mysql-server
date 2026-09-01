@@ -3840,9 +3840,7 @@ class Large_transaction_header_log_event
 
   void claim_memory_ownership(bool claim) override;
 
-  size_t get_data_size() override {
-    return kFixedBodyLength + m_padding_size;
-  }
+  size_t get_data_size() override { return kFixedBodyLength + m_padding_size; }
 
 #ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;

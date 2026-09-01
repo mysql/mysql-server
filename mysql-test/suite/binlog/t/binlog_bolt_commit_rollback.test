@@ -7,6 +7,8 @@
 # === Requirements ===
 # R1. A rolled-back spilled transaction leaves no temporary file or binlog.
 # R2. Retrying the same four-insert transaction commits as one promoted binlog.
+# R2b. Two promotions back to back on one session each open their own binary
+#      log with a valid header.
 # R3. XA PREPARE resolves correctly through both XA COMMIT and XA ROLLBACK.
 # R4. XA COMMIT ONE PHASE and the implicit commit before DDL are promoted.
 # R5. A killed query after spill can roll back and retry on the same session.
@@ -102,7 +104,78 @@ COMMIT;
 --source include/assert.inc
 
 ############################################################################
-# Case 2: XA PREPARE followed by XA COMMIT.
+# Case 2: Two promotions back to back on the same session.
+#
+# A promoted commit resets its cache with the spilled file preserved, since
+# that file is now a binary log. This checks the cache is reusable afterwards:
+# a stale descriptor, reservation size or terminating-event offset carried into
+# the second transaction would corrupt its header while leaving the rows
+# intact, so both promoted files are validated.
+#
+# It is also the only case where a promotion's predecessor is itself a promoted
+# file, which the second promotion names itself after and chains its Rotate
+# event to.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # The first of two consecutive promotions on one session.
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_first_promoted = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $bolt_first_promoted
+--source ../inc/validate_bolt_header.inc
+
+--echo # The second promotion, whose predecessor is itself a promoted file.
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_second_promoted = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $bolt_second_promoted
+--source ../inc/validate_bolt_header.inc
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = Two consecutive transactions promote twice.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 2
+--source include/assert.inc
+--let $assert_text = Neither consecutive promotion is a missed optimization.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The first promotion leaves the original active binary log.
+--let $assert_cond = "$bolt_first_promoted" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = The second promotion opens a file of its own.
+--let $assert_cond = "$bolt_second_promoted" != "$bolt_first_promoted"
+--source include/assert.inc
+--let $assert_text = Both consecutive promotions commit all eight rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 8
+--source include/assert.inc
+--let $assert_text = Both consecutive promotions preserve every payload in full.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(y)) AS payload FROM t1, payload, 1] = 32000000
+--source include/assert.inc
+
+############################################################################
+# Case 3: XA PREPARE followed by XA COMMIT.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -135,7 +208,7 @@ XA COMMIT 'bolt_prepare_commit';
 --source include/assert.inc
 
 ############################################################################
-# Case 3: XA PREPARE followed by XA ROLLBACK.
+# Case 4: XA PREPARE followed by XA ROLLBACK.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -165,7 +238,7 @@ XA ROLLBACK 'bolt_prepare_rollback';
 --source include/assert.inc
 
 ############################################################################
-# Case 4: XA COMMIT ONE PHASE.
+# Case 5: XA COMMIT ONE PHASE.
 ############################################################################
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --echo # XA COMMIT ONE PHASE promotes and commits a large transaction once.
@@ -187,7 +260,7 @@ XA COMMIT 'bolt_one_phase' ONE PHASE;
 --source include/assert.inc
 
 ############################################################################
-# Case 5: Large DML transaction followed by DDL.
+# Case 6: Large DML transaction followed by DDL.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -216,7 +289,7 @@ CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB;
 --source include/assert.inc
 
 ############################################################################
-# Case 6: KILL QUERY after spill, rollback, and same-session retry.
+# Case 7: KILL QUERY after spill, rollback, and same-session retry.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -284,7 +357,7 @@ disconnect kill_blocker;
 connection default;
 
 ############################################################################
-# Case 7: Disconnect with an active spill, then retry from a new session.
+# Case 8: Disconnect with an active spill, then retry from a new session.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -335,7 +408,7 @@ connection default;
 --source include/wait_until_count_sessions.inc
 
 ############################################################################
-# Case 8: Statement error after spill, followed by rollback.
+# Case 9: Statement error after spill, followed by rollback.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -367,7 +440,7 @@ ROLLBACK;
 --source include/assert.inc
 
 ############################################################################
-# Case 9: A promoted file larger than max_binlog_size rotates immediately.
+# Case 10: A promoted file larger than max_binlog_size rotates immediately.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -403,7 +476,7 @@ SET GLOBAL max_binlog_size = 1073741824;
 SHOW BINARY LOGS;
 
 ############################################################################
-# Case 10: Five spilled transactions with regular commit and rollback.
+# Case 11: Five spilled transactions with regular commit and rollback.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;
@@ -487,7 +560,7 @@ connection default;
 --source include/assert.inc
 
 ############################################################################
-# Case 11: Five spilled XA branches with one-phase and prepared resolution.
+# Case 12: Five spilled XA branches with one-phase and prepared resolution.
 ############################################################################
 --disable_query_log
 TRUNCATE t1;

@@ -3,11 +3,16 @@
 #include "mysql/binlog/event/control_events.h"  // Format_description_event
 #include "mysql/binlog/event/event_reader_macros.h"
 
+/**
+  @file
+  @brief Deserialization of Large_transaction_header_event. The matching
+  serialization lives in the server class under sql/log_event.*
+*/
+
 namespace mysql::binlog::event {
 
-Large_transaction_header_event::
-    Large_transaction_header_event(
-        const char *buf, const Format_description_event *fde)
+Large_transaction_header_event::Large_transaction_header_event(
+    const char *buf, const Format_description_event *fde)
     : Binary_log_event(&buf, fde) {
   BAPI_ENTER(
       "Large_transaction_header_event::"
@@ -31,10 +36,9 @@ Large_transaction_header_event::
   BAPI_VOID_RETURN;
 }
 
-Large_transaction_header_event::
-    Large_transaction_header_event(uint64_t terminating_event_offset,
-                                   uint8_t terminating_event_type,
-                                   uint64_t padding_size)
+Large_transaction_header_event::Large_transaction_header_event(
+    uint64_t terminating_event_offset, uint8_t terminating_event_type,
+    uint64_t padding_size)
     : Binary_log_event(LARGE_TRANSACTION_HEADER_EVENT),
       m_terminating_event_offset(terminating_event_offset),
       m_terminating_event_type(terminating_event_type),

@@ -16,7 +16,7 @@
 
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
---let $messages = Could not optimize large transaction execution in the binary log because binary log encryption is enabled; standard binary logging was used instead.
+--let $messages = Could not optimize large transaction execution in the binary log because binary log encryption was enabled while the transaction was running; standard binary logging was used instead.
 --let $suppress_silent = 1
 --source include/suppress_messages.inc
 --let $suppress_silent =

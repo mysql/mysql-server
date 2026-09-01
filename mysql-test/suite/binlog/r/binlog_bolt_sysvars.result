@@ -3,7 +3,7 @@
 include/save_error_log_position.inc
 SET GLOBAL binlog_cache_size = 20971520;
 Warnings:
-Warning	6910	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size.
+Warning	6914	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size.
 include/assert_error_log.inc [server: 1, pattern: Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]]
 include/assert.inc [Increasing binlog_cache_size raises the optimization threshold.]
 include/save_error_log_position.inc
@@ -16,7 +16,7 @@ include/assert_error_log.inc [server: 1, pattern: Variable 'binlog_large_transac
 include/save_error_log_position.inc
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 Warnings:
-Warning	6910	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size.
+Warning	6914	Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size.
 include/assert_error_log.inc [server: 1, pattern: Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]]
 include/assert.inc [A lower optimization threshold is raised to match binlog_cache_size.]
 # Case 3: BOLT is ON; binlog_large_transaction_optimization_threshold > binlog_cache_size.
@@ -62,4 +62,34 @@ SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
 threshold
 22020096
 include/assert_error_log.inc [server: 1, pattern: NONE]
+# restart:
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# Case 7: Turning the knob off mid-transaction does not affect it.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+include/assert.inc [A transaction latched with the knob on still promotes after it is turned off.]
+include/assert.inc [The knob-off promotion commits all rows.]
+# Case 8: Turning the knob on mid-transaction does not affect it either.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+include/assert.inc [A transaction latched with the knob off does not promote after it is turned on.]
+include/assert.inc [A transaction latched with the knob off is not a missed optimization.]
+include/assert.inc [The knob-on transaction still commits all rows.]
+# Case 9: Raising the threshold mid-transaction does not affect it.
+SET GLOBAL binlog_large_transaction_optimization_threshold = 1073741824;
+include/assert.inc [A transaction latched below the threshold still promotes after it is raised.]
+include/assert.inc [The raised-threshold promotion commits all rows.]
+# Case 10: a cache emptied by a statement rollback re-reads the knob.
+BEGIN;
+COMMIT;
+include/assert.inc [The rolled-back statement left the cache empty.]
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+include/assert.inc [A cache emptied by a statement rollback does not promote the next transaction after the knob is turned off.]
+# Case 11: a cache emptied by a savepoint rollback re-reads the knob.
+BEGIN;
+SAVEPOINT s1;
+ROLLBACK TO SAVEPOINT s1;
+COMMIT;
+include/assert.inc [The savepoint rollback left the cache empty.]
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+include/assert.inc [A cache emptied by a savepoint rollback does not promote the next transaction after the knob is turned off.]
+DROP TABLE t1;
 # restart:

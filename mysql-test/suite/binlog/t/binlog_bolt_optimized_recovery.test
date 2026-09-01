@@ -57,6 +57,9 @@ COMMIT;
 --let $restart_parameters = $restart_parameters --binlog-large-transaction-optimization-enabled=ON
 --let $restart_parameters = $restart_parameters --binlog-large-transaction-optimization-threshold=10M
 --let $restart_parameters = $restart_parameters --max-binlog-size=1G
+# REPEAT() payloads compress to almost nothing, so a compressed cache would
+# never reach the threshold and the transaction would never be promoted.
+--let $restart_parameters = $restart_parameters --binlog-transaction-compression=OFF
 --source include/kill_and_restart_mysqld.inc
 
 --echo # Recovery logs the optimized large-transaction seek.

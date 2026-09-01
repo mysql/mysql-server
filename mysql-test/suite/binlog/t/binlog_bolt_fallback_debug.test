@@ -1,0 +1,208 @@
+#
+# === Purpose ===
+# Verify the BOLT fallback reasons that need a debug symbol to reach. The
+# reasons reachable by configuration are in binlog_bolt_fallback, which stays
+# release-capable by not sourcing have_debug.inc.
+#
+# === Requirements ===
+# R1. A pending logging incident prevents promotion, so the standard path can
+#     write the incident and force the rotation that goes with it.
+# R2. A binary log closed while the transaction was running prevents promotion,
+#     because there is no longer a file sequence to promote into.
+#
+# === Implementation ===
+# Spill a transaction above the 10 MiB threshold, force the condition with a
+# debug symbol, and check the two BOLT status counters, the reason reported in
+# the error log, and the committed rows.
+#
+# Neither condition is configurable: the incident producers that survive to
+# commit need a cache write failure on a statement that cannot roll back, and
+# closing the log mid-transaction needs a binary log write to fail while
+# binlog_error_action is IGNORE_ERROR.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression("An incident event has been written to the binary log");
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+
+# Setup
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_format = ROW;
+# REPEAT() payloads compress to almost nothing, so a compressed cache would
+# never reach the threshold and the transaction would never be promoted.
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: A pending logging incident.
+#
+# The group-commit flush is what writes an incident and force-rotates for it,
+# and promotion bypasses that flush, so a transaction carrying an incident must
+# fall back or the incident would never reach the binary log.
+#
+# Note the active binary log is expected to CHANGE here, unlike other fallback
+# cases: handling the incident requests a force rotation. A fresh session is
+# used because binlog_inject_incident fires once per session.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (incident_session, localhost, root,,);
+connection incident_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A transaction with a logging incident uses the standard commit path.
+SET SESSION debug = "+d,binlog_inject_incident";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,binlog_inject_incident";
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = An incident does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = An incident increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+# Not the usual "stays in the active file" assertion: handling the incident
+# requests a force rotation, so the standard path leaves a new active file.
+--let $assert_text = An incident fallback force-rotates to a new active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = An incident fallback commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = An incident fallback preserves the full payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 15000000
+--source include/assert.inc
+--exec grep -q "the transaction has a logging incident to report" $MYSQLTEST_VARDIR/log/mysqld.1.err
+connection default;
+disconnect incident_session;
+connection default;
+
+############################################################################
+# Case 2: The binary log was closed while the transaction was running.
+#
+# binlog_error_action=IGNORE_ERROR turns binary logging off for the rest of the
+# server process, which closes the log and leaves MYSQL_BIN_LOG::name null. A
+# transaction that had already spilled is still a promotion candidate -- the
+# captured knob, the spilled file and the byte position are all unchanged -- so
+# promote_spilled_file() has to decline instead of trying to generate the next
+# file name from a name that no longer exists.
+#
+# The victim is a bystander: the session whose transaction closes the log is a
+# different one, and it is the innocent session that would otherwise crash.
+#
+# This case is last, and is followed by a restart, because logging stays off
+# afterwards and the cleanup below needs it back.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $save_error_action = query_get_value(SELECT @@GLOBAL.binlog_error_action, @@GLOBAL.binlog_error_action, 1)
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+
+--echo # A session spills a large transaction and holds it open.
+connect (log_closed_session, localhost, root,,);
+connection log_closed_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+--enable_result_log
+--enable_query_log
+
+--echo # Another session's spill-sync failure turns logging off and closes the log.
+connection default;
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('d', 5000000));
+INSERT INTO t1 VALUES (12, REPEAT('e', 5000000));
+INSERT INTO t1 VALUES (13, REPEAT('f', 5000000));
+SET SESSION debug = "+d,fail_bolt_spill_file_sync";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_spill_file_sync";
+--enable_result_log
+--enable_query_log
+
+# Captured after the close, so only the bystander's commit moves them.
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+
+--echo # The held transaction commits through the standard path.
+connection log_closed_session;
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A closed binary log does not promote.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A closed binary log increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A closed-log fallback still commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
+--source include/assert.inc
+--let $assert_text = A closed-log fallback preserves the full payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 30000000
+--source include/assert.inc
+--exec grep -q "the binary log was closed while the transaction was running" $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+connection default;
+disconnect log_closed_session;
+connection default;
+# Logging is off from here, so restore it before the cleanup below.
+--disable_query_log
+--eval SET GLOBAL binlog_error_action = $save_error_action
+--enable_query_log
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET SESSION binlog_format = $save_binlog_format
+--eval SET SESSION binlog_transaction_compression = $save_compression
+RESET BINARY LOGS AND GTIDS;
+--enable_warnings
+--enable_query_log

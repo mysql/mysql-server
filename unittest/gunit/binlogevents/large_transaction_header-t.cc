@@ -43,9 +43,9 @@ class LargeTrxHeaderTest : public ::testing::Test {
   */
   std::vector<char> build_event(uint8_t version, uint64_t offset,
                                 uint8_t terminal_type, size_t padding_size) {
-    const size_t event_size =
-        LOG_EVENT_MINIMAL_HEADER_LEN +
-        Large_transaction_header_event::kFixedBodyLength + padding_size;
+    const size_t event_size = LOG_EVENT_MINIMAL_HEADER_LEN +
+                              Large_transaction_header_event::kFixedBodyLength +
+                              padding_size;
     std::vector<char> buf(event_size, '\0');
     uchar *p = reinterpret_cast<uchar *>(buf.data());
     int4store(p, 1755000000);  // timestamp
@@ -70,9 +70,8 @@ TEST_F(LargeTrxHeaderTest, DecodeRoundtrip) {
   const size_t paddings[] = {0, 1, 4096, 128 * 1024};
   for (uint64_t offset : offsets) {
     for (size_t padding : paddings) {
-      auto buf = build_event(
-          Large_transaction_header_event::kVersion, offset,
-          static_cast<uint8_t>(XID_EVENT), padding);
+      auto buf = build_event(Large_transaction_header_event::kVersion, offset,
+                             static_cast<uint8_t>(XID_EVENT), padding);
       Large_transaction_header_event ev(buf.data(), &m_fde);
       ASSERT_TRUE(ev.header()->get_is_valid());
       EXPECT_EQ(ev.get_version(), Large_transaction_header_event::kVersion);
@@ -94,8 +93,8 @@ TEST_F(LargeTrxHeaderTest, IgnorableFlagIsPreserved) {
 
 TEST_F(LargeTrxHeaderTest, RejectsUnknownVersion) {
   for (uint8_t bad_version : {uint8_t{0}, uint8_t{2}, uint8_t{255}}) {
-    auto buf = build_event(bad_version, 42, static_cast<uint8_t>(XID_EVENT),
-                           16);
+    auto buf =
+        build_event(bad_version, 42, static_cast<uint8_t>(XID_EVENT), 16);
     Large_transaction_header_event ev(buf.data(), &m_fde);
     EXPECT_FALSE(ev.header()->get_is_valid());
   }
