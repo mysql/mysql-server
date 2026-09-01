@@ -1,0 +1,66 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Feature contribution
+description: Propose an enhancement / new feature that you implement yourself
+labels: ["feature-contribution", "needs-triage", "enhancement"]
+body:
+  - type: markdown
+    id: doclink
+    attributes:
+      value: |
+          This issue is the entry point to your work involved in contributing a new feature or enhancement to MySQL.
+          The majority of your proposal, including high level and low level design, will be in an associated pull request.
+          After completing the below questions, please familiarize yourself with the chapter
+          [Proposal Design and Implementation using a single Pull Request](https://github.com/mysql/mysql-community/wiki/Proposal-Design-and-Implementation-using-a-single-Pull-Request)
+          in the [contributing guide](https://dev.mysql.com/community/contributing/).
+  - type: input
+    id: prnumber
+    attributes: 
+      label: Design review
+      description: The primary related pull request (once created)
+      placeholder: #1234567
+    validations:
+      required: false
+  - type: input
+    id: implementationpr
+    attributes: 
+      label: Implementation
+      description: Additional pull request(s) with implementation, if not included in the first pr
+      placeholder: #1234567
+    validations:
+      required: false
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: Describe the problem you are solving, or the motivation or need for this work.
+    validations: { required: true }
+  - type: textarea
+    id: background
+    attributes:
+      label: Background / Context
+      description: The context that leads to the motivation for this task. Skip if already covered above.
+    validations: { required: false }
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Intended outcome
+      description: What will have changed for the better, and how big or impactful is the change.
+    validations: { required: true }
+  - type: textarea
+    id: scope
+    attributes:
+      label: High level scope and dependencies
+      description: Which components in MySQL are affected? Which versions? Are other repos affected, or products. Other databases? Is there related work that must be done before this, or after this?
+    validations: { required: true }
+  - type: textarea
+    id: acceptancecriteria
+    attributes:
+      label: Acceptance criteria
+      description: How do we know the project succeeded? Again, save your detailed test specifications to the pull request design. Keep this high level.
+    validations: { required: true }
+
+  - type: markdown
+    id: doclink
+    attributes:
+      value: |
+          [Continue here (after you submit this issue)](https://github.com/mysql/mysql-community/wiki/Proposal-Design-and-Implementation-using-a-single-Pull-Request)
