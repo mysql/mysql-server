@@ -343,6 +343,8 @@ Requires:       perl(IO::Socket)
 Requires:       perl(IO::Socket::INET)
 Requires:       perl(JSON)
 Requires:       perl(Sys::Hostname)
+Requires:       perl(lib)
+Requires:       openssl
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
