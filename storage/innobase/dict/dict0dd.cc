@@ -909,6 +909,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
 
       dd::Properties &p = dd_index->se_private_data();
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+      p.set(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
     }
 
     /* Set new table id for dd columns */
