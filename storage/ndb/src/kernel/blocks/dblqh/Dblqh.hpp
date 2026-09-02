@@ -698,7 +698,7 @@ class Dblqh : public SimulatedBlock {
  */
 #define ZMAX_SCAN_DIRECT_COUNT 16
 
-#define DEBUG_FRAGMENT_LOCK 0
+// #define DEBUG_FRAGMENT_LOCK 1
 #define LOCK_LINE_MASK 2047
 #define LOCK_READ_SPIN_TIME 30
 #define LOCK_WRITE_SPIN_TIME 40
