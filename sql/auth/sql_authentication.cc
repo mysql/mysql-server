@@ -1290,7 +1290,6 @@ plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
 */
 int security_level(void) {
   int current_sec_level = 2;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
   /*
     create a temporary SSL_CTX, we're going to use it to fetch
     the current OpenSSL security level. So that we can generate
@@ -1311,7 +1310,6 @@ int security_level(void) {
 
   /* get rid of temp_ssl_ctx, we're done with it */
   SSL_CTX_free(temp_ssl_ctx);
-#endif
   DBUG_EXECUTE_IF("crypto_policy_3", current_sec_level = 3;);
   return current_sec_level;
 }
@@ -2521,7 +2519,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
       if (!(cert = SSL_get_peer_certificate(ssl))) return true;
       /* If X509 issuer is specified, we check it... */
       if (acl_user->x509_issuer) {
-        char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), nullptr, 0);
+        char *ptr = X509_NAME_oneline(
+            const_cast<X509_NAME *>(X509_get_issuer_name(cert)), nullptr, 0);
         DBUG_PRINT("info", ("comparing issuers: '%s' and '%s'",
                             acl_user->x509_issuer, ptr));
         if (strcmp(acl_user->x509_issuer, ptr)) {
@@ -2535,7 +2534,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
       }
       /* X509 subject is specified, we check it .. */
       if (acl_user->x509_subject) {
-        char *ptr = X509_NAME_oneline(X509_get_subject_name(cert), nullptr, 0);
+        char *ptr = X509_NAME_oneline(
+            const_cast<X509_NAME *>(X509_get_subject_name(cert)), nullptr, 0);
         DBUG_PRINT("info", ("comparing subjects: '%s' and '%s'",
                             acl_user->x509_subject, ptr));
         if (strcmp(acl_user->x509_subject, ptr)) {
@@ -2659,7 +2659,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   /* Safe because there is always a trailing \0 at the end of the packet */
   char *passwd = strend(user) + 1;
   size_t user_len = passwd - user - 1;
-  char *db = passwd;
+  char *db;
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];  // buffer to store user in utf8
   uint dummy_errors;
@@ -2678,7 +2678,14 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   */
   const size_t passwd_len = (uchar)(*passwd++);
 
-  db += passwd_len + 1;
+  /* The authentication response must be followed by the database name. */
+  DBUG_EXECUTE_IF("change_user_auth_response_too_short",
+                  end = passwd + passwd_len;);
+  if (passwd_len >= static_cast<size_t>(end - passwd)) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
+  db = passwd + passwd_len;
   /*
     Database name is always NUL-terminated, so in case of empty database
     the packet must contain at least the trailing '\0'.
@@ -2688,11 +2695,18 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     return true;
   }
 
-  size_t db_len = strlen(db);
+  DBUG_EXECUTE_IF("change_user_db_not_terminated", end = db + strlen(db););
 
-  char *ptr = db + db_len + 1;
+  char *db_end = (char *)memchr(db, '\0', end - db);
+  if (db_end == nullptr) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
+  size_t db_len = db_end - db;
 
-  if (ptr + 1 < end) {
+  char *ptr = db_end + 1;
+
+  if (end - ptr >= 2) {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       return true;
     // skip over the charset's 2 bytes
@@ -2742,16 +2756,25 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 
   const char *client_plugin;
   client_plugin = ptr;
-  /*
-    ptr needs to be updated to point to correct position so that
-    connection attributes are read properly.
-  */
-  ptr = ptr + strlen(client_plugin) + 1;
-
   if (client_plugin >= end) {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     return true;
   }
+
+  DBUG_EXECUTE_IF("change_user_plugin_not_terminated",
+                  end = ptr + strlen(ptr););
+
+  const char *plugin_end =
+      (const char *)memchr(client_plugin, '\0', end - client_plugin);
+  if (plugin_end == nullptr) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
+  /*
+    ptr needs to be updated to point to correct position so that
+    connection attributes are read properly.
+  */
+  ptr = const_cast<char *>(plugin_end) + 1;
 
   if (ptr > end) {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
@@ -5342,7 +5365,7 @@ class X509_gen {
     if (!X509_set_pubkey(x509, pkey)) goto err;
 
     /** Set CN value in subject */
-    name = X509_get_subject_name(x509);
+    name = X509_NAME_new();
     if (!name) goto err;
 
     if (!X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
@@ -5350,10 +5373,19 @@ class X509_gen {
                                     0))
       goto err;
 
+    if (!X509_set_subject_name(x509, name)) goto err;
+
     /** Set Issuer */
-    if (!X509_set_issuer_name(
-            x509, self_sign ? name : X509_get_subject_name(ca_x509)))
-      goto err;
+    {
+      const X509_NAME *issuer_name =
+          self_sign ? name : X509_get_subject_name(ca_x509);
+      if (!issuer_name) goto err;
+      if (!X509_set_issuer_name(x509, const_cast<X509_NAME *>(issuer_name)))
+        goto err;
+    }
+
+    X509_NAME_free(name);
+    name = nullptr;
 
     /** Add X509v3 extensions */
     X509V3_set_ctx(&v3ctx, self_sign ? x509 : ca_x509, x509, nullptr, nullptr,
@@ -5373,6 +5405,7 @@ class X509_gen {
 
     return x509;
   err:
+    if (name) X509_NAME_free(name);
     if (x509) X509_free(x509);
     return nullptr;
   }

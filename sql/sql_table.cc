@@ -13648,6 +13648,108 @@ static void set_column_static_defaults(TABLE *altered_table,
 }
 
 /**
+  Set the fields in an array to point to a new record buffer.
+
+  @param ptr      Array of fields to update, terminated by nullptr.
+  @param new_buf  New record buffer.
+  @param old_buf  Current record buffer.
+*/
+void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf) {
+  const ptrdiff_t diff = new_buf - old_buf;
+  DBUG_TRACE;
+
+  do {
+    (*ptr)->move_field_offset(diff);
+  } while (*(++ptr));
+}
+
+/**
+  Verify that all rows in a table satisfy another table's CHECK constraints.
+
+  @param table       Table containing the rows to verify.
+  @param check_table Table whose CHECK constraints are evaluated.
+
+  @return Operation status
+    @retval true   A row violates a CHECK constraint or a handler error occurs.
+    @retval false  All rows satisfy the enforced CHECK constraints.
+*/
+bool verify_data_with_check_constraints(TABLE *table, TABLE *check_table) {
+  handler *file;
+  int error;
+  uchar *old_rec;
+  DBUG_TRACE;
+  assert(table && table->file && check_table);
+
+  if (check_table->table_check_constraint_list == nullptr) return false;
+
+  bool has_enforced_check_constraint = false;
+  for (auto &table_cc : *check_table->table_check_constraint_list) {
+    if (table_cc.is_enforced()) {
+      has_enforced_check_constraint = true;
+      break;
+    }
+  }
+
+  if (!has_enforced_check_constraint) return false;
+
+  /* CHECK constraints can refer to any column in the row being scanned. */
+  table->use_all_columns();
+
+  file = table->file;
+  old_rec = check_table->record[0];
+  check_table->record[0] = table->record[0];
+  set_field_ptr(check_table->field, table->record[0], old_rec);
+
+  if ((error = file->ha_rnd_init(true))) {
+    file->print_error(error, MYF(0));
+    goto err;
+  }
+
+  do {
+    if ((error = file->ha_rnd_next(table->record[0]))) {
+      if (error == HA_ERR_RECORD_DELETED) continue;
+      if (error == HA_ERR_END_OF_FILE)
+        error = 0;
+      else
+        file->print_error(error, MYF(0));
+      break;
+    }
+
+    if (invoke_table_check_constraints(current_thd, check_table)) {
+      error = 1;
+      break;
+    }
+  } while (true);
+
+  (void)file->ha_rnd_end();
+err:
+  set_field_ptr(check_table->field, old_rec, table->record[0]);
+  check_table->record[0] = old_rec;
+  return error != 0;
+}
+
+/**
+  Compare generated-column expressions from different table definitions.
+
+  The Item trees of two opened tables refer to different Field instances, so
+  Item::eq() cannot be used for this metadata comparison. print_expr() emits
+  a canonical expression without database or table qualifiers.
+*/
+static bool generated_column_expressions_are_equal(
+    THD *thd, const Field *field, const Create_field *new_field) {
+  assert(field->is_gcol() && new_field->is_gcol());
+
+  String field_expression;
+  String new_field_expression;
+  field->gcol_info->print_expr(thd, &field_expression);
+  new_field->gcol_info->print_expr(thd, &new_field_expression);
+
+  return field_expression.length() == new_field_expression.length() &&
+         memcmp(field_expression.ptr(), new_field_expression.ptr(),
+                field_expression.length()) == 0;
+}
+
+/**
   Compare two tables to see if their metadata are compatible.
   One table specified by a TABLE instance, the other using Alter_info
   and HA_CREATE_INFO.
@@ -13718,6 +13820,13 @@ bool mysql_compare_tables(THD *thd, TABLE *table, Alter_info *alter_info,
                "Exchanging partitions for non-generated columns");
       return false;
     }
+
+    /* Generated column expressions must match to preserve their values and
+       index keys when the underlying tables are exchanged. */
+    if (tmp_new_field->is_gcol() != field->is_gcol() ||
+        (field->is_gcol() &&
+         !generated_column_expressions_are_equal(thd, field, tmp_new_field)))
+      return false;
 
     /* Check that NULL behavior is the same. */
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
@@ -16013,13 +16122,27 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       const Create_field *cfield;
       field_it.rewind();
       while ((cfield = field_it++)) {
+        bool matches_key_part = false;
         if (cfield->change) {
           if (!my_strcasecmp(system_charset_info, key_part_name,
                              cfield->change))
-            break;
+            matches_key_part = true;
         } else if (!my_strcasecmp(system_charset_info, key_part_name,
                                   cfield->field_name))
-          break;
+          matches_key_part = true;
+
+        if (!matches_key_part) continue;
+
+        /*
+          A user column can have the same name as the hidden column backing
+          a functional index. Keep searching until we find the hidden
+          Create_field that corresponds to the existing functional key part.
+        */
+        if (key_part->field->is_field_for_functional_index() &&
+            !is_field_for_functional_index(cfield))
+          continue;
+
+        break;
       }
       if (!cfield) {
         /*
@@ -16080,8 +16203,10 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                      ? ORDER_NOT_RELEVANT
                      : ORDER_ASC);
       if (key_part->field->is_field_for_functional_index()) {
+        assert(cfield->gcol_info != nullptr);
+        assert(cfield->gcol_info->expr_item != nullptr);
         key_parts.push_back(new (thd->mem_root) Key_part_spec(
-            cfield->field_name, key_part->field->gcol_info->expr_item, order));
+            cfield->field_name, cfield->gcol_info->expr_item, order));
       } else {
         key_parts.push_back(new (thd->mem_root) Key_part_spec(
             to_lex_cstring(cfield->field_name), key_part_length, order));

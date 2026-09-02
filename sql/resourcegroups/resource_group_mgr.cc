@@ -538,9 +538,9 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
     resourcegroups::Resource_group **dest_res_grp, MDL_ticket **ticket,
     MDL_ticket **cur_ticket) {
   bool switched = false;
-  auto res_grp_name = thd->resource_group_ctx()->m_switch_resource_group_str;
 
-  if (!opt_initialize && res_grp_name[0] != '\0') {
+  if (!opt_initialize && thd->lex->switch_resource_group != nullptr) {
+    auto res_grp_name = thd->lex->switch_resource_group;
     resourcegroups::Resource_group_mgr *mgr_instance =
         resourcegroups::Resource_group_mgr::instance();
 
@@ -548,7 +548,6 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
             thd, res_grp_name, MDL_EXPLICIT, ticket, false)) {
       LogErr(WARNING_LEVEL, ER_FAILED_TO_ACQUIRE_LOCK_ON_RESOURCE_GROUP,
              res_grp_name);
-      res_grp_name[0] = '\0';
       return false;
     }
 
@@ -591,7 +590,6 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
       LogErr(WARNING_LEVEL, ER_FAILED_TO_ACQUIRE_LOCK_ON_RESOURCE_GROUP,
              src_res_grp_str);
       mysql_mutex_unlock(&thd->LOCK_thd_data);
-      res_grp_name[0] = '\0';
       return false;
     }
     assert(*dest_res_grp != nullptr);

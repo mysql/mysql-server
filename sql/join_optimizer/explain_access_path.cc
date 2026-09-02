@@ -1930,6 +1930,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= obj->add_alias("tables", std::move(tables));
       error |=
           AddMemberToObject<Json_string>(obj, "semijoin_strategy", "weedout");
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "weedout");
       children->push_back({path->weedout().child});
       break;
     }

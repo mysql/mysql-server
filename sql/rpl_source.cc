@@ -127,20 +127,26 @@ resource_blocker::Resource &get_dump_thread_resource() {
 
 extern TYPELIB binlog_checksum_typelib;
 
-#define get_object(p, obj, msg)                  \
-  {                                              \
-    uint len;                                    \
-    if (p >= p_end) {                            \
-      my_error(ER_MALFORMED_PACKET, MYF(0));     \
-      return 1;                                  \
-    }                                            \
-    len = net_field_length_ll(&p);               \
-    if (p + len > p_end || len >= sizeof(obj)) { \
-      errmsg = msg;                              \
-      goto err;                                  \
-    }                                            \
-    strmake(obj, (char *)p, len);                \
-    p += len;                                    \
+#define get_object(p, obj, msg)                                         \
+  {                                                                     \
+    if (p >= p_end) {                                                   \
+      my_error(ER_MALFORMED_PACKET, MYF(0));                            \
+      return 1;                                                         \
+    }                                                                   \
+    /* net_field_length_ll() assumes a complete length field. */        \
+    const size_t length_size = net_field_length_size(p);                \
+    if (length_size > static_cast<size_t>(p_end - p)) {                 \
+      my_error(ER_MALFORMED_PACKET, MYF(0));                            \
+      return 1;                                                         \
+    }                                                                   \
+    const uint64_t len = net_field_length_ll(&p);                       \
+    if (len > static_cast<uint64_t>(p_end - p) || len >= sizeof(obj)) { \
+      errmsg = msg;                                                     \
+      goto err;                                                         \
+    }                                                                   \
+    const size_t object_length = static_cast<size_t>(len);              \
+    strmake(obj, (char *)p, object_length);                             \
+    p += object_length;                                                 \
   }
 
 // returns true if user successfully acquired a resource and false otherwise.
@@ -165,6 +171,83 @@ static bool check_and_report_dump_thread_blocked(
   my_message(ER_SOURCE_FATAL_ERROR_READING_BINLOG, all_msgs.c_str(), MYF(0));
   return false;
 }
+
+/// Check whether two dump-thread connections belong to the same authenticated
+/// replication account.
+///
+/// @param lhs First connection to compare.
+/// @param rhs Second connection to compare.
+///
+/// @retval true The authenticated account matches on both connections.
+/// @retval false The authenticated account differs or is unavailable.
+static bool same_authenticated_source_account(const THD *lhs, const THD *rhs) {
+  const Security_context *lhs_sctx = lhs->security_context();
+  const Security_context *rhs_sctx = rhs->security_context();
+  const auto lhs_user = lhs_sctx->priv_user();
+  const auto rhs_user = rhs_sctx->priv_user();
+  const auto lhs_host = lhs_sctx->priv_host();
+  const auto rhs_host = rhs_sctx->priv_host();
+
+  if (lhs_user.str == nullptr || rhs_user.str == nullptr ||
+      lhs_host.str == nullptr || rhs_host.str == nullptr) {
+    return false;
+  }
+
+  return strcmp(lhs_user.str, rhs_user.str) == 0 &&
+         my_strcasecmp(system_charset_info, lhs_host.str, rhs_host.str) == 0;
+}
+
+/// Report that a dump thread with the requested replica identity belongs to a
+/// different authenticated account.
+///
+/// @param replica_uuid Null-terminated replica UUID. This is empty when the
+/// client did not provide a UUID.
+/// @param replica_server_id Replica server ID used as the identity fallback
+/// when @p replica_uuid is empty.
+static void report_conflicting_dump_thread_owner(const char *replica_uuid,
+                                                 uint32 replica_server_id) {
+  my_error(ER_REPLICA_IDENTITY_CONFLICT, MYF(0), replica_uuid,
+           replica_server_id);
+}
+
+/// Reject a dump-thread identity owned by a different authenticated account.
+///
+/// @param thd New connection requesting the replica identity.
+/// @param existing_dump_thread Existing dump thread with the same identity.
+/// @param replica_uuid Null-terminated replica UUID, or an empty string when
+/// unavailable.
+///
+/// @retval true The existing dump thread belongs to a different account and
+/// an error was reported.
+/// @retval false Account affinity is disabled or the authenticated accounts
+/// match.
+static bool reject_conflicting_dump_thread_owner(
+    THD *thd, const THD *existing_dump_thread, const char *replica_uuid) {
+  if (!opt_rpl_dump_thread_account_affinity ||
+      same_authenticated_source_account(thd, existing_dump_thread)) {
+    return false;
+  }
+
+  report_conflicting_dump_thread_owner(replica_uuid, thd->server_id);
+  return true;
+}
+
+class Find_zombie_dump_thread;
+
+/// Find an existing dump thread with the same replica identity as the current
+/// connection.
+///
+/// A replica provides its UUID through the `replica_uuid` or legacy
+/// `slave_uuid` session user variable. An empty UUID occurs for direct dump
+/// clients that do not initialize either variable; those clients are matched
+/// by server ID.
+///
+/// @param replica_uuid Replica UUID, or an empty string when unavailable.
+///
+/// @retval THD_ptr holding the matching dump thread and its LOCK_thd_data.
+/// @retval THD_ptr{nullptr} if no dump thread has the same identity.
+static THD_ptr find_dump_thread_with_same_replica_identity(
+    const String &replica_uuid);
 
 /**
   Register slave in 'slave_list' hash table.
@@ -231,6 +314,17 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length) {
   if (get_replica_uuid(thd, &replica_uuid)) {
     si->valid_replica_uuid =
         !si->replica_uuid.parse(replica_uuid.c_ptr(), replica_uuid.length());
+  }
+
+  if (opt_rpl_dump_thread_account_affinity &&
+      (replica_uuid.length() != 0 || thd->server_id != 0)) {
+    THD_ptr existing_dump_thread =
+        find_dump_thread_with_same_replica_identity(replica_uuid);
+    if (existing_dump_thread &&
+        reject_conflicting_dump_thread_owner(thd, existing_dump_thread.get(),
+                                             replica_uuid.c_ptr())) {
+      return 1;
+    }
   }
 
   mysql_mutex_lock(&LOCK_replica_list);
@@ -998,7 +1092,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
   DBUG_PRINT("info",
              ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
-  kill_zombie_dump_threads(thd);
+  if (kill_zombie_dump_threads(thd)) return true;
 
   query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                                  packet + 10, (long)pos);
@@ -1026,6 +1120,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   char name[FN_REFLEN + 1];
   uint32 name_size = 0;
   char *gtid_string = nullptr;
+  unique_ptr_my_free<char> gtid_string_guard;
   const uchar *packet_position = (uchar *)packet;
   size_t packet_bytes_todo = packet_length;
   Tsid_map tsid_map(
@@ -1074,16 +1169,17 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
       RETURN_STATUS_OK)
     return true;
   slave_gtid_executed.to_string(&gtid_string);
+  gtid_string_guard.reset(gtid_string);
   DBUG_PRINT("info", ("Replica %d requested to read %s at position %" PRIu64
                       " gtid set "
                       "'%s'.",
                       thd->server_id, name, pos, gtid_string));
 
-  kill_zombie_dump_threads(thd);
+  if (kill_zombie_dump_threads(thd)) return true;
   query_logger.general_log_print(thd, thd->get_command(),
                                  "Log: '%s' Pos: %" PRIu64 " GTIDs: '%s'", name,
                                  pos, gtid_string);
-  my_free(gtid_string);
+  gtid_string_guard.reset();
   mysql_binlog_send(thd, name, (my_off_t)pos, &slave_gtid_executed, flags);
 
   unregister_replica(thd, true, true /*need_lock_slave_list=true*/);
@@ -1148,7 +1244,8 @@ String *get_replica_uuid(THD *thd, String *value) {
 */
 class Find_zombie_dump_thread : public Find_THD_Impl {
  public:
-  Find_zombie_dump_thread(String value) : m_replica_uuid(value) {}
+  explicit Find_zombie_dump_thread(String value) : m_replica_uuid(value) {}
+
   bool operator()(THD *thd) override {
     THD *cur_thd = current_thd;
     if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
@@ -1177,6 +1274,12 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
   String m_replica_uuid;
 };
 
+static THD_ptr find_dump_thread_with_same_replica_identity(
+    const String &replica_uuid) {
+  Find_zombie_dump_thread find_zombie_dump_thread(replica_uuid);
+  return Global_THD_manager::get_instance()->find_thd(&find_zombie_dump_thread);
+}
+
 /*
 
   Kill all Binlog_dump threads which previously talked to the same slave
@@ -1194,18 +1297,22 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
   SYNOPSIS
     kill_zombie_dump_threads()
     @param thd newly connected dump thread object
+    @retval false success, or no matching dump thread found
+    @retval true the reconnect conflicts with a different authenticated account
 
 */
 
-void kill_zombie_dump_threads(THD *thd) {
+bool kill_zombie_dump_threads(THD *thd) {
   String replica_uuid;
   get_replica_uuid(thd, &replica_uuid);
-  if (replica_uuid.length() == 0 && thd->server_id == 0) return;
+  if (replica_uuid.length() == 0 && thd->server_id == 0) return false;
 
-  Find_zombie_dump_thread find_zombie_dump_thread(replica_uuid);
-  THD_ptr tmp_ptr =
-      Global_THD_manager::get_instance()->find_thd(&find_zombie_dump_thread);
+  THD_ptr tmp_ptr = find_dump_thread_with_same_replica_identity(replica_uuid);
   if (tmp_ptr) {
+    if (reject_conflicting_dump_thread_owner(thd, tmp_ptr.get(),
+                                             replica_uuid.c_ptr()))
+      return true;
+
     /*
       Here we do not call kill_one_thread() as
       it will be slow because it will iterate through the list
@@ -1225,6 +1332,7 @@ void kill_zombie_dump_threads(THD *thd) {
     tmp_ptr->duplicate_slave_id = true;
     tmp_ptr->awake(THD::KILL_QUERY);
   }
+  return false;
 }
 
 /**

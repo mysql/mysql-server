@@ -1,3 +1,6 @@
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 SET DEBUG_SYNC = 'RESET';
 #
 # Bug#15863023 SUPPORT IN-PLACE EXTENSION OF VARCHAR COLUMN
@@ -381,3 +384,5 @@ SET restrict_fk_on_non_standard_key=ON;
 Warnings:
 Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC = 'RESET';
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

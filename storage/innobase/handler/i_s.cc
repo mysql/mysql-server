@@ -2712,7 +2712,7 @@ struct st_mysql_plugin i_s_innodb_ft_being_deleted = {
     STRUCT_FLD(flags, 0UL),
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED and
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE and
 INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
 Every time any column gets changed, added or removed, please remember
 to change i_s_innodb_plugin_version_postfix accordingly, so that
@@ -2763,14 +2763,13 @@ static ST_FIELD_INFO i_s_fts_index_fields_info[] = {
     END_OF_ST_FIELD_INFO};
 
 /** Go through the Doc Node and its ilist, fill the dynamic table
- INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED for one FTS index on the table.
- @return 0 on success, 1 on failure */
+ INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE for one FTS index on the table.
+ @return 0 on success, 2 if in-memory table is full, 1 on any other failure. */
 static int i_s_fts_index_cache_fill_one_index(
     fts_index_cache_t *index_cache, /*!< in: FTS index cache */
     THD *thd,                       /*!< in: thread */
-    Table_ref *tables)              /*!< in/out: tables to fill */
+    TABLE *table)                   /*!< in/out: table to fill */
 {
-  TABLE *table = (TABLE *)tables->table;
   Field **fields;
   CHARSET_INFO *index_charset;
   const ib_rbt_node_t *rbt_node;
@@ -2839,7 +2838,11 @@ static int i_s_fts_index_cache_fill_one_index(
 
           OK(fields[I_S_FTS_ILIST_DOC_POS]->store(pos, true));
 
-          OK(schema_table_store_record(thd, table));
+          const auto err = schema_table_store_record2(thd, table, false);
+          if (err == HA_ERR_RECORD_FILE_FULL) {
+            return 2;
+          }
+          OK(err);
         }
 
         ++ptr;
@@ -2851,7 +2854,7 @@ static int i_s_fts_index_cache_fill_one_index(
 
   return 0;
 }
-/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_cache_fill(
     THD *thd,          /*!< in: thread */
@@ -2886,10 +2889,10 @@ static int i_s_fts_index_cache_fill(
   if (!user_table) {
     return 0;
   }
+  Scope_guard close_user_table{
+      [&]() { dd_table_close(user_table, thd, &mdl, false); }};
 
   if (user_table->fts == nullptr || user_table->fts->cache == nullptr) {
-    dd_table_close(user_table, thd, &mdl, false);
-
     return 0;
   }
 
@@ -2897,24 +2900,46 @@ static int i_s_fts_index_cache_fill(
 
   ut_a(cache);
 
-  /* Check if cache is being synced.
-  Note: we wait till cache is being synced. */
-  while (cache->sync->in_progress) {
-    os_event_wait(cache->sync->event);
+  TABLE *table = tables->table;
+  ut_a(table != nullptr);
+  ut_a(table->next == nullptr);
+
+  fts_cache_lock_for_read(cache, UT_LOCATION_HERE);
+
+  /* In most cases this loop makes just one iteration. In case results do not
+  fit in memory, i_s_fts_index_cache_fill_one_index() returns 2, and we convert
+  the result table to on-disc. We don't want to do it under s-latch, to not
+  block others and to avoid a possibility of a deadlock due to latch-order
+  violation, so we temporarily release it. This in turn means another thread
+  might modify, or even free some of the cache's structures, making it difficult
+  to find the exact spot from which we should continue gathering of results.
+  Therefore, we simply empty the result table and start over from scratch in
+  such case, which is easier to reason about and avoids duplicates and holes. */
+  while (true) {
+    ut_ad(rw_lock_own(&cache->lock, RW_LOCK_S));
+    bool need_to_convert = false;
+    Vector_wrapper<fts_index_cache_t> indexes{*cache->indexes};
+    for (auto &index : indexes) {
+      auto err = i_s_fts_index_cache_fill_one_index(&index, thd, table);
+      DBUG_EXECUTE_IF("i_s_fts_index_cache_fill_out_of_memory", {
+        err = 2;
+        DBUG_SET("-d,i_s_fts_index_cache_fill_out_of_memory");
+      });
+      if (err == 2) {
+        need_to_convert = true;
+        break;
+      }
+    }
+    rw_lock_s_unlock(&cache->lock);
+    if (!need_to_convert) {
+      return 0;
+    }
+    if (convert_heap_table_to_ondisk(thd, table, HA_ERR_RECORD_FILE_FULL) ||
+        table->empty_result_table()) {
+      return 1;
+    }
+    rw_lock_s_lock(&cache->lock, UT_LOCATION_HERE);
   }
-
-  for (ulint i = 0; i < ib_vector_size(cache->indexes); i++) {
-    fts_index_cache_t *index_cache;
-
-    index_cache =
-        static_cast<fts_index_cache_t *>(ib_vector_get(cache->indexes, i));
-
-    i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
-  }
-
-  dd_table_close(user_table, thd, &mdl, false);
-
-  return 0;
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE

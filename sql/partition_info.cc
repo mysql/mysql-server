@@ -411,8 +411,15 @@ bool partition_info::can_prune_insert(
         that are constant for one execution (e.g. statement parameters) once
         execution has started. A value that is not yet evaluable defers the
         decision to the execution-time call.
+
+        Exception: bare DEFAULT (Item_default_value with no argument) must be
+        rejected explicitly by type. It never binds a Field pointer, so the
+        inherited Item_field::is_null()/val_int() would dereference null; and
+        for an AUTO_INCREMENT column DEFAULT requests a generated value, so
+        pruning is not possible anyway.
       */
-      if (!autoinc_value->may_evaluate_const(thd) || autoinc_value->is_null() ||
+      if (autoinc_value->type() == Item::DEFAULT_VALUE_ITEM ||
+          !autoinc_value->may_evaluate_const(thd) || autoinc_value->is_null() ||
           (autoinc_value->val_int() == 0 &&
            !(thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)))
         return false;

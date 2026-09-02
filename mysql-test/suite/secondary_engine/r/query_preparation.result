@@ -91,6 +91,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
 FLUSH STATUS;
 SELECT * FROM t1 JOIN t2 USING (id);
 id	x	y	z
@@ -988,6 +989,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`a` = <cache>(last_insert_id()))
 DROP TABLE t;
 SET @@sql_auto_is_null = @saved_sql_auto_is_null;
 # Bug#29288023: Join condition is substituted with REF access

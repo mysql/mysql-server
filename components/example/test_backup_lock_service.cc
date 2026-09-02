@@ -25,8 +25,6 @@
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/backup_lock_service.h>
 
-#include <cstdio>
-
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_backup_lock);
 
 /**
@@ -35,11 +33,15 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_backup_lock);
   @return Operation status
     @retval 0  Success
     @retval !=0  Failure
-*/
+ */
 
 mysql_service_status_t test_backup_lock_service_init() {
-  return mysql_service_mysql_backup_lock->acquire(
+  const bool acquire_failed = mysql_service_mysql_backup_lock->acquire(
       nullptr, BACKUP_LOCK_SERVICE_DEFAULT, 100);
+  if (acquire_failed) return 1;
+
+  const bool release_failed = mysql_service_mysql_backup_lock->release(nullptr);
+  return release_failed ? 1 : 0;
 }
 
 /**
@@ -48,10 +50,12 @@ mysql_service_status_t test_backup_lock_service_init() {
   @return Operation status
     @retval 0  Success
     @retval !=0  Failure
-*/
+ */
 
 mysql_service_status_t test_backup_lock_service_deinit() {
-  return mysql_service_mysql_backup_lock->release(nullptr);
+  // The backup lock is released during initialization so that acquisition and
+  // release use the same THD.
+  return 0;
 }
 
 /* An empty list as no service is provided. */

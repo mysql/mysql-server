@@ -69,10 +69,7 @@ class SimpleCpcClient {
   };
 
  private:
-  class ParserDummy : SocketServer::Session {
-   public:
-    ParserDummy(const NdbSocket &sock);
-  };
+  class ParserDummy : SocketServer::Session {};
 
   typedef Parser<ParserDummy> Parser_t;
   typedef ParserRow<ParserDummy> ParserRow_t;

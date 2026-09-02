@@ -1,0 +1,52 @@
+--source include/have_debug.inc
+--source include/count_sessions.inc
+--source include/not_hypergraph.inc
+
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  inquiry_id BIGINT UNSIGNED NOT NULL,
+  groupclients JSON NOT NULL,
+  PRIMARY KEY (id),
+  KEY inquiry_id_index (inquiry_id),
+  KEY groupclients_index ((CAST(groupclients AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+  (1, 99999, JSON_ARRAY(1)),
+  (2, 1, JSON_ARRAY(99999)),
+  (3, 99999, JSON_ARRAY(99999)),
+  (4, 1, JSON_ARRAY(1));
+
+--connect (con1,localhost,root,,)
+
+# Establish a read view before con1 inserts rows into both secondary indexes.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection con1
+SET cte_max_recursion_depth=2000;
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS
+  (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 2000)
+SELECT 10000 + n, 99999, JSON_ARRAY(99999) FROM seq;
+
+--connection default
+# Force InnoDB's page-boundary end-range check. The index-only MVI scan's
+# record buffer contains the scalar MVI key and primary key, but not the
+# typed-array virtual value needed by key_cmp().
+SET DEBUG='+d,compare_end_range';
+--replace_column 10 # 11 #
+EXPLAIN
+SELECT /*+ INDEX_MERGE(t1 inquiry_id_index, groupclients_index) */ id
+FROM t1
+WHERE inquiry_id = 99999 OR 99999 MEMBER OF(groupclients);
+--sorted_result
+SELECT /*+ INDEX_MERGE(t1 inquiry_id_index, groupclients_index) */ id
+FROM t1
+WHERE inquiry_id = 99999 OR 99999 MEMBER OF(groupclients);
+SET DEBUG='-d,compare_end_range';
+
+ROLLBACK;
+--disconnect con1
+
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

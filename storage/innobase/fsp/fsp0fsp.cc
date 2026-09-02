@@ -670,12 +670,9 @@ void fsp_init_file_page_low(buf_block_t *block) {
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
 
 #ifndef UNIV_HOTBACKUP
-  if (buf_page_get_state(&block->page) == BUF_BLOCK_FILE_PAGE) {
-    const space_id_t old_space_id = page_get_space_id(page);
-    const page_no_t old_page_no = page_get_page_no(page);
-
-    if (old_space_id == block->page.id.space() &&
-        old_page_no == block->page.id.page_no()) {
+  if (buf_page_get_state(&block->page) == BUF_BLOCK_FILE_PAGE &&
+      fil_page_get_type(page) != FIL_PAGE_TYPE_ALLOCATED) {
+    if (page_get_page_id(page) == block->page.id) {
       /* The frame still names this buffer page, so its old contents may have
       been counted by buf_stat_per_index. We are about to overwrite fields that
       define the accounting predicate; disown the old page before

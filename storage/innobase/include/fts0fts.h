@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "row0types.h"
 #include "trx0types.h"
+#include "ut0core.h"
 #include "ut0rbt.h"
 #include "ut0vec.h"
 #include "ut0wqueue.h"
@@ -728,6 +729,19 @@ void fts_cache_clear(fts_cache_t *cache);
 
 /** Initialize things in cache. */
 void fts_cache_init(fts_cache_t *cache); /*!< in: cache */
+
+/** Prevents concurrent modifications of the cache data structure provided by
+taking s-latch on it. Additionally enforces ordering (with any ongoing
+fts_sync()s) so that every document added to cache by transactions already
+committed before calling fts_cache_lock_for_read() will be visible in the cache
+during the critical section started with this call, or to a later SELECT from
+the aux table (or perhaps to both). That is, you can use this function to
+prevent a scenario where the cache appears to be already emptied by concurrent
+fts_sync(), but aux table doesn't yet contain the documents neither because
+fts_sync() has not yet committed its transaction.
+@param cache  The FTS cache to s-latch
+@param loc    The semantic location from which this function is called */
+void fts_cache_lock_for_read(fts_cache_t *cache, ut::Location loc);
 
 /** Rollback to and including savepoint identified by name. */
 void fts_savepoint_rollback(trx_t *trx,        /*!< in: transaction */

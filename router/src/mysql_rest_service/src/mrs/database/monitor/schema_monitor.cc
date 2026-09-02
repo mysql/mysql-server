@@ -461,17 +461,13 @@ SchemaMonitor::MetadataSourceDestination::get_rw_session() {
   }
 
   if (previous_destination_state_ != current_destination_state_) {
-    if (current_destination_state_ != DestinationState::k_ok) {
-      const std::string node_id =
-          current_destination_state_ != DestinationState::k_offline
-              ? result_session.get()->get_address()
-              : "";
-      log_warning("Node %s is %s, stopping the REST service", node_id.c_str(),
-                  (current_destination_state_ == DestinationState::k_read_only)
-                      ? "read-only"
-                      : "offline");
+    if (current_destination_state_ == DestinationState::k_read_only) {
+      log_warning("Destination %s is read-only, stopping the REST service",
+                  result_session.get()->get_address().c_str());
+    } else if (current_destination_state_ == DestinationState::k_offline) {
+      log_warning("Destination is offline, stopping the REST service");
     } else {
-      log_info("Node %s is not read-only nor offline",
+      log_info("Destination %s is available again",
                result_session.get()->get_address().c_str());
     }
     previous_destination_state_ = current_destination_state_;
@@ -488,12 +484,10 @@ bool SchemaMonitor::MetadataSourceDestination::handle_error() {
   try {
     throw;
   } catch (const mrs::database::QueryState::NoRows &exc) {
-    log_error("Can't refresh MRDS layout, because of the following error:%s.",
-              exc.what());
+    log_error("MRS metadata refresh failed: %s", exc.what());
     force_clear = true;
   } catch (const mysqlrouter::MySQLSession::Error &exc) {
-    log_error("Can't refresh MRDS layout, because of the following error:%s.",
-              exc.what());
+    log_error("MRS metadata refresh failed: %s", exc.what());
     if (exc.code() == ER_BAD_DB_ERROR || exc.code() == ER_NO_SUCH_TABLE) {
       force_clear = true;
     }
@@ -523,8 +517,7 @@ bool SchemaMonitor::MetadataSourceDestination::handle_error() {
         "metadata");
     force_clear = true;
   } catch (const std::exception &exc) {
-    log_error("Can't refresh MRDS layout, because of the following error:%s.",
-              exc.what());
+    log_error("MRS metadata refresh failed: %s", exc.what());
   }
 
   return force_clear;

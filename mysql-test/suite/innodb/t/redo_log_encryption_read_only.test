@@ -1,0 +1,61 @@
+################################################################################
+#
+# Verify that a read-only startup preserves an encrypted current redo block
+# when encryption is configured OFF. The transition must be deferred until the
+# next writable startup.
+#
+################################################################################
+
+--source include/have_perl_64bit_int.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--let $restart_parameters =
+
+DO innodb_redo_log_consumer_register();
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE = InnoDB;
+SET GLOBAL innodb_redo_log_encrypt = ON;
+INSERT INTO t1 VALUES (1, REPEAT('b', 6*512*512));
+
+# Capture the data directory while the server is running for the raw redo scans.
+--let MYSQLD_DATADIR = `SELECT @@datadir`
+
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+--disable_query_log
+call mtr.add_suppression("Failed to compress the gtid_executed table.");
+--enable_query_log
+--source include/shutdown_mysqld.inc
+
+--let $restart_parameters = restart: --innodb-read-only
+--source include/start_mysqld.inc
+
+SELECT @@global.innodb_redo_log_encrypt;
+SELECT a, LEFT(b, 8) FROM t1;
+
+--source include/shutdown_mysqld.inc
+
+# Verify that read-only startup did not rewrite the encrypted marker as
+# plaintext.
+--let REDO_MARKERS_NOT_VISIBLE_IN_PLAINTEXT = b
+--let REDO_MARKERS_VISIBLE_IN_PLAINTEXT =
+--source ../include/verify_redo_log_marker_encryption.inc
+
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+DO innodb_redo_log_consumer_register();
+INSERT INTO t1 VALUES (2, REPEAT('c', 6*512*512));
+
+--let $restart_parameters =
+--source include/kill_mysqld.inc
+
+--let REDO_MARKERS_NOT_VISIBLE_IN_PLAINTEXT = b
+--let REDO_MARKERS_VISIBLE_IN_PLAINTEXT = c
+--source ../include/verify_redo_log_marker_encryption.inc
+
+--source include/start_mysqld.inc
+
+SELECT a, LEFT(b, 8) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

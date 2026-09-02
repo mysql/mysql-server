@@ -37,6 +37,8 @@ EXPLAIN
 -> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=1.46 rows=1.14)
     -> Covering index range scan on t1 using PRIMARY over ('1999-07-01' <= event_date <= '1999-07-15' AND 100100 <= type)  (cost=1.46 rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where ((`test`.`t1`.`event_date` >= DATE'1999-07-01') and (`test`.`t1`.`event_date` < DATE'1999-07-15') and ((`test`.`t1`.`type` = 100600) or (`test`.`t1`.`type` = 100100))) order by `test`.`t1`.`event_date`
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 event_date	type	event_id
 1999-07-10	100100	24
@@ -1253,6 +1255,8 @@ EXPLAIN
         -> Index range scan on t1 using idx1 over (0 < b)  (cost=0.46 rows=2)
         -> Index range scan on t1 using idx2 over (c < 0)  (cost=0.36 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (0 not between `test`.`t1`.`b` and `test`.`t1`.`c`)
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
 item char(20) NOT NULL default '',                          
@@ -2001,6 +2005,8 @@ EXPLAIN
     -> Filter: (t2.pk between t1.i4 and t1.i4)  (cost=0.283 rows=1)
         -> Single-row index lookup on t2 using PRIMARY (pk = t1.i4)  (cost=0.283 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`t2`.`pk` AS `pk`,`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`t2`.`pk` between `test`.`t1`.`i4` and `test`.`t1`.`i4`)
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
 EXPLAIN
@@ -2279,6 +2285,8 @@ EXPLAIN
     -> Filter: (t2.pk < t1.pk)  (cost=0.267 rows=0.333)
         -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int)  (cost=0.267 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk
@@ -2300,6 +2308,8 @@ EXPLAIN
     -> Filter: ((t2.col_int_key = t1.col_int) and (t2.pk < t1.pk))  (cost=0.225 rows=2)
         -> Index range scan on t2 (re-planned for each iteration)  (cost=0.225 rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk
@@ -4107,6 +4117,8 @@ explain format=tree SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 < NULL;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` `t2` where (`t2`.`f1` < NULL)
 SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 < NULL;
 1
 explain format=tree SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 BETWEEN 2 AND 3;
@@ -4117,10 +4129,14 @@ EXPLAIN
         -> Filter: (t2.f1 between 2 and 3)  (rows=2)
             -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` `t2` where (`t2`.`f1` between 2 and 3)
 explain format=tree SELECT 1 FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` where (`test`.`t`.`f1` < NULL)
 SELECT 1 FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
 1
 explain format=tree SELECT 1
@@ -4132,10 +4148,14 @@ EXPLAIN
         -> Filter: (t.f1 between 2 and 3)  (rows=2)
             -> Covering index range scan on t using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` where (`test`.`t`.`f1` between 2 and 3)
 explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 < NULL;
 EXPLAIN
 -> Covering index scan on t1 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on((`t2`.`f1` < NULL)) where true
 SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 < NULL;
 1
 1
@@ -4150,6 +4170,8 @@ EXPLAIN
         -> Filter: (t2.f1 between 2 and 3)  (rows=2)
             -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on((`t2`.`f1` between 2 and 3)) where true
 explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
 EXPLAIN
 -> Left hash join (no condition)  (rows=4)
@@ -4158,6 +4180,8 @@ EXPLAIN
         -> Filter: (t.f1 < NULL)  (rows=4)
             -> Covering index scan on t using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t`) on(((`test`.`t`.`f1` < NULL))) where true
 SELECT 1 FROM t AS t1 LEFT JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
 1
 1
@@ -4174,6 +4198,8 @@ EXPLAIN
         -> Filter: (t2.f1 between 2 and 3)  (rows=2)
             -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2`) on(((`t2`.`f1` between 2 and 3))) where true
 explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (t1.f1 < NULL)  (rows=16)
@@ -4181,6 +4207,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on((`t1`.`f1` < NULL)) where true
 SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
 1
 1
@@ -4194,10 +4222,14 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on((`t1`.`f1` between 2 and 3)) where true
 explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 < NULL;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) where (`t1`.`f1` < NULL)
 SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 < NULL;
 1
 explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 BETWEEN 2 AND 3;
@@ -4208,10 +4240,14 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) where (`t1`.`f1` between 2 and 3)
 explain format=tree SELECT 1 FROM (SELECT * FROM t WHERE f1 < NULL) AS t1 LEFT JOIN t AS t2 ON TRUE;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` left join `test`.`t` `t2` on(true) where (`test`.`t`.`f1` < NULL)
 SELECT 1 FROM (SELECT * FROM t WHERE f1 < NULL) AS t1 LEFT JOIN t AS t2 ON TRUE;
 1
 explain format=tree SELECT 1
@@ -4223,6 +4259,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` left join `test`.`t` `t2` on(true) where (`test`.`t`.`f1` between 2 and 3)
 explain format=tree SELECT 1 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (t.f1 < NULL)  (rows=16)
@@ -4230,6 +4268,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` left join `test`.`t` `t2` on((`test`.`t`.`f1` < NULL)) where true
 SELECT 1 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
 1
 1
@@ -4244,12 +4284,16 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` left join `test`.`t` `t2` on((`test`.`t`.`f1` between 2 and 3)) where true
 explain format=tree SELECT 1
 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
 WHERE t1.f1 < NULL;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` left join `test`.`t` `t2` on(true) where (`test`.`t`.`f1` < NULL)
 SELECT 1
 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
 WHERE t1.f1 < NULL;
@@ -4264,6 +4308,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` left join `test`.`t` `t2` on(true) where (`test`.`t`.`f1` between 2 and 3)
 explain format=tree SELECT 1
 FROM t AS t1 LEFT JOIN
 t AS t2 JOIN t AS t3 ON t2.f1 < NULL
@@ -4278,6 +4324,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t2`.`f1` < NULL))) where true
 SELECT 1
 FROM t AS t1 LEFT JOIN
 t AS t2 JOIN t AS t3 ON t2.f1 < NULL
@@ -4301,6 +4349,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index scan on t3 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t3`.`f1` < NULL))) where true
 SELECT 1
 FROM t AS t1 LEFT JOIN
 t AS t2 JOIN t AS t3 ON t3.f1 < NULL
@@ -4324,6 +4374,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t2`.`f1` between 2 and 3))) where true
 explain format=tree SELECT 1
 FROM t AS t1 LEFT JOIN
 t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
@@ -4338,6 +4390,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t3`.`f1` between 2 and 3))) where true
 explain format=tree SELECT 1
 FROM t AS t1 LEFT JOIN
 (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL) AS t4
@@ -4352,6 +4406,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index scan on t2 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t2`.`f1` < NULL))) where true
 SELECT 1
 FROM t AS t1 LEFT JOIN
 (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL) AS t4
@@ -4375,6 +4431,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index scan on t3 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t3`.`f1` < NULL))) where true
 SELECT 1
 FROM t AS t1 LEFT JOIN
 (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL) AS t4
@@ -4398,6 +4456,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t2`.`f1` between 2 and 3))) where true
 explain format=tree SELECT 1
 FROM t AS t1 LEFT JOIN
 (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3) AS t4
@@ -4412,6 +4472,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`t3`.`f1` between 2 and 3))) where true
 explain format=tree SELECT 1
 FROM t AS t1 LEFT JOIN
 t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL
@@ -4424,6 +4486,8 @@ EXPLAIN
         -> Filter: (t3.f1 < NULL)  (rows=1)
             -> Covering index scan on t3 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`f1` < NULL))) on((`t2`.`f1` = `t1`.`f1`)) where true
 SELECT 1
 FROM t AS t1 LEFT JOIN
 t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL
@@ -4446,6 +4510,8 @@ EXPLAIN
             -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                 -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`f1` between 2 and 3))) on((`t2`.`f1` = `t1`.`f1`)) where true
 explain format=tree SELECT 1
 FROM t AS t1 LEFT JOIN
 (SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL) AS t4
@@ -4458,6 +4524,8 @@ EXPLAIN
         -> Filter: (t3.f1 < NULL)  (rows=1)
             -> Covering index scan on t3 using f1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`f1` < NULL))) on((`t2`.`f1` = `t1`.`f1`)) where true
 SELECT 1
 FROM t AS t1 LEFT JOIN
 (SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL) AS t4
@@ -4481,6 +4549,8 @@ EXPLAIN
             -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                 -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`f1` between 2 and 3))) on((`t2`.`f1` = `t1`.`f1`)) where true
 explain format=tree SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 < NULL);
 EXPLAIN
 -> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
@@ -4488,6 +4558,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `test`.`t`.`f1` from `test`.`t` where ((`test`.`t`.`f1` < NULL) and (<cache>(`test`.`t`.`f2`) = `test`.`t`.`f1`))))
 SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 < NULL);
 1
 explain format=tree SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3);
@@ -4499,6 +4571,8 @@ EXPLAIN
             -> Filter: (t.f1 between 2 and 3)
                 -> Covering index lookup on t using f1 (f1 = <cache>(t.f2))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(<index_lookup>(<cache>(`test`.`t`.`f2`) in t on f1 where (`test`.`t`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t
 WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 < NULL) AS t2);
@@ -4508,6 +4582,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `test`.`t`.`f1` from `test`.`t` where ((<cache>(`test`.`t`.`f2`) = `test`.`t`.`f1`) and (`test`.`t`.`f1` < NULL))))
 SELECT 1
 FROM t
 WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 < NULL) AS t2);
@@ -4523,6 +4599,8 @@ EXPLAIN
             -> Filter: (t.f1 between 2 and 3)
                 -> Covering index lookup on t using f1 (f1 = <cache>(t.f2))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(<index_lookup>(<cache>(`test`.`t`.`f2`) in t on f1 where (`test`.`t`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t
 WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL);
@@ -4532,6 +4610,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t2`.`f1` < NULL))))
 SELECT 1
 FROM t
 WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL);
@@ -4545,6 +4625,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t3`.`f1` < NULL))))
 SELECT 1
 FROM t
 WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL);
@@ -4563,6 +4645,8 @@ EXPLAIN
                     -> Filter: (t2.f1 between 2 and 3)  (rows=1)
                         -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t2`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t
 WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3);
@@ -4577,6 +4661,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t3`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t
 WHERE f2 IN (SELECT t4.f1
@@ -4589,6 +4675,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t2`.`f1` < NULL))))
 SELECT 1
 FROM t
 WHERE f2 IN (SELECT t4.f1
@@ -4608,6 +4696,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t3`.`f1` < NULL))))
 SELECT 1
 FROM t
 WHERE f2 IN (SELECT t4.f1
@@ -4633,6 +4723,8 @@ EXPLAIN
                     -> Filter: (t2.f1 between 2 and 3)  (rows=1)
                         -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t2`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t
 WHERE f2 IN (SELECT t4.f1
@@ -4651,6 +4743,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where <in_optimizer>(`test`.`t`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t` `t2` join `test`.`t` `t3` where ((<cache>(`test`.`t`.`f2`) = `t2`.`f1`) and (`t3`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT * FROM t AS t2 WHERE t2.f1 < NULL AND t1.f1 = t2.f1);
@@ -4662,6 +4756,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` where ((`t2`.`f1` < NULL) and (`t1`.`f1` = `t2`.`f1`))))
 SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT * FROM t AS t2 WHERE t2.f1 < NULL AND t1.f1 = t2.f1);
@@ -4685,6 +4780,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` where ((`t2`.`f1` between 2 and 3) and (`t1`.`f1` = `t2`.`f1`))))
 explain format=tree SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4699,6 +4795,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` where ((`t1`.`f1` = `t2`.`f1`) and (`t2`.`f1` < NULL))))
 SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4727,6 +4824,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` where ((`t1`.`f1` = `t2`.`f1`) and (`t2`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4740,6 +4838,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t2`.`f1` < NULL))))
 SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4763,6 +4862,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t3`.`f1`) and (`t3`.`f1` < NULL))))
 SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4791,6 +4891,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t2`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4809,6 +4910,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t3`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4824,6 +4926,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t2`.`f1` < NULL))))
 SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4851,6 +4954,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t3`.`f1` < NULL))))
 SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4884,6 +4988,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t2`.`f1` between 2 and 3))))
 explain format=tree SELECT 1
 FROM t AS t1
 WHERE NOT EXISTS (SELECT *
@@ -4905,6 +5010,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` where (not exists(/* select#2 */ select 1 from `test`.`t` `t2` join `test`.`t` `t3` where ((`t1`.`f1` = `t2`.`f1`) and (`t3`.`f1` between 2 and 3))))
 DROP TABLE t;
 #
 # Bug#36705030: prepared statement encounter performance degradation
@@ -4964,12 +5070,16 @@ EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL)
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f1`,`test`.`t1`.`f2`,`test`.`t1`.`f3`) in ((1,1,NULL),(2,2,NULL)))
 SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL));
 f1
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL)) AND f1 = 1;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f1`,`test`.`t1`.`f2`,`test`.`t1`.`f3`) in ((1,1,NULL),(2,2,NULL))) and multiple equal(1, `test`.`t1`.`f1`))
 SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL)) AND f1 = 1;
 f1
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1));
@@ -4977,6 +5087,8 @@ EXPLAIN
 -> Filter: ((t1.f1,t1.f2,t1.f3) in ((1,1,NULL),(2,2,NULL),(1,1,1)))  (rows=1)
     -> Covering index range scan on t1 using f1 over (f1 = 1 AND f2 = 1 AND f3 = 1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f1`,`test`.`t1`.`f2`,`test`.`t1`.`f3`) in ((1,1,NULL),(2,2,NULL),(1,1,1)))
 SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1));
 f1
 1
@@ -4985,6 +5097,8 @@ EXPLAIN
 -> Filter: ((t1.f1 = 1) and ((t1.f1,t1.f2,t1.f3) in ((1,1,NULL),(2,2,NULL),(1,1,1))))  (rows=1)
     -> Covering index range scan on t1 using f1 over (f1 = 1 AND f2 = 1 AND f3 = 1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f1` = 1) and ((`test`.`t1`.`f1`,`test`.`t1`.`f2`,`test`.`t1`.`f3`) in ((1,1,NULL),(2,2,NULL),(1,1,1))))
 SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1)) AND f1 = 1;
 f1
 1
@@ -5002,6 +5116,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 IN ('012345678901234567');
 EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `f1` from `test`.`t1` where multiple equal('012345678901234567', NULL)
 SELECT * FROM t1 WHERE f1 IN ('012345678901234567');
 f1
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 IN ('012345678901234567', 'a');
@@ -5009,6 +5125,8 @@ EXPLAIN
 -> Filter: (t1.f1 in ('012345678901234567','a'))  (rows=2)
     -> Covering index range scan on t1 using PRIMARY over (f1 = '0123456789012345') OR (f1 = 'a')  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` in ('012345678901234567','a'))
 SELECT * FROM t1 WHERE f1 IN ('012345678901234567', 'a');
 f1
 a
@@ -5029,6 +5147,8 @@ EXPLAIN
 -> Filter: (t1.f1 in ('defg4','efgh5'))  (rows=2)
     -> Index range scan on t1 using k1 over (f1 = 'defg') OR (f1 = 'efgh')  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` in ('defg4','efgh5'))
 SELECT f1, f2 FROM t1 WHERE f1 IN ('defg4', 'efgh5');
 f1	f2
 defg4	x
@@ -5038,6 +5158,8 @@ EXPLAIN
 -> Filter: (t1.f1 in ('defg4','efgh5'))  (rows=2)
     -> Index range scan on t1 using k1 over (f1 = 'defg') OR (f1 = 'efgh')  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` FORCE INDEX (`k1`) where (`test`.`t1`.`f1` in ('defg4','efgh5'))
 SELECT f1, f2 FROM t1 FORCE INDEX(k1) WHERE f1 IN ('defg4', 'efgh5');
 f1	f2
 defg4	x
@@ -5062,6 +5184,8 @@ EXPLAIN
 -> Filter: ((t2.f1 = 2) and (t2.f2 <= <cache>(('2' + 2))) and (t2.f2 >= '2'))  (cost=0.861 rows=3)
     -> Covering index range scan on t2 using PRIMARY over (f1 = 2 AND 2 <= f2 <= 4)  (cost=0.861 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = 2) and (`test`.`t2`.`f2` <= <cache>(('2' + 2))) and (`test`.`t2`.`f2` >= '2'))
 SELECT t2.f2 FROM t1 JOIN t2
 WHERE t2.f1 = 2 AND t2.f2 <= t1.f2 + 2
 AND t2.f1 = t1.f1 AND t2.f2 >= t1.f2;

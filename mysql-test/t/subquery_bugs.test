@@ -2217,3 +2217,62 @@ SELECT c1, c2 FROM t1
        (SELECT c1, c2 FROM t2 WHERE c1 = (SELECT c1 FROM t3));
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#38249983: Select Query is showing wrong column name alias
+--echo #                from sub-query
+--echo #
+
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+SELECT dt.*, a AS b
+FROM (
+  SELECT 1 AS a
+  FROM t1
+  ORDER BY RAND()
+) AS dt;
+
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT 1 AS a
+  FROM t1
+) AS dt;
+
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT ABS(1) AS a
+  FROM t1
+) AS dt;
+
+CREATE TABLE t2 AS
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT ABS(1) AS a
+  FROM t1
+) AS dt;
+SELECT COLUMN_NAME, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2'
+ORDER BY ORDINAL_POSITION;
+DROP TABLE t2;
+
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT (SELECT 1) AS a
+  FROM t1
+) AS dt;
+
+SET @bug38249983_arg = 1;
+PREPARE bug38249983_stmt FROM
+  'SELECT DISTINCT dt.*, a AS b
+   FROM (
+     SELECT ? AS a
+     FROM t1
+   ) AS dt';
+EXECUTE bug38249983_stmt USING @bug38249983_arg;
+SET @bug38249983_arg = 2;
+EXECUTE bug38249983_stmt USING @bug38249983_arg;
+DEALLOCATE PREPARE bug38249983_stmt;
+
+DROP TABLE t1;

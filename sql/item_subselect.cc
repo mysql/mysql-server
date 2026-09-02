@@ -2989,6 +2989,15 @@ std::optional<ContainedSubquery> Item_in_subselect::get_contained_subquery(
       query_block->subquery_strategy(current_thd) ==
           Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
 
+  // 'path' is the plan with injected IN-to-EXISTS conditions. When the
+  // subquery is materialized those conditions are removed and the
+  // no-in2exists plan is executed instead; expose it so the cost model can
+  // charge the correct one-time build cost.
+  AccessPath *path_no_in2exists = nullptr;
+  if (materializable && query_block->join != nullptr) {
+    path_no_in2exists = query_block->join->root_access_path_no_in2exists();
+  }
+
   int row_width = 0;
   for (const Item *qb_item : query_block->fields) {
     row_width += std::min<size_t>(qb_item->max_length, kMaxItemLengthEstimate);
@@ -2997,7 +3006,7 @@ std::optional<ContainedSubquery> Item_in_subselect::get_contained_subquery(
       {path,
        materializable ? ContainedSubquery::Strategy::kMaterializable
                       : ContainedSubquery::Strategy::kNonMaterializable,
-       row_width});
+       row_width, path_no_in2exists});
 }
 
 bool is_quantified_comp_predicate(Item *item) {

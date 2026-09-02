@@ -1,0 +1,30 @@
+CREATE TABLE t1 (
+id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+title TEXT,
+body TEXT,
+FULLTEXT KEY (title),
+FULLTEXT KEY (body)
+) ENGINE=InnoDB;
+INSERT INTO t1(title, body) VALUES ('alpha beta', 'gamma delta epsilon');
+SET GLOBAL innodb_ft_aux_table='test/t1';
+SELECT WORD,POSITION FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+WORD	POSITION
+alpha	0
+beta	6
+delta	6
+epsilon	12
+gamma	0
+SET SESSION DEBUG = '+d,i_s_fts_index_cache_fill_out_of_memory';
+SELECT WORD,POSITION FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+WORD	POSITION
+alpha	0
+beta	6
+delta	6
+epsilon	12
+gamma	0
+SET SESSION DEBUG = '+d,i_s_fts_index_cache_fill_out_of_memory,raise_error';
+SELECT WORD,POSITION FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+ERROR 23000: Can't write; duplicate key in table 'tmp_table'
+SET SESSION DEBUG = '-d,raise_error';
+SET GLOBAL innodb_ft_aux_table=default;
+DROP TABLE t1;

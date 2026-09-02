@@ -489,7 +489,10 @@ int ndbxfrm_file::close(bool abort) {
       }
     }
   } else if (!abort && m_file_op == OP_READ_FORW) {
-    if (m_data_pos != m_data_size) {
+    const bool size_is_32bit = (m_file_format == FF_AZ31);
+    bool size_match = (m_data_pos == m_data_size);
+    if (size_is_32bit) size_match = (Uint32(m_data_pos) == Uint32(m_data_size));
+    if (!size_match) {
       // Whole file was not consumed
       clear_last_os_error();
       return -1;

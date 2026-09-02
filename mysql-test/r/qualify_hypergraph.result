@@ -16,6 +16,8 @@ EXPLAIN
         -> Sort: t1.a, t1.b, t1.c  (rows=15)
             -> Table scan on t1  (rows=15)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,row_number() OVER (PARTITION BY `test`.`t1`.`a` ORDER BY `test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c` )  AS `rnk` from `test`.`t1` qualify (`rnk` > 1)
 SELECT a, b, c, ROW_NUMBER() OVER (PARTITION BY a ORDER BY a,b,c) AS rnk
 FROM t1 QUALIFY rnk>1;
 a	b	c	rnk

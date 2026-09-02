@@ -6059,8 +6059,12 @@ void Dbtc::commitGciHandling(Signal *signal, Uint64 Tgci,
   Ptr<ApiConnectRecord> regApiPtr = apiConnectptr;
   regApiPtr.p->globalcheckpointid = Tgci;
 
+  const bool nfhandling = (c_ongoing_take_over_cnt > 0);
   LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
   if (gcp_list.first(localGcpPointer)) {
+    GcpRecordPtr prevGcpPointer;
+    prevGcpPointer.i = RNIL;
+
     /* IF THIS GLOBAL CHECKPOINT ALREADY EXISTS */
     do {
       if (regApiPtr.p->globalcheckpointid == localGcpPointer.p->gcpId) {
@@ -6070,6 +6074,47 @@ void Dbtc::commitGciHandling(Signal *signal, Uint64 Tgci,
       }
       if (unlikely(
               !(regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId))) {
+        if (nfhandling) {
+          jam();
+          /*
+           * TC takeover can commit an older GCI after a newer GCI has already
+           * been added. Reopen the older GCI in sorted order.
+           */
+          GcpRecordPtr tmpGcpPointer;
+          if (unlikely(!c_gcpRecordPool.seize(tmpGcpPointer))) {
+            g_eventLogger->info("%u/%u", Uint32(Tgci >> 32), Uint32(Tgci));
+            crash_gcp(__LINE__, "Too many active global checkpoints.");
+          }
+          tmpGcpPointer.p->gcpId = Tgci;
+          tmpGcpPointer.p->apiConnectList.init();
+          tmpGcpPointer.p->gcpNomoretransRec = ZFALSE;
+
+          if (prevGcpPointer.i != RNIL) {
+            ndbrequire(prevGcpPointer.p->gcpId < Tgci);
+            ndbrequire(localGcpPointer.p->gcpId > Tgci);
+            g_eventLogger->info(
+                "DBTC %u: TC takeover reopening GCI %u/%u between "
+                "%u/%u and %u/%u",
+                instance(), Uint32(Tgci >> 32), Uint32(Tgci),
+                Uint32(prevGcpPointer.p->gcpId >> 32),
+                Uint32(prevGcpPointer.p->gcpId),
+                Uint32(localGcpPointer.p->gcpId >> 32),
+                Uint32(localGcpPointer.p->gcpId));
+            gcp_list.insertAfter(tmpGcpPointer, prevGcpPointer);
+            ndbassert(tmpGcpPointer.p->nextList == localGcpPointer.i);
+          } else {
+            ndbrequire(localGcpPointer.p->gcpId > Tgci);
+            g_eventLogger->info(
+                "DBTC %u: TC takeover reopening GCI %u/%u "
+                "before %u/%u",
+                instance(), Uint32(Tgci >> 32), Uint32(Tgci),
+                Uint32(localGcpPointer.p->gcpId >> 32),
+                Uint32(localGcpPointer.p->gcpId));
+            gcp_list.addFirst(tmpGcpPointer);
+          }
+          linkApiToGcp(tmpGcpPointer, regApiPtr);
+          return;
+        }
         g_eventLogger->info("%u/%u %u/%u",
                             Uint32(regApiPtr.p->globalcheckpointid >> 32),
                             Uint32(regApiPtr.p->globalcheckpointid),
@@ -6079,6 +6124,7 @@ void Dbtc::commitGciHandling(Signal *signal, Uint64 Tgci,
                   "Can not find global checkpoint record for commit.");
       }
       jam();
+      prevGcpPointer = localGcpPointer;
     } while (gcp_list.next(localGcpPointer));
   }
 
@@ -6452,6 +6498,18 @@ void Dbtc::sendApiCommitSignal(Signal *signal,
 /*-------------------------------------------------------*/
 Ptr<Dbtc::ApiConnectRecord> Dbtc::sendApiCommitAndCopy(
     Signal *signal, ApiConnectRecordPtr const apiConnectptr) {
+  if (ERROR_INSERTED(8129)) {
+    /**
+     * Leave a committed, not completed transaction behind for TC takeover.
+     * The COMPLETE phase is delayed in complete010Lab() using the same
+     * error insert.  Unlike 8055 this does not disconnect the API node.
+     */
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 6000, 1);
+
+    goto err8055;
+  }
+
   if (ERROR_INSERTED(8055)) {
     /**
      * 1) Kill self
@@ -6586,6 +6644,29 @@ void Dbtc::complete010Lab(Signal *signal,
                           ApiConnectRecordPtr const apiConnectptr) {
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecord *const regApiPtr = apiConnectptr.p;
+
+#ifdef ERROR_INSERT
+  // Delay complete010Lab once by 10s
+  if (ERROR_INSERTED_CLEAR(8129)) {
+    jam();
+    signal->theData[0] = TcContinueB::ZSEND_COMPLETE_LOOP;
+    signal->theData[1] = apiConnectptr.i;
+    signal->theData[2] = tcConnectptr.i;
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10000, 3);
+    return;
+  }
+
+  // Delay complete010Lab once by 10s, leaving error insert set
+  if (ERROR_INSERTED(8130) && ERROR_INSERT_EXTRA == 0) {
+    jam();
+    ERROR_INSERT_EXTRA = 1;
+    signal->theData[0] = TcContinueB::ZSEND_COMPLETE_LOOP;
+    signal->theData[1] = apiConnectptr.i;
+    signal->theData[2] = tcConnectptr.i;
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10000, 3);
+    return;
+  }
+#endif
 
   localTcConnectptr.p = tcConnectptr.p;
   setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
@@ -9804,6 +9885,18 @@ void Dbtc::execGCP_NOMORETRANS(Signal *signal) {
   Uint32 gci_hi = req->gci_hi;
   tcheckGcpId = gci_lo | (Uint64(gci_hi) << 32);
   const bool nfhandling = (c_ongoing_take_over_cnt > 0);
+
+#ifdef ERROR_INSERT
+  if (nfhandling && ERROR_INSERTED(8130)) {
+    g_eventLogger->info(
+        "DBTC %u: Error insert 8130 delaying GCP_NOMORETRANS %u/%u "
+        "during node failure handling",
+        instance(), gci_hi, gci_lo);
+    sendSignalWithDelay(reference(), GSN_GCP_NOMORETRANS, signal, 1000,
+                        signal->getLength());
+    return;
+  }
+#endif
 
   LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
   GcpRecordPtr gcpPtr;

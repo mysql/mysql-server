@@ -31,9 +31,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "scope_guard.h"
 
+/** Scratch storage owned by one Parallel_reader worker. */
+struct Check_context {
+  Check_context()
+      : m_row_heap(mem_heap_create(1024, UT_LOCATION_HERE)),
+        m_offsets_heap(mem_heap_create(1024, UT_LOCATION_HERE)) {}
+
+  ~Check_context() {
+    mem_heap_free(m_row_heap);
+    mem_heap_free(m_offsets_heap);
+  }
+
+  mem_heap_t *m_row_heap;
+  mem_heap_t *m_offsets_heap;
+  ulint *m_offsets{};
+};
+
 struct Check_foreign_keys {
-  Check_foreign_keys(dict_table_t *table, trx_t *trx, mem_heap_t *heap)
-      : m_table(table), m_trx(trx), m_heap(heap) {}
+  Check_foreign_keys(dict_table_t *table, trx_t *trx)
+      : m_table(table), m_trx(trx) {}
 
   dberr_t operator()(const Parallel_reader::Ctx *ctx) {
     btr_pcur_t pcur;
@@ -42,18 +58,23 @@ struct Check_foreign_keys {
     auto &fk_set = m_table->foreign_set;
     dict_index_t *clust_index = m_table->first_index();
 
-    m_offsets = rec_get_offsets(ctx->m_rec, clust_index, m_offsets,
-                                ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
+    auto check_ctx = ctx->thread_ctx()->get_callback_ctx<Check_context>();
+    auto heap_guard = create_scope_guard(
+        [check_ctx]() { mem_heap_empty(check_ctx->m_row_heap); });
+
+    check_ctx->m_offsets = rec_get_offsets(
+        ctx->m_rec, clust_index, check_ctx->m_offsets, ULINT_UNDEFINED,
+        UT_LOCATION_HERE, &check_ctx->m_offsets_heap);
 
     row_ext_t *ext = nullptr;
-    dtuple_t *clust_row =
-        row_build(ROW_COPY_POINTERS, clust_index, ctx->m_rec, m_offsets,
-                  nullptr, nullptr, nullptr, &ext, m_heap);
+    dtuple_t *clust_row = row_build(ROW_COPY_POINTERS, clust_index, ctx->m_rec,
+                                    check_ctx->m_offsets, nullptr, nullptr,
+                                    nullptr, &ext, check_ctx->m_row_heap);
 
     for (auto &fk : fk_set) {
       auto &fk_index = fk->foreign_index;
-      dtuple_t *entry = row_build_index_entry_low(clust_row, ext, fk_index,
-                                                  m_heap, ROW_BUILD_NORMAL);
+      dtuple_t *entry = row_build_index_entry_low(
+          clust_row, ext, fk_index, check_ctx->m_row_heap, ROW_BUILD_NORMAL);
       if (dtuple_contains_null(entry)) {
         continue;
       }
@@ -81,8 +102,6 @@ struct Check_foreign_keys {
 
   dict_table_t *m_table;
   trx_t *m_trx;
-  mem_heap_t *m_heap{};
-  ulint *m_offsets{};
 };
 
 int ha_innobase::check_foreign_constraints(THD *thd, size_t n_threads) const {
@@ -91,10 +110,7 @@ int ha_innobase::check_foreign_constraints(THD *thd, size_t n_threads) const {
   ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
   ut_a(m_prebuilt->trx == thd_to_trx(thd));
 
-  mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
-  auto guard = create_scope_guard([heap]() { mem_heap_free(heap); });
-
-  Check_foreign_keys fkcheck(m_prebuilt->table, m_prebuilt->trx, heap);
+  Check_foreign_keys fkcheck(m_prebuilt->table, m_prebuilt->trx);
 
   dict_index_t *index = m_prebuilt->table->first_index();
   const Parallel_reader::Scan_range FULL_SCAN;
@@ -102,14 +118,27 @@ int ha_innobase::check_foreign_constraints(THD *thd, size_t n_threads) const {
   Parallel_reader reader{n_threads};
   Parallel_reader::Config config(FULL_SCAN, index);
 
-  reader.set_finish_callback(
-      [&](Parallel_reader::Thread_ctx *) { return DB_SUCCESS; });
+  reader.set_start_callback([](Parallel_reader::Thread_ctx *thread_ctx) {
+    if (thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+      thread_ctx->set_callback_ctx<Check_context>(new Check_context());
+    }
+    return DB_SUCCESS;
+  });
+
+  reader.set_finish_callback([](Parallel_reader::Thread_ctx *thread_ctx) {
+    if (thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+      auto check_ctx = thread_ctx->get_callback_ctx<Check_context>();
+      delete check_ctx;
+      thread_ctx->set_callback_ctx<Check_context>(nullptr);
+    }
+    return DB_SUCCESS;
+  });
 
   auto err = reader.add_scan(m_prebuilt->trx, config, fkcheck);
 
-  err = reader.run(n_threads);
+  err = reader.run();
   if (err == DB_OUT_OF_RESOURCES) {
-    err = reader.run(0);
+    err = reader.run_sync();
   }
 
   return convert_error_code_to_mysql(err, 0, m_prebuilt->trx->mysql_thd);

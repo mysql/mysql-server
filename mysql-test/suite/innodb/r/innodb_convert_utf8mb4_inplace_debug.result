@@ -1,0 +1,154 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(32)) ENGINE = InnoDB
+DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT TABLE_ID INTO @old_table_id
+FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+SET DEBUG_SYNC =
+'alter_table_inplace_after_lock_downgrade SIGNAL insert1 WAIT_FOR continue1';
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ALGORITHM = INPLACE;
+SET DEBUG_SYNC = 'now WAIT_FOR insert1';
+INSERT INTO t1 VALUES (1, 'a');
+SET DEBUG_SYNC = 'now SIGNAL continue1';
+SET DEBUG_SYNC = 'RESET';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `c1` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	c1
+1	a
+INSERT INTO t1 VALUES (2, REPEAT(CONVERT(0xF09F9880 USING utf8mb4), 32));
+SELECT id, CHAR_LENGTH(c1), LENGTH(c1) FROM t1 ORDER BY id;
+id	CHAR_LENGTH(c1)	LENGTH(c1)
+1	1	1
+2	32	128
+SELECT @old_table_id = TABLE_ID AS table_was_not_rebuilt
+FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+table_was_not_rebuilt
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+c1 VARCHAR(32) CHARACTER SET utf8mb3
+) ENGINE = InnoDB DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES
+(1, 'abc'),
+(2, REPEAT('z', 32));
+SELECT TABLE_ID INTO @old_table_id
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+ALTER TABLE t1
+DEFAULT CHARACTER SET binary,
+MODIFY c1 VARCHAR(96) CHARACTER SET binary,
+ALGORITHM = INPLACE;
+SELECT @old_table_id <> TABLE_ID AS table_was_rebuilt
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+table_was_rebuilt
+1
+CREATE TABLE t2 LIKE t1;
+SELECT
+altered_col.MTYPE = reference_col.MTYPE AS mtype_matches,
+altered_col.PRTYPE = reference_col.PRTYPE AS prtype_matches,
+altered_col.LEN = reference_col.LEN AS length_matches
+FROM INFORMATION_SCHEMA.INNODB_TABLES AS altered_table
+JOIN INFORMATION_SCHEMA.INNODB_COLUMNS AS altered_col
+ON altered_col.TABLE_ID = altered_table.TABLE_ID
+AND altered_col.NAME = 'c1'
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS reference_table
+ON reference_table.NAME = 'test/t2'
+JOIN INFORMATION_SCHEMA.INNODB_COLUMNS AS reference_col
+ON reference_col.TABLE_ID = reference_table.TABLE_ID
+AND reference_col.NAME = 'c1'
+WHERE altered_table.NAME = 'test/t1';
+mtype_matches	prtype_matches	length_matches
+1	1	1
+SELECT id, LENGTH(c1), LEFT(HEX(c1), 6) FROM t1 ORDER BY id;
+id	LENGTH(c1)	LEFT(HEX(c1), 6)
+1	3	616263
+2	32	7A7A7A
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1, t2;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+c1 VARCHAR(32),
+INDEX idx (c1)
+) ENGINE = InnoDB DEFAULT CHARACTER SET utf8mb3
+COLLATE utf8mb3_general_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1 VALUES (1, 'a'), (2, 'z');
+SELECT TABLE_ID INTO @old_table_id
+FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4
+COLLATE utf8mb4_0900_ai_ci, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+SELECT * FROM t1 FORCE INDEX (idx) ORDER BY c1, id;
+id	c1
+1	a
+2	z
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT @old_table_id = TABLE_ID AS table_was_not_rebuilt
+FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+table_was_not_rebuilt
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT NOT NULL,
+c1 VARCHAR(32),
+c2 CHAR(3)
+) ENGINE = InnoDB ROW_FORMAT = COMPACT
+DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'compatible', 'old'), (2, 'delete', 'del');
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ADD PRIMARY KEY (id),
+ALGORITHM = INPLACE, LOCK = NONE;
+ERROR 0A000: LOCK=NONE is not supported for this operation. Try LOCK=SHARED.
+SELECT * FROM t1 ORDER BY id;
+id	c1	c2
+1	compatible	old
+2	delete	del
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ADD PRIMARY KEY (id),
+ALGORITHM = INPLACE, LOCK = SHARED;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 ORDER BY id;
+id	c1	c2
+1	compatible	old
+2	delete	del
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, i1 INT, c1 VARCHAR(32)) ENGINE = InnoDB
+DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 10, 'first'), (2, 20, 'second'),
+(3, 10, 'duplicate');
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ADD INDEX idx (i1),
+ALGORITHM = INPLACE;
+SELECT COUNT(*) AS index_was_created
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND INDEX_NAME = 'idx';
+index_was_created
+1
+SELECT id, c1 FROM t1 FORCE INDEX (idx) WHERE i1 = 10 ORDER BY id;
+id	c1
+1	first
+3	duplicate
+SELECT id, c1 FROM t1 FORCE INDEX (idx) WHERE i1 = 20 ORDER BY id;
+id	c1
+2	second
+DROP TABLE t1;

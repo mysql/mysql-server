@@ -126,3 +126,149 @@ SET @@optimizer_switch = @optimizer_switch_saved;
 
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35206957 - EXPLAIN FORMAT=JSON
+--echo #  "access_type" : "index_merge" missing field "used_key_parts"
+--echo #
+
+SET @@explain_json_format_version = 1;
+SET @save_optimizer_switch = @@optimizer_switch;
+
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  a INT NOT NULL,
+  b INT NOT NULL,
+  c INT NOT NULL,
+  d INT NOT NULL,
+  PRIMARY KEY pk (pk),
+  KEY idx_a (a),
+  KEY idx_b (b),
+  KEY idx_c (c),
+  KEY idx_d (d)
+);
+
+INSERT INTO t1(a,b,c,d) VALUES
+  (1,1,1,2),(2,1,2,3),(3,1,3,4),(4,1,4,5),(5,1,5,6),
+  (6,2,1,2),(7,2,2,3),(8,2,3,4),(9,2,4,5),(10,2,5,6),
+  (11,3,1,2),(12,3,2,3),(13,3,3,4),(14,3,4,5),(15,3,5,6),
+  (16,4,1,2),(17,4,2,3),(18,4,3,4),(19,4,4,5),(20,4,5,6),
+  (21,5,1,2),(22,5,2,3),(23,5,3,4),(24,5,4,5),(25,5,5,6),
+  (25,6,6,6),(25,6,6,7);
+
+ANALYZE TABLE t1;
+
+--echo # intersect secondary indexes expose key parts.
+
+EXPLAIN FORMAT=JSON INTO @plan UPDATE t1 SET a=2 WHERE b=6 AND c=6;
+
+--skip_if_hypergraph  # Hypergraph does not support EXPLAIN JSONv1.
+SELECT JSON_EXTRACT(@plan,
+                    '$.query_block.table.key')
+       AS key_name,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.used_key_parts')
+       AS used_key_parts,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.key_length')
+       AS key_length;
+
+--echo # sort_union secondary indexes expose key parts.
+SET optimizer_switch = 'index_merge_union=off';
+
+EXPLAIN FORMAT=JSON INTO @plan SELECT * FROM t1 WHERE b = 6 OR c = 6;
+
+--skip_if_hypergraph  # Hypergraph does not support EXPLAIN JSONv1.
+SELECT JSON_EXTRACT(@plan,
+                    '$.query_block.table.key')
+       AS key_name,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.used_key_parts')
+       AS used_key_parts,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.key_length')
+       AS key_length;
+
+SET optimizer_switch = @save_optimizer_switch;
+
+--echo # union of intersect and range exposes key parts.
+
+SET optimizer_switch = 'index_merge_intersection=on,index_merge_union=on';
+
+EXPLAIN FORMAT=JSON INTO @plan SELECT * FROM t1 WHERE (b = 6 AND c = 6) OR d = 6;
+
+--skip_if_hypergraph  # Hypergraph does not support EXPLAIN JSONv1.
+SELECT JSON_EXTRACT(@plan,
+                    '$.query_block.table.key')
+       AS key_name,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.used_key_parts')
+       AS used_key_parts,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.key_length')
+       AS key_length;
+
+SET optimizer_switch = @save_optimizer_switch;
+
+
+--echo # composite index_merge exposes key parts.
+
+ALTER TABLE t1
+DROP INDEX idx_b,
+DROP INDEX idx_c,
+DROP INDEX idx_d,
+ADD KEY idx_cd (c, d),
+ADD KEY idx_bd (b, d);
+
+EXPLAIN FORMAT=JSON INTO @plan
+UPDATE /*+ INDEX_MERGE(t1 idx_cd, idx_bd) */ t1
+SET a=2 WHERE b=6 AND c=6 AND d=6;
+
+--skip_if_hypergraph  # Hypergraph does not support EXPLAIN JSONv1.
+SELECT JSON_EXTRACT(@plan,
+                    '$.query_block.table.key')
+       AS key_name,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.used_key_parts')
+       AS used_key_parts,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.key_length')
+       AS key_length;
+
+--echo # intersect with PRIMARY exposes key parts.
+
+EXPLAIN FORMAT=JSON INTO @plan SELECT * FROM t1
+WHERE a = 3 AND pk BETWEEN 10 AND 20;
+
+--skip_if_hypergraph  # Hypergraph does not support EXPLAIN JSONv1.
+SELECT JSON_EXTRACT(@plan,
+                    '$.query_block.table.key')
+       AS key_name,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.used_key_parts')
+       AS used_key_parts,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.key_length')
+       AS key_length;
+
+--echo # sort_union orders PRIMARY key parts last.
+SET optimizer_switch = 'index_merge_union=off';
+
+EXPLAIN FORMAT=JSON INTO @plan SELECT * FROM t1
+WHERE pk BETWEEN 10 AND 20 OR a = 3;
+
+--skip_if_hypergraph  # Hypergraph does not support EXPLAIN JSONv1.
+SELECT JSON_EXTRACT(@plan,
+                    '$.query_block.table.key')
+       AS key_name,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.used_key_parts')
+       AS used_key_parts,
+       JSON_EXTRACT(@plan,
+                    '$.query_block.table.key_length')
+       AS key_length;
+
+SET @@explain_json_format_version = DEFAULT;
+SET optimizer_switch = @save_optimizer_switch;
+
+DROP TABLE t1;

@@ -25,11 +25,14 @@
 #include <sys/stat.h>
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <string>
 #include <unordered_set>
 
+#include <openssl/asn1.h>
+#include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -106,7 +109,8 @@ bool PkiFile::remove(const char *name) {
 
   if (::remove(name) == 0) return true;  // success
 
-  /* Unusual error: access() has succeeded but remove() has failed .*/
+  /* Unusual error: access() has succeeded but remove() has failed.
+     This could be due to open file handles on the file being removed. */
   g_eventLogger->error("NDB TLS Error %d removing file %s", errno, name);
 
   if (mustSetWriteAccess) _chmod(name, _S_IREAD);
@@ -499,7 +503,17 @@ int SigningRequest::finalise(EVP_PKEY *key) {
   /* Set the subject common name */
   char cn[CN_max_length];
   print_name(cn, CN_max_length);
-  set_common_name(X509_REQ_get_subject_name(m_req), cn);
+  X509_NAME *name = X509_NAME_new();
+  if (name == nullptr) return -5;
+  if (set_common_name(name, cn) != 1) {
+    X509_NAME_free(name);
+    return -6;
+  }
+  if (X509_REQ_set_subject_name(m_req, name) != 1) {
+    X509_NAME_free(name);
+    return -7;
+  }
+  X509_NAME_free(name);
 
   /* Set the subject alt names extension */
   if (bound_hostnames()) {
@@ -583,8 +597,12 @@ X509 *SigningRequest::create_unsigned_certificate() const {
   if (!cert) return nullptr;
 
   /* Copy name from csr to cert */
-  X509_NAME *name = X509_REQ_get_subject_name(m_req);
-  if (X509_set_subject_name(cert, name) != 1) return nullptr;
+  const X509_NAME *req_name = X509_REQ_get_subject_name(m_req);
+  X509_NAME *name = req_name ? ndb_x509_name_dup(req_name) : nullptr;
+  if (name == nullptr) return nullptr;
+  const int set_ok = X509_set_subject_name(cert, name);
+  X509_NAME_free(name);
+  if (set_ok != 1) return nullptr;
 
   /* Set serial number in x509 */
   ASN1_STRING *serial = SerialNumber::random();
@@ -603,7 +621,7 @@ X509 *SigningRequest::create_unsigned_certificate() const {
 
 bool SigningRequest::parse_name() {
   if (m_req == nullptr) return false;
-  X509_NAME *name = X509_REQ_get_subject_name(m_req);
+  const X509_NAME *name = X509_REQ_get_subject_name(m_req);
   return CertSubject::parse_name(name);
 }
 
@@ -625,9 +643,18 @@ ASN1_STRING *SerialNumber::random(size_t length) {
 }
 
 int SerialNumber::print(char *buf, int len, const ASN1_STRING *serial) {
+  if (buf == nullptr || len <= 0 || serial == nullptr) return 0;
+
+  const int serial_len = ASN1_STRING_length(serial);
+  const unsigned char *serial_data = ASN1_STRING_get0_data(serial);
+  if (serial_len <= 0 || serial_data == nullptr) {
+    buf[0] = '\0';
+    return 0;
+  }
+
   int offset = 0;
-  for (int i = 0; i < serial->length && offset < (len - 4); i++)
-    offset += sprintf(buf + offset, "%02X:", serial->data[i]);
+  for (int i = 0; i < serial_len && offset < (len - 4); i++)
+    offset += sprintf(buf + offset, "%02X:", serial_data[i]);
   if (offset) buf[offset - 1] = '\0';
   return offset;
 }
@@ -637,8 +664,14 @@ void SerialNumber::free(ASN1_STRING *serial) { ASN1_STRING_free(serial); }
 SerialNumber::HexString::HexString(const ASN1_STRING *serial) {
   buf.append("0x");
   int truncated [[maybe_unused]] = 0;
-  for (int i = 0; i < serial->length; i++)
-    truncated = buf.appendf("%02x", serial->data[i]);
+
+  if (serial == nullptr) return;
+  const int serial_len = ASN1_STRING_length(serial);
+  const unsigned char *serial_data = ASN1_STRING_get0_data(serial);
+  if (serial_len <= 0 || serial_data == nullptr) return;
+
+  for (int i = 0; i < serial_len; i++)
+    truncated = buf.appendf("%02x", serial_data[i]);
   assert(!truncated);
 }
 
@@ -663,13 +696,48 @@ void Certificate::set_expire_time(X509 *cert, int days) {
 }
 
 int Certificate::set_common_name(X509 *cert, const char *CN) {
-  X509_NAME *name = X509_get_subject_name(cert);
-  return CertSubject::set_common_name(name, CN);
+  if (cert == nullptr || CN == nullptr) return 0;
+
+  const X509_NAME *current = X509_get_subject_name(cert);
+  X509_NAME *name = current ? ndb_x509_name_dup(current) : X509_NAME_new();
+  if (name == nullptr) return 0;
+
+  int ok = X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+                                      (const unsigned char *)CN, -1, -1, 0);
+  if (ok == 1) ok = X509_set_subject_name(cert, name);
+  X509_NAME_free(name);
+  return ok;
 }
 
 size_t Certificate::get_common_name(X509 *cert, char *buf, size_t len) {
-  return X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName,
-                                   buf, len);
+  if (cert == nullptr || buf == nullptr || len == 0) return 0;
+  buf[0] = '\0';
+
+  const X509_NAME *name = X509_get_subject_name(cert);
+  if (name == nullptr) return 0;
+
+  int idx = X509_NAME_get_index_by_NID(const_cast<X509_NAME *>(name),
+                                       NID_commonName, -1);
+  if (idx < 0) return 0;
+
+  const X509_NAME_ENTRY *entry =
+      X509_NAME_get_entry(const_cast<X509_NAME *>(name), idx);
+  if (entry == nullptr) return 0;
+
+  const ASN1_STRING *str = X509_NAME_ENTRY_get_data(entry);
+  if (str == nullptr) return 0;
+
+  unsigned char *utf8 = nullptr;
+  const int utf8_len = ASN1_STRING_to_UTF8(&utf8, str);
+  if (utf8_len <= 0 || utf8 == nullptr) return 0;
+
+  const size_t copy_len = (static_cast<size_t>(utf8_len) < (len - 1))
+                              ? static_cast<size_t>(utf8_len)
+                              : (len - 1);
+  memcpy(buf, utf8, copy_len);
+  buf[copy_len] = '\0';
+  OPENSSL_free(utf8);
+  return copy_len;
 }
 
 int Certificate::get_signature_prefix(X509 *cert) {
@@ -677,8 +745,15 @@ int Certificate::get_signature_prefix(X509 *cert) {
   const ASN1_BIT_STRING *sig = nullptr;
   const X509_ALGOR *algorithm;
   X509_get0_signature(&sig, &algorithm, cert);
-  if (sig && sig->data)
-    prefix = (sig->data[0] << 16) | (sig->data[1] << 8) | sig->data[2];
+  if (sig == nullptr) return 0;
+
+  const int sig_len =
+      ASN1_STRING_length(reinterpret_cast<const ASN1_STRING *>(sig));
+  const unsigned char *sig_data =
+      ASN1_STRING_get0_data(reinterpret_cast<const ASN1_STRING *>(sig));
+  if (sig_len < 3 || sig_data == nullptr) return 0;
+
+  prefix = (sig_data[0] << 16) | (sig_data[1] << 8) | sig_data[2];
   return prefix;
 }
 
@@ -795,8 +870,8 @@ static bool initClusterCertAuthority(X509 *cert, const char *ordinal) {
   if (r1 == 0) return false;
 
   /* Set subject name */
-  X509_NAME *name = X509_get_subject_name(cert);
-  r1 = X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, subject, -1, -1, 0);
+  r1 = Certificate::set_common_name(cert,
+                                    reinterpret_cast<const char *>(subject));
   if (r1 == 0) return false;
 
   /* Add extension */
@@ -832,7 +907,10 @@ X509 *ClusterCertAuthority::create(EVP_PKEY *key, const CertLifetime &lifetime,
 }
 
 int ClusterCertAuthority::sign(X509 *issuer, EVP_PKEY *key, X509 *cert) {
-  if (X509_set_issuer_name(cert, X509_get_subject_name(issuer)) == 0) return 0;
+  const X509_NAME *issuer_name = X509_get_subject_name(issuer);
+  if (issuer_name == nullptr) return 0;
+  if (X509_set_issuer_name(cert, const_cast<X509_NAME *>(issuer_name)) == 0)
+    return 0;
   return X509_sign(cert, key, my_EVP_sha256());
 }
 
@@ -1018,17 +1096,26 @@ bool CertSubject::bind_hostname(const char *hostname) {
 
 int CertSubject::bound_hostname(int n, char *buffer, int size) const {
   int nwritten = 0;
+  if (buffer == nullptr || size <= 0) return 0;
+
   if (m_bound_hostnames) {
     int name_type;
     if (n < sk_GENERAL_NAME_num(m_bound_hostnames)) {
       GENERAL_NAME *name = sk_GENERAL_NAME_value(m_bound_hostnames, n);
-      auto *str =
-          static_cast<ASN1_STRING *>(GENERAL_NAME_get0_value(name, &name_type));
-      if (name_type == GEN_DNS) {
-        if (str->length < size) size = str->length;
-        memcpy(buffer, str->data, size);
-        buffer[size] = '\0';
-        nwritten = size;
+      const auto *str = static_cast<const ASN1_STRING *>(
+          GENERAL_NAME_get0_value(name, &name_type));
+      if (name_type == GEN_DNS && str != nullptr) {
+        const int str_len = ASN1_STRING_length(str);
+        const unsigned char *str_data = ASN1_STRING_get0_data(str);
+        if (str_len > 0 && str_data != nullptr) {
+          const int max_copy = size - 1;
+          const int copy_len = (str_len < max_copy) ? str_len : max_copy;
+          memcpy(buffer, str_data, copy_len);
+          buffer[copy_len] = '\0';
+          nwritten = copy_len;
+        } else {
+          buffer[0] = '\0';
+        }
       }
     }
   }
@@ -1044,11 +1131,13 @@ bool CertSubject::bound_localhost() const {
   if (sk_GENERAL_NAME_num(m_bound_hostnames) == 1) {
     int name_type;
     GENERAL_NAME *name = sk_GENERAL_NAME_value(m_bound_hostnames, 0);
-    auto *str =
-        static_cast<ASN1_STRING *>(GENERAL_NAME_get0_value(name, &name_type));
-    if (name_type == GEN_DNS) {
-      if ((str->length == 9) &&
-          (strncmp("localhost", (const char *)str->data, 9) == 0))
+    const auto *str = static_cast<const ASN1_STRING *>(
+        GENERAL_NAME_get0_value(name, &name_type));
+    if (name_type == GEN_DNS && str != nullptr) {
+      const int str_len = ASN1_STRING_length(str);
+      const unsigned char *str_data = ASN1_STRING_get0_data(str);
+      if (str_len == 9 && str_data != nullptr &&
+          memcmp(str_data, "localhost", 9) == 0)
         return true;
     }
   }
@@ -1124,27 +1213,31 @@ size_t CertSubject::print_name(char *buffer, size_t sz) const {
   return len;
 }
 
-bool CertSubject::parse_name(X509_NAME *name) {
-  int idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+bool CertSubject::parse_name(const X509_NAME *name) {
+  int idx = X509_NAME_get_index_by_NID(const_cast<X509_NAME *>(name),
+                                       NID_commonName, -1);
   if (idx < 0) return false;
-  X509_NAME_ENTRY *cn = X509_NAME_get_entry(name, idx);
+  const X509_NAME_ENTRY *cn =
+      X509_NAME_get_entry(const_cast<X509_NAME *>(name), idx);
   if (cn == nullptr) return false;
-  ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
+  const ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
   return parse_name(str);
 }
 
 bool CertSubject::parse_name(const ASN1_STRING *str) {
   if (str == nullptr) return false;
-  if (str->length == 0) return false;
+
+  const int str_len = ASN1_STRING_length(str);
+  const unsigned char *str_data = ASN1_STRING_get0_data(str);
+  if (str_len <= 0 || str_data == nullptr) return false;
 
   int p = 0;  // cursor into name
-  auto atEnd = [&]() { return (str->length == p); };
-  auto data = [&]() { return (char *)(str->data) + p; };
+  auto atEnd = [&]() { return (str_len == p); };
+  auto data = [&]() { return reinterpret_cast<const char *>(str_data) + p; };
   auto find = [&](const char *a, size_t l) {
-    if (str->length <= p) return false;
-    int r = strncmp(data(), a, l);
-    if (r == 0) {
-      p += l;
+    if ((str_len - p) < static_cast<int>(l)) return false;
+    if (memcmp(data(), a, l) == 0) {
+      p += static_cast<int>(l);
       return true;
     }
     return false;
@@ -1396,7 +1489,11 @@ int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key, bool do_chain) {
   if (r1 == 0) return -50;
 
   /* Set issuer name */
-  r1 = X509_set_issuer_name(m_x509, X509_get_subject_name(CA_cert));
+  {
+    const X509_NAME *issuer_name = X509_get_subject_name(CA_cert);
+    if (issuer_name == nullptr) return -60;
+    r1 = X509_set_issuer_name(m_x509, const_cast<X509_NAME *>(issuer_name));
+  }
   if (r1 == 0) return -60;
 
   /* Set lifetime */
@@ -1495,12 +1592,12 @@ BaseString NodeCertificate::serial_number() const {
 
 bool NodeCertificate::parse_name() {
   if (m_x509 == nullptr) return false;
-  X509_NAME *name = X509_get_subject_name(m_x509);
-  int idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+  const X509_NAME *name = X509_get_subject_name(m_x509);
+  int idx = ndb_x509_name_get_index_by_nid(name, NID_commonName, -1);
   if (idx < 0) return false;
-  X509_NAME_ENTRY *cn = X509_NAME_get_entry(name, idx);
+  const X509_NAME_ENTRY *cn = ndb_x509_name_get_entry(name, idx);
   if (cn == nullptr) return false;
-  ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
+  const ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
   return CertSubject::parse_name(str);
 }
 
@@ -1521,9 +1618,6 @@ static constexpr bool isWin32 = 1;
 #else
 static constexpr bool isWin32 = false;
 #endif
-
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 /*
   Test name parsing
@@ -1969,6 +2063,26 @@ static int search_path_test() {
     delete sp2;
   }
 
+  /* TrustStore::load(), TrustStore::open()
+     (Negative test: no trust store on disk)
+  */
+  {
+    FILE *fp = nullptr;
+    STACK_OF(X509) *trusted = sk_X509_new_null();
+    int r1 = TrustStore::load(trusted, &searchPath);
+    if (r1 != 0) return 25;  // should find 0 trusted CAs
+    if (sk_X509_num(trusted) != 0) return 26;
+    if (searchPath.size() != 4) return 27;
+    for (size_t i = 0; i < 4; i++) {
+      fp = TrustStore::open(searchPath.dir(i), "r");
+      if (fp) return 26;  // fp should be null
+    }
+    TrustStore::close(fp);  // okay to free null fp
+    sk_X509_free(trusted);
+    bool r = TrustStore::remove(searchPath.dir(0));
+    if (r) return 28;  // should be false because file did not exist
+  }
+
   return 0;
 }
 
@@ -2013,19 +2127,17 @@ int main(int argc, char *argv[]) {
   r1 = parser_test();
   if (r1 != 0) return fail("parser", r1);
 
-  if (openssl_version_ok) {
-    r1 = cert_lifetime_test();
-    if (r1 != 0) return fail("lifetime", r1);
+  r1 = cert_lifetime_test();
+  if (r1 != 0) return fail("lifetime", r1);
 
-    r1 = file_test();
-    if (r1 != 0) return fail("file", r1);
+  r1 = file_test();
+  if (r1 != 0) return fail("file", r1);
 
-    r1 = verify_test();
-    if (r1 != 0) return fail("verify", r1);
+  r1 = verify_test();
+  if (r1 != 0) return fail("verify", r1);
 
-    r1 = trust_store_test();
-    if (r1 != 0) return fail("trust store", r1);
-  }
+  r1 = trust_store_test();
+  if (r1 != 0) return fail("trust store", r1);
 
   return 0;
 }

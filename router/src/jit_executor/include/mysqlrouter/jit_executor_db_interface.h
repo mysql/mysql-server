@@ -26,6 +26,7 @@
 #ifndef ROUTER_SRC_JIT_EXECUTOR_INCLUDE_MYSQLROUTER_JIT_EXECUTOR_MYSQL_SESSION_H_
 #define ROUTER_SRC_JIT_EXECUTOR_INCLUDE_MYSQLROUTER_JIT_EXECUTOR_MYSQL_SESSION_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>

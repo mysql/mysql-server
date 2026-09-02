@@ -753,6 +753,10 @@ int my_win_fclose(FILE *stream) {
    created for streams it would probably be sufficient to just forward
    to freopen_s.
 
+   @note Unlike freopen(), if stream has a valid CRT descriptor, failure to
+   open path does not invalidate that descriptor. If its current handle is
+   delete-pending, the descriptor may instead be redirected to NUL.
+
    @retval valid FILE stream if successful.
    @retval nullptr in case of errors. errno and/or LastError set to
            indicate the error.
@@ -762,6 +766,21 @@ FILE *my_win_freopen(const char *path, const char *mode, FILE *stream) {
   assert(path && stream);
   const WindowsErrorGuard weg;
 
+  /*
+    open_error_log() uses this function for stderr and stdout and retries a
+    failed reopen. An ordinary open failure must not discard the existing
+    stream, because it may be the only place where the failure can be reported.
+
+    Legacy Windows deletion has the opposite requirement. A removed error log
+    remains delete-pending and its name unavailable until both streams release
+    their old handles. Redirecting a delete-pending handle to NUL releases the
+    old file object while preserving the CRT descriptor stored in FILE. A later
+    retry can duplicate the new error log handle over the same descriptor.
+
+    Closing the descriptor directly would leave FILE referring to a closed
+    descriptor. A retry could then close it again and trigger Debug CRT checks.
+  */
+
   /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */
   File fd = _fileno(stream);
   if (fd < 0) {
@@ -770,25 +789,42 @@ FILE *my_win_freopen(const char *path, const char *mode, FILE *stream) {
     fd = _fileno(stream);
     if (fd < 0) return nullptr;
   }
-  auto cfdg = create_scope_guard([fd]() { _close(fd); });
-
   HANDLE osfh =
       CreateFile(path, GENERIC_READ | GENERIC_WRITE,
                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                  nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (osfh == INVALID_HANDLE_VALUE) return nullptr;
+  if (osfh == INVALID_HANDLE_VALUE) {
+    const DWORD open_error = GetLastError();
+    const int open_errno = errno;
+
+    const intptr_t old_osfh = _get_osfhandle(fd);
+    FILE_STANDARD_INFO info;
+    if (old_osfh != -1 &&
+        GetFileInformationByHandleEx(reinterpret_cast<HANDLE>(old_osfh),
+                                     FileStandardInfo, &info, sizeof(info)) &&
+        info.DeletePending) {
+      const int null_fd = _open("NUL", _O_RDWR | _O_TEXT);
+      if (null_fd != -1) {
+        (void)_dup2(null_fd, fd);
+        _close(null_fd);
+      }
+    }
+
+    // The inspection and CRT calls above may overwrite the target open error.
+    errno = open_errno;
+    SetLastError(open_error);
+    return nullptr;
+  }
 
   auto chg = create_scope_guard([osfh]() { CloseHandle(osfh); });
   const int handle_fd = _open_osfhandle((intptr_t)osfh, _O_APPEND | _O_TEXT);
 
   if (handle_fd == -1) return nullptr;
+  // The CRT descriptor owns osfh from this point.
+  chg.release();
   auto chfdg = create_scope_guard([handle_fd]() { _close(handle_fd); });
 
   if (_dup2(handle_fd, fd) < 0) return nullptr;
-
-  // Leave the handle and fd open, but close handle_fd
-  chg.release();
-  cfdg.release();
 
   return stream;
 }

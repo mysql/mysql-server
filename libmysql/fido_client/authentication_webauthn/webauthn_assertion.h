@@ -46,7 +46,8 @@ class webauthn_assertion : public client_authentication::assertion {
                             size_t &challenge_res_len) override;
   void set_client_data(const unsigned char *, const char *) override;
   bool sign_challenge() override;
-  bool parse_challenge(const unsigned char *challenge) override;
+  bool parse_challenge(const unsigned char *challenge,
+                       size_t challenge_len) override;
   bool check_fido2_device(bool &is_fido2);
   size_t get_client_data_json_len();
   std::string get_client_data_json();

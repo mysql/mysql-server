@@ -220,6 +220,8 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
   - priv_host  MYSQL_LEX_CSTRING * authenticated host
                (a.k.a. the host's part of CURRENT_USER())
   - proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
+  - account_locked bool * true if the security context records the account as
+    locked by ACCOUNT LOCK, false otherwise
 
   - privilege_super DECLARE_BOOL_METHOD *  1 if the user account has
     supper privilege, 0 otherwise
@@ -254,6 +256,8 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
         *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->proxy_user();
       } else if (!strcmp(name, "external_user")) {
         *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->external_user();
+      } else if (!strcmp(name, "account_locked")) {
+        *((bool *)inout_pvalue) = ctx->account_is_locked();
       } else if (!strcmp(name, "privilege_super")) {
         const bool checked = ctx->check_access(SUPER_ACL);
         *((bool *)inout_pvalue) = checked ? true : false;

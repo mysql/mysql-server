@@ -547,11 +547,15 @@ EXPLAIN
 -> Filter: (c > 7)
     -> Count rows in t_innodb
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `c` from `test`.`t_innodb` having (`c` > 7)
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
 EXPLAIN
 -> Filter: (c > 7)
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `c` from `test`.`t_myisam` having (`c` > 7)
 SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
 c
 set sql_mode=default;

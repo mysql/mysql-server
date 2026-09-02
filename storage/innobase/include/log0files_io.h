@@ -283,16 +283,19 @@ dberr_t log_data_blocks_write(Log_file_handle &file_handle,
                               const byte *buf);
 
 /** Reads log blocks with redo records from the log file, starting at
-the given offset. The log blocks must exist within single log file.
+the given offset. The log blocks must exist within a single log file.
 @param[in]  file_handle  handle for the opened log file
 @param[in]  read_offset  offset from the beginning of the given file
 @param[in]  read_size    size of the data to read (must be divisible
                          by OS_FILE_LOG_BLOCK_SIZE)
 @param[out] buf          allocated buffer to fill by the read
+@param[in]  can_decrypt  whether decryption may be attempted for encrypted
+                         blocks; an encrypted block returns DB_IO_DECRYPT_FAIL
+                         when this is false
 @return DB_SUCCESS or error */
 dberr_t log_data_blocks_read(Log_file_handle &file_handle,
                              os_offset_t read_offset, size_t read_size,
-                             byte *buf);
+                             byte *buf, bool can_decrypt = true);
 
 /** @} */
 

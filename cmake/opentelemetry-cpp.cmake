@@ -23,7 +23,7 @@
 
 # See extra/opentelemetry-cpp/
 
-SET(OPENTELEMETRY_CPP_TAG "opentelemetry-cpp-1.23.0" CACHE INTERNAL "")
+SET(OPENTELEMETRY_CPP_TAG "opentelemetry-cpp-1.27.0" CACHE INTERNAL "")
 
 MACRO(MYSQL_USE_BUNDLED_OPENTELEMETRY_CPP)
 

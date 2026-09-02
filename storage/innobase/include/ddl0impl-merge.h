@@ -84,6 +84,13 @@ struct Merge_file_sort {
   /** @return the number of rows in the sorted file. */
   [[nodiscard]] uint64_t get_n_rows() const noexcept { return m_n_rows; }
 
+  /** @return the underlying index, if available. */
+  [[nodiscard]] const dict_index_t *index() const noexcept {
+    return m_merge_ctx != nullptr && m_merge_ctx->m_dup != nullptr
+               ? m_merge_ctx->m_dup->m_index
+               : nullptr;
+  }
+
  private:
   /** Merge the rows.
   @param[in,out] cursor         To iterate over the rows to merge.

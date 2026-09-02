@@ -3140,5 +3140,107 @@ INSERT INTO test.bug38939358_t1 VALUES (1);
 DROP TABLE test.bug38939358_t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug38939358.dump
 
+--echo # Verify that text in a regular view body cannot make mysqldump treat it
+--echo # as a JSON duality view.
+CREATE DATABASE mysqldump_regular_view;
+CREATE VIEW mysqldump_regular_view.v1 AS
+  SELECT ' JSON RELATIONAL DUALITY VIEW ' AS view_text;
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_regular_view v1 > $MYSQLTEST_VARDIR/tmp/mysqldump_regular_view.sql
+--exec grep -q '^/\*!50001 VIEW .*JSON RELATIONAL DUALITY VIEW.* \*/;$' $MYSQLTEST_VARDIR/tmp/mysqldump_regular_view.sql
+DROP DATABASE mysqldump_regular_view;
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqldump_regular_view.sql
+
+--echo # Verify that a JSON duality view containing version comments can be
+--echo # dumped and restored.
+CREATE DATABASE mysqldump_jdv;
+CREATE TABLE mysqldump_jdv.singleton_t (
+  id INT PRIMARY KEY,
+  checked_value INT,
+  protected_value INT
+);
+
+CREATE TABLE mysqldump_jdv.root_t (
+  id INT PRIMARY KEY,
+  singleton_id INT,
+  checked_value INT,
+  protected_value INT,
+  FOREIGN KEY (singleton_id) REFERENCES mysqldump_jdv.singleton_t(id)
+);
+
+CREATE TABLE mysqldump_jdv.nested_t (
+  id INT PRIMARY KEY,
+  root_id INT,
+  checked_value INT,
+  protected_value INT,
+  FOREIGN KEY (root_id) REFERENCES mysqldump_jdv.root_t(id)
+);
+
+INSERT INTO mysqldump_jdv.singleton_t VALUES (10, 100, 200);
+INSERT INTO mysqldump_jdv.root_t VALUES (1, 10, 1000, 2000);
+INSERT INTO mysqldump_jdv.nested_t VALUES (100, 1, 10000, 20000),
+                                               (101, 1, 10001, 20001);
+
+CREATE ALGORITHM=MERGE
+DEFINER=CURRENT_USER()
+SQL SECURITY DEFINER
+JSON RELATIONAL DUALITY VIEW mysqldump_jdv.dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+  WITH (INSERT, UPDATE, DELETE, CHECK)
+  '_id' : r.id WITH (NO UPDATE, NO CHECK),
+  'checked_value' : r.checked_value WITH (UPDATE, CHECK),
+  'protected_value' : r.protected_value WITH (NO UPDATE, NO CHECK),
+  'singleton' : (
+    SELECT JSON_DUALITY_OBJECT(
+      WITH (UPDATE, CHECK)
+      'id' : s.id WITH (NO UPDATE, NO CHECK),
+      'checked_value' : s.checked_value WITH (UPDATE, CHECK),
+      'protected_value' : s.protected_value WITH (NO UPDATE, NO CHECK)
+    )
+    FROM mysqldump_jdv.singleton_t AS s
+    WHERE s.id = r.singleton_id
+  ),
+  'nested' : (
+    SELECT JSON_ARRAYAGG(
+      JSON_DUALITY_OBJECT(
+        WITH (NO INSERT, NO UPDATE, NO DELETE, NO CHECK)
+        'id' : n.id WITH (NO UPDATE, CHECK),
+        'checked_value' : n.checked_value WITH (UPDATE, CHECK),
+        'protected_value' : n.protected_value WITH (NO UPDATE, NO CHECK)
+      )
+    )
+    FROM mysqldump_jdv.nested_t AS n
+    WHERE n.root_id = r.id
+  )
+)
+FROM mysqldump_jdv.root_t AS r;
+
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_jdv > $MYSQLTEST_VARDIR/tmp/mysqldump_jdv.sql
+--exec grep -q '^CREATE ALGORITHM=.*JSON RELATIONAL DUALITY VIEW' $MYSQLTEST_VARDIR/tmp/mysqldump_jdv.sql
+--echo # Dumped JDV definition, including its versioned annotations.
+--exec sed 's/AS SELECT /AS SELECT/' $MYSQLTEST_VARDIR/tmp/mysqldump_jdv.sql
+
+DROP DATABASE mysqldump_jdv;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump_jdv.sql
+
+SELECT data->>'$._id' AS id,
+       data->>'$.checked_value' AS root_value,
+       data->>'$.singleton.checked_value' AS singleton_value,
+       data->>'$.nested[0].checked_value' AS nested_value
+FROM mysqldump_jdv.dv1;
+
+SELECT REFERENCED_TABLE_NAME, ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE,
+       ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = 'mysqldump_jdv' AND TABLE_NAME = 'dv1'
+ORDER BY REFERENCED_TABLE_NAME;
+
+SELECT REFERENCED_TABLE_NAME, JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = 'mysqldump_jdv' AND TABLE_NAME = 'dv1'
+ORDER BY REFERENCED_TABLE_NAME, JSON_KEY_NAME;
+
+DROP DATABASE mysqldump_jdv;
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqldump_jdv.sql
+
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

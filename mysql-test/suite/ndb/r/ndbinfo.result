@@ -98,7 +98,7 @@ table_id	table_name	comment
 50	threadblock_details	which blocks are run in which threads and some internal state details
 51	transporter_details	detailed transporter status
 52	transactions_full	transactions_full
-53	transporter_activity	Histogram over activity on heartbeated transporters
+53	transporter_activity	Histogram over transporter activity using time between received messages
 54	trusted_certs	Contents of in-memory TLS trust store
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
@@ -155,7 +155,7 @@ table_id	table_name	comment
 50	threadblock_details	which blocks are run in which threads and some internal state details
 51	transporter_details	detailed transporter status
 52	transactions_full	transactions_full
-53	transporter_activity	Histogram over activity on heartbeated transporters
+53	transporter_activity	Histogram over transporter activity using time between received messages
 54	trusted_certs	Contents of in-memory TLS trust store
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment	rows_estimate

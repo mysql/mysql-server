@@ -1,0 +1,4 @@
+!include suite/ndbcluster/my.cnf
+
+[ndb_mgmd]
+loose-error-insert=17049

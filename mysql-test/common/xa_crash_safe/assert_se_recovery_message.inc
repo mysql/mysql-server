@@ -21,6 +21,9 @@ if ($assert_select == '') {
   --die ERROR IN TEST: You must set $assert_select before sourcing assert_recovery_message.inc
 }
 
+--let $wait_condition = SELECT COUNT(1) > 0 FROM performance_schema.error_log WHERE subsystem = 'InnoDB' AND prio = 'Note' AND data LIKE '%$assert_select%'
+--source include/wait_condition.inc
+
 let $_row_count_to_assert = 
 `SELECT COUNT(1) 
  FROM performance_schema.error_log 

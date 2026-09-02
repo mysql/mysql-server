@@ -57,10 +57,6 @@ IF(protobuf_BUILD_SHARED_LIBS)
     TARGET_LINK_OPTIONS(libprotoc PRIVATE LINKER:-no_warn_duplicate_libraries)
   ENDIF()
   IF(WIN32)
-    ADD_CUSTOM_COMMAND(TARGET libprotoc POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libprotoc.dll"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libprotoc.dll"
-      )
+    COPY_TARGET_DLL_TO_RUNTIME(libprotoc)
   ENDIF()
 ENDIF()

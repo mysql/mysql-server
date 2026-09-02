@@ -80,6 +80,11 @@ struct Key_sort_buffer : private ut::Non_copyable {
     return dict_index_is_unique(m_index);
   }
 
+  /** @return true if duplicate checks should be performed. */
+  [[nodiscard]] bool is_duplicate_check_required() const noexcept {
+    return !m_index->is_multi_value();
+  }
+
   /** @return the heap to use. */
   [[nodiscard]] mem_heap_t *heap() noexcept { return m_heap; }
 

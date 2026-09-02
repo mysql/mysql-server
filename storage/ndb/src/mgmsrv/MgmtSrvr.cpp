@@ -66,7 +66,6 @@
 #include <signaldata/TamperOrd.hpp>
 #include <signaldata/TestOrd.hpp>
 #include "NdbTCP.h"
-#include "portlib/ndb_openssl_version.h"
 #include "portlib/ndb_sockaddr.h"
 
 #include <NdbConfig.h>
@@ -96,9 +95,6 @@ int g_errorInsert = 0;
       return result;                             \
     }                                            \
   }
-
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 void *MgmtSrvr::logLevelThread_C(void *m) {
   MgmtSrvr *mgm = (MgmtSrvr *)m;
@@ -430,11 +426,6 @@ bool MgmtSrvr::get_connection_config(const Config *config) {
     iter.get(CFG_MGM_REQUIRE_TLS, &requireTls);
     iter.get(CFG_NODE_REQUIRE_CERT, &requireCert);
 
-    if ((requireTls || requireCert) && !openssl_version_ok) {
-      g_eventLogger->error(
-          "Unsupported OpenSSL 1.0.x. This server does not support TLS.");
-      DBUG_RETURN(false);
-    }
     m_require_tls = requireTls;
     m_require_cert = requireCert;
   }
@@ -538,10 +529,7 @@ bool MgmtSrvr::start() {
     TlsKeyManager stubKeyManager;
     stubKeyManager.init(m_tls_search_path, 0, NODE_TYPE_MGM);
     if (!stubKeyManager.ctx()) {
-      g_eventLogger->error(
-          openssl_version_ok
-              ? "This node does not have a valid TLS certificate."
-              : "This version of OpenSSL is not supported.");
+      g_eventLogger->error("This node does not have a valid TLS certificate.");
       DBUG_RETURN(false);
     }
   }
@@ -3793,6 +3781,14 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
   if (ERROR_INSERTED(901)) {
     require(nodeid > 0);
     return true;
+  }
+
+  /* Error insert codes starting at 17000 -> temporary DNS error */
+  if (ERROR_INSERTED(17000 + nodeid)) {
+    error_code = NDB_MGM_ALLOCID_CONFIG_RETRY;
+    error_string.appfmt("Error %d inserted", g_errorInsert);
+    g_errorInsert = 0;  // clear error insert; succeed on retry
+    return false;
   }
 
   /* Check the node id request. There are several stages of checks:

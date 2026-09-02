@@ -277,7 +277,7 @@ std::string Ssl_ctx_property_name(
 static void log_tls_channel_without_force_pqc(const std::string &channel
                                               [[maybe_unused]],
                                               bool force_pqc [[maybe_unused]]) {
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (!force_pqc)
     LogErr(WARNING_LEVEL, ER_WARN_TLS_SESSION_WITHOUT_PQC, channel.c_str());
 #endif
@@ -330,7 +330,7 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
     }
   }
 
-#if !defined(HAVE_TLSv13) || OPENSSL_VERSION_NUMBER < 0x30500000L
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
   if (current_tls_force_pqc_) {
     error_num = SSL_INITERR_PQC_UNSUPPORTED;
     if (out_error) *out_error = error_num;
@@ -341,7 +341,7 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
 
   long ssl_flags = process_tls_version(current_version_.c_str());
 
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (current_tls_force_pqc_) {
     if (ssl_flags & SSL_OP_NO_TLSv1_3) {
       error_num = SSL_INITERR_PQC_UNSUPPORTED;
@@ -379,11 +379,9 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
                                        : SSL_SESS_CACHE_OFF);
     SSL_CTX_set_timeout(ssl_acceptor_fd_->ssl_context,
                         current_tls_session_cache_timeout_);
-#ifdef HAVE_TLSv13
     /* Turn off server's ticket sending for TLS 1.3 if requested */
     if (!current_tls_session_cache_mode_ && !(ssl_flags & SSL_OP_NO_TLSv1_3))
       SSL_CTX_set_num_tickets(ssl_acceptor_fd_->ssl_context, 0);
-#endif
   }
   if (out_error) *out_error = error_num;
 }

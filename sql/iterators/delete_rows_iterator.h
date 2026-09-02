@@ -42,7 +42,8 @@ class DeleteRowsIterator final : public RowIterator {
  public:
   DeleteRowsIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                      JOIN *join, table_map tables_to_delete_from,
-                     table_map immediate_tables);
+                     table_map immediate_tables,
+                     table_map tables_to_get_rowid_for);
   void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
   void EndPSIBatchModeIfStarted() override {
     m_source->EndPSIBatchModeIfStarted();
@@ -59,15 +60,10 @@ class DeleteRowsIterator final : public RowIterator {
   table_map m_tables_to_delete_from;
   /// The tables to delete from immediately while scanning the join result.
   table_map m_immediate_tables;
-  /// All the tables that are part of a hash join. We use this map to find out
-  /// how to get the row ID from a table when buffering row IDs for delayed
-  /// delete. For those tables that are part of a hash join, the row ID will
-  /// already be available in handler::ref, and calling handler::position() will
-  /// overwrite it with an incorrect row ID (most likely the last row read from
-  /// the table). For those that are not part of a hash join,
-  /// handler::position() must be called to get the current row ID from the
-  /// underlying scan.
-  table_map m_hash_join_tables;
+  /// The tables for which handler::position() must be called to get the row ID.
+  /// For all other tables, the child iterator has already copied the correct
+  /// row ID into handler::ref.
+  table_map m_tables_to_get_rowid_for;
   /// The target tables that live in transactional storage engines.
   table_map m_transactional_tables{0};
   /// The target tables that have before delete triggers.

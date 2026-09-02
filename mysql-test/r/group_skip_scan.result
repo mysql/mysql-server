@@ -136,46 +136,68 @@ explain format=tree select a1, min(a2) from t1 group by a1;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, min(a2) from t1 group by a1;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, max(a2) from t1 group by a1;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,max(`test`.`t1`.`a2`) AS `max(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, min(a2), max(a2) from t1 group by a1;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,min(`test`.`t1`.`a2`) AS `min(a2)`,max(`test`.`t1`.`a2`) AS `max(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
 EXPLAIN
 -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a2`) AS `min(a2)`,`test`.`t1`.`a1` AS `a1`,max(`test`.`t1`.`a2`) AS `max(a2)`,min(`test`.`t1`.`a2`) AS `min(a2)`,`test`.`t1`.`a1` AS `a1` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,`test`.`t1`.`a1` AS `a1`,max(`test`.`t1`.`c`) AS `max(c)`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`a2` AS `a2`,max(`test`.`t1`.`c`) AS `max(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select min(a2) from t1 group by a1;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a2, min(c), max(c) from t1 group by a1,a2,b;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a2` AS `a2`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 select a1, min(a2) from t1 group by a1;
 a1	min(a2)
 a	a
@@ -305,116 +327,162 @@ EXPLAIN
 -> Filter: (t1.a1 < 'd')  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`a1` < 'd') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.a1 >= 'b')  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`a1` >= 'b') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a1` < 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a1` < 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.a1 >= 'c') or (t1.a2 < 'b'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`a1` = 'z') or (`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`a1` = 'z') or (`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a'))  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a'))  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.a1 >= 'b')  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`a1` >= 'b') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.a1 in ('a','b','d'))  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`a1` in ('a','b','d')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.a1 < 'd')  (rows=22)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=22)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`a1` < 'd') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.a1 < 'd')  (rows=22)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=22)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`a1` < 'd') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.a1 >= 'b')  (rows=25)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`a1` >= 'b') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=27)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=27)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a1` >= 'c') or (`test`.`t2`.`a1` < 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=27)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=27)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a1` >= 'c') or (`test`.`t2`.`a1` < 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.a1 >= 'c') or (t2.a2 < 'b'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a1` >= 'c') or (`test`.`t2`.`a2` < 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=14)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a1` = 'z') or (`test`.`t2`.`a1` = 'b') or (`test`.`t2`.`a1` = 'd')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=14)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a1` = 'z') or (`test`.`t2`.`a1` = 'b') or (`test`.`t2`.`a1` = 'd')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')) and (t2.a2 > 'a'))  (rows=13)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=13)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (((`test`.`t2`.`a1` = 'b') or (`test`.`t2`.`a1` = 'd') or (`test`.`t2`.`a1` = 'a') or (`test`.`t2`.`a1` = 'c')) and (`test`.`t2`.`a2` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')) and (t2.a2 > 'a'))  (rows=13)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=13)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (((`test`.`t2`.`a1` = 'b') or (`test`.`t2`.`a1` = 'd') or (`test`.`t2`.`a1` = 'a') or (`test`.`t2`.`a1` = 'c')) and (`test`.`t2`.`a2` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.a1 >= 'b')  (rows=25)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`a1` >= 'b') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.a1 in ('a','b','d'))  (rows=22)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=22)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`a1` in ('a','b','d')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
 a	a	a	a111	d111
@@ -733,61 +801,85 @@ EXPLAIN
 -> Filter: ((t1.b = 'b') and (t1.a2 = 'a'))  (rows=5)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'b') and (`test`.`t1`.`a2` = 'a')) group by `test`.`t1`.`a1`
 explain format=tree select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
 -> Filter: ((t1.b = 'b') and (t1.a2 = 'a'))  (rows=5)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,max(`test`.`t1`.`c`) AS `max(c)`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'b') and (`test`.`t1`.`a2` = 'a')) group by `test`.`t1`.`a1`
 explain format=tree select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
 EXPLAIN
 -> Filter: (t1.b = 'b')  (rows=9)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`b` = 'b') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
 EXPLAIN
 -> Filter: (t1.b = 'b')  (rows=9)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`b` = 'b') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
 EXPLAIN
 -> Filter: (t1.b = 'b')  (rows=9)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`b` = 'b') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
 -> Filter: ((t2.b = 'b') and (t2.a2 = 'a'))  (rows=5)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`b` = 'b') and (`test`.`t2`.`a2` = 'a')) group by `test`.`t2`.`a1`
 explain format=tree select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
 -> Filter: ((t2.b = 'b') and (t2.a2 = 'a'))  (rows=5)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,max(`test`.`t2`.`c`) AS `max(c)`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`b` = 'b') and (`test`.`t2`.`a2` = 'a')) group by `test`.`t2`.`a1`
 explain format=tree select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b = 'b')  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` = 'b') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b = 'b')  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` = 'b') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b = 'b')  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` = 'b') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
 -> Filter: ((t3.b = 'b') and (t3.a2 = 'a'))  (rows=4)
     -> Covering index skip scan for grouping on t3 using idx_t3_1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a1` AS `a1`,`test`.`t3`.`a2` AS `a2`,`test`.`t3`.`b` AS `b`,max(`test`.`t3`.`c`) AS `max(c)`,min(`test`.`t3`.`c`) AS `min(c)` from `test`.`t3` where ((`test`.`t3`.`b` = 'b') and (`test`.`t3`.`a2` = 'a')) group by `test`.`t3`.`a1`
 explain format=tree select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
 -> Filter: ((t3.b = 'b') and (t3.a2 = 'a'))  (rows=4)
     -> Covering index skip scan for grouping on t3 using idx_t3_1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a1` AS `a1`,max(`test`.`t3`.`c`) AS `max(c)`,min(`test`.`t3`.`c`) AS `min(c)` from `test`.`t3` where ((`test`.`t3`.`b` = 'b') and (`test`.`t3`.`a2` = 'a')) group by `test`.`t3`.`a1`
 select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
 a1	a2	b	max(c)	min(c)
 a	a	b	h112	e112
@@ -892,31 +984,43 @@ EXPLAIN
 -> Filter: ((t2.a2 = 'a') and (t2.b is null))  (rows=5)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`a2` = 'a') and (`test`.`t2`.`b` is null)) group by `test`.`t2`.`a1`
 explain format=tree select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 EXPLAIN
 -> Filter: ((t2.a2 = 'a') and (t2.b is null))  (rows=5)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a2` = 'a') and (`test`.`t2`.`b` is null)) group by `test`.`t2`.`a1`
 explain format=tree select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b is null)  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b is null)  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b is null)  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
 -> Filter: (t2.b is null)  (rows=10)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 a1	a2	b	min(c)
 a	a	NULL	a777
@@ -946,156 +1050,218 @@ EXPLAIN
 -> Filter: (t1.c > 'b1')  (rows=5.67)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b1' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` > 'b1') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c > 'b1')  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b1' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` > 'b1') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c > 'f123')  (rows=5.67)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('f123' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` > 'f123') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c > 'f123')  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('f123' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` > 'f123') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c < 'a0')  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` < 'a0') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c < 'a0')  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` < 'a0') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c < 'k321')  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'k321')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` < 'k321') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.c < 'k321')  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'k321')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`c` < 'k321') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c < 'a0') or (t1.c > 'b1'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0') OR ('b1' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` < 'a0') or (`test`.`t1`.`c` > 'b1')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c < 'a0') or (t1.c > 'b1'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0') OR ('b1' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` < 'a0') or (`test`.`t1`.`c` > 'b1')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c > 'b1') or (t1.c <= 'g1'))  (rows=9.44)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` > 'b1') or (`test`.`t1`.`c` <= 'g1')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c > 'b1') or (t1.c <= 'g1'))  (rows=9.44)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` > 'b1') or (`test`.`t1`.`c` <= 'g1')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c > 'b111') and (t1.c <= 'g112'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c <= 'g112')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` > 'b111') and (`test`.`t1`.`c` <= 'g112')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c < 'c5') or (t1.c = 'g412') or (t1.c = 'k421'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'c5') OR (c = 'g412') OR (c = 'k421')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` < 'c5') or (`test`.`t1`.`c` = 'g412') or (`test`.`t1`.`c` = 'k421')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.c > 'b111') and (t1.c <= 'g112')) or ((t1.c > 'd000') and (t1.c <= 'i110')))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c <= 'i110')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`c` > 'b111') and (`test`.`t1`.`c` <= 'g112')) or ((`test`.`t1`.`c` > 'd000') and (`test`.`t1`.`c` <= 'i110'))) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c between 'b111' and 'g112') or (t1.c between 'd000' and 'i110'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' <= c <= 'i110')  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`c` between 'b111' and 'g112') or (`test`.`t1`.`c` between 'd000' and 'i110')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c > 'b1')  (rows=11)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b1' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` > 'b1') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c > 'b1')  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b1' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` > 'b1') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c > 'f123')  (rows=11)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('f123' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` > 'f123') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c > 'f123')  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('f123' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` > 'f123') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c < 'a0')  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` < 'a0') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c < 'a0')  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` < 'a0') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c < 'k321')  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'k321')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` < 'k321') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
 -> Filter: (t2.c < 'k321')  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'k321')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`c` < 'k321') group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c < 'a0') or (t2.c > 'b1'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0') OR ('b1' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` < 'a0') or (`test`.`t2`.`c` > 'b1')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c < 'a0') or (t2.c > 'b1'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0') OR ('b1' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` < 'a0') or (`test`.`t2`.`c` > 'b1')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c > 'b1') or (t2.c <= 'g1'))  (rows=18.3)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` > 'b1') or (`test`.`t2`.`c` <= 'g1')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c > 'b1') or (t2.c <= 'g1'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` > 'b1') or (`test`.`t2`.`c` <= 'g1')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c > 'b111') and (t2.c <= 'g112'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c <= 'g112')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` > 'b111') and (`test`.`t2`.`c` <= 'g112')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c < 'c5') or (t2.c = 'g412') or (t2.c = 'k421'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'c5') OR (c = 'g412') OR (c = 'k421')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` < 'c5') or (`test`.`t2`.`c` = 'g412') or (`test`.`t2`.`c` = 'k421')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t2.c > 'b111') and (t2.c <= 'g112')) or ((t2.c > 'd000') and (t2.c <= 'i110')))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c <= 'i110')  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (((`test`.`t2`.`c` > 'b111') and (`test`.`t2`.`c` <= 'g112')) or ((`test`.`t2`.`c` > 'd000') and (`test`.`t2`.`c` <= 'i110'))) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
 a1	a2	b	max(c)
 a	a	a	d111
@@ -1527,6 +1693,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` semi join (`test`.`t2`) where (`<subquery2>`.`c` = `test`.`t1`.`c`) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
@@ -1540,71 +1707,99 @@ EXPLAIN
                     -> Filter: (t2.c > 'b1')  (rows=54.7)
                         -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`c` > 'b1') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) and (`test`.`t1`.`b` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.c > 'b111'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) and (`test`.`t1`.`c` > 'b111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b') and (t1.c > 'b111'))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c)  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b') and (`test`.`t1`.`c` > 'b111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'a') and ((t1.a1 > 'a') or (t1.a1 < '9')) and (t1.a2 >= 'b') and (t1.a2 < 'z') and ((t1.c < 'h112') or (t1.c = 'j121') or ((t1.c > 'k121') and (t1.c < 'm122')) or (t1.c > 'o122')))  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'h112') OR (c = 'j121') OR (2 more)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and ((`test`.`t1`.`a1` > 'a') or (`test`.`t1`.`a1` < '9')) and (`test`.`t1`.`a2` >= 'b') and (`test`.`t1`.`a2` < 'z') and ((`test`.`t1`.`c` < 'h112') or (`test`.`t1`.`c` = 'j121') or ((`test`.`t1`.`c` > 'k121') and (`test`.`t1`.`c` < 'm122')) or (`test`.`t1`.`c` > 'o122'))) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'a') and ((t1.a1 > 'a') or (t1.a1 < '9')) and (t1.a2 >= 'b') and (t1.a2 < 'z') and ((t1.c = 'j121') or ((t1.c > 'k121') and (t1.c < 'm122')) or (t1.c > 'o122') or (t1.c < 'h112') or (t1.c = 'c111')))  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'h112') OR (c = 'j121') OR (2 more)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and ((`test`.`t1`.`a1` > 'a') or (`test`.`t1`.`a1` < '9')) and (`test`.`t1`.`a2` >= 'b') and (`test`.`t1`.`a2` < 'z') and ((`test`.`t1`.`c` = 'j121') or ((`test`.`t1`.`c` > 'k121') and (`test`.`t1`.`c` < 'm122')) or (`test`.`t1`.`c` > 'o122') or (`test`.`t1`.`c` < 'h112') or (`test`.`t1`.`c` = 'c111'))) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'c') and (ord(t1.a1) > 97) and ((ord(t1.a2) + ord(t1.a1)) > 194))  (rows=17)
     -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (ord(`test`.`t1`.`a1`) > 97) and ((ord(`test`.`t1`.`a2`) + ord(`test`.`t1`.`a1`)) > 194)) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.b > 'a'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (((`test`.`t2`.`a1` >= 'c') or (`test`.`t2`.`a2` < 'b')) and (`test`.`t2`.`b` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.c > 'b111'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (((`test`.`t2`.`a1` >= 'c') or (`test`.`t2`.`a2` < 'b')) and (`test`.`t2`.`c` > 'b111')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b') and (t2.c > 'b111'))  (rows=33)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c)  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b') and (`test`.`t2`.`c` > 'b111')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'a') and ((t2.a1 > 'a') or (t2.a1 < '9')) and (t2.a2 >= 'b') and (t2.a2 < 'z') and ((t2.c < 'h112') or (t2.c = 'j121') or ((t2.c > 'k121') and (t2.c < 'm122')) or (t2.c > 'o122')))  (rows=25)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'h112') OR (c = 'j121') OR (2 more)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and ((`test`.`t2`.`a1` > 'a') or (`test`.`t2`.`a1` < '9')) and (`test`.`t2`.`a2` >= 'b') and (`test`.`t2`.`a2` < 'z') and ((`test`.`t2`.`c` < 'h112') or (`test`.`t2`.`c` = 'j121') or ((`test`.`t2`.`c` > 'k121') and (`test`.`t2`.`c` < 'm122')) or (`test`.`t2`.`c` > 'o122'))) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'a') and ((t2.a1 > 'a') or (t2.a1 < '9')) and (t2.a2 >= 'b') and (t2.a2 < 'z') and ((t2.c = 'j121') or ((t2.c > 'k121') and (t2.c < 'm122')) or (t2.c > 'o122') or (t2.c < 'h112') or (t2.c = 'c111')))  (rows=25)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'h112') OR (c = 'j121') OR (2 more)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and ((`test`.`t2`.`a1` > 'a') or (`test`.`t2`.`a1` < '9')) and (`test`.`t2`.`a2` >= 'b') and (`test`.`t2`.`a2` < 'z') and ((`test`.`t2`.`c` = 'j121') or ((`test`.`t2`.`c` > 'k121') and (`test`.`t2`.`c` < 'm122')) or (`test`.`t2`.`c` > 'o122') or (`test`.`t2`.`c` < 'h112') or (`test`.`t2`.`c` = 'c111'))) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
     -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`b` = 'c') and (`test`.`t2`.`a1` > 'a') and (`test`.`t2`.`a2` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
 a	a	b	e112	h112
@@ -1694,46 +1889,64 @@ EXPLAIN
 -> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) and (`test`.`t1`.`b` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) and (`test`.`t1`.`b` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 'i121') and (`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.b > 'a'))  (rows=33)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (((`test`.`t2`.`a1` >= 'c') or (`test`.`t2`.`a2` < 'b')) and (`test`.`t2`.`b` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'i121') and (`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'c') and (`test`.`t2`.`a1` > 'a') and (`test`.`t2`.`a2` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 a1	a2	b
 a	a	b
@@ -1777,54 +1990,74 @@ explain format=tree select sql_big_result distinct a1,a2,b from t1;
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1`
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
 -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 EXPLAIN
 -> Group (no aggregates)  (rows=1)
     -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=1)
         -> Covering index scan on t1 using idx_t1_1  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 'i121') and (`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 EXPLAIN
 -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a'))
 explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
 -> Group (no aggregates)  (rows=1)
     -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=4.27)
         -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain format=tree select sql_big_result distinct a1,a2,b from t2;
 EXPLAIN
 -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain format=tree select sql_big_result distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
 -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b'))
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 EXPLAIN
 -> Group (no aggregates)  (rows=1)
     -> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (rows=1)
         -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'i121') and (`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b'))
 explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 EXPLAIN
 -> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'c') and (`test`.`t2`.`a1` > 'a') and (`test`.`t2`.`a2` > 'a'))
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
 -> Group (no aggregates)  (rows=1)
     -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=5.47)
         -> Covering index scan on t2 using idx_t2_2  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b'))
 select sql_big_result distinct a1,a2,b from t1;
 a1	a2	b
 a	a	a
@@ -1943,21 +2176,29 @@ explain format=tree select sql_big_result distinct a1,a2,b from t1;
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1`
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 'i121') and (`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Sort with duplicate removal: t1.b
@@ -1966,25 +2207,35 @@ EXPLAIN
             -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
                 -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select sql_big_result distinct a1,a2,b from t2;
 EXPLAIN
 -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'i121') and (`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
 -> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
     -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'c') and (`test`.`t2`.`a1` > 'a') and (`test`.`t2`.`a2` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Sort with duplicate removal: t2.b
@@ -1993,6 +2244,8 @@ EXPLAIN
             -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
                 -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 select distinct sql_big_result a1,a2,b from t1;
 a1	a2	b
 a	a	a
@@ -2067,30 +2320,40 @@ EXPLAIN
     -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
         -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`) AS `count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain format=tree select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 EXPLAIN
 -> Aggregate: count(distinct t1.a1,t1.a2,t1.b,t1.c)  (rows=1)
     -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=65)
         -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=65)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`) AS `count(distinct a1,a2,b,c)` from `test`.`t1` where ((`test`.`t1`.`c` = 'i121') and (`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain format=tree select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 EXPLAIN
 -> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (rows=1)
     -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
         -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`) AS `count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a'))
 explain format=tree select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
 -> Aggregate: count(distinct t1.b)  (rows=1)
     -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=4.27)
         -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `count(distinct b)` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain format=tree select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 EXPLAIN
 -> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (rows=1)
     -> Filter: ((t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
         -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select (98 + count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`)) AS `98 + count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a'))
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 count(distinct a1,a2,b)
 4
@@ -2111,25 +2374,35 @@ EXPLAIN
 -> Filter: (t1.a1 < 'd')  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,concat(min(`test`.`t1`.`c`),max(`test`.`t1`.`c`)) AS `concat(min(c), max(c))` from `test`.`t1` where (`test`.`t1`.`a1` < 'd') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.a1 < 'd')  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select concat(`test`.`t1`.`a1`,min(`test`.`t1`.`c`)) AS `concat(a1,min(c))`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a1` < 'd') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.a1 < 'd')  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select concat(`test`.`t1`.`a1`,min(`test`.`t1`.`c`)) AS `concat(a1,min(c))`,`test`.`t1`.`b` AS `b`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`a1` < 'd') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
 -> Filter: (t1.a1 < 'd')  (rows=10)
     -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select concat(`test`.`t1`.`a1`,`test`.`t1`.`a2`) AS `concat(a1,a2)`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (`test`.`t1`.`a1` < 'd') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select concat(ord(min(`test`.`t1`.`b`)),ord(max(`test`.`t1`.`b`))) AS `concat(ord(min(b)),ord(max(b)))`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	concat(min(c), max(c))
 a	a	a	a111d111
@@ -2201,11 +2474,15 @@ EXPLAIN
 -> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
     -> Index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,d from t1 group by a1,a2,b;
 EXPLAIN
 -> Group (no aggregates)  (rows=16)
     -> Index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
 EXPLAIN
@@ -2213,6 +2490,8 @@ EXPLAIN
     -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.c > 'a111'))  (rows=25.3)
         -> Covering index range scan on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=76)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`c` > 'a111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain format=tree select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 EXPLAIN
@@ -2220,6 +2499,8 @@ EXPLAIN
     -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.d > 'xy2'))  (rows=14.1)
         -> Index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`d` > 'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 EXPLAIN
@@ -2227,24 +2508,32 @@ EXPLAIN
     -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.d > 'xy2'))  (rows=14.1)
         -> Index scan on t1 using idx_t1_1  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`d` > 'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
 EXPLAIN
 -> Group aggregate: max(t2.c), min(t2.c)  (rows=4.97)
     -> Filter: (((t2.b = 'b') and (t2.a2 = 'a')) or (t2.b < 'b'))  (rows=55.8)
         -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where (((`test`.`t2`.`b` = 'b') and (`test`.`t2`.`a2` = 'a')) or (`test`.`t2`.`b` < 'b')) group by `test`.`t2`.`a1`
 explain format=tree select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 EXPLAIN
 -> Group (no aggregates)  (rows=16)
     -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.c > 'a111'))  (rows=25.3)
         -> Covering index range scan on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=76)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`c` > 'a111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 EXPLAIN
 -> Group aggregate: min(t2.b)  (rows=1.28)
     -> Filter: ((t2.c = 'a111') and (t2.a2 = 'a'))  (rows=1.64)
         -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,min(`test`.`t2`.`b`) AS `min(b)`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'a111') and (`test`.`t2`.`a2` = 'a')) group by `test`.`t2`.`a1`
 select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 a1	a2	min(b)	c
 a	a	a	a111
@@ -2254,6 +2543,8 @@ EXPLAIN
     -> Filter: (((t2.b = 'b') and (t2.a2 = 'a')) or (t2.b = 'a'))  (rows=17.9)
         -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where (((`test`.`t2`.`b` = 'b') and (`test`.`t2`.`a2` = 'a')) or (`test`.`t2`.`b` = 'a')) group by `test`.`t2`.`a1`
 explain format=tree select a1,a2,b,min(c),max(c) from t2
 where (c > 'a000') and (c <= 'd999') and (c like '_8__') group by a1,a2,b;
 EXPLAIN
@@ -2261,28 +2552,38 @@ EXPLAIN
     -> Filter: ((t2.c > 'a000') and (t2.c <= 'd999') and (t2.c like '_8__'))  (rows=2.02)
         -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` > 'a000') and (`test`.`t2`.`c` <= 'd999') and (`test`.`t2`.`c` like '_8__')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain format=tree select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 EXPLAIN
 -> Group aggregate: min(t1.d), max(t1.d)  (rows=64)
     -> Index scan on t1 using idx_t1_1  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,min(`test`.`t1`.`d`) AS `min(d)`,max(`test`.`t1`.`d`) AS `max(d)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
 explain format=tree select a1,a2,count(a2) from t1 group by a1,a2,b;
 EXPLAIN
 -> Group aggregate: count(t1.a2)  (rows=16)
     -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,count(`test`.`t1`.`a2`) AS `count(a2)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 EXPLAIN
 -> Group aggregate: count(t1.a2)  (rows=16)
     -> Filter: (t1.a1 > 'a')  (rows=102)
         -> Covering index range scan on t1 using idx_t1_2 over ('a' < a1)  (rows=102)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,count(`test`.`t1`.`a2`) AS `count(a2)` from `test`.`t1` where (`test`.`t1`.`a1` > 'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 EXPLAIN
 -> Group aggregate: sum(ord(t1.a1))  (rows=16)
     -> Filter: (t1.a1 > 'a')  (rows=102)
         -> Covering index range scan on t1 using idx_t1_2 over ('a' < a1)  (rows=102)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(ord(`test`.`t1`.`a1`)) AS `sum(ord(a1))` from `test`.`t1` where (`test`.`t1`.`a1` > 'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select sql_big_result distinct(a1) from t1 where ord(a2) = 98;
 EXPLAIN
 -> Group (no aggregates)  (rows=4)
@@ -2290,6 +2591,8 @@ EXPLAIN
         -> Filter: (ord(t1.a2) = 98)  (rows=128)
             -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a1` AS `a1` from `test`.`t1` where (ord(`test`.`t1`.`a2`) = 98)
 select sql_big_result distinct(a1) from t1 where ord(a2) = 98;
 a1
 a
@@ -2301,6 +2604,8 @@ EXPLAIN
 -> Filter: (t1.a2 = 'b')  (rows=5)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where (`test`.`t1`.`a2` = 'b') group by `test`.`t1`.`a1`
 select a1 from t1 where a2 = 'b' group by a1;
 a1
 a
@@ -2312,6 +2617,8 @@ EXPLAIN
 -> Filter: (t1.a2 = 'b')  (rows=5)
     -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where (`test`.`t1`.`a2` = 'b')
 select distinct a1 from t1 where a2 = 'b';
 a1
 a
@@ -2368,11 +2675,15 @@ EXPLAIN
 -> Filter: (t1.a = 'AA')  (rows=1)
     -> Covering index skip scan for deduplication on t1 using PRIMARY over (a = 'AA')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 'AA') group by `test`.`t1`.`a`
 EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 EXPLAIN
 -> Group (no aggregates)  (rows=1)
     -> Covering index lookup on t1 using PRIMARY (a = 'BB')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 'BB') group by `test`.`t1`.`a`
 SELECT DISTINCT a FROM t1 WHERE a='BB';
 a
 BB
@@ -2431,6 +2742,8 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT a,a FROM t1 ORDER BY a;
 EXPLAIN
 -> Covering index scan on t1 using PRIMARY  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT DISTINCT a,a FROM t1 ORDER BY a;
 a	a
 	
@@ -2500,6 +2813,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) and (t1.b < 2))  (rows=1)
     -> Covering index skip scan for grouping on t1 using PRIMARY over (b < 2)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 2)) group by `test`.`t1`.`a`
 SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 MAX(b)	a
 1	1
@@ -2517,6 +2832,8 @@ EXPLAIN
     -> Filter: ((t2.a = 1) and (t2.b = 2) and (t2.c > 1))  (rows=1)
         -> Covering index range scan on t2 using PRIMARY over (a = 1 AND b = 2 AND 1 < c)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t2`.`c`) AS `MIN(c)` from `test`.`t2` where ((`test`.`t2`.`a` = 1) and (`test`.`t2`.`b` = 2) and (`test`.`t2`.`c` > 1)) group by `test`.`t2`.`a`
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 MIN(c)
 2
@@ -2529,6 +2846,8 @@ EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 FLUSH STATUS;
 SELECT max(b), a FROM t1 GROUP BY a;
 max(b)	a
@@ -2545,6 +2864,8 @@ EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
@@ -2584,6 +2905,8 @@ EXPLAIN
         -> Covering index skip scan for grouping on t1 using a  (rows=11)
         -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` union /* select#2 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN FORMAT=TREE SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer;
 EXPLAIN
@@ -2592,16 +2915,22 @@ EXPLAIN
     -> Filter: (t1.a < 2)  (rows=11)
         -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)) AS `x` from `test`.`t1` `t1_outer`
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 EXPLAIN
 -> Covering index scan on t1_outer using a  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where true
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where false
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 EXPLAIN
@@ -2615,6 +2944,8 @@ EXPLAIN
                         -> Filter: (t1.a < 2)  (rows=11)
                             -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where <in_optimizer>(`t1_outer`.`a`,`t1_outer`.`a` in ( <materialize> (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2) ), <primary_index_lookup>(`t1_outer`.`a` in <temporary table> on <auto_distinct_key> where ((`t1_outer`.`a` = `<materialized_subquery>`.`max(b)`)))))
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 EXPLAIN
@@ -2624,6 +2955,8 @@ EXPLAIN
         -> Filter: (t1.a < 2)  (rows=11)
             -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` group by `t1_outer`.`a` having (`t1_outer`.`a` > (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)))
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2
 ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2)
 AND t1_outer1.b = t1_outer2.b;
@@ -2633,6 +2966,8 @@ EXPLAIN
     -> Hash
         -> Covering index lookup on t1_outer1 using a (a = (select #2))  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer1` join `test`.`t1` `t1_outer2` where ((`t1_outer2`.`b` = `t1_outer1`.`b`) and (`t1_outer1`.`a` = (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2))))
 EXPLAIN FORMAT=TREE SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 EXPLAIN
@@ -2643,6 +2978,8 @@ EXPLAIN
         -> Filter: (t1.a < 2)  (rows=11)
             -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select (/* select#3 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)) AS `x` from `test`.`t1` `t1_outer`) AS `x2` from `test`.`t1` `t1_outer2`
 CREATE TABLE t3 LIKE t1;
 # Warm-up data-dictionary cache.
 FLUSH STATUS;
@@ -2683,6 +3020,8 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t1;
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using idx  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 SELECT DISTINCT(a) FROM t1;
 a
 1
@@ -2692,6 +3031,8 @@ EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using idx  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a` AS `a` from `test`.`t1`
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 a
 1
@@ -2711,6 +3052,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=24)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)
 8	1	3
@@ -2727,6 +3070,8 @@ SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using break_it  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` order by `test`.`t1`.`a`
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 a	MIN(b)	MAX(b)
 1	1	3
@@ -2745,6 +3090,8 @@ EXPLAIN
         -> Temporary table with deduplication  (rows=10)
             -> Covering index skip scan for grouping on t1 using break_it  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)
 8	1	3
@@ -2761,6 +3108,8 @@ EXPLAIN
 -> Group aggregate: min(t1.b), max(t1.b), avg(t1.b)  (rows=4.9)
     -> Covering index scan on t1 using break_it (reverse)  (rows=24)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)`,avg(`test`.`t1`.`b`) AS `AVG(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)	AVG(b)
 8	1	3	2.0000
@@ -2849,6 +3198,8 @@ EXPLAIN
         -> Filter: (t1.a = 0)  (rows=1)
             -> Covering index skip scan for grouping on t1 using PRIMARY over (a = 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a`,(max(`test`.`t1`.`b`) + 1) AS `max(b)+1` from `test`.`t1` where (`test`.`t1`.`a` = 0) group by `test`.`t1`.`a`
 drop table t1;
 CREATE TABLE t1 (a int, b int, c int, d int,
 KEY foo (c,d,a,b), KEY bar (c,a,b,d));
@@ -2864,6 +3215,8 @@ EXPLAIN
 -> Filter: (t1.d = 4)  (rows=3)
     -> Covering index skip scan for deduplication on t1 using foo  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`d` = 4)
 SELECT DISTINCT c FROM t1 WHERE d=4;
 c
 1
@@ -2886,6 +3239,8 @@ EXPLAIN
 -> Filter: (t.b <> 0)  (rows=10)
     -> Covering index skip scan for grouping on t using a over (NULL < b < 0) OR (0 < b)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,min(`test`.`t`.`b`) AS `MIN(b)` from `test`.`t` where (`test`.`t`.`b` <> 0) group by `test`.`t`.`a`
 #should return 1 row
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 a	MIN(b)
@@ -2898,6 +3253,8 @@ EXPLAIN
 -> Filter: (t.b <> 1)  (rows=10)
     -> Covering index skip scan for grouping on t using a over (NULL < b < 1) OR (1 < b)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where (`test`.`t`.`b` <> 1) group by `test`.`t`.`a`
 #should return 1 row
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 a	MAX(b)
@@ -2911,6 +3268,8 @@ EXPLAIN
 -> Filter: ((t.b > 0) and (t.b < 2))  (rows=10)
     -> Covering index skip scan for grouping on t using a over (0 < b < 2)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where ((`test`.`t`.`b` > 0) and (`test`.`t`.`b` < 2)) group by `test`.`t`.`a`
 #should return 1 row
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 a	MAX(b)
@@ -2989,6 +3348,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.a)  (rows=1)
     -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1`
 SELECT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
 4
@@ -2997,6 +3358,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.a,t1.b)  (rows=1)
     -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`,`test`.`t1`.`b`) AS `COUNT(DISTINCT a,b)` from `test`.`t1`
 SELECT COUNT(DISTINCT a,b) FROM t1;
 COUNT(DISTINCT a,b)
 32
@@ -3005,6 +3368,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.b,t1.a)  (rows=1)
     -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`,`test`.`t1`.`a`) AS `COUNT(DISTINCT b,a)` from `test`.`t1`
 SELECT COUNT(DISTINCT b,a) FROM t1;
 COUNT(DISTINCT b,a)
 32
@@ -3013,6 +3378,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.b)  (rows=1)
     -> Covering index scan on t1 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1`
 SELECT COUNT(DISTINCT b) FROM t1;
 COUNT(DISTINCT b)
 16
@@ -3021,6 +3388,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t1.a)  (rows=2.24)
     -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 COUNT(DISTINCT a)
 1
@@ -3032,6 +3401,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t1.b)  (rows=4)
     -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 COUNT(DISTINCT b)
 8
@@ -3044,6 +3415,8 @@ EXPLAIN
     -> Sort: t1.b  (rows=32)
         -> Covering index scan on t1 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` group by `test`.`t1`.`b`
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 COUNT(DISTINCT a)
 2
@@ -3067,6 +3440,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.a)  (rows=1)
     -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1`
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
 4
@@ -3075,6 +3450,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.a,(t1.b + 0))  (rows=1)
     -> Covering index scan on t1 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`,(`test`.`t1`.`b` + 0)) AS `COUNT(DISTINCT a, b + 0)` from `test`.`t1`
 SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 COUNT(DISTINCT a, b + 0)
 32
@@ -3084,6 +3461,8 @@ EXPLAIN
     -> Aggregate: count(distinct t1.b), count(distinct t1.a)  (rows=1)
         -> Covering index scan on t1 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` having (count(distinct `test`.`t1`.`b`) < 20)
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 COUNT(DISTINCT a)
 4
@@ -3093,6 +3472,8 @@ EXPLAIN
     -> Aggregate: count(distinct t1.c), count(distinct t1.a)  (rows=1)
         -> Table scan on t1  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` having (count(distinct `test`.`t1`.`c`) < 10)
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 COUNT(DISTINCT a)
 4
@@ -3102,6 +3483,8 @@ EXPLAIN
     -> Aggregate: count(distinct t1.a)  (rows=1)
         -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` having (count(distinct `test`.`t1`.`a`) < 10)
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 1
 1
@@ -3111,6 +3494,8 @@ EXPLAIN
     -> Group aggregate: count(distinct t1.b)  (rows=4)
         -> Covering index skip scan for deduplication on t1 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` group by `test`.`t1`.`a` having (count(distinct `test`.`t1`.`b`) > 1)
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 1
 1
@@ -3127,6 +3512,8 @@ EXPLAIN
                 -> Hash
                     -> Covering index scan on t1_1 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1_1.a)` from `test`.`t1` `t1_1` join `test`.`t1` `t1_2` group by `t1_1`.`a`
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 COUNT(DISTINCT t1_1.a)
 1
@@ -3138,6 +3525,8 @@ EXPLAIN
 -> Aggregate: count(distinct t1.a)  (rows=1)
     -> Covering index skip scan for deduplication on t1 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)`,12 AS `12` from `test`.`t1`
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 COUNT(DISTINCT a)	12
 4	12
@@ -3146,6 +3535,8 @@ EXPLAIN
 -> Aggregate: count(distinct t2.a,t2.b,t2.c)  (rows=1)
     -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`) AS `COUNT(DISTINCT a, b, c)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 COUNT(DISTINCT a, b, c)
 32
@@ -3154,6 +3545,8 @@ EXPLAIN
 -> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.a)  (rows=1)
     -> Covering index skip scan for deduplication on t2 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`) AS `COUNT(DISTINCT a)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t2`.`a`) AS `AVG(DISTINCT a)` from `test`.`t2`
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT a)
 4	10	2.5000
@@ -3162,6 +3555,8 @@ EXPLAIN
 -> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.f)  (rows=1)
     -> Table scan on t2  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`) AS `COUNT(DISTINCT a)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t2`.`f`) AS `AVG(DISTINCT f)` from `test`.`t2`
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT f)
 4	10	1.0000
@@ -3170,6 +3565,8 @@ EXPLAIN
 -> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.a)  (rows=1)
     -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,count(distinct `test`.`t2`.`b`,`test`.`t2`.`a`) AS `COUNT(DISTINCT b, a)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, a)
 32	32
@@ -3178,6 +3575,8 @@ EXPLAIN
 -> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.f)  (rows=1)
     -> Table scan on t2  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,count(distinct `test`.`t2`.`b`,`test`.`t2`.`f`) AS `COUNT(DISTINCT b, f)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, f)
 32	16
@@ -3186,6 +3585,8 @@ EXPLAIN
 -> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.d)  (rows=1)
     -> Table scan on t2  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,count(distinct `test`.`t2`.`b`,`test`.`t2`.`d`) AS `COUNT(DISTINCT b, d)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, d)
 32	16
@@ -3194,6 +3595,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=32)
     -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`c`,`test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT c, a, b)` from `test`.`t2` group by `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 a	c	COUNT(DISTINCT c, a, b)
 1	1	1
@@ -3235,6 +3638,8 @@ EXPLAIN
     -> Filter: ((t2.a > 5) and (t2.b between 10 and 20))  (rows=0.111)
         -> Covering index range scan on t2 using a over (5 < a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`c`,`test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT c, a, b)` from `test`.`t2` where ((`test`.`t2`.`a` > 5) and (`test`.`t2`.`b` between 10 and 20)) group by `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`
 SELECT COUNT(DISTINCT c, a, b) FROM t2
 WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 COUNT(DISTINCT c, a, b)
@@ -3244,6 +3649,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=1)
     -> Covering index lookup on t2 using a (a = 5)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`b`) AS `COUNT(DISTINCT b)`,sum(distinct `test`.`t2`.`b`) AS `SUM(DISTINCT b)` from `test`.`t2` where (`test`.`t2`.`a` = 5) group by `test`.`t2`.`b`
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 GROUP BY b;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
@@ -3252,6 +3659,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=4)
     -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,count(distinct `test`.`t2`.`b`) AS `COUNT(DISTINCT b)`,sum(distinct `test`.`t2`.`b`) AS `SUM(DISTINCT b)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 a	COUNT(DISTINCT b)	SUM(DISTINCT b)
 1	8	36
@@ -3263,6 +3672,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=4)
     -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`b`) AS `COUNT(DISTINCT b)`,sum(distinct `test`.`t2`.`b`) AS `SUM(DISTINCT b)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
 8	36
@@ -3275,6 +3686,8 @@ EXPLAIN
     -> Filter: ((t2.d = 42) and (t2.c = 13))  (rows=1)
         -> Table scan on t2  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t2` where ((`test`.`t2`.`d` = 42) and (`test`.`t2`.`c` = 13))
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 COUNT(DISTINCT a, b)
 0
@@ -3285,6 +3698,8 @@ EXPLAIN
     -> Filter: ((t2.c = 42) and (t2.b = 13))  (rows=5)
         -> Covering index skip scan for deduplication on t2 using a  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,count(distinct `test`.`t2`.`a`) AS `COUNT(DISTINCT a)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)` from `test`.`t2` where ((`test`.`t2`.`c` = 42) and (`test`.`t2`.`b` = 13)) group by `test`.`t2`.`a`
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 WHERE b = 13 AND c = 42 GROUP BY a;
 a	COUNT(DISTINCT a)	SUM(DISTINCT a)
@@ -3296,6 +3711,8 @@ EXPLAIN
     -> Filter: (t2.b = 42)  (rows=3.2)
         -> Covering index scan on t2 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)` from `test`.`t2` where (`test`.`t2`.`b` = 42)
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 COUNT(DISTINCT a, b)	SUM(DISTINCT a)
 0	NULL
@@ -3304,6 +3721,8 @@ EXPLAIN
 -> Group aggregate: sum(distinct t2.a), max(t2.b)  (rows=4)
     -> Covering index scan on t2 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)`,max(`test`.`t2`.`b`) AS `MAX(b)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 SUM(DISTINCT a)	MAX(b)
 1	8
@@ -3315,6 +3734,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=32)
     -> Covering index skip scan for deduplication on t2 using a  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select (42 * ((`test`.`t2`.`a` + `test`.`t2`.`c`) + count(distinct `test`.`t2`.`c`,`test`.`t2`.`a`,`test`.`t2`.`b`))) AS `42 * (a + c + COUNT(DISTINCT c, a, b))` from `test`.`t2` group by `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 42 * (a + c + COUNT(DISTINCT c, a, b))
 126
@@ -3354,6 +3775,8 @@ EXPLAIN
 -> Group aggregate: max(t2.b), sum(distinct t2.a)  (rows=4)
     -> Covering index scan on t2 using a  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select (sum(distinct `test`.`t2`.`a`) + max(`test`.`t2`.`b`)) AS `(SUM(DISTINCT a) + MAX(b))` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 (SUM(DISTINCT a) + MAX(b))
 9
@@ -3385,6 +3808,8 @@ EXPLAIN
 -> Group aggregate: count(distinct t1.f2)  (rows=3)
     -> Covering index skip scan for deduplication on t1 using PRIMARY  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,count(distinct `test`.`t1`.`f2`) AS `COUNT(DISTINCT f2)` from `test`.`t1` group by `test`.`t1`.`f1`
 drop table t1;
 # End of test#50539.
 #
@@ -3413,6 +3838,8 @@ EXPLAIN
 -> Filter: (t1.b = 4)  (rows=101)
     -> Covering index skip scan for deduplication on t1 using foo  (rows=101)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` = 4)
 SELECT DISTINCT a FROM t1 WHERE b=4;
 a
 1
@@ -3440,6 +3867,8 @@ EXPLAIN
 -> Group aggregate: sum(distinct t.a), min(t.b)  (rows=2.65)
     -> Covering index scan on t using a  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,min(`test`.`t`.`b`) AS `MIN(b)` from `test`.`t` group by `test`.`t`.`a`
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3455,6 +3884,8 @@ EXPLAIN
 -> Group aggregate: sum(distinct t.a), max(t.b)  (rows=2.65)
     -> Covering index scan on t using a  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` group by `test`.`t`.`a`
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3471,6 +3902,8 @@ EXPLAIN
     -> Group aggregate: sum(distinct t.a), max(t.b)  (rows=2.65)
         -> Covering index scan on t using a  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` group by `test`.`t`.`a` having (0 <> sum(distinct `test`.`t`.`a`))
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3483,6 +3916,8 @@ EXPLAIN
 -> Aggregate: sum(distinct t.a), min(t.b), max(t.b)  (rows=1)
     -> Covering index scan on t using a  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,min(`test`.`t`.`b`) AS `MIN(b)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t`
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3498,6 +3933,8 @@ EXPLAIN
 -> Group aggregate: sum(distinct t.a), min(t.b), max(t.b)  (rows=2.65)
     -> Covering index scan on t using a  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,min(`test`.`t`.`b`) AS `MIN(b)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` group by `test`.`t`.`a`
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3516,6 +3953,8 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t;
 EXPLAIN
 -> Covering index scan on t using PRIMARY  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t`
 SELECT DISTINCT(a) FROM t;
 a
 DROP TABLE t;
@@ -3547,6 +3986,8 @@ EXPLAIN
 -> Filter: (t1.c1 = 4)  (rows=1)
     -> Covering index skip scan for grouping on t1 using c1 over (c1 = 4)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`c2`) AS `MAX(c2)`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 4) group by `test`.`t1`.`c1`
 FLUSH STATUS;
 SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 MAX(c2)	c1
@@ -3577,6 +4018,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) and (t1.b < 2000))  (rows=1)
     -> Covering index skip scan for grouping on t1 using a over (NULL < b < 2000)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 2000)) group by `test`.`t1`.`a`
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
 a	MAX(b)
 1	1001
@@ -3585,6 +4028,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) and (t1.b < 2000))  (rows=1)
     -> Covering index skip scan for grouping on t1 using a over (NULL < b < 2000)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 2000)) group by `test`.`t1`.`a`
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
 a	MAX(b)
 1	1001
@@ -3594,6 +4039,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) and (t1.b between 0 and 1999.5))  (rows=1)
     -> Covering index skip scan for grouping on t1 using a over (0 <= b < 2000)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` between 0 and 1999.5)) group by `test`.`t1`.`a`
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
 GROUP BY a;
 a	MAX(b)
@@ -3603,6 +4050,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) and (t1.b > 2000))  (rows=1)
     -> Covering index skip scan for grouping on t1 using a over (2000 < b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` > 2000)) group by `test`.`t1`.`a`
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
 a	MIN(b)
 1	2001
@@ -3611,6 +4060,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) and (t1.b > 2000))  (rows=1)
     -> Covering index skip scan for grouping on t1 using a over (2000 < b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` > 2000)) group by `test`.`t1`.`a`
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
 a	MIN(b)
 1	2001
@@ -3642,6 +4093,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` <> 3) and (`out1`.`nk` = (/* select#2 */ select max(`out1`.`k`) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
 k
@@ -3664,6 +4116,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select max(`out1`.`k`) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(out1.k) FROM t1);
 k
@@ -3677,6 +4130,8 @@ EXPLAIN
 -> Filter: (t2.k = '4')  (rows=1)
     -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '4'))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(k) FROM t1);
 k
@@ -3687,6 +4142,8 @@ EXPLAIN
 -> Filter: (t2.k = '2')  (rows=1)
     -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '2'))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT 2*MIN(k) FROM t1);
 k
@@ -3700,6 +4157,8 @@ EXPLAIN
         -> Aggregate: count(t1.k), sum(t1.k)  (rows=1)
             -> Covering index scan on t1 using k  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '4') and ('4' = (/* select#2 */ select (sum(`test`.`t1`.`k`) - count(`test`.`t1`.`k`)) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
 k
@@ -3719,6 +4178,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select (min((`out1`.`k` + `test`.`t1`.`k`)) - 1) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
 k
@@ -3739,6 +4199,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select ((`out1`.`k` + min(`test`.`t1`.`k`)) - 1) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
 k
@@ -3759,6 +4220,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select ((min(`out1`.`k`) + min(`test`.`t1`.`k`)) - 1) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
 k
@@ -3779,6 +4241,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select (sum(`out1`.`k`) / count(`test`.`t1`.`k`)) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
 k
@@ -3799,6 +4262,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select (sum(`out1`.`k`) / count(0)) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
 k
@@ -3819,6 +4283,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`out1`.`k` = `test`.`t2`.`k`) and (`out1`.`pk` = (/* select#2 */ select avg(`out1`.`k`) from `test`.`t1`)))
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT AVG(out1.k) FROM t1);
 k
@@ -3841,6 +4306,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where true
 SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
 k
 1
@@ -3850,6 +4316,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where true
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
 k
 1
@@ -3859,6 +4326,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where true
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
 k
 1
@@ -3869,6 +4337,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where (0 <> (/* select#2 */ select min('0') from dual))
 SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
 k
 explain format=tree SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
@@ -3877,6 +4346,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where true
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
 k
 0
@@ -3886,6 +4356,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where true
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
 k
 0
@@ -3898,6 +4369,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where true
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
 nk	k
 1	1
@@ -3907,6 +4379,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where true
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
 nk	k
 1	1
@@ -3917,6 +4390,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where true
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
 nk	k
 0	0
@@ -3926,6 +4400,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where true
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
 nk	k
 0	0
@@ -3962,6 +4437,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (rows=3.33)
         -> Covering index scan on a using group_by_col_key  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` > 2)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3979,6 +4456,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (rows=3.33)
         -> Covering index scan on a using group_by_col_key  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` < 9)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -3998,6 +4477,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (rows=3.33)
         -> Covering index scan on a using group_by_col_key  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` > 2)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4015,6 +4496,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (rows=3.33)
         -> Covering index scan on a using group_by_col_key  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` < 9)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4032,6 +4515,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col in (3,9)) or (a.aggr_col = 9))  (rows=2.67)
         -> Covering index scan on a using group_by_col_key  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (3,9)) or (`test`.`a`.`aggr_col` = 9)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4050,6 +4535,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col = 3) or (a.aggr_col > 8))  (rows=3.33)
         -> Covering index scan on a using group_by_col_key  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` = 3) or (`test`.`a`.`aggr_col` > 8)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4076,6 +4563,8 @@ EXPLAIN
     -> Filter: ((a.group_by_col = 9) or (0 <> a.aggr_col))  (rows=8.2)
         -> Covering index scan on a using group_by_col_key  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` = 9) or (0 <> `test`.`a`.`aggr_col`)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4096,6 +4585,8 @@ EXPLAIN
     -> Filter: ((0 <> a.group_by_col) or (a.aggr_col < 9))  (rows=8.33)
         -> Covering index scan on a using group_by_col_key  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((0 <> `test`.`a`.`group_by_col`) or (`test`.`a`.`aggr_col` < 9)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4113,6 +4604,8 @@ EXPLAIN
     -> Filter: (a.group_by_col = a.aggr_col)  (rows=12)
         -> Covering index scan on a using group_by_col_key  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`group_by_col` = `test`.`a`.`aggr_col`) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4132,6 +4625,8 @@ EXPLAIN
     -> Filter: (a.aggr_col < a.group_by_col)  (rows=4)
         -> Covering index scan on a using group_by_col_key  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`aggr_col` < `test`.`a`.`group_by_col`) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4155,6 +4650,8 @@ EXPLAIN
     -> Filter: ((0 <> a.aggr_col) or (0 <> a.group_by_col))  (rows=14.9)
         -> Covering index scan on a using group_by_col_key  (rows=15)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((0 <> `test`.`a`.`aggr_col`) or (0 <> `test`.`a`.`group_by_col`)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4173,6 +4670,8 @@ EXPLAIN
 -> Filter: ((0 <> a.aggr_col) and (0 <> a.group_by_col))  (rows=7)
     -> Covering index skip scan for grouping on a using group_by_col_key over (NULL < aggr_col < 0) OR (0 < aggr_col)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((0 <> `test`.`a`.`aggr_col`) and (0 <> `test`.`a`.`group_by_col`)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4191,6 +4690,8 @@ EXPLAIN
 -> Filter: ((a.aggr_col <> 0) and (a.group_by_col <> 0))  (rows=7)
     -> Covering index skip scan for grouping on a using group_by_col_key over (NULL < aggr_col < 0) OR (0 < aggr_col)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`aggr_col` <> 0) and (`test`.`a`.`group_by_col` <> 0)) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4212,6 +4713,8 @@ EXPLAIN
     -> Filter: ((0 <> a.group_by_col) or (a.group_by_col < (a.aggr_col = 1)))  (rows=14)
         -> Covering index scan on a using group_by_col_key  (rows=15)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((0 <> `test`.`a`.`group_by_col`) or (`test`.`a`.`group_by_col` < (`test`.`a`.`aggr_col` = 1))) group by `test`.`a`.`group_by_col`
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
@@ -4252,6 +4755,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `a`,'0' AS `b` from dual where <in_optimizer>('1',<exists>(/* select#2 */ select max('0') from dual having (<cache>('1') = <ref_null_helper>(max('0')))))
 DELETE FROM t1;
 DELETE FROM t2;
 # Now t1.a = t1.b, still not result if t2 is empty
@@ -4269,6 +4773,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where true
 # If we have two rows in t1, t1 will not be read before
 # optimization of the subquery, so this didn't use to fail
 # before this patch.
@@ -4289,6 +4794,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select max(`test`.`t1`.`b`) from dual having (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(max(`test`.`t1`.`b`)))))
 DROP TABLE t1, t2;
 # End of test for Bug#30242457
 #
@@ -4317,6 +4823,8 @@ EXPLAIN
 -> Filter: (t1.f1 = 1)  (rows=1)
     -> Covering index skip scan for grouping on t1 using f1 over (f1 = 1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`f2`) AS `MIN(f2)` from `test`.`t1` where (`test`.`t1`.`f1` = 1) group by `test`.`t1`.`f1`
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 MIN(f2)
 0
@@ -4327,6 +4835,8 @@ EXPLAIN
 -> Filter: (t1.f1 is null)  (rows=1)
     -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`f2`) AS `MIN(f2)` from `test`.`t1` where (`test`.`t1`.`f1` is null) group by `test`.`t1`.`f1`
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 MIN(f2)
 1
@@ -4419,6 +4929,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val` = `test`.`t1`.`val`)
 SELECT DISTINCT val FROM t1 WHERE EXISTS
 (SELECT * FROM t2 WHERE t2.val = t1.val);
 val
@@ -4460,6 +4971,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val` = `test`.`t1`.`val`) group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE EXISTS
 (SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
 val
@@ -4498,6 +5010,8 @@ EXPLAIN
     -> Covering index skip scan for deduplication on t1 using ix_val  (rows=31)
     -> Single-row covering index lookup on t2 using ix_val (val = t1.val)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val` = `test`.`t1`.`val`)
 SELECT DISTINCT val FROM t1 WHERE val IN (SELECT val FROM t2);
 val
 0000000000000000000000001
@@ -4538,6 +5052,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val` = `test`.`t1`.`val`)
 SELECT DISTINCT val FROM t1 WHERE val IN
 (SELECT val FROM t2 WHERE t2.val = t1.val);
 val
@@ -4576,6 +5091,8 @@ EXPLAIN
     -> Covering index skip scan for deduplication on t1 using ix_val  (rows=31)
     -> Single-row covering index lookup on t2 using ix_val (val = t1.val)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val` = `test`.`t1`.`val`) group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE val IN (SELECT val FROM t2 ) GROUP BY val;
 val
 0000000000000000000000001
@@ -4616,6 +5133,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val` = `test`.`t1`.`val`) group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE val IN
 (SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
 val
@@ -4653,6 +5171,8 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using ix_val  (rows=31)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t1` where true
 SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val = 'asd');
 val
@@ -4691,6 +5211,8 @@ EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE NOT EXISTS
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using ix_val  (rows=31)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t1` where true group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val = 'asd' ) GROUP BY val;
 val
@@ -4734,6 +5256,8 @@ EXPLAIN
             -> Filter: (t2.val is not null)  (rows=30)
                 -> Covering index scan on t2 using ix_val  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val` = `test`.`t1`.`val`)) where true
 SELECT DISTINCT val FROM t1 WHERE val NOT IN (SELECT val FROM t2);
 val
 0000000000000000000000000
@@ -4749,6 +5273,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t1` anti join (`test`.`t2`) on(((`<subquery2>`.`val` = `test`.`t1`.`val`) and (`<subquery2>`.`val` = `test`.`t1`.`val`))) where true
 SELECT DISTINCT val FROM t1 WHERE val NOT IN
 (SELECT val FROM t2 WHERE t2.val = t1.val);
 val
@@ -4763,6 +5288,8 @@ EXPLAIN
             -> Filter: (t2.val is not null)  (rows=30)
                 -> Covering index scan on t2 using ix_val  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val` = `test`.`t1`.`val`)) where true group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE val NOT IN
 (SELECT val FROM t2 ) GROUP BY val;
 val
@@ -4779,6 +5306,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t1` anti join (`test`.`t2`) on(((`<subquery2>`.`val` = `test`.`t1`.`val`) and (`<subquery2>`.`val` = `test`.`t1`.`val`))) where true group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE val NOT IN
 (SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
 val
@@ -4795,6 +5323,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val` = `test`.`t1`.`val`)) where true
 SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE t2.val = t1.val);
 val
@@ -4811,6 +5340,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val` = `test`.`t1`.`val`)) where true group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
 val
@@ -4826,6 +5356,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Covering index scan on t2 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val` AS `val` from `test`.`t1` semi join (`test`.`t2`) where true
 SELECT DISTINCT val FROM t1 WHERE EXISTS (SELECT * FROM t2);
 val
 0000000000000000000000000
@@ -4868,6 +5400,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Covering index scan on t2 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val` from `test`.`t1` semi join (`test`.`t2`) where true group by `test`.`t1`.`val`
 SELECT val FROM t1 WHERE EXISTS (SELECT * FROM t2) GROUP BY val;
 val
 0000000000000000000000000
@@ -4908,6 +5442,8 @@ EXPLAIN FORMAT=TREE SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using ix_val  (rows=31)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val`,min(`test`.`t1`.`b_id`) AS `MIN(b_id)`,max(`test`.`t1`.`b_id`) AS `MAX(b_id)` from `test`.`t1` where true group by `test`.`t1`.`val`
 SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val = 'asd') GROUP BY val;
 val	MIN(b_id)	MAX(b_id)
@@ -4954,6 +5490,8 @@ EXPLAIN
                 -> Filter: (t2.val is not null)  (rows=30)
                     -> Covering index scan on t2 using ix_val  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val`,min(`test`.`t1`.`b_id`) AS `MIN(b_id)`,max(`test`.`t1`.`b_id`) AS `MAX(b_id)` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val` = `test`.`t1`.`val`)) where true group by `test`.`t1`.`val`
 SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE val
 NOT IN (SELECT val FROM t2) GROUP BY val;
 val	MIN(b_id)	MAX(b_id)
@@ -4969,6 +5507,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Covering index scan on t2 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val` AS `val`,min(`test`.`t1`.`b_id`) AS `MIN(b_id)`,max(`test`.`t1`.`b_id`) AS `MAX(b_id)` from `test`.`t1` semi join (`test`.`t2`) where true group by `test`.`t1`.`val`
 SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
 (SELECT * FROM t2) GROUP BY val;
 val	MIN(b_id)	MAX(b_id)
@@ -5014,6 +5554,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val_n` = `test`.`t1`.`val_n`)
 SELECT DISTINCT val_n FROM t1 WHERE EXISTS
 (SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
 val_n
@@ -5051,6 +5592,8 @@ EXPLAIN
         -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=33)
     -> Single-row covering index lookup on t2 using ix_val_n (val_n = t1.val_n)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`val_n` = `test`.`t1`.`val_n`)
 SELECT DISTINCT val_n FROM t1 WHERE val_n IN (SELECT val_n FROM t2);
 val_n
 0000000000000000000000001
@@ -5085,6 +5628,8 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
 EXPLAIN
 -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t1` where true
 SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val_n = 'asd');
 val_n
@@ -5132,6 +5677,8 @@ EXPLAIN
                     -> Materialize with deduplication  (rows=30)
                         -> Covering index scan on t2 using ix_val_n  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`val_n`,`test`.`t1`.`val_n` in ( <materialize> (/* select#2 */ select `test`.`t2`.`val_n` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`val_n` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`val_n` = `<materialized_subquery>`.`val_n`)))) is false)
 SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
 (SELECT val_n FROM t2);
 val_n
@@ -5148,6 +5695,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`val_n`,<exists>(/* select#2 */ select `test`.`t2`.`val_n` from `test`.`t2` where ((`test`.`t2`.`val_n` = `test`.`t1`.`val_n`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`val_n`) = `test`.`t2`.`val_n`) or (`test`.`t2`.`val_n` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`val_n`), true)) is false)
 SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
 (SELECT val_n FROM t2 WHERE t2.val_n = t1.val_n);
 val_n
@@ -5167,6 +5715,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val_n` = `test`.`t1`.`val_n`)) where true
 SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
 val_n
@@ -5186,6 +5735,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`val_n` AS `val_n` from `test`.`t1` anti join (`test`.`t2`) on((`<subquery2>`.`val_n` = `test`.`t1`.`val_n`)) where true group by `test`.`t1`.`val_n`
 SELECT val_n FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE t2.val_n = t1.val_n) GROUP BY val_n;
 val_n
@@ -5204,6 +5754,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Covering index scan on t2 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`val_n` AS `val_n` from `test`.`t1` semi join (`test`.`t2`) where true
 SELECT DISTINCT val_n FROM t1 WHERE EXISTS (SELECT * FROM t2);
 val_n
 NULL
@@ -5245,6 +5797,8 @@ EXPLAIN FORMAT=TREE SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using ix_val_n  (rows=33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val_n` AS `val_n`,min(`test`.`t1`.`b_id`) AS `MIN(b_id)`,max(`test`.`t1`.`b_id`) AS `MAX(b_id)` from `test`.`t1` where true group by `test`.`t1`.`val_n`
 SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val_n = 'asd') GROUP BY val_n;
 val_n	MIN(b_id)	MAX(b_id)
@@ -5294,6 +5848,8 @@ EXPLAIN
                         -> Materialize with deduplication  (rows=30)
                             -> Covering index scan on t2 using ix_val_n  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val_n` AS `val_n`,min(`test`.`t1`.`b_id`) AS `MIN(b_id)`,max(`test`.`t1`.`b_id`) AS `MAX(b_id)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`val_n`,`test`.`t1`.`val_n` in ( <materialize> (/* select#2 */ select `test`.`t2`.`val_n` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`val_n` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`val_n` = `<materialized_subquery>`.`val_n`)))) is false) group by `test`.`t1`.`val_n`
 SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE val_n
 NOT IN (SELECT val_n FROM t2) GROUP BY val_n;
 val_n	MIN(b_id)	MAX(b_id)
@@ -5308,6 +5864,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Covering index scan on t2 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`val_n` AS `val_n`,min(`test`.`t1`.`b_id`) AS `MIN(b_id)`,max(`test`.`t1`.`b_id`) AS `MAX(b_id)` from `test`.`t1` semi join (`test`.`t2`) where true group by `test`.`t1`.`val_n`
 SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
 (SELECT * FROM t2) GROUP BY val_n;
 val_n	MIN(b_id)	MAX(b_id)
@@ -5343,6 +5901,27 @@ NULL	401	801
 0000000000000000000000028	28	988
 0000000000000000000000029	29	989
 DROP TABLE t1, t2;
+#
+# Bug#38627346: row number become less after changing
+#               COUNT(DISTINCT) to COUNT
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY(f1, f2));
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (3,4);
+SELECT COUNT(DISTINCT f2), DENSE_RANK() OVER () FROM t1 GROUP BY f1;
+COUNT(DISTINCT f2)	DENSE_RANK() OVER ()
+2	1
+1	1
+1	1
+SELECT COUNT(f2), DENSE_RANK() OVER () FROM t1 GROUP BY f1;
+COUNT(f2)	DENSE_RANK() OVER ()
+2	1
+1	1
+1	1
+SELECT COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
+COUNT(DISTINCT f2)
+2
+1
+1
+DROP TABLE t1;
 #
 # Bug#47762: Incorrect result from MIN() when WHERE tests NOT NULL column
 #            for NULL

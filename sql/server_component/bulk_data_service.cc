@@ -417,6 +417,7 @@ static int format_char_column(const Column_text &text_col,
   }
 
   if (text_col.is_ext()) {
+    sql_col.set_ext();
     assert(text_col.m_data_len == 20);
     memcpy(field_data, text_col.m_data_ptr, text_col.m_data_len);
     copy_size = text_col.m_data_len;
@@ -1405,9 +1406,9 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     }
     size_t length_size = 0;
 
+    sql_col.init();
     sql_col.set_data(buffer);
     sql_col.m_data_len = field_size;
-    sql_col.m_int_data = 0;
 
     /* If field is a nullptr, then it is generated rowid column */
     sql_col.m_is_null =

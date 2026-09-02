@@ -14,7 +14,7 @@ set autocommit=0;
 lock table t1 READ;
 
 --connection con2
-select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data from performance_schema.data_locks;
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data from performance_schema.data_locks where object_schema='test' and object_name='t1';
 
 --connection con1
 unlock tables;

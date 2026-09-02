@@ -37,14 +37,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-namespace {
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-const BIGNUM *RSA_get0_n(const RSA *rsa) { return rsa->n; }
-
-RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey) { return pkey->pkey.rsa; }
-#endif
-}  // namespace
-
 class CertificateGeneratorTest : public ::testing::Test {
  public:
   TlsLibraryContext m_tls_lib_ctx;

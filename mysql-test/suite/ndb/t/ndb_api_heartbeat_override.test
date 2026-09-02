@@ -1,0 +1,86 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+
+# Test to verify that when HeartbeatIntervalDbApi is overridden in the API node section,
+# both the API and data nodes use the overridden value instead of the global default.
+
+# Sequence of messages expected in the data node log when communication
+# between API and Data nodes is blocked
+# Data Node -> API Node is blocked (e.g dump 9988)
+#                             ALERT    -- Node 10 Disconnected
+#                             ...
+#                             INFO     -- Communication to Node 10 closed
+# API Node -> Data Node is blocked (e.g dump 9992)
+#                             WARNING  -- Node 10 missed heartbeat 1
+#                            ...
+#                             ALERT    -- Node 10 declared dead due to missed heartbeat
+#                             INFO     -- Node 3 transporter to node 10 (id 3) disconnected
+
+let $api_disconnect_target = 12;
+let $db_disconnect_target = 11;
+let $ndbd_log = $MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.1/ndbd.log;
+let $api_disconnect_marker = TRPMAN : Blocking send on transporter .* to node $api_disconnect_target;
+let $db_disconnect_marker = TRPMAN : Blocking receive on transporter .* from node $db_disconnect_target;
+
+--echo On data node 1, block sending signals to API node $api_disconnect_target
+--exec $NDB_MGM -e "1 DUMP 9988 $api_disconnect_target" > $NDB_TOOLS_OUTPUT
+
+--echo HeartbeatIntervalDbApi is configured on both 'global'
+--echo section (2000ms) and API node $api_disconnect_target section (5000ms)
+--echo sleep 10 sec (more than 3 * the global HeartbeatIntervalDbApi),
+--echo to show that the global HeartbeatIntervalDbApi is not in use (node is not disconnected)
+--sleep 10
+
+--let $assert_text= No 'Node $api_disconnect_target Disconnected' message in the log
+--let $assert_select= -- Node $api_disconnect_target Disconnected
+--let $assert_file= $ndbd_log
+--let $assert_count= 0
+--let $assert_only_after= $api_disconnect_marker
+--source include/assert_grep.inc
+
+--echo sleep 10 sec more (10sec + 10sec > 3 * the API node HeartbeatIntervalDbApi),
+--echo the missing of 3 heartbeats will trigger the node to disconnect
+--sleep 10
+
+--let $assert_text= 'Node $api_disconnect_target Disconnected' message in the log
+--let $assert_select= -- Node $api_disconnect_target Disconnected
+--let $assert_file= $ndbd_log
+--let $assert_count= 1
+--let $assert_only_after= $api_disconnect_marker
+--source include/assert_grep.inc
+
+--echo On data node 1, resume sending signals to API node $api_disconnect_target
+--exec $NDB_MGM -e "1 DUMP 9989 $api_disconnect_target" > $NDB_TOOLS_OUTPUT
+
+
+--echo Now, let's test communication in the opposite direction
+--echo On data node 1, block receiving signals from API node $db_disconnect_target
+--exec $NDB_MGM -e "1 DUMP 9992 $db_disconnect_target" > $NDB_TOOLS_OUTPUT
+
+--echo sleep 10 sec (more than 3 * the global HeartbeatIntervalDbApi),
+--echo to show that the global HeartbeatIntervalDbApi is not in use (node is not disconnected)
+--sleep 10
+
+--let $assert_text= No 'Node $db_disconnect_target declared dead due to missed heartbeat' message in the log
+--let $assert_select= -- Node $db_disconnect_target declared dead due to missed heartbeat
+--let $assert_file= $ndbd_log
+--let $assert_count= 0
+--let $assert_only_after= $db_disconnect_marker
+--source include/assert_grep.inc
+
+--echo sleep 20 sec more (20sec + 10sec > 4 * the API node HeartbeatIntervalDbApi),
+--echo the missing of 4 heartbeats will trigger the node to disconnect
+--sleep 20
+
+--let $assert_text= 'Node $db_disconnect_target declared dead due to missed heartbeat' message in the log
+--let $assert_select= -- Node $db_disconnect_target declared dead due to missed heartbeat
+--let $assert_file= $ndbd_log
+--let $assert_count= 1
+--let $assert_only_after= $db_disconnect_marker
+--source include/assert_grep.inc
+
+--echo On data node 1, resume receiving signals from API node $db_disconnect_target
+--exec $NDB_MGM -e "1 DUMP 9993 $db_disconnect_target" > $NDB_TOOLS_OUTPUT
+
+--source include/ndb_wait_connected.inc
+--remove_file $NDB_TOOLS_OUTPUT

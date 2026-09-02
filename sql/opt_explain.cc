@@ -426,6 +426,7 @@ class Explain_table_base : public Explain {
   bool explain_possible_keys() override;
 
   bool explain_key_parts(int key, uint key_parts);
+  bool explain_key_parts_for_range_scan(const AccessPath *range_scan);
   bool explain_key_and_len_quick(AccessPath *range_scan);
   bool explain_key_and_len_index(int key);
   bool explain_key_and_len_index(int key, uint key_length, uint key_parts);
@@ -961,14 +962,67 @@ bool Explain_table_base::explain_key_parts(int key, uint key_parts) {
   return false;
 }
 
+/**
+  Append names of the key parts used by a range access path to the current
+  EXPLAIN row.
+
+  For composite range access paths, recursively visit the child range scans and
+  append their used key-part names in the same order as key and key_length.
+
+  @param range_scan Range access path to explain.
+
+  @retval false Success.
+  @retval true  Error while appending a key part name.
+*/
+bool Explain_table_base::explain_key_parts_for_range_scan(
+    const AccessPath *range_scan) {
+  switch (range_scan->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::INDEX_SKIP_SCAN:
+    case AccessPath::GROUP_INDEX_SKIP_SCAN: {
+      const uint key = used_index(range_scan);
+      assert(key != MAX_KEY);
+      return explain_key_parts(key, get_used_key_parts(range_scan));
+    }
+    case AccessPath::INDEX_MERGE: {
+      TABLE *table = range_scan->index_merge().table;
+
+      // Keep the ordering consistent with add_keys_and_lengths_index_merge().
+      for (bool print_primary : {false, true}) {
+        for (AccessPath *child : *range_scan->index_merge().children) {
+          const bool is_primary = table->file->primary_key_is_clustered() &&
+                                  used_index(child) == table->s->primary_key;
+          if (is_primary != print_primary) continue;
+          if (explain_key_parts_for_range_scan(child)) return true;
+        }
+      }
+      return false;
+    }
+    case AccessPath::ROWID_INTERSECTION: {
+      for (AccessPath *child : *range_scan->rowid_intersection().children) {
+        if (explain_key_parts_for_range_scan(child)) return true;
+      }
+      return range_scan->rowid_intersection().cpk_child != nullptr &&
+             explain_key_parts_for_range_scan(
+                 range_scan->rowid_intersection().cpk_child);
+    }
+    case AccessPath::ROWID_UNION: {
+      for (AccessPath *child : *range_scan->rowid_union().children) {
+        if (explain_key_parts_for_range_scan(child)) return true;
+      }
+      return false;
+    }
+    default:
+      assert(false);
+      return false;
+  }
+}
+
 bool Explain_table_base::explain_key_and_len_quick(AccessPath *path) {
-  bool ret = false;
   StringBuffer<512> str_key(cs);
   StringBuffer<512> str_key_len(cs);
 
-  if (used_index(path) != MAX_KEY)
-    ret = explain_key_parts(used_index(range_scan_path),
-                            get_used_key_parts(path));
+  const bool ret = explain_key_parts_for_range_scan(path);
   add_keys_and_lengths(path, &str_key, &str_key_len);
   return (ret || fmt->entry()->col_key.set(str_key) ||
           fmt->entry()->col_key_len.set(str_key_len));
@@ -2148,6 +2202,17 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
       return true;
     }
   }
+  if (ethd == query_thd && !ethd->lex->is_explain_analyze &&
+      !ethd->lex->explain_format->is_explain_into() &&
+      ethd->lex->explain_format->is_tree()) {
+    StringBuffer<1024> str;
+    print_query_for_explain(query_thd, unit, &str);
+    if (!str.is_empty()) {
+      str.append('\0');
+      push_warning(ethd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
+    }
+  }
+
   return result->send_eof(ethd);
 }
 
@@ -2186,34 +2251,41 @@ class Query_result_null : public Query_result_interceptor {
 */
 void print_query_for_explain(const THD *query_thd, Query_expression *unit,
                              String *str) {
+  const enum_sql_command command = query_thd->query_plan.get_command();
+
   /* Only certain statements can be explained.  */
-  if (query_thd->query_plan.get_command() == SQLCOM_SELECT ||
-      query_thd->query_plan.get_command() == SQLCOM_INSERT_SELECT ||
-      query_thd->query_plan.get_command() == SQLCOM_REPLACE_SELECT ||
-      query_thd->query_plan.get_command() == SQLCOM_DELETE ||
-      query_thd->query_plan.get_command() == SQLCOM_DELETE_MULTI ||
-      query_thd->query_plan.get_command() == SQLCOM_UPDATE ||
-      query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI ||
-      query_thd->query_plan.get_command() == SQLCOM_INSERT ||
-      query_thd->query_plan.get_command() == SQLCOM_REPLACE)  // (2)
+  if (command == SQLCOM_SELECT || command == SQLCOM_INSERT_SELECT ||
+      command == SQLCOM_REPLACE_SELECT || command == SQLCOM_DELETE ||
+      command == SQLCOM_DELETE_MULTI || command == SQLCOM_UPDATE ||
+      command == SQLCOM_UPDATE_MULTI || command == SQLCOM_INSERT ||
+      command == SQLCOM_REPLACE)  // (2)
   {
     /*
       The warnings system requires input in utf8, see mysqld_show_warnings().
+      enum_query_type is a bitmap, so combined flags are valid here.
     */
-
-    enum_query_type eqt =
-        enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER);
+    auto eqt = enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER);
 
     /**
       For DML statements use QT_NO_DATA_EXPANSION to avoid over-simplification.
     */
-    if (query_thd->query_plan.get_command() != SQLCOM_SELECT)
+    if (command != SQLCOM_SELECT) {
       eqt = enum_query_type(eqt | QT_NO_DATA_EXPANSION);
+    }
 
-    if (unit != nullptr) {
-      unit->print(query_thd, str, eqt);
-    } else if (query_thd->query_plan.get_command() == SQLCOM_INSERT ||
-               query_thd->query_plan.get_command() == SQLCOM_REPLACE) {
+    Query_expression *unit_to_print = unit;
+    /*
+      Single-table UPDATE/DELETE use explain_single_table_modification(),
+      which calls ExplainIterator() without a query expression.
+    */
+    if (unit_to_print == nullptr &&
+        (command == SQLCOM_UPDATE || command == SQLCOM_DELETE)) {
+      unit_to_print = query_thd->lex->unit;
+    }
+
+    if (unit_to_print != nullptr) {
+      unit_to_print->print(query_thd, str, eqt);
+    } else if (command == SQLCOM_INSERT || command == SQLCOM_REPLACE) {
       query_thd->lex->query_block->print(query_thd, str, eqt);
     }
   }

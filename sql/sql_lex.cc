@@ -482,6 +482,7 @@ void LEX::reset() {
   mark_broken(false);
   reset_exec_started();
   max_execution_time = 0;
+  switch_resource_group = nullptr;
   reparse_common_table_expr_at = 0;
   reparse_derived_table_condition = false;
   opt_hints_global = nullptr;

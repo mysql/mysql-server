@@ -2,6 +2,13 @@
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 --source include/count_sessions.inc
 
 SET DEBUG_SYNC = 'RESET';
@@ -216,3 +223,6 @@ SET restrict_fk_on_non_standard_key=ON;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

@@ -419,7 +419,8 @@ class Protocol_local_v2 final : public Protocol {
   bool send_field_metadata(Send_field *field,
                            const CHARSET_INFO *charset) override;
   bool flush() override { return true; /* purecov: inspected */ }
-  bool send_parameters(List<Item_param> *, bool) override { return false; }
+  bool send_parameters(List<Item_param> *parameters,
+                       bool is_sql_prepare) override;
   bool store_ps_status(ulong, uint, uint, ulong) override {
     return false; /* purecov: inspected */
   }

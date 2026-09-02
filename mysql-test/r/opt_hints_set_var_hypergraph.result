@@ -54,12 +54,14 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SET_VAR(optimizer_switch='batched_key_access=off')  is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='batched_key_access=on') */ `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(max_join_size=1) SET_VAR(max_join_size=1) */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3126	Hint SET_VAR(max_join_size=1)  is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SET_VAR(max_join_size=1) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on')
 SET_VAR(big_tables=on)
 SET_VAR(big_tables=off) */ * FROM t1;
@@ -68,30 +70,35 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SET_VAR(big_tables='off')  is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='batched_key_access=on') SET_VAR(big_tables='on') */ `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(optimizer_switc = 'batched_key_access=off') */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3128	Unresolved name 'optimizer_switc' for SET_VAR hint
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=yes') */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_access=yes'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_acces=off'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3637	Variable 'max_allowed_packet' cannot be set using SET_VAR hint.
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
@@ -99,6 +106,7 @@ EXPLAIN
 Warnings:
 Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_acces=off'
 Warning	1232	Incorrect argument type to variable 'range_alloc_block_size'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 SELECT /*+ SET_VAR(range_alloc_block_size=7000) */ 1;
 1
 1
@@ -433,6 +441,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (...)
     -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ SET_VAR(optimizer_search_depth=1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -446,6 +456,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (...)
     -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_search_depth=1) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ SET_VAR(optimizer_prune_level=0) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -459,6 +471,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (...)
     -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_prune_level=0) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 CALL test_hint("SET_VAR(optimizer_search_depth=1)", "optimizer_search_depth");
 VARIABLE_VALUE
 62
@@ -510,6 +524,8 @@ EXPLAIN
 -> Filter: (t1.f2 <= 3)  (...)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -531,6 +547,8 @@ EXPLAIN
 -> Filter: (t1.f2 <= 3)  (...)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='mrr=off') */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 set optimizer_switch=default;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
@@ -662,6 +680,8 @@ EXPLAIN
         -> Group aggregate: min(t1.a)  (rows=1)
             -> Covering index lookup on t1 using b (b = 'a')  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(sql_buffer_result=1) */ sql_buffer_result min(`test`.`t1`.`a`) AS `MIN(a)`,`test`.`t1`.`b` AS `b` from `test`.`t1` where multiple equal('a', `test`.`t1`.`b`) group by `test`.`t1`.`b`
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sql_buffer_result=1)", "sql_buffer_result");
 VARIABLE_VALUE
@@ -948,6 +968,8 @@ from t;
 EXPLAIN
 -> Table scan on t  (cost=0.295..0.295 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='prefer_ordering_index=off') */ `test`.`t`.`c1` AS `c1` from `test`.`t`
 set @@character_set_client=@@character_set_system;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -956,4 +978,6 @@ from t;
 EXPLAIN
 -> Table scan on t  (cost=0.295..0.295 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='prefer_ordering_index=off') */ `test`.`t`.`c1` AS `c1` from `test`.`t`
 DROP TABLE t;

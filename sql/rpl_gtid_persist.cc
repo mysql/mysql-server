@@ -479,7 +479,6 @@ static int dbug_test_on_compress(THD *thd) {
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(5););
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", {
     const char act[] = "now signal fetch_thread_stage";
-    assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
   /* Sleep a little, so that we can always fetch the correct stage info. */
@@ -491,7 +490,6 @@ static int dbug_test_on_compress(THD *thd) {
   */
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", {
     const char act[] = "now wait_for notified_thread_complete";
-    assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
@@ -512,7 +510,6 @@ int Gtid_table_persistor::compress(THD *thd) {
 
   DBUG_EXECUTE_IF("compress_gtid_table", {
     const char act[] = "now signal complete_compression";
-    assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
 
@@ -817,7 +814,6 @@ static void *compress_gtid_table(void *p_thd) {
         thd->clear_error();
         DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table", {
           const char act[] = "now signal compression_failed";
-          assert(opt_debug_sync_timeout > 0);
           assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         };);
       }

@@ -4416,6 +4416,8 @@ EXPLAIN
                     -> Index lookup on t1 using kp1 (kp1 = <cache>(t3.a))  (rows=1.02)
                 -> Single-row covering index lookup on t4 using PRIMARY (pk = t1.c)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`kp1` from `test`.`t1` join `test`.`t4` where ((`test`.`t4`.`pk` = `test`.`t1`.`c`) and (`test`.`t1`.`kp1` < 20) and (<cache>(`test`.`t3`.`a`) = `test`.`t1`.`kp1`))))
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 a
@@ -4583,6 +4585,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4603,6 +4607,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4624,6 +4630,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4652,6 +4660,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4672,6 +4682,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4693,6 +4705,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4721,6 +4735,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4741,6 +4757,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4762,6 +4780,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 SET internal_tmp_mem_storage_engine='TempTable';
 CREATE TABLE t1 (a BIT(7)) ENGINE=InnoDB;
@@ -4791,6 +4811,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4811,6 +4833,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4832,6 +4856,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4860,6 +4886,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4880,6 +4908,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4901,6 +4931,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4929,6 +4961,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4949,6 +4983,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4970,6 +5006,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 SET internal_tmp_mem_storage_engine=default;
 SET SESSION big_tables=true;
@@ -5000,6 +5038,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -5020,6 +5060,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -5041,6 +5083,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -5069,6 +5113,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -5089,6 +5135,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -5110,6 +5158,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -5138,6 +5188,8 @@ EXPLAIN
             -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -5158,6 +5210,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t2.a)  (rows=1)
                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -5179,6 +5233,8 @@ EXPLAIN
             -> Filter: (<cache>(t1.a) = t1.a)  (rows=1)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`)))
 DROP TABLE t1, t2;
 SET SESSION big_tables=default;
 create table t1 (a int);
@@ -6678,6 +6734,8 @@ EXPLAIN
                 -> Filter: (<cache>(ot3.a) = it3.a)  (rows=1)
                     -> Table scan on it3  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a`,`test`.`ot3`.`a` AS `a` from `test`.`ot1` left join `test`.`ot2` on(((`test`.`ot2`.`a` = `test`.`ot1`.`a`) and <in_optimizer>(`test`.`ot1`.`a`,<exists>(/* select#2 */ select `test`.`it3`.`a` from `test`.`it3` where (<cache>(`test`.`ot1`.`a`) = `test`.`it3`.`a`))))) left join `test`.`ot3` on(((`test`.`ot3`.`a` = `test`.`ot2`.`a`) and <in_optimizer>(`test`.`ot2`.`a`,<exists>(/* select#3 */ select `test`.`it3`.`a` from `test`.`it3` where (<cache>(`test`.`ot3`.`a`) = `test`.`it3`.`a`))))) where true
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
@@ -13985,6 +14043,8 @@ EXPLAIN
                             -> Single-row index lookup on t2 using PRIMARY (pk = t1.pk)  (rows=1)
                             -> Index lookup on t3 using col_int_key (col_int_key = t2.col_int)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`col_int_key` AS `col_int_key` from `test`.`t4` where <in_optimizer>(`test`.`t4`.`col_int_key`,<exists>(/* select#2 */ select `test`.`t1`.`col_int_key` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`t2`.`pk` = `test`.`t1`.`pk`))) where ((`test`.`t3`.`col_int` is null) and (<cache>(`test`.`t4`.`col_int_key`) = `test`.`t1`.`col_int_key`)))) order by `test`.`t4`.`col_int_key`
 SELECT *
 FROM t4
 WHERE (col_int_key) IN (
@@ -14325,6 +14385,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEF
 EXPLAIN
 -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where true
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 f1	f2
 08:35:24	X

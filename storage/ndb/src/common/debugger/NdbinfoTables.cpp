@@ -652,7 +652,7 @@ DECLARE_NDBINFO_TABLE(TC_TIME_TRACK_STATS, 15) = {
 DECLARE_NDBINFO_TABLE(CONFIG_VALUES, 3) = {
     {"config_values", 3, 0,
      [](const Ndbinfo::Counts &c) {
-       return c.data_nodes * 170;  // 170 = current number of config parameters
+       return c.data_nodes * 171;  // 171 = current number of config parameters
      },
      "Configuration parameter values"},
     {
@@ -1259,11 +1259,12 @@ DECLARE_NDBINFO_TABLE(TRANSACTIONS_FULL, 11) = {
 DECLARE_NDBINFO_TABLE(TRANSPORTER_ACTIVITY, 8) = {
     {"transporter_activity", 8, 0,
      [](const Ndbinfo::Counts &c) {
-       // data_nodes * (1 data node trp + all api/mgm nodes) * 10
+       // data_nodes * (1 data node trp + all api/mgm nodes) * 21
        return c.data_nodes * MAX_NODES *
-              20 /* Trpman::TRP_ACTIVITY_HIST_BIN_COUNT */;
+              21 /* Trpman::TRP_ACTIVITY_HIST_BIN_COUNT */;
      },
-     "Histogram over activity on heartbeated transporters"},
+     "Histogram over transporter activity using time between received "
+     "messages"},
     {
         {"node_id", Ndbinfo::Number, "node id"},
         {"block_instance", Ndbinfo::Number, "Block instance"},

@@ -19,7 +19,7 @@ undo_003	Undo	active
 # Restart mysqld without the remote directory in --innodb-directories
 #
 # restart_abort: 
-Pattern "The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories" found
+include/wait_for_pattern_in_file.inc [The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories]
 # Restart the engine to make the remote directory known.
 # restart: --innodb-directories=MYSQL_TMP_DIR/remote_dir
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES

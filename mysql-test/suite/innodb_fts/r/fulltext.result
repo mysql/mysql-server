@@ -493,7 +493,6 @@ a
 City Of God
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of*)' IN BOOLEAN MODE);
 a
-Offside
 City Of God
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city* of*' IN BOOLEAN MODE);
 a

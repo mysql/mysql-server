@@ -754,6 +754,8 @@ EXPLAIN
 -> Filter: (find_in_set('Admin',t1.roles) > 0)  (rows=8)
     -> Table scan on t1  (rows=8)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (find_in_set('Admin',`test`.`t1`.`roles`) > 0)
 SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
 id
 1

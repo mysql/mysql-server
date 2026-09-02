@@ -1,0 +1,57 @@
+################################################################################
+#
+# Verify that encryption changes made while redo logging is disabled are
+# accepted and establish a physical boundary before normal redo generation
+# resumes.
+#
+################################################################################
+
+--source include/have_perl_64bit_int.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--let $restart_parameters =
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
+DO innodb_redo_log_consumer_register();
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE = InnoDB;
+
+SELECT @@global.innodb_redo_log_encrypt;
+
+# Apply the final requested ON mode before normal redo generation resumes.
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SELECT @@global.innodb_redo_log_encrypt;
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+INSERT INTO t1 VALUES (1, REPEAT('b', 6*512*512));
+
+# Apply the final requested OFF mode before normal redo generation resumes.
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SELECT @@global.innodb_redo_log_encrypt;
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+INSERT INTO t1 VALUES (2, REPEAT('c', 6*512*512));
+
+SELECT a, LEFT(b, 8) FROM t1 ORDER BY a;
+
+--let MYSQLD_DATADIR = `SELECT @@datadir`
+--source include/kill_mysqld.inc
+
+--let REDO_MARKERS_NOT_VISIBLE_IN_PLAINTEXT = b
+--let REDO_MARKERS_VISIBLE_IN_PLAINTEXT = c
+--source ../include/verify_redo_log_marker_encryption.inc
+
+--source include/start_mysqld.inc
+
+SELECT a, LEFT(b, 8) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

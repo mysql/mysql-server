@@ -16,7 +16,10 @@ select * from performance_schema.global_variables where variable_name='innodb_in
 select * from performance_schema.session_variables where variable_name='innodb_interpreter';
 --enable_warnings
 
-CREATE TABLE t1 (f1 INT PRIMARY KEY);
+# The interpreter intentionally corrupts t1's on-disk pages below. Disable
+# persistent stats so its background thread cannot inspect the corrupted root
+# page before DROP TABLE.
+CREATE TABLE t1 (f1 INT PRIMARY KEY) STATS_PERSISTENT=0;
 SHOW CREATE TABLE t1;
 
 START TRANSACTION;
@@ -38,7 +41,7 @@ SET SESSION innodb_interpreter = 'make_ondisk_root_page_zeroes test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 DROP TABLE t1;
 
-CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t1 (f1 INT PRIMARY KEY) STATS_PERSISTENT=0;
 SHOW CREATE TABLE t1;
 
 START TRANSACTION;
@@ -61,7 +64,7 @@ SET SESSION innodb_interpreter = 'corrupt_ondisk_root_page test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 DROP TABLE t1;
 
-CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t1 (f1 INT PRIMARY KEY) STATS_PERSISTENT=0;
 SHOW CREATE TABLE t1;
 
 START TRANSACTION;

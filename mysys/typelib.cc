@@ -239,6 +239,7 @@ static TYPELIB on_off_default_typelib = {
   @param strpos INOUT Start of the buffer (updated to point to the next
                       character after the name)
   @param end          End of the buffer
+  @param flags        Flags forwarded to find_type().
 
   @note
   The buffer is assumed to contain one of the names specified in the TYPELIB,
@@ -252,10 +253,10 @@ static TYPELIB on_off_default_typelib = {
     >0  Offset+1 in typelib for matched name
 */
 
-static int parse_name(const TYPELIB *lib, const char **strpos,
-                      const char *end) {
+static int parse_name(const TYPELIB *lib, const char **strpos, const char *end,
+                      uint flags = FIND_TYPE_COMMA_TERM) {
   const char *pos = *strpos;
-  const int find = find_type(pos, lib, FIND_TYPE_COMMA_TERM);
+  const int find = find_type(pos, lib, flags);
   for (; pos != end && *pos != '=' && *pos != ','; pos++)
     ;
   *strpos = pos;
@@ -310,7 +311,7 @@ uint64_t find_set_from_flags(const TYPELIB *lib, int default_name,
     const char *start = str;
     for (;;) {
       const char *pos = start;
-      uint value;
+      int value;
 
       const int flag_no = parse_name(lib, &pos, end);
       if (flag_no <= 0) goto err;
@@ -323,9 +324,13 @@ uint64_t find_set_from_flags(const TYPELIB *lib, int default_name,
         const uint64_t bit = (1ULL << (flag_no - 1));
         /* parse the '=on|off|default' */
         if ((flags_to_clear | flags_to_set) & bit || pos >= end ||
-            *pos++ != '=' ||
-            !(value = parse_name(&on_off_default_typelib, &pos, end)))
+            *pos++ != '=')
           goto err;
+
+        value = parse_name(&on_off_default_typelib, &pos, end,
+                           FIND_TYPE_COMMA_TERM | FIND_TYPE_NO_PREFIX);
+        assert(value >= 0);
+        if (value == 0) goto err;
 
         if (value == 1) /* this is '=off' */
           flags_to_clear |= bit;

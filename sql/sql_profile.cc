@@ -502,7 +502,6 @@ void PROFILING::set_query_source(const char *query_source_arg,
 int PROFILING::fill_statistics_info(THD *thd_arg, Table_ref *tables) {
   DBUG_TRACE;
   TABLE *table = tables->table;
-  ulonglong row_number = 0;
 
   QUERY_PROFILE *query;
   /* Go through each query in this thread's stored history... */
@@ -524,7 +523,7 @@ int PROFILING::fill_statistics_info(THD *thd_arg, Table_ref *tables) {
     for (entry_iterator = query->entries.new_iterator();
          entry_iterator != nullptr;
          entry_iterator = query->entries.iterator_next(entry_iterator),
-        previous = entry, row_number++) {
+        previous = entry) {
       entry = query->entries.iterator_value(entry_iterator);
       seq = entry->m_seq;
 

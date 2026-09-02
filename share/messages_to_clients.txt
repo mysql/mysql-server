@@ -10436,6 +10436,9 @@ OBSOLETE_ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM
 ER_TP_CANNOT_DISABLE_MTL_WITH_DL
   eng "The variable thread_pool_max_transactions_limit cannot be set to 0 when thread_pool_dedicated_listernes is ON."
 
+ER_GRP_RPL_CONNECTION_HANDOFF_BUSY
+  eng "Group Replication connection handoff is busy; retry the connection."
+
 #
 # End of 8.1+ (server-to-client) error messages.
 #
@@ -11051,6 +11054,18 @@ ER_CSA_CRST_REQUIREMENT_GTID_ONLY
 
 ER_DA_CANNOT_REPLICATE_WITHOUT_BINLOG
   eng "Cannot replicate from source as it does not have logical log enabled. Check source configuration to enable it."
+
+ER_REPLICA_IDENTITY_CONFLICT
+  eng "A dump thread for replica UUID '%s' or server ID %u already exists under a different authenticated account."
+
+ER_BULK_READER_PATH_IS_DIRECTORY
+  eng "Bulk Reader: Path is a directory, expected a file: %s"
+
+ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
+  eng "Column tags are supported only for column projections at JSON path '%s'."
+
+ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
+  eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
 
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).

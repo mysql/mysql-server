@@ -38,6 +38,8 @@ EXPLAIN
     -> Hash
         -> Table scan on build  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `build`.`i1` AS `i1`,`build`.`i2` AS `i2`,`build`.`i3` AS `i3`,`build`.`v1` AS `v1`,`probe`.`i1` AS `i1`,`probe`.`i2` AS `i2`,`probe`.`i3` AS `i3`,`probe`.`v1` AS `v1` from `test`.`t1` `build` straight_join `test`.`t1` `probe` where multiple equal(`build`.`i1`, `probe`.`i2`)
 EXPLAIN FORMAT=JSON INTO @json SELECT * FROM t1 build STRAIGHT_JOIN t1 probe ON build.i1=probe.i2;
 SELECT root_cost(@json);
 root_cost(@json)
@@ -50,6 +52,8 @@ EXPLAIN
     -> Hash
         -> Table scan on build  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `build`.`i1` AS `i1`,`build`.`i2` AS `i2`,`build`.`i3` AS `i3`,`build`.`v1` AS `v1`,`probe`.`i1` AS `i1`,`probe`.`i2` AS `i2`,`probe`.`i3` AS `i3`,`probe`.`v1` AS `v1` from `test`.`t1` `build` straight_join `test`.`t1` `probe` where multiple equal(`build`.`i1`, `probe`.`i2`)
 EXPLAIN FORMAT=JSON INTO @json SELECT * FROM t1 build STRAIGHT_JOIN t1 probe ON build.i1=probe.i2;
 SELECT root_cost(@json);
 root_cost(@json)
@@ -63,6 +67,8 @@ EXPLAIN
         -> Table scan on x1  (...)
     -> Index lookup on x2 using k1 (i2 = x1.i1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i1` AS `i1`,`x1`.`i2` AS `i2`,`x1`.`i3` AS `i3`,`x1`.`v1` AS `v1`,`x2`.`i1` AS `i1`,`x2`.`i2` AS `i2`,`x2`.`i3` AS `i3`,`x2`.`v1` AS `v1` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x1`.`i1` = `x2`.`i2`)) where (`x1`.`i3` < 150)
 # But hash join is cheaper if the projection of the build table is smaller.
 EXPLAIN FORMAT=TREE SELECT x2.i3 FROM t1 x1 LEFT JOIN t1 x2
 ON x1.i1=x2.i2 WHERE x1.i3<150;
@@ -73,6 +79,8 @@ EXPLAIN
     -> Hash
         -> Table scan on x2  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x2`.`i3` AS `i3` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x1`.`i1` = `x2`.`i2`)) where (`x1`.`i3` < 150)
 SET @@join_buffer_size=1024*1024;
 # NLJ should be cheaper than hash join.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
@@ -83,6 +91,8 @@ EXPLAIN
         -> Table scan on x1  (...)
     -> Index lookup on x2 using k1 (i2 = x1.i1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i1` AS `i1`,`x1`.`i2` AS `i2`,`x1`.`i3` AS `i3`,`x1`.`v1` AS `v1`,`x2`.`i1` AS `i1`,`x2`.`i2` AS `i2`,`x2`.`i3` AS `i3`,`x2`.`v1` AS `v1` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x1`.`i1` = `x2`.`i2`)) where (`x1`.`i3` < 150)
 SET @@join_buffer_size=4*1024*1024;
 # Hash join should be cheaper than NLJ, as there is no spill-to-disk.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
@@ -94,6 +104,8 @@ EXPLAIN
     -> Hash
         -> Table scan on x2  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i1` AS `i1`,`x1`.`i2` AS `i2`,`x1`.`i3` AS `i3`,`x1`.`v1` AS `v1`,`x2`.`i1` AS `i1`,`x2`.`i2` AS `i2`,`x2`.`i3` AS `i3`,`x2`.`v1` AS `v1` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x1`.`i1` = `x2`.`i2`)) where (`x1`.`i3` < 150)
 DROP TABLE t1;
 CREATE TABLE t1(
 x INT NOT NULL PRIMARY KEY
@@ -165,6 +177,8 @@ EXPLAIN
     -> Hash
         -> Index scan on t2 using PRIMARY  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where multiple equal(`test`.`t2`.`a`, `test`.`t1`.`a`)
 # No rewrite to inner join.
 EXPLAIN FORMAT=TREE SELECT * FROM t2 WHERE a IN (SELECT a FROM t2);
 EXPLAIN
@@ -173,6 +187,8 @@ EXPLAIN
     -> Hash
         -> Index scan on t2 using PRIMARY  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t2`) where multiple equal(`test`.`t2`.`a`, `test`.`t2`.`a`)
 DROP TABLE t1, t2;
 DROP VIEW num_1e4;
 SET @@join_buffer_size=@old_join_buffer_size;

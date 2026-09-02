@@ -109,7 +109,6 @@ const char *sslGetErrString(enum enum_ssl_init_error e) {
   return ssl_error_string[e];
 }
 
-#ifdef HAVE_TLSv13
 #define TLS_SIGALGS_COMMON_LIST                                         \
   "ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:rsa_pss_pss_sha256:rsa_"      \
   "pss_pss_sha384:rsa_pss_pss_sha512:rsa_pss_rsae_sha256:rsa_pss_rsae_" \
@@ -137,7 +136,6 @@ static const char *get_sigalgs_list(bool tls_use_pqc_sign [[maybe_unused]]) {
 
   return tls_sigalgs_non_fips;
 }
-#endif /* HAVE_TLSv13 */
 
 static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
                               const char *key_file,
@@ -186,177 +184,13 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
   return 0;
 }
 
-/*
-  OpenSSL 1.1 supports native platform threads,
-  so we don't need the following callback functions.
-*/
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-/* OpenSSL specific */
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_rwlock_key key_rwlock_openssl;
-
-static PSI_rwlock_info openssl_rwlocks[] = {
-    {&key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0, 0, nullptr}};
-#endif
-
-typedef struct CRYPTO_dynlock_value {
-  mysql_rwlock_t lock;
-} openssl_lock_t;
-
-/* Array of locks used by openssl internally for thread synchronization.
-   The number of locks is equal to CRYPTO_num_locks.
-*/
-static openssl_lock_t *openssl_stdlocks;
-
-/*OpenSSL callback functions for multithreading. We implement all the functions
-  as we are using our own locking mechanism.
-*/
-static void openssl_lock(int mode, openssl_lock_t *lock,
-                         const char *file [[maybe_unused]],
-                         int line [[maybe_unused]]) {
-  int err;
-  char const *what;
-
-  switch (mode) {
-    case CRYPTO_LOCK | CRYPTO_READ:
-      what = "read lock";
-      err = mysql_rwlock_rdlock(&lock->lock);
-      break;
-    case CRYPTO_LOCK | CRYPTO_WRITE:
-      what = "write lock";
-      err = mysql_rwlock_wrlock(&lock->lock);
-      break;
-    case CRYPTO_UNLOCK | CRYPTO_READ:
-    case CRYPTO_UNLOCK | CRYPTO_WRITE:
-      what = "unlock";
-      err = mysql_rwlock_unlock(&lock->lock);
-      break;
-    default:
-      /* Unknown locking mode. */
-      DBUG_PRINT("error",
-                 ("Fatal OpenSSL: %s:%d: interface problem (mode=0x%x)\n", file,
-                  line, mode));
-
-      fprintf(stderr, "Fatal: OpenSSL interface problem (mode=0x%x)", mode);
-      fflush(stderr);
-      my_abort();
-  }
-  if (err) {
-    DBUG_PRINT("error", ("Fatal OpenSSL: %s:%d: can't %s OpenSSL lock\n", file,
-                         line, what));
-
-    fprintf(stderr, "Fatal: can't %s OpenSSL lock", what);
-    fflush(stderr);
-    my_abort();
-  }
-}
-
-static void openssl_lock_function(int mode, int n,
-                                  const char *file [[maybe_unused]],
-                                  int line [[maybe_unused]]) {
-  if (n < 0 || n > CRYPTO_num_locks()) {
-    /* Lock number out of bounds. */
-    DBUG_PRINT("error", ("Fatal OpenSSL: %s:%d: interface problem (n = %d)",
-                         file, line, n));
-
-    fprintf(stderr, "Fatal: OpenSSL interface problem (n = %d)", n);
-    fflush(stderr);
-    my_abort();
-  }
-  openssl_lock(mode, &openssl_stdlocks[n], file, line);
-}
-
-static openssl_lock_t *openssl_dynlock_create(const char *file [[maybe_unused]],
-                                              int line [[maybe_unused]]) {
-  openssl_lock_t *lock;
-
-  DBUG_PRINT("info", ("openssl_dynlock_create: %s:%d", file, line));
-
-  lock = (openssl_lock_t *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                     sizeof(openssl_lock_t), MYF(0));
-
-#ifdef HAVE_PSI_INTERFACE
-  mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
-#else
-  mysql_rwlock_init(0, &lock->lock);
-#endif
-  return lock;
-}
-
-static void openssl_dynlock_destroy(openssl_lock_t *lock,
-                                    const char *file [[maybe_unused]],
-                                    int line [[maybe_unused]]) {
-  DBUG_PRINT("info", ("openssl_dynlock_destroy: %s:%d", file, line));
-
-  mysql_rwlock_destroy(&lock->lock);
-  my_free(lock);
-}
-
-static unsigned long openssl_id_function() {
-  return (unsigned long)my_thread_self();
-}
-
-// End of mutlithreading callback functions
-
-static void init_ssl_locks() {
-  int i = 0;
-#ifdef HAVE_PSI_INTERFACE
-  const char *category = "sql";
-  int count = static_cast<int>(array_elements(openssl_rwlocks));
-  mysql_rwlock_register(category, openssl_rwlocks, count);
-#endif
-
-  openssl_stdlocks = (openssl_lock_t *)OPENSSL_malloc(CRYPTO_num_locks() *
-                                                      sizeof(openssl_lock_t));
-  for (i = 0; i < CRYPTO_num_locks(); ++i)
-#ifdef HAVE_PSI_INTERFACE
-    mysql_rwlock_init(key_rwlock_openssl, &openssl_stdlocks[i].lock);
-#else
-    mysql_rwlock_init(0, &openssl_stdlocks[i].lock);
-#endif
-}
-
-static void set_lock_callback_functions(bool init) {
-  CRYPTO_set_locking_callback(init ? openssl_lock_function : nullptr);
-  CRYPTO_set_id_callback(init ? openssl_id_function : nullptr);
-  CRYPTO_set_dynlock_create_callback(init ? openssl_dynlock_create : nullptr);
-  CRYPTO_set_dynlock_destroy_callback(init ? openssl_dynlock_destroy : nullptr);
-  CRYPTO_set_dynlock_lock_callback(init ? openssl_lock : nullptr);
-}
-
-static void init_lock_callback_functions() {
-  set_lock_callback_functions(true);
-}
-
-static void deinit_lock_callback_functions() {
-  set_lock_callback_functions(false);
-}
-
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
 void vio_ssl_end() {
   if (ssl_initialized) {
     fips_deinit();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     ERR_free_strings();
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    /* Deprecated since openssl 1.1 */
-    EVP_cleanup();
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
     CRYPTO_cleanup_all_ex_data();
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    deinit_lock_callback_functions();
-
-    for (int i = 0; i < CRYPTO_num_locks(); ++i)
-      mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
-    OPENSSL_free(openssl_stdlocks);
-
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     ssl_initialized = false;
   }
 }
@@ -367,16 +201,7 @@ void ssl_start() {
 
     fips_init();
     SSL_library_init();
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    /* Deprecated since openssl 1.1 */
-    OpenSSL_add_all_algorithms();
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     SSL_load_error_strings();
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    init_ssl_locks();
-    init_lock_callback_functions();
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
 }
 
@@ -384,19 +209,10 @@ long process_tls_version(const char *tls_version) {
   const char *separator = ",";
   char *token, *lasts = nullptr;
 
-#ifdef HAVE_TLSv13
   const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
   const char ctx_flag_default[] = "TLSv1.2,TLSv1.3";
   const long tls_ctx_list[] = {SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_TLSv1_3 | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-#else
-  const char *tls_version_name_list[] = {"TLSv1.2"};
-  const char ctx_flag_default[] = "TLSv1.2";
-  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1_2};
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-#endif /* HAVE_TLSv13 */
+  long tls_ctx_flag = SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3;
   const unsigned int tls_versions_count = array_elements(tls_version_name_list);
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
@@ -424,6 +240,14 @@ long process_tls_version(const char *tls_version) {
   return tls_ctx_flag;
 }
 
+static int get_min_tls_version(long ssl_ctx_flags) {
+  return (ssl_ctx_flags & SSL_OP_NO_TLSv1_2) ? TLS1_3_VERSION : TLS1_2_VERSION;
+}
+
+static int get_max_tls_version(long ssl_ctx_flags) {
+  return (ssl_ctx_flags & SSL_OP_NO_TLSv1_3) ? TLS1_2_VERSION : TLS1_3_VERSION;
+}
+
 /************************ VioSSLFd **********************************/
 static struct st_VioSSLFd *new_VioSSLFd(
     const char *key_file, const char *cert_file, const char *ca_file,
@@ -433,8 +257,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
     const char *tls_kex, const char *server_host [[maybe_unused]]) {
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options =
-      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
+  long ssl_ctx_options = ssl_ctx_flags & SSL_OP_NO_TICKET;
   std::string tls12_cipher_list, tls13_cipher_list;
   DBUG_TRACE;
   DBUG_PRINT("enter",
@@ -454,13 +277,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
     return nullptr;
   }
 
-  ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
-                    (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2
-#ifdef HAVE_TLSv13
-                     | SSL_OP_NO_TLSv1_3
-#endif /* HAVE_TLSv13 */
-                     | SSL_OP_NO_TICKET);
   if (!is_client) {
     ssl_ctx_options |= SSL_OP_CIPHER_SERVER_PREFERENCE;
   }
@@ -474,20 +290,23 @@ static struct st_VioSSLFd *new_VioSSLFd(
   ssl_fd->tls_use_pqc_sign = false;
   ssl_fd->tls_kex = nullptr;
 
-  if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ?
-#ifdef HAVE_TLSv13
-                                                    TLS_client_method()
-                                                    : TLS_server_method()
-#else  /* HAVE_TLSv13 */
-                                                    SSLv23_client_method()
-                                                    : SSLv23_server_method()
-#endif /* HAVE_TLSv13 */
-                                              ))) {
+  if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ? TLS_client_method()
+                                                    : TLS_server_method()))) {
     *error = SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
     my_free(ssl_fd);
     return nullptr;
+  }
+
+  const int min_tls_version = get_min_tls_version(ssl_ctx_flags);
+  const int max_tls_version = get_max_tls_version(ssl_ctx_flags);
+  if (SSL_CTX_set_min_proto_version(ssl_fd->ssl_context, min_tls_version) !=
+          1 ||
+      SSL_CTX_set_max_proto_version(ssl_fd->ssl_context, max_tls_version) !=
+          1) {
+    *error = SSL_TLS_VERSION_INVALID;
+    goto error;
   }
 
   if (tls_kex != nullptr) {
@@ -502,7 +321,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
     }
   }
 
-#ifdef HAVE_TLSv13
   /*
     Set OpenSSL TLS v1.3 ciphersuites.
     Note that an empty list is permissible.
@@ -522,9 +340,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     *error = SSL_INITERR_CIPHERS;
     goto error;
   }
-#endif /* HAVE_TLSv13 */
 
-#ifdef HAVE_TLSv13
   {
     /*
       Set supported signature algorithms for OpenSSL TLS v1.3
@@ -541,7 +357,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
       goto error;
     }
   }
-#endif /* HAVE_TLSv13 */
 
   /*
     We explicitly prohibit weak ciphers.
@@ -628,11 +443,9 @@ static struct st_VioSSLFd *new_VioSSLFd(
     goto error;
   }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
   /*
-    OpenSSL 1.0.2 and up provides support for hostname validation.
-    If server_host parameter is set it contains either IP address or
-    server's hostname. Pass it to the lib to perform automatic checks.
+    If server_host parameter is set it contains either IP address or server's
+    hostname. Pass it to the lib to perform automatic checks.
   */
   if (server_host) {
     X509_VERIFY_PARAM *param = SSL_CTX_get0_param(ssl_fd->ssl_context);
@@ -649,7 +462,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
       }
     }
   }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 

@@ -1677,8 +1677,8 @@ void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 /** Update a portion of the given LOB.
 @param[in]      ctx             update operation context information.
-@param[in]      trx             the transaction that is doing the
-modification.
+@param[in]      trx             non-null transaction performing the
+                                modification.
 @param[in]      index           the clustered index containing the LOB.
 @param[in]      upd             update vector
 @param[in]      field_no        the LOB field number
@@ -1689,8 +1689,8 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
 /** Update a portion of the given LOB.
 @param[in]      ctx             update operation context information.
-@param[in]      trx             the transaction that is doing the
-modification.
+@param[in]      trx             non-null transaction performing the
+                                modification.
 @param[in]      index           the clustered index containing the LOB.
 @param[in]      upd             update vector
 @param[in]      field_no        the LOB field number

@@ -370,8 +370,7 @@ extern int g_errorInsert;
 
 MgmApiSession::MgmApiSession(class MgmtSrvr &mgm, NdbSocket &&sock,
                              Uint64 session_id)
-    : SocketServer::Session(m_secure_socket),
-      m_secure_socket(std::move(sock)),
+    : m_secure_socket(std::move(sock)),
       m_mgmsrv(mgm),
       m_session_id(session_id),
       m_name("unknown:0") {
@@ -1135,8 +1134,8 @@ void MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   m_output->println("%s", "");
 }
 
-static bool isEventLogFilterEnabled(int severity) {
-  return g_eventLogger->isEnable((Logger::LoggerLevel)severity);
+static bool isEventLogFilterEnabled(Logger::LoggerLevel severity) {
+  return g_eventLogger->isEnable(severity);
 }
 
 void MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
@@ -1146,7 +1145,10 @@ void MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
 
   m_output->println("clusterlog");
   for (int i = 0; i < 7; i++) {
-    m_output->println("%s: %d", names[i], isEventLogFilterEnabled(i));
+    auto level = Logger::to_enum_LoggerLevel(i);
+    assert(level.has_value());
+    bool enabled = level.has_value() && isEventLogFilterEnabled(level.value());
+    m_output->println("%s: %d", names[i], enabled);
   }
   m_output->println("%s", "");
 }
@@ -1427,8 +1429,8 @@ void MgmApiSession::startTls(Parser<MgmApiSession>::Context &,
   }
 }
 
-static bool setEventLogFilter(int severity, int enable) {
-  Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
+static bool setEventLogFilter(Logger::LoggerLevel severity, int enable) {
+  Logger::LoggerLevel level = severity;
   if (enable > 0) {
     g_eventLogger->enable(level);
   } else if (enable == 0) {
@@ -1451,8 +1453,15 @@ void MgmApiSession::setLogFilter(Parser_t::Context &ctx,
   args.get("level", &severity);
   args.get("enable", &enable);
 
-  bool result = setEventLogFilter(severity, enable);
+  auto level = Logger::to_enum_LoggerLevel(severity);
+  if (!level.has_value()) {
+    m_output->println("set logfilter reply");
+    m_output->println("result: Invalid level: %u", severity);
+    m_output->println("%s", "");
+    return;
+  }
 
+  bool result = setEventLogFilter(level.value(), enable);
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
   m_output->println("%s", "");

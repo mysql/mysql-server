@@ -21,6 +21,9 @@
 --echo # 1. Verify that MRS returns user_id column as field, when the user_id is PK
 --echo # 2. Verify that MRS returns user_id column as field, when the user_id in no PK
 --echo # 3. Verify that MRS returns "user_id" column as "userId" field , when the user_id in no PK
+--echo # 4. Verify that raw media collection GET returns a field from an owned row
+--echo # 5. Verify that raw media primary-key GET returns a field from an owned row
+--echo # 6. Verify that raw media primary-key GET hides a field from an unowned row
 --echo #
 
 CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
@@ -194,6 +197,37 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_path='/svc/basic/note/'
 --let $mrs_client_arg_exclude_json_pointer='/items/*/userId,/items/*/lastUpdate,/items/*/createDate,/links,/items/*/_metadata,/items/*/links'
 --let $mrs_client_arg_request_type='GET'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # III.4
+
+--let $mrs_client_arg_path='/svc/basic/user2/?raw=1&f=email&limit=1'
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=request,body,result
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # III.5
+
+--let $mrs_client_arg_path='/svc/basic/user2/2?raw=1&f=email'
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=request,body,result
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # III.6
+
+--let $mrs_client_arg_path='/svc/basic/user2/1?raw=1&f=email'
+--let $mrs_client_arg_expected_status=NotFound
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=request,status,result
 --let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
 --source ../include/mrs/mrs_client.inc
 

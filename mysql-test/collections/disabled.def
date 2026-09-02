@@ -73,7 +73,6 @@ encryption.upgrade                          : Bug#36312666 Several InnoDB testca
 
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
-main.func_in_mrr_cost : BUG#39882117 Fails sporadically in parallel runs.
 main.join_cache_bka_nobnl : BUG#39882117 Fails sporadically in parallel runs.
 main.print_stacktrace : Bug#36027494 Add mtr test for my_print_stacktrace
 main.skip_records_in_range : BUG#39882117 Fails sporadically in parallel runs.

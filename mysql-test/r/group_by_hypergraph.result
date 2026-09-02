@@ -19,6 +19,8 @@ EXPLAIN
                 -> Hash
                     -> Table scan on t2
 
+Warnings:
+Note	1003	/* select#1 */ select distinct min(`t2`.`x`) AS `MIN(t2.x)`,`t1`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`x`, `t2`.`x`) group by `t2`.`x`
 DROP TABLE t;
 #
 # Bug #34670701 Too many ROLLUP rows with hypergraph
@@ -42,54 +44,72 @@ EXPLAIN
     -> Sort: t1.a, t1.c, t1.d  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`a`,0) AS `a`,rollup_group_item(`test`.`t1`.`c`,1) AS `c`,rollup_group_item(`test`.`t1`.`d`,2) AS `d`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`c`,`test`.`t1`.`d` with rollup
 EXPLAIN FORMAT=TREE SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
     -> Sort: t1.a, t1.d, t1.c  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`a`,0) AS `a`,rollup_group_item(`test`.`t1`.`d`,1) AS `d`,rollup_group_item(`test`.`t1`.`c`,2) AS `c`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`d`,`test`.`t1`.`c` with rollup
 EXPLAIN FORMAT=TREE SELECT c,a,d,sum(e) FROM t1 GROUP BY c,a,d WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
     -> Sort: t1.c, t1.a, t1.d  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`c`,0) AS `c`,rollup_group_item(`test`.`t1`.`a`,1) AS `a`,rollup_group_item(`test`.`t1`.`d`,2) AS `d`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`a`,`test`.`t1`.`d` with rollup
 EXPLAIN FORMAT=TREE SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
     -> Sort: t1.d, t1.a, t1.c  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`d`,0) AS `d`,rollup_group_item(`test`.`t1`.`a`,1) AS `a`,rollup_group_item(`test`.`t1`.`c`,2) AS `c`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`d`,`test`.`t1`.`a`,`test`.`t1`.`c` with rollup
 EXPLAIN FORMAT=TREE SELECT c,d,b,sum(e) FROM t1 GROUP BY c,d,b WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
     -> Sort: t1.c, t1.d, t1.b  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`c`,0) AS `c`,rollup_group_item(`test`.`t1`.`d`,1) AS `d`,rollup_group_item(`test`.`t1`.`b`,2) AS `b`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`d`,`test`.`t1`.`b` with rollup
 EXPLAIN FORMAT=TREE SELECT d,c,a,sum(e) FROM t1 GROUP BY d,c,a WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
     -> Sort: t1.d, t1.c, t1.a  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`d`,0) AS `d`,rollup_group_item(`test`.`t1`.`c`,1) AS `c`,rollup_group_item(`test`.`t1`.`a`,2) AS `a`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`d`,`test`.`t1`.`c`,`test`.`t1`.`a` with rollup
 EXPLAIN FORMAT=TREE SELECT b,a,sum(e) FROM t1 GROUP BY b,a WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=4.73)
     -> Sort: t1.b, t1.a  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`b`,0) AS `b`,rollup_group_item(`test`.`t1`.`a`,1) AS `a`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`b`,`test`.`t1`.`a` with rollup
 EXPLAIN FORMAT=TREE SELECT b,sum(e) FROM t1 GROUP BY b WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
     -> Sort: t1.b  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`b`,0) AS `b`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`b` with rollup
 EXPLAIN FORMAT=TREE SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
     -> Sort: t1.c  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`c`,0) AS `c`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`c` with rollup
 SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
 c	sum(e)
 0	2
@@ -102,6 +122,8 @@ EXPLAIN
     -> Sort: t1.c, t1.d  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`c`,0) AS `c`,rollup_group_item(`test`.`t1`.`d`,1) AS `d`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`d` with rollup
 SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
 c	d	sum(e)
 0	0	2
@@ -117,6 +139,8 @@ EXPLAIN
     -> Sort: t1.c, t1.d, t1.a  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`c`,0) AS `c`,rollup_group_item(`test`.`t1`.`d`,1) AS `d`,rollup_group_item(`test`.`t1`.`a`,2) AS `a`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`d`,`test`.`t1`.`a` with rollup
 SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
 c	d	a	sum(e)
 0	0	0	1
@@ -137,6 +161,8 @@ EXPLAIN
     -> Sort: t1.c, t1.d, t1.a, t1.b  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`c`,0) AS `c`,rollup_group_item(`test`.`t1`.`d`,1) AS `d`,rollup_group_item(`test`.`t1`.`a`,2) AS `a`,rollup_group_item(`test`.`t1`.`b`,3) AS `b`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`d`,`test`.`t1`.`a`,`test`.`t1`.`b` with rollup
 SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
 c	d	a	b	sum(e)
 0	0	0	0	1
@@ -161,6 +187,8 @@ EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
     -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`a`,0) AS `a`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`a` with rollup
 SELECT a,sum(e) FROM t1 GROUP BY a WITH ROLLUP;
 a	sum(e)
 0	2
@@ -173,6 +201,8 @@ EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=4.73)
     -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`a`,0) AS `a`,rollup_group_item(`test`.`t1`.`b`,1) AS `b`,rollup_sum_switcher(sum(`test`.`t1`.`e`)) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` with rollup
 SELECT a,b,sum(e) FROM t1 GROUP BY a,b WITH ROLLUP;
 a	b	sum(e)
 0	0	1
@@ -191,6 +221,8 @@ EXPLAIN
     -> Sort: t1.d, t1.a, t1.c  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,sum(`test`.`t1`.`e`) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`d`,`test`.`t1`.`a`,`test`.`t1`.`c`
 SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
 d	a	c	sum(e)
 0	0	0	1
@@ -204,6 +236,8 @@ EXPLAIN
     -> Sort: t1.a, t1.d, t1.c  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`c` AS `c`,sum(`test`.`t1`.`e`) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`d`,`test`.`t1`.`c`
 SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
 a	d	c	sum(e)
 0	0	0	1
@@ -216,6 +250,8 @@ EXPLAIN
 -> Group aggregate: sum(t1.e)  (rows=2.24)
     -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`e`) AS `sum(e)` from `test`.`t1` group by `test`.`t1`.`b`,`test`.`t1`.`a`
 SELECT b,a,sum(e) FROM t1 GROUP BY b,a;
 b	a	sum(e)
 0	0	1
@@ -229,6 +265,8 @@ EXPLAIN
     -> Sort: t1.a, t1.c, t1.e  (rows=5)
         -> Index scan on t1 using PRIMARY  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`e` AS `e`,sum(`test`.`t1`.`d`) AS `sum(d)` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`c`,`test`.`t1`.`e`
 DROP TABLE t1;
 #
 # Bug #33968442: Hypergraph gives too high row estimates for GROUP BY
@@ -466,6 +504,8 @@ EXPLAIN
         -> Sort: (t.col1 + t.col2)  (rows=1)
             -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`col1` AS `col1`,`test`.`t`.`col2` AS `col2`,`test`.`t`.`col3` AS `col3`,`test`.`t`.`col4` AS `col4`,`test`.`t`.`col5` AS `col5`,`test`.`t`.`col6` AS `col6`,`test`.`t`.`col7` AS `col7`,`test`.`t`.`col8` AS `col8`,`test`.`t`.`col9` AS `col9`,`test`.`t`.`col10` AS `col10`,`test`.`t`.`col11` AS `col11`,`test`.`t`.`col12` AS `col12`,`test`.`t`.`col13` AS `col13`,`test`.`t`.`col14` AS `col14`,`test`.`t`.`col15` AS `col15`,`test`.`t`.`col16` AS `col16`,`test`.`t`.`col17` AS `col17`,`test`.`t`.`col18` AS `col18`,`test`.`t`.`col19` AS `col19`,`test`.`t`.`col20` AS `col20`,`test`.`t`.`col21` AS `col21`,`test`.`t`.`col22` AS `col22`,`test`.`t`.`col23` AS `col23`,`test`.`t`.`col24` AS `col24`,`test`.`t`.`col25` AS `col25`,`test`.`t`.`col26` AS `col26`,`test`.`t`.`col27` AS `col27`,`test`.`t`.`col28` AS `col28`,`test`.`t`.`col29` AS `col29`,`test`.`t`.`col30` AS `col30`,`test`.`t`.`col31` AS `col31`,`test`.`t`.`col32` AS `col32`,`test`.`t`.`col33` AS `col33`,`test`.`t`.`col34` AS `col34`,`test`.`t`.`col35` AS `col35`,`test`.`t`.`col36` AS `col36`,`test`.`t`.`col37` AS `col37`,`test`.`t`.`col38` AS `col38`,`test`.`t`.`col39` AS `col39`,`test`.`t`.`col40` AS `col40`,`test`.`t`.`col41` AS `col41`,`test`.`t`.`col42` AS `col42`,`test`.`t`.`col43` AS `col43`,`test`.`t`.`col44` AS `col44`,`test`.`t`.`col45` AS `col45`,`test`.`t`.`col46` AS `col46`,`test`.`t`.`col47` AS `col47`,`test`.`t`.`col48` AS `col48`,`test`.`t`.`col49` AS `col49`,`test`.`t`.`col50` AS `col50`,`test`.`t`.`col51` AS `col51`,`test`.`t`.`col52` AS `col52`,`test`.`t`.`col53` AS `col53`,`test`.`t`.`col54` AS `col54`,`test`.`t`.`col55` AS `col55`,`test`.`t`.`col56` AS `col56`,`test`.`t`.`col57` AS `col57`,`test`.`t`.`col58` AS `col58`,`test`.`t`.`col59` AS `col59`,`test`.`t`.`col60` AS `col60`,`test`.`t`.`col61` AS `col61`,`test`.`t`.`col62` AS `col62`,`test`.`t`.`col63` AS `col63`,`test`.`t`.`col64` AS `col64` from `test`.`t` group by (`test`.`t`.`col1` + `test`.`t`.`col2`)
 DROP TABLE t;
 # Note: Some of the query results below are susceptible to plan changes.
 # This can happen when selecting columns that we do not group by or aggregate over.
@@ -506,6 +546,8 @@ EXPLAIN
             -> Aggregate using temporary table  (rows=3.46)
                 -> Index scan on tb1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result (2000 + (avg(`test`.`tb1`.`id`) * 100)) AS `2000 + avg(id) * 100`,avg((`test`.`tb1`.`id` * 2)) AS `a`,(`test`.`tb1`.`id2` * 4) AS `i` from `test`.`tb1` group by (`test`.`tb1`.`id2` * 4) having (`i` < 48) order by `a` desc
 create table tb2(id int , id3 int, primary key (id));
 insert into tb2 select * from tb1;
 analyze table tb2;
@@ -580,6 +622,8 @@ EXPLAIN
                     -> Aggregate using temporary table  (rows=3.46)
                         -> Index scan on tb1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result sql_buffer_result (2000 + (??? * 100)) AS `2000 + avg(id) * 100`,avg((`test`.`tb1`.`id` * 2)) AS `a`,(`test`.`tb1`.`id2` * 4) AS `i` from `test`.`tb1` group by (`test`.`tb1`.`id2` * 4) having (`i` < 48) order by `a` desc
 CREATE TABLE t(txt TEXT, i INT);
 INSERT INTO t VALUES ('z', 12), ('m', 81), ('q', 9), ('e', 7),
 ('z', 2), ('m', 8), ('q', 19), ('e', 17),
@@ -787,6 +831,8 @@ EXPLAIN
         -> Filter: (tb1.id2 <> 5)  (rows=10.8)
             -> Index scan on tb1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_sum_switcher(avg(`test`.`tb1`.`id`)) AS `avg(id)`,rollup_group_item(`test`.`tb1`.`id2`,0) AS `id2` from `test`.`tb1` where (`test`.`tb1`.`id2` <> 5) group by `test`.`tb1`.`id2` with rollup
 select avg(id2*2)  over(), id2 from tb1 group by id2;
 avg(id2*2)  over()	id2
 22.0000	10
@@ -800,29 +846,39 @@ EXPLAIN
             -> Sort: tb1.id2  (rows=12)
                 -> Index scan on tb1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select avg(`(tb1.id2 * 2)`) OVER ()  AS `avg(id2*2)  over()`,`test`.`tb1`.`id2` AS `id2` from `test`.`tb1` group by `test`.`tb1`.`id2`
 EXPLAIN FORMAT=TREE select sql_small_result avg(id), JSON_ARRAYAGG(id) from tb1 t1 group by id2 ;
 EXPLAIN
 -> Group aggregate: avg(t1.id), json_arrayagg(t1.id)  (rows=3.46)
     -> Sort: t1.id2  (rows=12)
         -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result avg(`t1`.`id`) AS `avg(id)`,json_arrayagg(`t1`.`id`) AS `JSON_ARRAYAGG(id)` from `test`.`tb1` `t1` group by `t1`.`id2`
 EXPLAIN FORMAT=TREE select sql_small_result avg(id) from tb1 group by 'abcd';
 EXPLAIN
 -> Group aggregate: avg(tb1.id)  (rows=1)
     -> Covering index scan on tb1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result avg(`test`.`tb1`.`id`) AS `avg(id)` from `test`.`tb1` group by 'abcd'
 EXPLAIN FORMAT=TREE select sql_big_result avg(id) from tb1 t1 group by id2;
 EXPLAIN
 -> Group aggregate: avg(t1.id)  (rows=3.46)
     -> Sort: t1.id2  (rows=12)
         -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result avg(`t1`.`id`) AS `avg(id)` from `test`.`tb1` `t1` group by `t1`.`id2`
 EXPLAIN FORMAT=TREE select sql_small_result avg(id2) from tb1 t1 group by id;
 EXPLAIN
 -> Table scan on <temporary>  (rows=12)
     -> Aggregate using temporary table  (rows=12)
         -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result avg(`t1`.`id2`) AS `avg(id2)` from `test`.`tb1` `t1` group by `t1`.`id`
 truncate tb1;
 analyze table tb1;
 Table	Op	Msg_type	Msg_text
@@ -833,6 +889,8 @@ EXPLAIN
     -> Aggregate using temporary table  (rows=1)
         -> Index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result avg(`t1`.`id`) AS `avg(id)` from `test`.`tb1` `t1` group by `t1`.`id2`
 #
 # Bug#3767052: mysqld crash at Field::is_nullable while querying...
 #

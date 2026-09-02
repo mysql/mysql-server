@@ -104,7 +104,7 @@ static bool check_admin_tls_version(sys_var *, THD *, set_var *var) {
 
 static bool tls_force_pqc_supported_for_version(const char *tls_version
                                                 [[maybe_unused]]) {
-#if !defined(HAVE_TLSv13) || OPENSSL_VERSION_NUMBER < 0x30500000L
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
   return false;
 #else
   return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
@@ -116,7 +116,7 @@ static void adjust_startup_force_pqc_for_tls_version(
     const char *tls_version_name [[maybe_unused]],
     const char *tls_version [[maybe_unused]],
     bool *force_pqc [[maybe_unused]]) {
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (!*force_pqc || tls_force_pqc_supported_for_version(tls_version)) return;
 
   const std::string error =
@@ -419,19 +419,9 @@ static Sys_var_charptr Sys_ssl_capath(
     IN_FS_CHARSET, DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_tls_version(
-    "tls_version",
-#ifdef HAVE_TLSv13
-    "TLS version, permitted values are TLSv1.2, TLSv1.3",
-#else
-    "TLS version, permitted values are TLSv1.2",
-#endif
+    "tls_version", "TLS version, permitted values are TLSv1.2, TLSv1.3",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_version),
-    CMD_LINE(REQUIRED_ARG, OPT_TLS_VERSION), IN_FS_CHARSET,
-#ifdef HAVE_TLSv13
-    "TLSv1.2,TLSv1.3",
-#else
-    "TLSv1.2",
-#endif /* HAVE_TLSv13 */
+    CMD_LINE(REQUIRED_ARG, OPT_TLS_VERSION), IN_FS_CHARSET, "TLSv1.2,TLSv1.3",
     &lock_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls_version));
 
 static Sys_var_charptr Sys_ssl_cert(
@@ -548,20 +538,11 @@ static Sys_var_charptr Sys_admin_ssl_capath(
 
 static Sys_var_charptr Sys_admin_tls_version(
     "admin_tls_version",
-#ifdef HAVE_TLSv13
     "TLS version for --admin-port, permitted values are TLSv1.2, TLSv1.3",
-#else
-    "TLS version for --admin-port, permitted values are TLSv1.2",
-#endif
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_tls_version),
     CMD_LINE(REQUIRED_ARG, OPT_ADMIN_TLS_VERSION), IN_FS_CHARSET,
-#ifdef HAVE_TLSv13
-    "TLSv1.2,TLSv1.3",
-#else
-    "TLSv1.2",
-#endif /* HAVE_TLSv13 */
-    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_admin_tls_version),
-    ON_UPDATE(admin_tls_configured));
+    "TLSv1.2,TLSv1.3", &lock_admin_ssl_ctx, NOT_IN_BINLOG,
+    ON_CHECK(check_admin_tls_version), ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_cert(
     "admin_ssl_cert", "X509 cert in PEM format for --admin-port",
@@ -641,8 +622,10 @@ static bool warn_self_signed_ca_certs(const char *ssl_ca,
       return false;
     }
 
-    issuer = X509_NAME_oneline(X509_get_issuer_name(ca_cert), nullptr, 0);
-    subject = X509_NAME_oneline(X509_get_subject_name(ca_cert), nullptr, 0);
+    issuer = X509_NAME_oneline(
+        const_cast<X509_NAME *>(X509_get_issuer_name(ca_cert)), nullptr, 0);
+    subject = X509_NAME_oneline(
+        const_cast<X509_NAME *>(X509_get_subject_name(ca_cert)), nullptr, 0);
 
     /* Suppressing warning which is not relevant during initialization */
     if (!strcmp(issuer, subject) &&

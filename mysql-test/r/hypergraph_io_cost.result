@@ -24,21 +24,29 @@ EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<10;
 EXPLAIN
 -> Index range scan on t1 using k1 over (a < 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<1000;
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t1 using k1 over (a < 1000)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 1000)
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<3000;
 EXPLAIN
 -> Filter: (t1.a < 3000)  (...)
     -> Index scan on t1 using PRIMARY  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 3000)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.pk<10 AND x1.b=x2.a;
 EXPLAIN
 -> Nested loop inner join  (...)
     -> Index range scan on x1 using PRIMARY over (pk < 10)  (...)
     -> Index lookup on x2 using k1 (a = x1.b)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`pk` AS `pk`,`x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`fill` AS `fill`,`x2`.`pk` AS `pk`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`fill` AS `fill` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`x1`.`pk` < 10) and (`x1`.`b` = `x2`.`a`))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.pk<1000 AND x1.b=x2.a;
 EXPLAIN
 -> Inner hash join (x1.b = x2.a)  (...)
@@ -46,6 +54,8 @@ EXPLAIN
     -> Hash
         -> Index range scan on x1 using PRIMARY over (pk < 1000)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`pk` AS `pk`,`x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`fill` AS `fill`,`x2`.`pk` AS `pk`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`fill` AS `fill` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`x1`.`pk` < 1000) and (`x1`.`b` = `x2`.`a`))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.pk<3000 AND x1.b=x2.a;
 EXPLAIN
 -> Inner hash join (x1.b = x2.a)  (...)
@@ -53,4 +63,6 @@ EXPLAIN
     -> Hash
         -> Index range scan on x1 using PRIMARY over (pk < 3000)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`pk` AS `pk`,`x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`fill` AS `fill`,`x2`.`pk` AS `pk`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`fill` AS `fill` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`x1`.`pk` < 3000) and (`x1`.`b` = `x2`.`a`))
 DROP TABLE t1;

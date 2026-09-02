@@ -120,20 +120,38 @@ class Database_rewrite {
     Database_rewrite &m_event_rewriter;
 
     /**
-      Expands the buffer if needed.
+      Expands the buffer if needed. If the requested size exceeds the capacity,
+      reallocates the buffer and returns a pointer, a capacity, and whether it
+      was successful or not.
+
+      On error, returns the same buffer and same capacity as were passed as
+      parameters.
+
+      @param buffer the buffer to resize
+      @param capacity the capacity of the buffer
+      @param size the minimum size required for the buffer
+
+      @return A tuple containing the buffer pointer, the buffer capacity, and an
+      error indicator. If an error occurs, the returned buffer pointer and
+      capacity are identical to the input values and remain unmodified. On
+      success, the buffer is reallocated only if the requested size exceeds the
+      current capacity. In that case, the returned tuple contains the new buffer
+      pointer and its updated capacity. If the requested size does not exceed
+      the current capacity, no reallocation is performed. The original buffer
+      pointer and capacity are returned unchanged, and no error is reported.
     */
     std::tuple<unsigned char *, std::size_t, bool> reserve(
         unsigned char *buffer, std::size_t capacity, std::size_t size) {
-      if (size > capacity) {
-        auto outsize{size};
-        outsize = round(((size + BINLOG_CHECKSUM_LEN) / 1024.0) + 1) * 1024;
-        buffer = (unsigned char *)realloc(buffer, outsize);
-        if (!buffer) {
-          return std::make_tuple(nullptr, 0, true);
-        }
-        return std::make_tuple(buffer, outsize, false);
-      } else
-        return std::make_tuple(buffer, capacity, false);
+      if (size <= capacity) return std::make_tuple(buffer, capacity, false);
+
+      const auto new_capacity = static_cast<std::size_t>(
+          round(((size + BINLOG_CHECKSUM_LEN) / 1024.0) + 1) * 1024);
+      auto *new_buffer =
+          static_cast<unsigned char *>(realloc(buffer, new_capacity));
+
+      if (new_buffer == nullptr) return std::make_tuple(buffer, capacity, true);
+
+      return std::make_tuple(new_buffer, new_capacity, false);
     }
 
     class Buffer_realloc_manager {
@@ -149,6 +167,23 @@ class Database_rewrite {
       void release() { m_buffer = nullptr; }
     };
 
+    /**
+      This member function shall decompress the events in the payload passed as
+      an argument, rewrite their database names, and recompress them.
+
+      @param compression_type the compression type of the payload
+      @param orig_payload the buffer holding the compressed events
+      @param orig_payload_size the size of the data in the buffer
+      @param fde the format description event that will be used to decode events
+
+      @return A tuple that contains a pointer to the buffer with the data
+      rewritten and recompressed, the buffer capacity, the data size within the
+      buffer, the size of the rewritten uncompressed data, and whether there was
+      an error (false on success, true otherwise). If there was an error, the
+      last field of the tuple is set to true, the buffer pointer is set to
+      nullptr, the capacity is set to 0, and the compressed and uncompressed
+      data sizes are also set to 0.
+    */
     Rewrite_payload_result rewrite_inner_events(
         mysql::binlog::event::compression::type compression_type,
         const char *orig_payload, std::size_t orig_payload_size,
@@ -246,7 +281,16 @@ class Database_rewrite {
       @param buffer_capacity the capacity of the buffer.
       @param fde The format description event to decode this event.
 
-      @return a tuple with the result of the rewrite.
+      @return A tuple containing:
+        - a pointer to the buffer holding the rewritten and recompressed
+          payload,
+        - the buffer capacity,
+        - the size of the valid data in the buffer, and
+        - an error indicator.
+
+      If an error occurs, the error indicator is `true`, the returned buffer
+      pointer and capacity are unchanged from the input values, and the returned
+      data size is equal to the buffer capacity.
      */
     Rewrite_result rewrite_transaction_payload(
         unsigned char *buffer, std::size_t buffer_capacity,
@@ -260,23 +304,23 @@ class Database_rewrite {
       auto orig_payload_size{tpe.get_payload_size()};
       auto orig_payload_compression_type{tpe.get_compression_type()};
 
-      unsigned char *rewritten_payload{nullptr};
-      std::size_t rewritten_payload_size{0};
-      std::size_t rewritten_payload_capacity{0};
-      std::size_t rewritten_payload_uncompressed_size{0};
-
-      auto rewrite_payload_res{false};
       auto has_crc{fde.footer()->checksum_alg ==
                    mysql::binlog::event::BINLOG_CHECKSUM_ALG_CRC32};
 
       // Rewrite its contents as needed
-      std::tie(rewritten_payload, rewritten_payload_capacity,
-               rewritten_payload_size, rewritten_payload_uncompressed_size,
-               rewrite_payload_res) =
+      auto [rewritten_payload, rewritten_payload_capacity,
+            rewritten_payload_size, rewritten_payload_uncompressed_size,
+            rewrite_payload_res] =
           rewrite_inner_events(orig_payload_compression_type, orig_payload,
                                orig_payload_size, fde);
+      // either there is no error or if there is an error rewritten payload
+      // is always a null pointer
+      assert(!rewrite_payload_res || rewritten_payload == nullptr);
+      auto cleanup_guard =
+          create_scope_guard([payload = rewritten_payload] { free(payload); });
 
-      if (rewrite_payload_res) return Rewrite_result{nullptr, 0, 0, true};
+      if (rewrite_payload_res)
+        return Rewrite_result{buffer, buffer_capacity, buffer_capacity, true};
 
       // create a new TPE with the new buffer
       mysql::binlog::event::Transaction_payload_event new_tpe(
@@ -289,16 +333,22 @@ class Database_rewrite {
           tpe.header()->type_code);
       uchar tpe_buffer[mysql::binlog::event::Transaction_payload_event::
                            max_payload_data_header_length];
-      auto result = codec->encode(new_tpe, tpe_buffer, sizeof(tpe_buffer));
-      if (result.second == true) return Rewrite_result{nullptr, 0, 0, true};
+      const auto [encoded_size, encoding_error] =
+          codec->encode(new_tpe, tpe_buffer, sizeof(tpe_buffer));
+      if (encoding_error)
+        return Rewrite_result{buffer, buffer_capacity, buffer_capacity, true};
 
       // Now adjust the event buffer itself
-      auto new_data_size = result.first + rewritten_payload_size;
+      auto new_data_size = encoded_size + rewritten_payload_size;
       auto new_event_size = LOG_EVENT_HEADER_LEN + new_data_size;
       if (has_crc) new_event_size += BINLOG_CHECKSUM_LEN;
-      if (new_event_size > buffer_capacity)
-        buffer = (unsigned char *)my_realloc(PSI_NOT_INSTRUMENTED, buffer,
-                                             new_event_size, MYF(0));
+      if (new_event_size > buffer_capacity) {
+        auto *new_buffer = static_cast<unsigned char *>(
+            my_realloc(PSI_NOT_INSTRUMENTED, buffer, new_event_size, MYF(0)));
+        if (new_buffer == nullptr)
+          return Rewrite_result{buffer, buffer_capacity, buffer_capacity, true};
+        buffer = new_buffer;
+      }
 
       // now write everything into the event buffer
       auto ptr = buffer;
@@ -308,16 +358,12 @@ class Database_rewrite {
       ptr += LOG_EVENT_HEADER_LEN;
 
       // add the new tpe header
-      memmove(ptr, tpe_buffer, result.first);
-      ptr += result.first;
+      memmove(ptr, tpe_buffer, encoded_size);
+      ptr += encoded_size;
 
       // add the new payload
       memmove(ptr, rewritten_payload, rewritten_payload_size);
       ptr += rewritten_payload_size;
-
-      // now can free the new payload, as we have moved it to the
-      // event buffer
-      free(rewritten_payload);
 
       // recalculate checksum
       if (has_crc) {
@@ -504,16 +550,18 @@ class Database_rewrite {
     delta = to.size() - from.size();
     // need to reallocate
     if ((delta + data_size) > buffer_capacity) {
-      the_buffer_capacity = buffer_capacity + delta;
-      the_buffer = (unsigned char *)my_realloc(PSI_NOT_INSTRUMENTED, buffer,
-                                               the_buffer_capacity, MYF(0));
+      const auto new_capacity = buffer_capacity + delta;
+      auto *new_buffer = static_cast<unsigned char *>(
+          my_realloc(PSI_NOT_INSTRUMENTED, buffer, new_capacity, MYF(0)));
       /* purecov: begin inspected */
-      if (!the_buffer) {
+      if (new_buffer == nullptr) {
         // OOM
         error = true;
         goto end;
       }
       /* purecov: end */
+      the_buffer = new_buffer;
+      the_buffer_capacity = new_capacity;
     }
 
     // adjust the size of the event
@@ -2585,6 +2633,61 @@ err:
 static uint get_dump_flags() { return stop_never ? 0 : BINLOG_DUMP_NON_BLOCK; }
 
 /**
+  Checks whether a rotate event file name can be used for raw output.
+
+  Raw mode uses rotate events to choose the next output file. Accept only a
+  plain log file name with the same length as the rotate event metadata.
+
+  @param rev Rotate event containing the next log file name.
+
+  @retval true  The rotate event contains a valid raw log file name.
+  @retval false The file name is missing or not suitable for raw output.
+*/
+static bool is_raw_log_file_name_valid(const Rotate_log_event &rev) {
+  const char *log_file_name = rev.new_log_ident;
+
+  if (log_file_name == nullptr || rev.ident_len == 0) {
+    return false;
+  }
+  const size_t log_file_name_length = strlen(log_file_name);
+  if (log_file_name_length != rev.ident_len ||
+      dirname_length(log_file_name) != 0 || !strcmp(log_file_name, ".") ||
+      !strcmp(log_file_name, FN_PARENTDIR)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+  Constructs the local file name used for raw output from a rotate event.
+
+  @param[out] to     Destination buffer.
+  @param[in] to_size Destination buffer size.
+  @param[in] prefix  Optional raw output prefix.
+  @param[in] rev     Rotate event containing the next log file name.
+
+  @retval false File name was constructed successfully.
+  @retval true  File name validation or formatting failed.
+*/
+static bool make_raw_log_file_name(char *to, size_t to_size, const char *prefix,
+                                   const Rotate_log_event &rev) {
+  if (!is_raw_log_file_name_valid(rev)) {
+    error("Invalid log file name in rotate event.");
+    return true;
+  }
+
+  const int length = snprintf(
+      to, to_size, "%s%s", prefix == nullptr ? "" : prefix, rev.new_log_ident);
+  if (length < 0 || static_cast<size_t>(length) >= to_size) {
+    error("Could not construct log file name from rotate event.");
+    return true;
+  }
+
+  return false;
+}
+
+/**
   Callback function for mysql_binlog_open().
 
   Sets gtid data in the command packet.
@@ -2781,11 +2884,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           soon.
         */
         if (raw_mode) {
-          if (output_file != nullptr) {
-            snprintf(log_file_name, sizeof(log_file_name), "%s%s", output_file,
-                     rev->new_log_ident);
-          } else {
-            my_stpcpy(log_file_name, rev->new_log_ident);
+          if (make_raw_log_file_name(log_file_name, sizeof(log_file_name),
+                                     output_file, *rev)) {
+            return ERROR_STOP;
           }
         }
 

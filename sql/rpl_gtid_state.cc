@@ -85,6 +85,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid) {
   assert(!executed_gtids.contains_gtid(gtid));
   DBUG_PRINT("info", ("gtid=%d:%" PRId64, gtid.sidno, gtid.gno));
   assert(thd->owned_gtid.sidno == 0);
+  assert(!thd->gtid_table_persist_requested());
   if (owned_gtids.add_gtid_owner(gtid, thd->thread_id()) != RETURN_STATUS_OK)
     goto err;
   if (thd->get_gtid_next_list() != nullptr) {
@@ -159,6 +160,14 @@ void Gtid_state::update_commit_group(THD *first_thd) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(mysql_bin_log.get_commit_lock());
 
+  for (THD *thd = first_thd; thd != nullptr; thd = thd->next_to_commit) {
+    thd->call_actions_before_gtid_state_update(thd->commit_error !=
+                                               THD::CE_COMMIT_ERROR);
+  }
+
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+      "after_call_actions_before_gtid_state_update");
+
   bool gtid_threshold_breach = false;
   /*
     We are going to loop in all sessions of the group commit in order to avoid
@@ -207,6 +216,9 @@ void Gtid_state::update_commit_group(THD *first_thd) {
 void Gtid_state::update_on_commit(THD *thd) {
   DBUG_TRACE;
 
+  thd->call_actions_before_gtid_state_update(/*is_commit=*/true);
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+      "after_call_actions_before_gtid_state_update");
   update_gtids_impl(thd, true);
   DEBUG_SYNC(thd, "end_of_gtid_state_update_on_commit");
 }
@@ -214,6 +226,9 @@ void Gtid_state::update_on_commit(THD *thd) {
 void Gtid_state::update_on_rollback(THD *thd) {
   DBUG_TRACE;
 
+  thd->call_actions_before_gtid_state_update(/*is_commit=*/false);
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+      "after_call_actions_before_gtid_state_update");
   if (!update_gtids_impl_check_skip_gtid_rollback(thd))
     update_gtids_impl(thd, false);
 }
@@ -715,6 +730,10 @@ int Gtid_state::save(THD *thd) {
   assert(thd->owned_gtid.sidno > 0);
   int error = 0;
 
+  if (thd->gtid_table_persist_requested()) {
+    return 0;
+  }
+
   int ret = gtid_table_persistor->save(thd, &thd->owned_gtid);
   if (1 == ret) {
     /*
@@ -722,10 +741,14 @@ int Gtid_state::save(THD *thd) {
       open it. Ignore the error.
     */
     thd->clear_error();
-    if (!thd->get_stmt_da()->is_set())
+    if (!thd->get_stmt_da()->is_set()) {
       thd->get_stmt_da()->set_ok_status(0, 0, nullptr);
-  } else if (-1 == ret)
+    }
+  } else if (-1 == ret) {
     error = -1;
+  } else {
+    thd->set_gtid_table_persist_requested();
+  }
 
   return error;
 }

@@ -194,7 +194,8 @@ static int webauthn_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *) {
 #endif
   {
     wa = new webauthn_assertion(preserve_privacy);
-    if (wa->parse_challenge(server_challenge)) return true;
+    if (wa->parse_challenge(server_challenge, server_challenge_len))
+      return true;
     bool is_fido2 = false;
     if (wa->check_fido2_device(is_fido2)) return true;
     if (is_fido2) {
@@ -214,7 +215,7 @@ static int webauthn_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *) {
     }
     if (wa->sign_challenge()) return true;
     /* copy signed challenge into buff */
-    wa->get_signed_challenge(&buff, length);
+    if (wa->get_signed_challenge(&buff, length)) return true;
     /* send signed challenge to webauthn server plugin */
     vio->write_packet(vio, buff, length);
   }

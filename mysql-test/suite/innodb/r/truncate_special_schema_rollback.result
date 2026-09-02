@@ -1,0 +1,18 @@
+CREATE DATABASE `t1#`;
+USE `t1#`;
+CREATE TABLE d(a INT);
+INSERT INTO d VALUES(1);
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+TRUNCATE TABLE d;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+SET SESSION DEBUG = "-d,ib_truncate_rollback_test";
+SELECT * FROM d;
+a
+1
+INSERT INTO d VALUES(2);
+SELECT * FROM d ORDER BY a;
+a
+1
+2
+USE test;
+DROP DATABASE `t1#`;

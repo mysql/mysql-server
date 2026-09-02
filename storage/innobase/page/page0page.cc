@@ -493,6 +493,8 @@ void page_copy_rec_list_end_no_locks(
 
   /* Copy records from the original page to the new page */
 
+  [[maybe_unused]] Row_import_metadata_check_guard import_metadata_check_guard;
+
   while (!page_cur_is_after_last(&cur1)) {
     rec_t *cur1_rec = page_cur_get_rec(&cur1);
     rec_t *ins_rec;
@@ -715,6 +717,9 @@ rec_t *page_copy_rec_list_start(
                                           rec_move, max_to_move, &num_moved,
                                           mtr);
   } else {
+    [[maybe_unused]] Row_import_metadata_check_guard
+        import_metadata_check_guard;
+
     while (page_cur_get_rec(&cur1) != rec) {
       rec_t *cur1_rec = page_cur_get_rec(&cur1);
       offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED,
@@ -951,6 +956,9 @@ void page_delete_rec_list_end(
       page_cur_t cur;
       page_cur_position(rec, block, &cur);
 
+      [[maybe_unused]] Row_import_metadata_check_guard
+          import_metadata_check_guard;
+
       offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
                                 UT_LOCATION_HERE, &heap);
       rec = rec_get_next_ptr(rec, true);
@@ -979,6 +987,9 @@ void page_delete_rec_list_end(
     /* Calculate the sum of sizes and the number of records */
     size = 0;
     n_recs = 0;
+
+    [[maybe_unused]] Row_import_metadata_check_guard
+        import_metadata_check_guard;
 
     do {
       ulint s;
@@ -1108,6 +1119,8 @@ void page_delete_rec_list_start(
   /* Individual deletes are not logged */
 
   mtr_log_t log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+
+  [[maybe_unused]] Row_import_metadata_check_guard import_metadata_check_guard;
 
   while (page_cur_get_rec(&cur1) != rec) {
     offsets = rec_get_offsets(page_cur_get_rec(&cur1), index, offsets,
@@ -1589,6 +1602,9 @@ void page_print_list(
 
   page_cur_set_before_first(block, &cur);
   count = 0;
+
+  [[maybe_unused]] Row_import_metadata_check_guard import_metadata_check_guard;
+
   for (;;) {
     offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
@@ -2217,8 +2233,13 @@ bool page_validate(const page_t *page, dict_index_t *index,
   rec = page_get_infimum_rec(page);
 
   for (;;) {
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                              UT_LOCATION_HERE, &heap);
+    {
+      [[maybe_unused]] Row_import_metadata_check_guard
+          import_metadata_check_guard;
+
+      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
+    }
 
     if (page_is_comp(page) && page_rec_is_user_rec(rec) &&
         UNIV_UNLIKELY(rec_get_node_ptr_flag(rec) == page_is_leaf(page))) {
@@ -2254,13 +2275,14 @@ bool page_validate(const page_t *page, dict_index_t *index,
           ib::info() << "Resetting correct min bit to " << count << "st record";
         });
 
-    /* REC_INFO_MIN_REC_FLAG must be set only for first record on first non-leaf
-    page on a level. */
+    /* REC_INFO_MIN_REC_FLAG must be set only for first record on first
+    non-leaf page on a level. */
     if (check_min_rec) {
       if (rec_is_min_rec_flag_set(rec, page_is_comp(page))) {
         if (!page_rec_is_user_rec(rec) ||
             !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
-          ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_SET, (unsigned long int)page_no,
+          ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_SET,
+                    (unsigned long int)page_no,
                     (unsigned long int)btr_page_get_level(page), index->name(),
                     index->table_name);
           DBUG_EXECUTE_IF(
@@ -2493,6 +2515,10 @@ bool page_validate(const page_t *page, dict_index_t *index,
         << "N heap is wrong " << page_dir_get_n_heap(page) << " " << count + 1;
     goto func_exit;
   }
+
+#ifdef UNIV_ROW_IMPORT_DBG
+  row_import_assert_index_page_records_links_and_types_valid(page, index);
+#endif /* UNIV_ROW_IMPORT_DBG */
 
   ret = true;
 

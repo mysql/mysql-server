@@ -749,6 +749,8 @@ EXPLAIN FORMAT=TREE SELECT c0 FROM t1 WHERE c0 = '-1';
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (cost=*** rows=***)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c0` AS `c0` from `test`.`t1` where false
 # Expect: 1 row (c0=0)
 SELECT c0 FROM t1 WHERE c0 = '0';
 c0

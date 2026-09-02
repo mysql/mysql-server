@@ -118,6 +118,18 @@ SELECT test_mysql_command_services_error_code_udf("SELECT * FROM test.no_such_ta
 test_mysql_command_services_error_code_udf("SELECT * FROM test.no_such_table")
 1146
 SET @@GLOBAL.DEBUG = '-d, mysql_command_services_component_test_errno';
+# Test : a row execution error after metadata leaves the handle reusable
+CREATE TABLE test.mcs_invalid_json(value VARCHAR(32));
+INSERT INTO test.mcs_invalid_json VALUES ('not-json');
+CREATE VIEW test.no_such_table AS
+SELECT JSON_EXTRACT(value, '$') AS value FROM test.mcs_invalid_json;
+GRANT SELECT ON test.no_such_table TO 'mysql.session'@'localhost';
+SELECT test_mysql_command_session_error_info_success_clears_udf();
+test_mysql_command_session_error_info_success_clears_udf()
+1
+REVOKE SELECT ON test.no_such_table FROM 'mysql.session'@'localhost';
+DROP VIEW test.no_such_table;
+DROP TABLE test.mcs_invalid_json;
 # Test : failing connect() when running in an initialized thread; cleanup (cmd_factory->close() + cmd_thread->end()) must not leak the session
 SELECT test_mysql_command_services_explicit_connect_fail_cleanup_udf();
 test_mysql_command_services_explicit_connect_fail_cleanup_udf()
@@ -129,4 +141,140 @@ SELECT test_mysql_command_services_client_flags_udf() AS client_flags_switch_upd
 client_flags_switch_update_affected_rows
 1
 DROP TABLE test.mcs_client_flags;
+CREATE USER 'mcs_auth_ok'@'localhost'
+  IDENTIFIED BY 'Mcs_auth-39817209!';
+CREATE USER 'mcs_auth_empty'@'localhost' IDENTIFIED BY '';
+CREATE USER 'mcs_auth_locked'@'localhost'
+  IDENTIFIED BY 'Mcs_auth-39817209!' ACCOUNT LOCK;
+CREATE USER 'mcs_auth_expired'@'localhost'
+  IDENTIFIED BY 'Mcs_auth-39817209!' PASSWORD EXPIRE;
+CREATE USER 'mcs_auth_plugin'@'localhost'
+  IDENTIFIED WITH caching_sha2_password BY 'Mcs_auth-39817209!';
+CREATE USER 'mcs_auth_tcp'@'localhost'
+  IDENTIFIED BY 'Mcs_auth-39817209!';
+CREATE USER 'mcs_auth_tcp'@'127.0.0.1'
+  IDENTIFIED BY 'Mcs_auth-39817209!';
+CREATE USER 'mcs_auth_tcp'@'::1'
+  IDENTIFIED BY 'Mcs_auth-39817209!';
+# Test : authenticated local connection returns canonical CURRENT_USER()
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket)
+AS authenticated_current_user;
+authenticated_current_user
+mcs_auth_ok@localhost
+# Test : an explicitly empty password selects authenticated mode
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_empty', '', 'localhost', @@port, @@socket)
+AS empty_password_current_user;
+empty_password_current_user
+mcs_auth_empty@localhost
+# Test : wrong, nonexistent, locked, and expired accounts fail authentication
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'wrong-password', 'localhost', @@port, @@socket)
+AS wrong_password_error;
+wrong_password_error
+ERROR:1045
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_missing', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket)
+AS nonexistent_account_error;
+nonexistent_account_error
+ERROR:1045
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_locked', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket)
+AS locked_account_error;
+locked_account_error
+ERROR:3118
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_expired', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket)
+AS expired_password_error;
+expired_password_error
+ERROR:1862
+# Test : authenticated attempts require a newly initialized handle
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket,
+'retry_validation')
+AS validation_failure_retry_error;
+validation_failure_retry_error
+ERROR:2034
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket,
+'retry_authentication')
+AS authentication_failure_retry_error;
+authentication_failure_retry_error
+ERROR:2034
+# Test : authenticated mode restores normal client methods
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'wrong-password', 'localhost', @@port, @@socket,
+'after_embedded_failure')
+AS authentication_after_embedded_failure_error;
+authentication_after_embedded_failure_error
+ERROR:1045
+# Test : explicitly selected authentication plugin uses normal negotiation
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_plugin', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket)
+AS authentication_plugin_current_user;
+authentication_plugin_current_user
+mcs_auth_plugin@localhost
+# Test : loopback TCP connects only to the current server port
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_tcp', 'Mcs_auth-39817209!', '127.0.0.1', @@port, NULL)
+IN ('mcs_auth_tcp@localhost', 'mcs_auth_tcp@127.0.0.1')
+AS authenticated_loopback_tcp;
+authenticated_loopback_tcp
+1
+# Test : wildcard bind permits authenticated IPv6 loopback TCP
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_tcp', 'Mcs_auth-39817209!', '192.0.2.1', @@port, NULL)
+AS remote_endpoint_error;
+remote_endpoint_error
+ERROR:2034
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_tcp', 'Mcs_auth-39817209!', '127.0.0.1',
+IF(@@port = 65535, @@port - 1, @@port + 1), NULL)
+AS wrong_loopback_port_error;
+wrong_loopback_port_error
+ERROR:2034
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port,
+CONCAT(@@socket, '.other'))
+AS wrong_local_endpoint_error;
+wrong_local_endpoint_error
+ERROR:2034
+# Test : authenticated mode rejects embedded-backend-only options
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket,
+'local_thd')
+AS authenticated_local_thd_error;
+authenticated_local_thd_error
+ERROR:2034
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket,
+'consumer')
+AS authenticated_consumer_error;
+authenticated_consumer_error
+ERROR:2034
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket,
+'no_lock')
+AS authenticated_no_lock_error;
+authenticated_no_lock_error
+ERROR:2034
+# Test : earlier authentication failures do not affect later connections
+SELECT test_mysql_command_services_authenticate_udf(
+'mcs_auth_ok', 'Mcs_auth-39817209!', 'localhost', @@port, @@socket)
+AS authenticated_after_failures;
+authenticated_after_failures
+mcs_auth_ok@localhost
+SELECT test_mysql_command_services_udf('SELECT 1')
+AS embedded_after_authenticated_failures;
+embedded_after_authenticated_failures
+1
+DROP USER 'mcs_auth_ok'@'localhost';
+DROP USER 'mcs_auth_empty'@'localhost';
+DROP USER 'mcs_auth_locked'@'localhost';
+DROP USER 'mcs_auth_expired'@'localhost';
+DROP USER 'mcs_auth_plugin'@'localhost';
+DROP USER 'mcs_auth_tcp'@'localhost';
+DROP USER 'mcs_auth_tcp'@'127.0.0.1';
+DROP USER 'mcs_auth_tcp'@'::1';
 UNINSTALL COMPONENT "file://component_test_mysql_command_services";

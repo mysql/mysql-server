@@ -35,10 +35,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0impl-loader.h"
 #include "handler0alter.h"
 #include "os0thread-create.h"
+#include "sync0debug.h"
 #include "ut0stage.h"
 
-#include "sql/table.h"
-#include "sql_class.h"
+class THD;
 
 namespace ddl {
 
@@ -317,7 +317,11 @@ dberr_t Loader::load() noexcept {
       Runnable runnable{PSI_NOT_INSTRUMENTED, seqnum};
 #endif /* UNIV_PFS_THREAD */
 
-      current_thd = nullptr;
+      if (runnable.setup_thd(m_ctx.thd()) != DB_SUCCESS) {
+        m_taskq->thread_create_failed();
+        m_taskq->signal();
+        return DB_OUT_OF_MEMORY;
+      }
 
       const auto err = runnable(&Task_queue::execute, m_taskq);
 

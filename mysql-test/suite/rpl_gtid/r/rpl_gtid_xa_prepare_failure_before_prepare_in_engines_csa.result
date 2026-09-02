@@ -41,7 +41,8 @@ include/assert.inc [Table 'test.t1' record count must be 1]
 include/rpl/start_replica.inc
 [connection master]
 include/rpl/sync_to_replica.inc
-include/wait_for_xa_prepared_count.inc
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction X'78696431',X'',1 is in PREPARED state]
 [connection master1]
 XA COMMIT X'78696431',X'',1;
 include/rpl/sync_to_replica.inc

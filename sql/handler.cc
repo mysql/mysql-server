@@ -7748,14 +7748,23 @@ static inline void move_key_field_offsets(const key_range *range,
   @retval  1 if the key is outside the range
 */
 int handler::compare_key_in_buffer(const uchar *buf) const {
-  assert(end_range != nullptr &&
-         (m_record_buffer == nullptr || !m_record_buffer->is_out_of_range()));
+  assert(end_range != nullptr);
+  assert(m_record_buffer == nullptr || !m_record_buffer->is_out_of_range());
 
   /*
     End range on descending scans is only checked with ICP for now, and then we
     check it with compare_key_icp() instead of this function.
   */
   assert(range_scan_direction == RANGE_SCAN_ASC);
+
+  if ((table->key_info[active_index].flags & HA_MULTI_VALUED_KEY) &&
+      table->key_read) {
+    // For multi-valued indexes, key_cmp() needs the virtual column backing the
+    // index. It is not available in the record buffer during index-only scans,
+    // so let the SQL layer do the end-range filtering. Returning -1 makes the
+    // ascending scan treat the key as being within the range.
+    return -1;
+  }
 
   // Make the fields in the key point into the buffer instead of record[0].
   const ptrdiff_t diff = buf - table->record[0];

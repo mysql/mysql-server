@@ -11,6 +11,10 @@
 # Same debug point is not reached in CSA in expected time.
 --source include/have_mta.inc
 
+# Transaction compression wraps row events in a payload event, which can break
+# this test's assumption that exactly one GTID is committed after each crash.
+--source include/not_binlog_transaction_compression_on.inc
+
 --let $commit_message=Crash right before the query gets committed
 --let $crash_commit="+d,replica_crash_after_commit"
 

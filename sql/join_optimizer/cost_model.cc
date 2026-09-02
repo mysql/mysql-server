@@ -716,13 +716,19 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
              FilterCost *cost) {
   switch (subquery.strategy) {
     case ContainedSubquery::Strategy::kMaterializable: {
+      // The materialization build executes the no-in2exists plan; use it
+      // for the one-time build cost and for sizing the temporary table.
+      const AccessPath *materialize_path = subquery.path_no_in2exists != nullptr
+                                               ? subquery.path_no_in2exists
+                                               : subquery.path;
       // We can't ask the handler for costs at this stage, since that
       // requires an actual TABLE, and we don't want to be creating
       // them every time we're evaluating a cost-> Thus, instead,
       // we ask the cost model for an estimate. Longer-term, these two
       // estimates should really be guaranteed to be the same somehow.
       Cost_model_server::enum_tmptable_type tmp_table_type;
-      if (subquery.row_width * num_rows < thd->variables.max_heap_table_size) {
+      if (subquery.row_width * materialize_path->num_output_rows() <
+          thd->variables.max_heap_table_size) {
         tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
       } else {
         tmp_table_type = Cost_model_server::DISK_TMPTABLE;
@@ -731,8 +737,8 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
           tmp_table_type, /*write_rows=*/0,
           /*read_rows=*/num_rows);
       cost->cost_to_materialize +=
-          subquery.path->cost() +
-          kMaterializeOneRowCostOldModel * subquery.path->num_output_rows();
+          materialize_path->cost() +
+          kMaterializeOneRowCostOldModel * materialize_path->num_output_rows();
 
       cost->cost_if_not_materialized += num_rows * subquery.path->cost();
     } break;

@@ -36,7 +36,7 @@ MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
   DEPENDENCIES GenError
   ADD_TEST merge_temptable_tests-t
   EXCLUDE_FROM_GCOV
-  LINK_LIBRARIES gunit_large server_unittest_library perfschema
+  LINK_LIBRARIES gunit_large server_unittest_library
 )
 
 # Download TBB from https://www.threadingbuildingblocks.org

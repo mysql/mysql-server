@@ -84,7 +84,6 @@
 #include "sql/raii/thread_stage_guard.h"  // NAMED_THD_STAGE_GUARD
 #include "sql/rpl_handler.h"              // RUN_HOOK
 #include "sql/rpl_tblmap.h"
-#include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/system_variables.h"
 #include "sql/tc_log.h"
 #include "sql/xa/sql_cmd_xa.h"  // Sql_cmd_xa_*
@@ -2762,7 +2761,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         const char act[] =
             "now SIGNAL signal.rpl_ps_tables_process_before "
             "WAIT_FOR signal.rpl_ps_tables_process_finish";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       };);
       rli->finished_processing();
@@ -2770,7 +2768,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         const char act[] =
             "now SIGNAL signal.rpl_ps_tables_process_after_finish "
             "WAIT_FOR signal.rpl_ps_tables_process_continue";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       };);
     }
@@ -3025,7 +3022,6 @@ int Log_event::apply_event(Relay_log_info *rli) {
           const char act[] =
               "now SIGNAL signal.rpl_ps_tables_apply_before "
               "WAIT_FOR signal.rpl_ps_tables_apply_finish";
-          assert(opt_debug_sync_timeout > 0);
           assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
         };);
         rli->finished_processing();
@@ -3034,7 +3030,6 @@ int Log_event::apply_event(Relay_log_info *rli) {
           const char act[] =
               "now SIGNAL signal.rpl_ps_tables_apply_after_finish "
               "WAIT_FOR signal.rpl_ps_tables_apply_continue";
-          assert(opt_debug_sync_timeout > 0);
           assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
         };);
       }
@@ -5084,8 +5079,7 @@ end:
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
 
-  /* Maintain compatibility with the legacy processlist. */
-  if (pfs_processlist_enabled) thd->reset_query_for_display();
+  thd->reset_query_for_display();
 
   thd->reset_rewritten_query();
   thd->m_statement_psi = nullptr;
@@ -8789,7 +8783,6 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli,
     const char act[] =
         "now SIGNAL signal.rpl_row_apply_progress_updated "
         "WAIT_FOR signal.rpl_row_apply_process_next_row";
-    assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
 #endif /* HAVE_PSI_STAGE_INTERFACE */
@@ -9674,7 +9667,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         const char act[] =
             "now SIGNAL signal.waiting_on_event_execution "
             "WAIT_FOR signal.can_continue_execution";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     };);
@@ -13915,7 +13907,6 @@ Transaction_context_log_event::Transaction_context_log_event(
             "now wait_for "
             "signal.resume_after_set_snapshot_version_on_transaction_context_"
             "log_event";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       };);
 

@@ -2551,6 +2551,11 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi) {
 
   sprintf(query, "SET @slave_uuid = '%s', @replica_uuid = '%s'", server_uuid,
           server_uuid);
+  DBUG_EXECUTE_IF("replica_registers_specific_uuid", {
+    const std::string specific_uuid{"00000000-0000-0000-0000-000000000000"};
+    sprintf(query, "SET @slave_uuid = '%s', @replica_uuid = '%s'",
+            specific_uuid.c_str(), specific_uuid.c_str());
+  });
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) &&
       !check_io_slave_killed(mi->info_thd, mi, nullptr))
     goto err;
@@ -6092,9 +6097,6 @@ extern "C" void *handle_slave_io(void *arg) {
     mysql_mutex_unlock(&mi->run_lock);
   }
   my_thread_end();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return (nullptr);  // Avoid compiler warnings
 }
@@ -6347,9 +6349,6 @@ err:
   }
 
   my_thread_end();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return nullptr;
 }
@@ -7628,9 +7627,6 @@ extern "C" void *handle_slave_sql(void *arg) {
     mysql_mutex_unlock(&rli->run_lock);  // tell the world we are done
   }
   my_thread_end();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return nullptr;  // Avoid compiler warnings
 }

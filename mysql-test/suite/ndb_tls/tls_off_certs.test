@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb_tls/include/check_openssl.inc
 
 # Check there is no --RequireTls=On for ndbd, will happen
 # when running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf

@@ -368,6 +368,7 @@ static void recv_sys_finish() {
 
   ut::free(recv_sys->buf);
   ut::delete_(recv_sys->metadata_recover);
+  recv_sys->per_thread_applier.reset();
 
   recv_sys->buf = nullptr;
   recv_sys->spaces = nullptr;
@@ -503,9 +504,6 @@ void recv_sys_init() {
 
   recv_sys->metadata_recover =
       ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY);
-
-  recv_sys->redo_applier =
-      ut::make_unique<ib::redo::Redo_applier>(UT_NEW_THIS_FILE_PSI_KEY);
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -1651,7 +1649,7 @@ void recv_recover_page_func(
       const ib::redo::Record_handle record_handle(
           recv->type, {(buf ? buf : not_null), recv->len});
 
-      const auto success = recv_sys->redo_applier->apply(
+      const auto success = recv_sys->per_thread_applier->apply(
           record_handle, page_handle_wrapper.handle());
       ut_a(success);
       apply_tablespace_side_effects(record_handle,
@@ -1919,7 +1917,7 @@ buffer does not start with a full mtr */
     std::span<const byte> buffer) {
   const auto start_lsn = recv_sys->recovered_lsn;
 
-  auto mtr = recv_sys->redo_applier->parse_mtr(buffer);
+  auto mtr = recv_sys->per_thread_applier->parse_mtr(buffer);
   if (!mtr) {
     switch (mtr.error()) {
       case ib::redo::Parse_error::Corrupted:

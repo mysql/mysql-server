@@ -107,6 +107,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
 EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
 EXPLAIN
 -> Insert into t2
@@ -117,6 +118,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
 EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
 EXPLAIN
 -> Insert into t2
@@ -127,6 +129,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union all /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0

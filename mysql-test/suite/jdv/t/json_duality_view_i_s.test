@@ -426,6 +426,187 @@ DROP VIEW p_dv1;
 DROP TABLE p_t1, p_t2;
 
 --echo #
+--echo # WL#17054: effective granular-tag metadata
+--echo #
+
+--echo #
+
+--echo # 1.1 and 1.4: ALLOW_CHECK exists as TINYINT in both column- and
+--echo # table-level JSON Duality View metadata.
+SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'information_schema'
+  AND TABLE_NAME IN ('JSON_DUALITY_VIEW_COLUMNS',
+                     'JSON_DUALITY_VIEW_TABLES')
+  AND COLUMN_NAME = 'ALLOW_CHECK'
+ORDER BY TABLE_NAME;
+
+CREATE TABLE gct_meta_singleton (
+  id INT PRIMARY KEY,
+  inherited_value INT,
+  override_check_value INT,
+  override_update_value INT
+);
+
+CREATE TABLE gct_meta_parent (
+  id INT PRIMARY KEY,
+  singleton_id INT,
+  inherited_value INT,
+  override_check_value INT,
+  override_update_value INT,
+  FOREIGN KEY (singleton_id) REFERENCES gct_meta_singleton(id)
+);
+
+CREATE TABLE gct_meta_nested (
+  id INT PRIMARY KEY,
+  parent_id INT,
+  inherited_value INT,
+  override_check_value INT,
+  override_update_value INT,
+  FOREIGN KEY (parent_id) REFERENCES gct_meta_parent(id)
+);
+
+--echo # 1.1: untagged projections have the default ALLOW_CHECK value 1.
+CREATE JSON DUALITY VIEW gct_meta_default_view AS
+SELECT JSON_DUALITY_OBJECT(
+  "_id" : id,
+  "inherited_value" : inherited_value
+)
+FROM gct_meta_parent;
+
+SELECT REFERENCED_COLUMN_NAME, JSON_KEY_NAME, ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_meta_default_view'
+ORDER BY REFERENCED_COLUMN_NAME;
+
+--echo # The untagged table also records default CHECK and NO UPDATE settings.
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_meta_default_view';
+
+DROP VIEW gct_meta_default_view;
+
+--echo # 1.2: verify CHECK inheritance and both column override directions.
+--echo # 1.3: verify UPDATE inheritance, both overrides, and PK handling.
+--echo # 1.4: verify effective table-level CHECK and UPDATE metadata.
+CREATE JSON DUALITY VIEW gct_meta_view AS
+SELECT JSON_DUALITY_OBJECT(
+  WITH (UPDATE, CHECK)
+  "_id" : p.id,
+  "root_inherited" : p.inherited_value,
+  "root_no_check" : p.override_check_value WITH NO CHECK,
+  "root_no_update" : p.override_update_value WITH NO UPDATE,
+  "singleton" : (
+    SELECT JSON_DUALITY_OBJECT(
+      WITH (UPDATE, NO CHECK)
+      "id" : s.id,
+      "singleton_inherited" : s.inherited_value,
+      "singleton_check" : s.override_check_value WITH CHECK,
+      "singleton_no_update" : s.override_update_value WITH NO UPDATE
+    )
+    FROM gct_meta_singleton AS s
+    WHERE s.id = p.singleton_id
+  ),
+  "nested" : (
+    SELECT JSON_ARRAYAGG(
+      JSON_DUALITY_OBJECT(
+        WITH (NO UPDATE, CHECK)
+        "id" : n.id,
+        "nested_inherited" : n.inherited_value,
+        "nested_no_check" : n.override_check_value WITH NO CHECK,
+        "nested_update" : n.override_update_value WITH UPDATE
+      )
+    )
+    FROM gct_meta_nested AS n
+    WHERE n.parent_id = p.id
+  )
+)
+FROM gct_meta_parent AS p;
+
+--echo # Effective column metadata includes CHECK inheritance and overrides,
+--echo # UPDATE inheritance and overrides, and ALLOW_UPDATE=0 for every PK.
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+       ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_meta_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+
+--echo # 1.4: table metadata exposes default/explicit effective CHECK.
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_meta_view'
+ORDER BY REFERENCED_TABLE_NAME;
+
+DROP VIEW gct_meta_view;
+
+--echo # 1.2 and 1.3: the reverse multilevel matrix exercises the opposite
+--echo # CHECK and UPDATE override direction at every hierarchy level.
+CREATE JSON DUALITY VIEW gct_meta_reverse_view AS
+SELECT JSON_DUALITY_OBJECT(
+  WITH (NO UPDATE, NO CHECK)
+  "_id" : p.id,
+  "root_inherited" : p.inherited_value,
+  "root_check" : p.override_check_value WITH CHECK,
+  "root_update" : p.override_update_value WITH UPDATE,
+  "singleton" : (
+    SELECT JSON_DUALITY_OBJECT(
+      WITH (NO UPDATE, CHECK)
+      "id" : s.id,
+      "singleton_inherited" : s.inherited_value,
+      "singleton_no_check" : s.override_check_value WITH NO CHECK,
+      "singleton_update" : s.override_update_value WITH UPDATE
+    )
+    FROM gct_meta_singleton AS s
+    WHERE s.id = p.singleton_id
+  ),
+  "nested" : (
+    SELECT JSON_ARRAYAGG(
+      JSON_DUALITY_OBJECT(
+        WITH (UPDATE, NO CHECK)
+        "id" : n.id,
+        "nested_inherited" : n.inherited_value,
+        "nested_check" : n.override_check_value WITH CHECK,
+        "nested_no_update" : n.override_update_value WITH NO UPDATE
+      )
+    )
+    FROM gct_meta_nested AS n
+    WHERE n.parent_id = p.id
+  )
+)
+FROM gct_meta_parent AS p;
+
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+       ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_meta_reverse_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+
+DROP VIEW gct_meta_reverse_view;
+
+--echo # 1.5: one column-level UPDATE under table-level NO UPDATE makes
+--echo # the complete JSON Duality View effectively updatable.
+CREATE JSON DUALITY VIEW gct_meta_override_view AS
+SELECT JSON_DUALITY_OBJECT(
+  WITH NO UPDATE
+  "_id" : id,
+  "inherited_value" : inherited_value,
+  "override_update_value" : override_update_value WITH UPDATE
+)
+FROM gct_meta_parent;
+
+SELECT TABLE_NAME, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEWS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_meta_override_view';
+
+DROP VIEW gct_meta_override_view;
+DROP TABLE gct_meta_nested;
+DROP TABLE gct_meta_parent;
+DROP TABLE gct_meta_singleton;
+
+--echo #
+
+
+--echo #
 --echo # Test visibility of duality views, tables and columns that are
 --echo # not accessible by the current user. We also define an ordinary
 --echo # SQL view for comparison to verify the behavior is the same for
@@ -659,6 +840,4 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE parent;
-
-
 

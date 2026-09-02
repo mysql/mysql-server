@@ -2032,6 +2032,8 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.vkey' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select <in_optimizer>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ,<exists>(/* select#2 */ select `test`.`outer_t`.`vkey` from `test`.`t1` where <if>(outer_field_is_not_null, ((<cache>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ) = `test`.`outer_t`.`vkey`) or (`test`.`outer_t`.`vkey` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`outer_t`.`vkey`), true))) AS `AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT outer_t.vkey FROM t1)` from `test`.`t1` `outer_t`
 # Outer field reference in subquery's join condition:
 # outer_t.vkey
 SELECT AVG(vkey) OVER (PARTITION BY vkey)
@@ -2066,6 +2068,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.vkey' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select <in_optimizer>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ,<exists>(/* select#2 */ select `ta`.`vkey` from `test`.`t1` `ta` join `test`.`t1` `tb` where (<if>(outer_field_is_not_null, ((<cache>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ) = `ta`.`vkey`) or (`ta`.`vkey` is null)), true) and (`ta`.`vkey` = `test`.`outer_t`.`vkey`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`ta`.`vkey`), true))) AS `window_in_result` from `test`.`t1` `outer_t`
 # Outer alias reference in subquery: ov
 #
 SELECT outer_t.vkey AS ov,
@@ -2102,6 +2105,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'ov' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `outer_t`.`vkey` AS `ov`,<in_optimizer>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ,<exists>(/* select#2 */ select `ta`.`vkey` from `test`.`t1` `ta` join `test`.`t1` `tb` where (<if>(outer_field_is_not_null, ((<cache>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ) = `ta`.`vkey`) or (`ta`.`vkey` is null)), true) and (`ta`.`vkey` = `test`.`outer_t`.`vkey`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`ta`.`vkey`), true))) AS `window_in_result` from `test`.`t1` `outer_t`
 # Only reference to c5 is an outer reference: verify it is
 # added to windowing output table: it wasn't before
 SELECT AVG(vkey) OVER (PARTITION BY vkey)
@@ -2136,6 +2140,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select <in_optimizer>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ,<exists>(/* select#2 */ select `ta`.`vkey` from `test`.`t1` `ta` join `test`.`t1` `tb` where (<if>(outer_field_is_not_null, ((<cache>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ) = `ta`.`vkey`) or (`ta`.`vkey` is null)), true) and (`ta`.`vkey` = `test`.`outer_t`.`c5`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`ta`.`vkey`), true))) AS `window_in_result` from `test`.`t1` `outer_t`
 # Add value that should yield true for one row
 #
 INSERT INTO t1 VALUES (20, 30000, 20, NULL);
@@ -2172,6 +2177,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select <in_optimizer>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ,<exists>(/* select#2 */ select `ta`.`vkey` from `test`.`t1` `ta` join `test`.`t1` `tb` where (<if>(outer_field_is_not_null, ((<cache>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ) = `ta`.`vkey`) or (`ta`.`vkey` is null)), true) and (`ta`.`vkey` = `test`.`outer_t`.`c5`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`ta`.`vkey`), true))) AS `window_in_result` from `test`.`t1` `outer_t`
 SELECT pkey, c5, AVG(vkey) OVER (PARTITION BY vkey)
 IN (SELECT ta.vkey
 FROM t1 ta
@@ -2205,6 +2211,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `outer_t`.`pkey` AS `pkey`,`outer_t`.`c5` AS `c5`,<in_optimizer>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ,<exists>(/* select#2 */ select `ta`.`vkey` from `test`.`t1` `ta` join `test`.`t1` `tb` where (<if>(outer_field_is_not_null, ((<cache>(avg(`test`.`outer_t`.`vkey`) OVER (PARTITION BY `outer_t`.`vkey` ) ) = `ta`.`vkey`) or (`ta`.`vkey` is null)), true) and (`ta`.`vkey` = `test`.`outer_t`.`c5`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`ta`.`vkey`), true))) AS `window_in_result` from `test`.`t1` `outer_t`
 # Check that outer reference is correct also *without* framebuffer
 # used by AVG window function above: ROW_NUMBER doesn't need framing
 SELECT ROW_NUMBER() OVER (PARTITION BY vkey) + 18 IN
@@ -2240,6 +2247,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select <in_optimizer>((row_number() OVER (PARTITION BY `outer_t`.`vkey` )  + 18),<exists>(/* select#2 */ select `ta`.`vkey` from `test`.`t1` `ta` join `test`.`t1` `tb` where (((<cache>((row_number() OVER (PARTITION BY `outer_t`.`vkey` )  + 18)) = `ta`.`vkey`) or (`ta`.`vkey` is null)) and (`ta`.`vkey` = `outer_t`.`c5`)) having <is_not_null_test>(`ta`.`vkey`))) AS `window_in_result` from `test`.`t1` `outer_t`
 # Illegal forward reference of alias: a2
 SELECT AVG(vkey) OVER (PARTITION BY vkey) IN
 (SELECT ta.vkey

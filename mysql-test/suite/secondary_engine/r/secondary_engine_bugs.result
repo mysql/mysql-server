@@ -47,6 +47,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` union all /* select#2 */ select `test`.`t`.`x` AS `x` from `test`.`t`
 SET optimizer_max_subgraph_pairs = 1;
 WITH u AS (SELECT * FROM t UNION ALL SELECT * FROM t)
 SELECT * FROM t AS t1 NATURAL JOIN t AS t2 NATURAL JOIN

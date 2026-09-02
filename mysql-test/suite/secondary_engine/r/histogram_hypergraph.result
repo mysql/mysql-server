@@ -17,6 +17,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(1, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=1)
@@ -24,6 +25,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(2, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
@@ -31,6 +33,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(3, `test`.`t1`.`x`)
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
@@ -44,6 +47,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(1, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=2)
@@ -51,6 +55,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(2, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=0.01)
@@ -58,6 +63,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(3, `test`.`t1`.`x`)
 SELECT * FROM t1 WHERE x = 1;
 id	x
 SELECT * FROM t1 WHERE x = 2;
@@ -77,6 +83,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(1, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=1)
@@ -84,6 +91,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(2, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
@@ -91,6 +99,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(3, `test`.`t1`.`x`)
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
@@ -104,6 +113,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(1, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=2)
@@ -111,6 +121,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(2, `test`.`t1`.`x`)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=0.01)
@@ -118,4 +129,5 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where multiple equal(3, `test`.`t1`.`x`)
 DROP TABLE t1;

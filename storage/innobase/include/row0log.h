@@ -58,10 +58,16 @@ same.
 @param[in] add_cols Default values of added columns, or nullptr.
 @param[in] col_map  Mapping of old column numbers to new ones, or nullptr if
 !table.
+@param[in] col_has_compatible_charset_change
+                    Per-old-column array; true when the mapped column has a
+                    charset/collation change whose existing value bytes can be
+                    reused during row-log replay, or nullptr when table is
+                    nullptr.
 @param[in] path     Where to create temporary file.
 @retval true if success, false if not */
 bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
                       const dtuple_t *add_cols, const ulint *col_map,
+                      const bool *col_has_compatible_charset_change,
                       const char *path);
 
 /** Free the row log for an index that was being created online. */

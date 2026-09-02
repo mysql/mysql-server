@@ -266,10 +266,25 @@ CREATE TABLE t1 (i INT);
 EXPLAIN INSERT INTO t1 VALUES (10);
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree INSERT INTO t1 VALUES (10);
+SHOW WARNINGS;
 EXPLAIN REPLACE INTO t1 VALUES (10);
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree REPLACE INTO t1 VALUES (10);
+SHOW WARNINGS;
 DROP TABLE t1;
+
+# Single-table UPDATE/DELETE statements also use the simple explain path.
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree UPDATE t1 SET i = i + 1
+WHERE i = (SELECT MIN(i) FROM t2);
+SHOW WARNINGS;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree DELETE FROM t1
+WHERE i = (SELECT MAX(i) FROM t2);
+SHOW WARNINGS;
+DROP TABLE t1, t2;
 
 # Limit pushed into filesort.
 CREATE TABLE t1 (a INTEGER, b INTEGER);
@@ -471,6 +486,7 @@ EXPLAIN ANALYZE FOR CONNECTION 1;
 # and FORMAT=JSON with explain_json_format_version=2.
 --error ER_NOT_SUPPORTED_YET
 EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
+SHOW WARNINGS;
 SET explain_json_format_version = 1;
 --error ER_EXPLAIN_ANALYZE_JSON_FORMAT_VERSION_NOT_SUPPORTED
 EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
@@ -482,7 +498,17 @@ EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 
 # An information_schema table.
 --replace_regex $elide_costs
+--disable_warnings
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
+--enable_warnings
+
+# EXPLAIN FORMAT=TREE INTO is unsupported and must not emit Note 1003.
+SET @explain_tree_into = 'unchanged';
+--error ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED
+EXPLAIN FORMAT=TREE INTO @explain_tree_into SELECT 1;
+SHOW WARNINGS;
+SELECT @explain_tree_into;
+SET @explain_tree_into = NULL;
 
 # Union materialization directly into a temporary table (no double materialization).
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -916,13 +942,25 @@ set optimizer_switch="loosescan=off,duplicateweedout=on";
 let $query = SELECT b FROM t WHERE a IN (SELECT t1.b
                                          FROM t AS t1 JOIN t AS t2 ON t1.b);
 eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TRADITIONAL $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval EXPLAIN FORMAT=JSON INTO @var $query;
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS weedout,
 JSON_SEARCH(@var, 'one', '%weedout%', NULL, '$**.operation') IS NOT NULL
-AS operation_contains_weedout;
+AS operation_contains_weedout,
+JSON_SEARCH(@var, 'one', 'weedout', NULL, '$**.access_type') IS NOT NULL
+AS access_type_is_weedout;
+SET @saved_explain_json_format_version = @@explain_json_format_version;
+SET explain_json_format_version = 1;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.duplicates_removal')
+AS json_v1_duplicates_removal,
+JSON_SEARCH(@var, 'one', 'weedout', NULL, '$**.access_type') IS NULL
+AS json_v1_has_no_weedout_access_type;
+SET explain_json_format_version = @saved_explain_json_format_version;
 # Materialization strategy
 set optimizer_switch="materialization=on,duplicateweedout=off";
 let $query = SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1

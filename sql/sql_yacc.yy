@@ -1620,6 +1620,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         opt_ignore_unknown_user
         opt_histogram_num_buckets
         opt_jdv_table_tags jdv_table_tags jdv_table_tag
+        opt_jdv_column_tags jdv_column_tags jdv_column_tag
 
 
 %type <order_direction>
@@ -11014,17 +11015,19 @@ opt_jdv_table_tags:
 jdv_table_tag:
           INSERT_SYM           { $$ = jdv::DVT_INSERT; }
         | UPDATE_SYM           { $$ = jdv::DVT_UPDATE; }
-        | DELETE_SYM           { $$ = jdv::DVT_DELETE; }      
+        | DELETE_SYM           { $$ = jdv::DVT_DELETE; }
+        | CHECK_SYM            { $$ = jdv::DVT_CHECK; }
         | NO_SYM INSERT_SYM    { $$ = jdv::DVT_NOINSERT; }
         | NO_SYM UPDATE_SYM    { $$ = jdv::DVT_NOUPDATE; }
         | NO_SYM DELETE_SYM    { $$ = jdv::DVT_NODELETE; }
-        ;   
+        | NO_SYM CHECK_SYM     { $$ = jdv::DVT_NOCHECK; }
+        ;
 
 jdv_table_tags:
         jdv_table_tag { $$= $1; }
         | jdv_table_tags ',' jdv_table_tag
           {
-            // Reject conflicting or duplicate tags
+            // A tag set cannot contain duplicate or opposing permissions.
             if (($$ & $3) ||
             (
               ($3 == jdv::DVT_INSERT && $$ & jdv::DVT_NOINSERT) ||
@@ -11032,7 +11035,9 @@ jdv_table_tags:
               ($3 == jdv::DVT_UPDATE && $$ & jdv::DVT_NOUPDATE) ||
               ($3 == jdv::DVT_NOUPDATE && $$ & jdv::DVT_UPDATE) ||
               ($3 == jdv::DVT_DELETE && $$ & jdv::DVT_NODELETE) ||
-              ($3 == jdv::DVT_NODELETE && $$ & jdv::DVT_DELETE)
+              ($3 == jdv::DVT_NODELETE && $$ & jdv::DVT_DELETE) ||
+              ($3 == jdv::DVT_CHECK && $$ & jdv::DVT_NOCHECK) ||
+              ($3 == jdv::DVT_NOCHECK && $$ & jdv::DVT_CHECK)
             )) 
             {
                 my_error(ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS, MYF(0));
@@ -11041,6 +11046,37 @@ jdv_table_tags:
             $$ |= $3;
           }
         ;
+
+opt_jdv_column_tags:
+         %empty { $$ = 0; }
+        | WITH jdv_column_tag { $$ = $2; }
+        | WITH '(' jdv_column_tags ')' { $$ = $3; }
+        ;
+
+jdv_column_tag:
+          UPDATE_SYM           { $$ = jdv::DVT_UPDATE; }
+        | CHECK_SYM            { $$ = jdv::DVT_CHECK; }
+        | NO_SYM UPDATE_SYM    { $$ = jdv::DVT_NOUPDATE; }
+        | NO_SYM CHECK_SYM     { $$ = jdv::DVT_NOCHECK; }
+        ;
+
+jdv_column_tags:
+        jdv_column_tag { $$ = $1; }
+      | jdv_column_tags ',' jdv_column_tag
+      {
+          // A tag set cannot contain duplicate or opposing permissions.
+          if (($$ & $3) || (
+            ($3 == jdv::DVT_CHECK && $$ & jdv::DVT_NOCHECK) ||
+            ($3 == jdv::DVT_NOCHECK && $$ & jdv::DVT_CHECK) ||
+            ($3 == jdv::DVT_UPDATE && $$ & jdv::DVT_NOUPDATE) ||
+            ($3 == jdv::DVT_NOUPDATE && $$ & jdv::DVT_UPDATE)
+          )) {
+            my_error(ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS, MYF(0));
+            MYSQL_YYABORT;
+          }
+          $$ |= $3;
+      }
+      ;
 
 jdv_name_value_list:
         jdv_name_value
@@ -11058,9 +11094,9 @@ jdv_name_value_list:
       ;
 
 jdv_name_value:
-        TEXT_STRING_sys ':' expr  // [ jdv_column_tags ]
+        TEXT_STRING_sys ':' expr opt_jdv_column_tags
         {
-          $$= NEW_PTN PT_jdv_name_value(@$, $1, $3, 0);
+          $$= NEW_PTN PT_jdv_name_value(@$, $1, $3, $4);
           if ($$ == nullptr)
             MYSQL_YYABORT;
         }

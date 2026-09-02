@@ -44,6 +44,24 @@
 
 namespace {
 const unsigned int PIN_BUFFER_SIZE = 256;
+
+bool read_length_encoded_data(const unsigned char **pos,
+                              const unsigned char *end, void *destination,
+                              size_t min_len, size_t max_len) {
+  if (*pos >= end) return true;
+  size_t const bytes_left = static_cast<size_t>(end - *pos);
+  size_t const length_size = net_field_length_size(*pos);
+  if (length_size > bytes_left) return true;
+
+  unsigned char *mutable_pos = const_cast<unsigned char *>(*pos);
+  uint64_t const decoded_len = net_field_length_ll(&mutable_pos);
+  if (decoded_len < min_len || decoded_len > max_len) return true;
+  if (decoded_len > static_cast<uint64_t>(end - mutable_pos)) return true;
+
+  memcpy(destination, mutable_pos, static_cast<size_t>(decoded_len));
+  *pos = mutable_pos + decoded_len;
+  return false;
+}
 }  // namespace
 /**
   This method will calculate length of the buffer
@@ -98,7 +116,10 @@ bool webauthn_assertion::get_signed_challenge(unsigned char **challenge_res,
                                               size_t &challenge_res_len) {
   challenge_res_len = calculate_client_response_length();
   *challenge_res = new (std::nothrow) unsigned char[challenge_res_len];
-  if (!challenge_res) return true;
+  if (!*challenge_res) {
+    challenge_res_len = 0;
+    return true;
+  }
   unsigned char *pos = *challenge_res;
 
   /* Add tag */
@@ -223,33 +244,30 @@ void webauthn_assertion::set_client_data(const unsigned char *salt,
   name and credential ID.
 
   @param [in] challenge       buffer holding the server challenge
+  @param [in] challenge_len   length of the server challenge
 
   @retval false received challenge was valid
   @retval true  received challenge was corrupt
 */
-bool webauthn_assertion::parse_challenge(const unsigned char *challenge) {
+bool webauthn_assertion::parse_challenge(const unsigned char *challenge,
+                                         size_t challenge_len) {
   char rp[RELYING_PARTY_ID_LENGTH + 1] = {0};
   unsigned char salt[CHALLENGE_LENGTH + 1] = {0};
-  auto *to = const_cast<unsigned char *>(challenge);
-  if (!to) return true;
+  if (!challenge) return true;
+  const unsigned char *to = challenge;
+  const unsigned char *end = challenge + challenge_len;
+  if (to >= end) goto err;
   /* skip reading capability flag */
   to++;
-  if (!to) return true;
+
   /* length of challenge should be 32 bytes */
-  unsigned long len = net_field_length_ll(&to);
-  if (len != CHALLENGE_LENGTH) goto err;
-  /* extract challenge */
-  memcpy(salt, to, CHALLENGE_LENGTH);
-  to += len;
-  if (!to) return true;
+  if (read_length_encoded_data(&to, end, salt, CHALLENGE_LENGTH,
+                               CHALLENGE_LENGTH))
+    goto err;
   /* length of relying party ID */
-  len = net_field_length_ll(&to);
-  /* Length of relying party ID should not be > 255 */
-  if (len > 255) goto err;
-  /* extract relying party ID */
-  memcpy(rp, to, len);
+  if (read_length_encoded_data(&to, end, rp, 0, RELYING_PARTY_ID_LENGTH))
+    goto err;
   set_rp_id(rp);
-  to += len;
   /* set client data context */
   set_client_data(salt, rp);
   return false;

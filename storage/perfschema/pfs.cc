@@ -141,6 +141,8 @@
 #include "storage/perfschema/service_pfs_notification.h"
 #include "thr_lock.h"
 
+void pfs_delete_current_thread_vc();
+
 /*
   Exporting cmake compilation flags to doxygen,
   so they get documented.

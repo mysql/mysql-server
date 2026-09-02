@@ -779,6 +779,8 @@ EXPLAIN
 -> Filter: (t.x in (3,4,6))  (...)
     -> Index range scan on t using x over (x = 3) OR (x = 4) OR (x = 6)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x`,`test`.`t`.`y` AS `y`,`test`.`t`.`z` AS `z` from `test`.`t` where (`test`.`t`.`x` in (3,4,6))
 DROP TABLE t;
 SET @@optimizer_switch = @save_optimizer_switch;
 SET @@explain_json_format_version = @save_explain_json_format_version;

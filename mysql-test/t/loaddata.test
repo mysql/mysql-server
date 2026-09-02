@@ -1032,7 +1032,6 @@ CREATE TABLE t3 (
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval $query
 
-SELECT @@warning_count;
 SELECT id, b, b = '' AS b_is_default FROM t3 ORDER BY id;
 
 DROP TABLE t3;

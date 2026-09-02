@@ -1,17 +1,38 @@
+--echo #
+--echo # Bug#39838521: TEST_BACKUP_LOCK_SERVICE COMPONENT GETS STUCK ON UNINSTALL
+--echo #
+
 INSTALL COMPONENT "file://component_test_backup_lock_service";
 
---echo # The component component_test_backup_lock_service acquires BACKUP LOCK
---echo # during its initialization. Check that BACKUP LOCK has been really acquired.
+--echo # The component component_test_backup_lock_service acquires and releases
+--echo # BACKUP LOCK during its initialization. Check that BACKUP LOCK has
+--echo # been really released.
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks WHERE object_type = 'BACKUP LOCK';
 
---echo # Stop component.
+--echo # Stop component from another session.
+--connect(con1,localhost,root,,)
+SET SESSION lock_wait_timeout=1;
 UNINSTALL COMPONENT "file://component_test_backup_lock_service";
+--connection default
+--disconnect con1
 
---echo # The component component_test_backup_lock_service releases BACKUP LOCK
---echo # during its unloading. Check that BACKUP LOCK has been really released.
+--echo # Check that BACKUP LOCK has not leaked after unloading.
 SELECT object_schema, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks WHERE object_type = 'BACKUP LOCK';
+
+--echo # Verify that deinitialization does not release a BACKUP LOCK owned by
+--echo # the uninstalling session.
+INSTALL COMPONENT "file://component_test_backup_lock_service";
+--connect(con1,localhost,root,,)
+LOCK INSTANCE FOR BACKUP;
+UNINSTALL COMPONENT "file://component_test_backup_lock_service";
+SELECT lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks
+WHERE object_type = 'BACKUP LOCK' AND lock_type = 'SHARED';
+UNLOCK INSTANCE;
+--connection default
+--disconnect con1
 
 --echo #
 --echo # Bug#33087212: COMPONENT COMPONENT_TEST_BACKUP_LOCK_SERVICE CAUSES
@@ -34,12 +55,9 @@ INSTALL COMPONENT 'file://component_test_backup_lock_service';
 --error ER_COMPONENTS_CANT_LOAD
 INSTALL COMPONENT 'file://component_test_backup_lock_service';
 
---echo # Check for the presence of BACKUP LOCK. There should not be one
---echo # since the lock is not re-acquired when the component is reloaded
---echo # as part of boot.
+--echo # Check for the presence of BACKUP LOCK. There should not be one.
 SELECT object_schema, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks WHERE object_type = 'BACKUP LOCK';
 
 --echo # But the component is registered and can be unloaded.
 UNINSTALL COMPONENT 'file://component_test_backup_lock_service';
-

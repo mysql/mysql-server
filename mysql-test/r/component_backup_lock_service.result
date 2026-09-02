@@ -1,17 +1,31 @@
+#
+# Bug#39838521: TEST_BACKUP_LOCK_SERVICE COMPONENT GETS STUCK ON UNINSTALL
+#
 INSTALL COMPONENT "file://component_test_backup_lock_service";
-# The component component_test_backup_lock_service acquires BACKUP LOCK
-# during its initialization. Check that BACKUP LOCK has been really acquired.
+# The component component_test_backup_lock_service acquires and releases
+# BACKUP LOCK during its initialization. Check that BACKUP LOCK has
+# been really released.
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks WHERE object_type = 'BACKUP LOCK';
 object_type	object_schema	object_name	lock_type	lock_duration	lock_status
-BACKUP LOCK	NULL	NULL	SHARED	EXPLICIT	GRANTED
-# Stop component.
+# Stop component from another session.
+SET SESSION lock_wait_timeout=1;
 UNINSTALL COMPONENT "file://component_test_backup_lock_service";
-# The component component_test_backup_lock_service releases BACKUP LOCK
-# during its unloading. Check that BACKUP LOCK has been really released.
+# Check that BACKUP LOCK has not leaked after unloading.
 SELECT object_schema, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks WHERE object_type = 'BACKUP LOCK';
 object_schema	object_name	lock_type	lock_duration	lock_status
+# Verify that deinitialization does not release a BACKUP LOCK owned by
+# the uninstalling session.
+INSTALL COMPONENT "file://component_test_backup_lock_service";
+LOCK INSTANCE FOR BACKUP;
+UNINSTALL COMPONENT "file://component_test_backup_lock_service";
+SELECT lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks
+WHERE object_type = 'BACKUP LOCK' AND lock_type = 'SHARED';
+lock_type	lock_duration	lock_status
+SHARED	EXPLICIT	GRANTED
+UNLOCK INSTANCE;
 #
 # Bug#33087212: COMPONENT COMPONENT_TEST_BACKUP_LOCK_SERVICE CAUSES
 # CRASH AT SHUTDOWN.
@@ -23,9 +37,7 @@ INSTALL COMPONENT 'file://component_test_backup_lock_service';
 # restart the server.
 INSTALL COMPONENT 'file://component_test_backup_lock_service';
 ERROR HY000: Cannot load component from specified URN: 'file://component_test_backup_lock_service'.
-# Check for the presence of BACKUP LOCK. There should not be one
-# since the lock is not re-acquired when the component is reloaded
-# as part of boot.
+# Check for the presence of BACKUP LOCK. There should not be one.
 SELECT object_schema, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks WHERE object_type = 'BACKUP LOCK';
 object_schema	object_name	lock_type	lock_duration	lock_status

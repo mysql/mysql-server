@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -197,3 +197,12 @@ SET(protobuf_MSVC_STATIC_RUNTIME OFF CACHE INTERNAL "")
 SET(protobuf_WITH_ZLIB ON CACHE INTERNAL "")
 SET(ZLIB_LIBRARIES ext::zlib)
 ADD_SUBDIRECTORY(protobuf-24.4)
+
+IF(WIN32 AND protobuf_BUILD_SHARED_LIBS)
+  ADD_DEPENDENCIES(protoc
+    libprotobuf_runtime_copy
+    libprotoc_runtime_copy)
+  IF(TARGET abseil_dll_runtime_copy)
+    ADD_DEPENDENCIES(protoc abseil_dll_runtime_copy)
+  ENDIF()
+ENDIF()

@@ -1,0 +1,22 @@
+--source include/have_debug.inc
+
+# Create a database with # in the name, this makes it so the DDL logs
+# contain an escaped filename, which used to cause problems before a
+# fix made in the commit this test was added in.
+CREATE DATABASE `t1#`;
+USE `t1#`;
+
+CREATE TABLE d(a INT);
+INSERT INTO d VALUES(1);
+
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+--error ER_GET_ERRNO
+TRUNCATE TABLE d;
+SET SESSION DEBUG = "-d,ib_truncate_rollback_test";
+
+SELECT * FROM d;
+INSERT INTO d VALUES(2);
+SELECT * FROM d ORDER BY a;
+
+USE test;
+DROP DATABASE `t1#`;

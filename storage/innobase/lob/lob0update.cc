@@ -37,19 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-/** Replace a large object (LOB) with the given new data of equal length.
-@param[in]      ctx             replace operation context.
-@param[in]      trx             the transaction that is doing the read.
-@param[in]      index           the clustered index containing the LOB.
-@param[in]      ref             the LOB reference identifying the LOB.
-@param[in]      first_page      the first page of the LOB.
-@param[in]      offset          replace the LOB from the given offset.
-@param[in]      len             the length of LOB data that needs to be
-                                replaced.
-@param[in]      buf             the buffer (owned by caller) with new data
-                                (len bytes).
-@param[in]      count           number of replace done on current LOB.
-@return DB_SUCCESS on success, error code on failure. */
 dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
                 int count);
@@ -57,7 +44,8 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
 /** Replace a small portion of large object (LOB) with the given new data of
 equal length.
 @param[in]      ctx             replace operation context.
-@param[in]      trx             the transaction that is doing the read.
+@param[in]      trx             non-null transaction performing the
+                                modification.
 @param[in]      index           the clustered index containing the LOB.
 @param[in]      ref             the LOB reference identifying the LOB.
 @param[in]      first_page      the first page of the LOB.
@@ -86,21 +74,14 @@ static void print_partial_update_hit(const upd_field_t *uf,
 }
 #endif /* UNIV_DEBUG */
 
-/** Update a portion of the given LOB.
-@param[in]      ctx             update operation context information.
-@param[in]      trx             the transaction that is doing the modification.
-@param[in]      index           the clustered index containing the LOB.
-@param[in]      upd             update vector
-@param[in]      field_no        the LOB field number
-@param[in]      blobref         LOB reference stored in clust record.
-@return DB_SUCCESS on success, error code on failure. */
 dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                const upd_t *upd, ulint field_no, ref_t blobref) {
   DBUG_TRACE;
+  ut_ad(trx != nullptr);
   dberr_t err = DB_SUCCESS;
   mtr_t *mtr = ctx.get_mtr();
-  const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
-  const trx_id_t trxid = (trx == nullptr ? 0 : trx->id);
+  const undo_no_t undo_no = trx->undo_no - 1;
+  const trx_id_t trxid = trx->id;
 
   const Binary_diff_vector *bdiff_vector =
       upd->get_binary_diff_by_field_no(field_no);
@@ -255,7 +236,8 @@ fil_addr_t find_offset(dict_index_t *index, fil_addr_t node_loc, ulint &offset,
 
 /** Replace a large object (LOB) with the given new data of equal length.
 @param[in]      ctx             replace operation context.
-@param[in]      trx             the transaction that is doing the read.
+@param[in]      trx             non-null transaction performing the
+                                modification.
 @param[in]      index           the clustered index containing the LOB.
 @param[in]      ref             the LOB reference identifying the LOB.
 @param[in]      first_page      the first page of the LOB.
@@ -270,10 +252,11 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
                 int count) {
   DBUG_TRACE;
+  ut_ad(trx != nullptr);
 
   dberr_t ret(DB_SUCCESS);
   mtr_t *mtr = ctx.get_mtr();
-  const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
+  const undo_no_t undo_no = trx->undo_no - 1;
   const uint32_t lob_version = first_page.get_lob_version();
 
   ut_ad(offset >= DICT_ANTELOPE_MAX_INDEX_COL_LEN ||
@@ -504,9 +487,10 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
                               first_page_t &first_page, ulint offset, ulint len,
                               byte *buf) {
   DBUG_TRACE;
+  ut_ad(trx != nullptr);
 
   mtr_t *mtr = ctx.get_mtr();
-  const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
+  const undo_no_t undo_no = trx->undo_no - 1;
 
   ut_ad(offset >= DICT_ANTELOPE_MAX_INDEX_COL_LEN ||
         dict_table_has_atomic_blobs(index->table));

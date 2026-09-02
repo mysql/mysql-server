@@ -519,13 +519,21 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
       /*
         An equality range is a unique range (0 or 1 rows in the range)
         if the index is unique (1) and all keyparts are used (2).
+        However, a range with a NULL keypart can match multiple rows,
+        even for a full unique key.
         Note that keys which are extended with PK parts have no
         HA_NOSAME flag. So we can use user_defined_key_parts.
       */
       if (cur_key_info->flags & HA_NOSAME &&  // 1)
           (uint)key_tree->part + 1 ==
               cur_key_info->user_defined_key_parts)  // 2)
-        range->range_flag |= UNIQUE_RANGE | (cur->min_key_flag & NULL_RANGE);
+        range->range_flag |= UNIQUE_RANGE;
+      /*
+        Preserve NULL_RANGE for every equality range with an IS NULL
+        keypart so that can_use_index_statistics() excludes it from
+        records_per_key estimation (WL#5957).
+      */
+      range->range_flag |= (cur->min_key_flag & NULL_RANGE);
     }
 
     if (*seq->is_ror_scan) {

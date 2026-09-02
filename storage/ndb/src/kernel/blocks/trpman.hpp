@@ -78,12 +78,8 @@ class Trpman : public SimulatedBlock {
   TrpId get_the_only_base_trp(NodeId nodeId) const;
   bool handles_this_trp(TrpId trpId);
   void close_com_failed_node(Signal *, NodeId);
-  void enable_com_node(Signal *, NodeId);
+  void enable_com_node(Signal *, NodeId, Uint32 heartbeatInterval);
   void set_db_hb_sender(NodeId dbHbSender);
-  static unsigned calculate_histogram_bin_limits(
-      unsigned hb_interval, std::span<unsigned> bin_limits);
-  static unsigned verify_histogram(unsigned interval,
-                                   const std::span<unsigned> bin_limits);
 
   // Let TransporterReceiveHandleKernel::transporter_recv_from access
   // Trpman::m_recv_data
@@ -93,23 +89,73 @@ class Trpman : public SimulatedBlock {
 
   // Time between TIME_SIGNAL signals to itself.
   static constexpr Uint32 TRP_TIME_SIGNAL_DELAY = 50;  // ms
-  static constexpr Uint32 TRP_ACTIVITY_HIST_BIN_COUNT = 20;
+  static constexpr Uint32 TRP_ACTIVITY_HIST_BIN_COUNT = 21;
+
+  static constexpr unsigned verify_histogram(
+      unsigned interval,
+      std::span<const Uint32, TRP_ACTIVITY_HIST_BIN_COUNT> bin_limits);
+  static constexpr void static_invariants();
 
   NodeId m_dbHbSender;
   TrpId m_dbHbSenderTrp;
-  Uint32 m_hbDbDb;
-  Uint32 m_hbDbApi;
-  Uint32 m_hbDbDb_bin_count;
-  Uint32 m_hbDbApi_bin_count;
-  Uint32 m_hbDbDb_bin_bounds[TRP_ACTIVITY_HIST_BIN_COUNT];
-  Uint32 m_hbDbApi_bin_bounds[TRP_ACTIVITY_HIST_BIN_COUNT];
+  Uint32 m_dbHbInterval;
+  Uint32 m_hbInterval[MAX_NTRANSPORTERS];
 
+  static constexpr Uint32 m_activity_bin_bounds[TRP_ACTIVITY_HIST_BIN_COUNT] = {
+      100,   200,   300,   400,   600,   800,   1000,
+      1500,  2000,  3000,  4000,  6000,  8000,  10000,
+      15000, 20000, 30000, 40000, 60000, 80000, UINT32_MAX};
+  static constexpr size_t m_activity_bin_count =
+      std::size(m_activity_bin_bounds);
   TrpBitmask m_recv_data;  // Bit will be set on when transporter receives data
   struct {
     NDB_TICKS last_recv;
     Uint32 hist_bins[TRP_ACTIVITY_HIST_BIN_COUNT];
   } m_trp_activity[MAX_NTRANSPORTERS];
 };
+
+constexpr unsigned Trpman::verify_histogram(
+    unsigned interval,
+    std::span<const Uint32, TRP_ACTIVITY_HIST_BIN_COUNT> bin_limits) {
+  constexpr unsigned sample_interval = TRP_TIME_SIGNAL_DELAY;
+  constexpr unsigned min_bin_width = 2 * sample_interval;
+  constexpr size_t bin_count = bin_limits.size();
+  const unsigned high_interval = 5 * interval;
+  unsigned ret = 0;
+
+  if (interval == 0) {
+    ret |= 1;
+  }
+  if (min_bin_width == 0) {
+    ret |= 2;
+  }
+  if (bin_count < 2) {
+    ret |= 4;
+  } else if (high_interval > bin_limits[bin_count - 2]) {
+    ret |= 8;
+  }
+  if (bin_count > 1 && bin_limits[bin_count - 1] != UINT_MAX) {
+    ret |= 16;
+  }
+  unsigned prev_width = bin_limits[0];
+  if (prev_width != min_bin_width) {
+    ret |= 32;
+  }
+  for (unsigned i = 1; i < bin_count; i++) {
+    unsigned width = bin_limits[i] - bin_limits[i - 1];
+    if (prev_width > width) {
+      ret |= 64;
+    }
+    prev_width = width;
+  }
+
+  return ret;
+}
+
+constexpr void Trpman::static_invariants() {
+  static_assert(
+      Trpman::verify_histogram(12000, Trpman::m_activity_bin_bounds) == 0);
+}
 
 class TrpmanProxy : public LocalProxy {
  public:

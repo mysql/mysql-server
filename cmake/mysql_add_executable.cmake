@@ -63,6 +63,34 @@ FUNCTION(MACOS_ADD_DEVELOPER_ENTITLEMENTS TGT)
 ENDFUNCTION()
 
 
+# Visual Studio has no linker job pools, so use target dependencies to keep
+# server unittest executable links below WIN_UNITTEST_LINK_WAVE_SIZE. A single
+# link instance can consume multiple GB of system memory.
+FUNCTION(MYSQL_ADD_MSVC_UNITTEST_LINK_WAVE_DEPENDENCY target)
+  IF(NOT MSVC OR NOT CMAKE_GENERATOR MATCHES "Visual Studio")
+    RETURN()
+  ENDIF()
+  IF(NOT DEFINED WIN_UNITTEST_LINK_WAVE_SIZE OR
+      WIN_UNITTEST_LINK_WAVE_SIZE EQUAL 0)
+    RETURN()
+  ENDIF()
+
+  GET_PROPERTY(wave_targets GLOBAL PROPERTY MYSQL_MSVC_UNITTEST_LINK_WAVE_TARGETS)
+  LIST(LENGTH wave_targets wave_target_count)
+  IF(wave_target_count GREATER_EQUAL WIN_UNITTEST_LINK_WAVE_SIZE)
+    MATH(EXPR dependency_index
+      "${wave_target_count} - ${WIN_UNITTEST_LINK_WAVE_SIZE}")
+    LIST(GET wave_targets ${dependency_index} dependency)
+    IF(TARGET ${dependency})
+      ADD_DEPENDENCIES(${target} ${dependency})
+    ENDIF()
+  ENDIF()
+
+  SET_PROPERTY(GLOBAL APPEND PROPERTY
+    MYSQL_MSVC_UNITTEST_LINK_WAVE_TARGETS ${target})
+ENDFUNCTION()
+
+
 # MYSQL_ADD_EXECUTABLE(target sources... options/keywords...)
 #
 # All executables are built in ${CMAKE_BINARY_DIR}/runtime_output_directory
@@ -181,6 +209,12 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
       LIST(FIND ARG_LINK_LIBRARIES server_unittest_library foundit)
       IF(foundit GREATER_EQUAL 0)
         SET_PROPERTY(TARGET ${target} PROPERTY JOB_POOL_LINK one_job)
+        # Keep excluded targets out of the dependency lanes. A default-built
+        # target depending on an excluded target would pull it into the default
+        # build, including individual tests covered by merged executables.
+        IF(NOT ARG_EXCLUDE_FROM_ALL)
+          MYSQL_ADD_MSVC_UNITTEST_LINK_WAVE_DEPENDENCY(${target})
+        ENDIF()
       ENDIF()
     ENDIF()
   ENDIF()

@@ -1659,19 +1659,15 @@ gr_incoming_connection_cb get_gr_incoming_connection() {
  * @param fd Connection file descriptor
  * @param ssl_ctx Connection SSL Context
  *
- * @return int 1 in case of error delegating the connection.
- *             0, otherwise.
+ * @return the result of handing the connection to Group Replication
  */
-int call_gr_incoming_connection_cb(THD *thd, int fd, SSL *ssl_ctx) {
-  int error_return = 1;
+Gr_incoming_connection_status call_gr_incoming_connection_cb(THD *thd, int fd,
+                                                             SSL *ssl_ctx) {
+  auto gr_connection_callback = get_gr_incoming_connection();
+  if (gr_connection_callback == nullptr)
+    return Gr_incoming_connection_status::ERROR;
 
-  if (gr_incoming_connection_cb gr_connection_callback =
-          get_gr_incoming_connection();
-      gr_connection_callback) {
-    error_return = gr_connection_callback(thd, fd, ssl_ctx);
-  }
-
-  return error_return;
+  return gr_connection_callback(thd, fd, ssl_ctx);
 }
 
 /**
@@ -1947,14 +1943,22 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         break;
       }
 
-      if (!error && call_gr_incoming_connection_cb(
-                        thd, thd->active_vio->mysql_socket.fd,
-                        thd->active_vio->ssl_arg
-                            ? static_cast<SSL *>(thd->active_vio->ssl_arg)
-                            : nullptr)) {
-        my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-        error = true;
-        break;
+      if (!error) {
+        const Gr_incoming_connection_status handoff_result =
+            call_gr_incoming_connection_cb(
+                thd, thd->active_vio->mysql_socket.fd,
+                thd->active_vio->ssl_arg
+                    ? static_cast<SSL *>(thd->active_vio->ssl_arg)
+                    : nullptr);
+        if (handoff_result != Gr_incoming_connection_status::ACCEPTED) {
+          if (handoff_result == Gr_incoming_connection_status::BUSY) {
+            my_error(ER_GRP_RPL_CONNECTION_HANDOFF_BUSY, MYF(0));
+          } else {
+            my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+          }
+          error = true;
+          break;
+        }
       }
 
       my_ok(thd);
@@ -3133,7 +3137,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
   }
 
   if (thd->resource_group_ctx()->m_warn != 0) {
-    auto res_grp_name = thd->resource_group_ctx()->m_switch_resource_group_str;
     switch (thd->resource_group_ctx()->m_warn) {
       case WARN_RESOURCE_GROUP_UNSUPPORTED: {
         auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
@@ -3159,18 +3162,23 @@ int mysql_execute_command(THD *thd, bool first_level) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
         pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
 #endif  // HAVE_PSI_THREAD_INTERFACE
+        // Resource group name is always specified for this type of warning.
+        assert(thd->lex->switch_resource_group != nullptr);
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_RESOURCE_GROUP_BIND_FAILED,
                             ER_THD(thd, ER_RESOURCE_GROUP_BIND_FAILED),
-                            res_grp_name, pfs_thread_id,
+                            thd->lex->switch_resource_group, pfs_thread_id,
                             "System resource group can't be bound"
                             " with a session thread");
         break;
       }
       case WARN_RESOURCE_GROUP_NOT_EXISTS:
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_RESOURCE_GROUP_NOT_EXISTS,
-            ER_THD(thd, ER_RESOURCE_GROUP_NOT_EXISTS), res_grp_name);
+        // Resource group name is always specified for this type of warning.
+        assert(thd->lex->switch_resource_group != nullptr);
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_RESOURCE_GROUP_NOT_EXISTS,
+                            ER_THD(thd, ER_RESOURCE_GROUP_NOT_EXISTS),
+                            thd->lex->switch_resource_group);
         break;
       case WARN_RESOURCE_GROUP_ACCESS_DENIED:
         push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -3180,7 +3188,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
                             "RESOURCE_GROUP_USER");
     }
     thd->resource_group_ctx()->m_warn = 0;
-    res_grp_name[0] = '\0';
   }
 
   if (unlikely(thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))) {
@@ -3390,7 +3397,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     Disable binlog so that the BEGIN is not logged in binlog.
    */
   if (lex->create_info && lex->create_info->m_transactional_ddl &&
-      !thd->slave_thread) {
+      !(thd->slave_thread || thd->is_binlog_applier())) {
     const Disable_binlog_guard binlog_guard(thd);
     if (trans_begin(thd, MYSQL_START_TRANS_OPT_READ_WRITE)) return true;
   }
@@ -5198,6 +5205,8 @@ void THD::reset_for_next_command() {
   DBUG_TRACE;
   assert(!thd->sp_runtime_ctx); /* not for substatements of routines */
   assert(!thd->in_sub_stmt);
+  // Before-GTID actions are statement-local and must be consumed before reuse.
+  assert(thd->m_actions_before_gtid_state_update.empty());
   thd->reset_item_list();
   /*
     Those two lines below are theoretically unneeded as
@@ -5439,7 +5448,6 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
           if (switched)
             mgr_ptr->restore_original_resource_group(thd, src_res_grp,
                                                      dest_res_grp);
-          thd->resource_group_ctx()->m_switch_resource_group_str[0] = '\0';
           if (ticket != nullptr)
             mgr_ptr->release_shared_mdl_for_resource_group(thd, ticket);
           if (cur_ticket != nullptr)

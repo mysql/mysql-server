@@ -112,6 +112,8 @@
 #define FIRST_REPLICA_COMMAND_VERSION 80023
 /*  First mysql version supporting source statements. */
 #define FIRST_SOURCE_COMMAND_VERSION 80200
+/* First mysql version supporting JSON relational duality views. */
+#define FIRST_JSON_DUALITY_VIEW_VERSION 90500
 
 using std::string;
 
@@ -6435,12 +6437,21 @@ static bool get_view_structure(char *table, char *db) {
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
 
+  const char *is_json_duality_view_expression =
+      mysql_get_server_version(mysql) >= FIRST_JSON_DUALITY_VIEW_VERSION
+          ? "EXISTS(SELECT 1 "
+            "       FROM information_schema.json_duality_views jdv "
+            "       WHERE jdv.table_name=v.table_name "
+            "         AND jdv.table_schema=v.table_schema)"
+          : "FALSE";
+
   snprintf(query, sizeof(query),
            "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
-           "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION "
-           "FROM information_schema.views "
-           "WHERE table_name='%s' AND table_schema='%s'",
-           table_string_buff, db_string_buff);
+           "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION, "
+           "       %s "
+           "FROM information_schema.views v "
+           "WHERE v.table_name='%s' AND v.table_schema='%s'",
+           is_json_duality_view_expression, table_string_buff, db_string_buff);
 
   if (mysql_query(mysql, query)) {
     /*
@@ -6476,27 +6487,32 @@ static bool get_view_structure(char *table, char *db) {
     }
 
     lengths = mysql_fetch_lengths(table_res);
+    const char *view_version_comment_begin = "";
+    const char *view_version_comment_end = "";
+    if (row[5] == nullptr || strcmp(row[5], "1") != 0) {
+      view_version_comment_begin = "/*!50001 ";
+      view_version_comment_end = " */";
 
-    /*
-      "WITH %s CHECK OPTION" is available from 5.0.2
-      Surround it with !50002 comments
-    */
-    if (strcmp(row[0], "NONE") != 0) {
-      ptr = search_buf;
-      search_len =
-          (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) - ptr);
-      ptr = replace_buf;
-      replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
-                                    " CHECK OPTION", NullS) -
-                            ptr);
-      replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
-    }
+      /*
+        "WITH %s CHECK OPTION" is available from 5.0.2
+        Surround it with !50002 comments
+      */
+      if (strcmp(row[0], "NONE") != 0) {
+        ptr = search_buf;
+        search_len =
+            (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) -
+                    ptr);
+        ptr = replace_buf;
+        replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
+                                      " CHECK OPTION", NullS) -
+                              ptr);
+        replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
+      }
 
-    /*
-      "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
-      Surround it with !50013 comments
-    */
-    {
+      /*
+        "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
+        Surround it with !50013 comments
+      */
       size_t user_name_len;
       char user_name_str[USERNAME_LENGTH + 1];
       char quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
@@ -6540,13 +6556,14 @@ static bool get_view_structure(char *table, char *db) {
             "/*!50001 SET character_set_client      = %s */;\n"
             "/*!50001 SET character_set_results     = %s */;\n"
             "/*!50001 SET collation_connection      = %s */;\n"
-            "/*!50001 %s */;\n"
+            "%s%s%s;\n"
             "/*!50001 SET character_set_client      = @saved_cs_client */;\n"
             "/*!50001 SET character_set_results     = @saved_cs_results */;\n"
             "/*!50001 SET collation_connection      = @saved_col_connection "
             "*/;\n",
             (const char *)row[3], (const char *)row[3], (const char *)row[4],
-            (const char *)ds_view.str);
+            view_version_comment_begin, (const char *)ds_view.str,
+            view_version_comment_end);
 
     check_io(sql_file);
     mysql_free_result(table_res);

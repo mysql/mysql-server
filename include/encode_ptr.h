@@ -61,12 +61,7 @@ struct EVP_PKEY_deleter {
 
 struct EVP_MD_CTX_deleter {
   void operator()(EVP_MD_CTX *p) const {
-#if OPENSSL_VERSION_NUMBER > 0x10100000L
     if (p) EVP_MD_CTX_free(p);
-#else
-    // 1.0.x
-    if (p) EVP_MD_CTX_destroy(p);
-#endif
   }
 };
 

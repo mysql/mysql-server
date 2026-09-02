@@ -4,6 +4,13 @@
 call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
 --enable_query_log
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 let $innodb_metrics_select=
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 16;
@@ -420,3 +427,6 @@ SET GLOBAL innodb_monitor_reset = default;
 SET GLOBAL innodb_monitor_enable = default;
 SET GLOBAL innodb_monitor_disable = default;
 --enable_warnings
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

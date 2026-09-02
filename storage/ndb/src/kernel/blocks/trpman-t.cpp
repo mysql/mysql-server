@@ -53,9 +53,8 @@ static const char *load_defaults_groups[] = {"ndb_trpman-t", nullptr};
 class TestTrpmanActivityHistogram {
  public:
   static void print_histogram_bin_limits(unsigned interval) {
-    unsigned bin_limits[Trpman::TRP_ACTIVITY_HIST_BIN_COUNT];
-    unsigned bin_count =
-        Trpman::calculate_histogram_bin_limits(interval, bin_limits);
+    auto bin_limits = Trpman::m_activity_bin_bounds;
+    unsigned bin_count = Trpman::m_activity_bin_count;
 
     printf("Histogram bins for interval %u, bin count %u:\n", interval,
            bin_count);
@@ -64,12 +63,10 @@ class TestTrpmanActivityHistogram {
       printf("\tbin#%02d upper bound %u (width %u)\n", i, bin_limits[i], width);
     }
   }
-  static void test_calculate_histogram_bin_limits(unsigned interval) {
+  static void test_histogram_bin_limits(unsigned interval) {
     static constexpr unsigned min_bin_width = 2 * Trpman::TRP_TIME_SIGNAL_DELAY;
-    unsigned bin_limits[Trpman::TRP_ACTIVITY_HIST_BIN_COUNT];
-
-    unsigned bin_count =
-        Trpman::calculate_histogram_bin_limits(interval, bin_limits);
+    auto &bin_limits = Trpman::m_activity_bin_bounds;
+    unsigned bin_count = Trpman::m_activity_bin_count;
 
     ok(bin_count >= 2,
        "Histogram should have at least 2 bins got %u (heartbeat interval %u)",
@@ -102,8 +99,7 @@ class TestTrpmanActivityHistogram {
       prev_width = width;
     }
 
-    unsigned result =
-        Trpman::verify_histogram(interval, {bin_limits, bin_count});
+    unsigned result = Trpman::verify_histogram(interval, bin_limits);
     ok(result == 0,
        "Trpman::verify_histogram should succeed with result = 0, got %u",
        result);
@@ -121,23 +117,12 @@ int main(int argc, char *argv[]) {
   }
 
   if (argc == 0) {
-    unsigned hb_intervals[] = {1,    17,   25,    75,    125,    170,
-                               175,  199,  225,   275,   325,    350,
-                               375,  400,  450,   500,   600,    999,
-                               1200, 5000, 30000, 99999, 999999, 123456789};
+    unsigned hb_intervals[] = {12000};
     for (unsigned interval : hb_intervals) {
       if (opt_print)
         TestTrpmanActivityHistogram::print_histogram_bin_limits(interval);
       if (opt_test)
-        TestTrpmanActivityHistogram::test_calculate_histogram_bin_limits(
-            interval);
-    }
-    for (unsigned interval = 1; interval <= 1200; interval++) {
-      if (opt_print)
-        TestTrpmanActivityHistogram::print_histogram_bin_limits(interval);
-      if (opt_test)
-        TestTrpmanActivityHistogram::test_calculate_histogram_bin_limits(
-            interval);
+        TestTrpmanActivityHistogram::test_histogram_bin_limits(interval);
     }
   } else
     for (int argi = 0; argi < argc; argi++) {
@@ -145,8 +130,7 @@ int main(int argc, char *argv[]) {
       if (opt_print)
         TestTrpmanActivityHistogram::print_histogram_bin_limits(interval);
       if (opt_test)
-        TestTrpmanActivityHistogram::test_calculate_histogram_bin_limits(
-            interval);
+        TestTrpmanActivityHistogram::test_histogram_bin_limits(interval);
     }
   return exit_status();
 }

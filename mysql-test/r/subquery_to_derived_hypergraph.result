@@ -43,6 +43,8 @@ EXPLAIN
                 -> Aggregate: count(t2.a)  (rows=1)
                     -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Equivalent manually recrafted query: same plan as previous
 SELECT t1.* FROM t1 LEFT OUTER JOIN
 (SELECT COUNT(a) AS cnt FROM t2) AS derived
@@ -64,6 +66,8 @@ EXPLAIN
                 -> Aggregate: count(t2.a)  (rows=1)
                     -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived` where (`test`.`t1`.`a` > `derived`.`cnt`)
 # Implicitly grouped scalar subquery in WHERE clause of joined
 # query, here with LEFT JOIN.
 # Query 1: Simplified to inner join
@@ -90,6 +94,8 @@ EXPLAIN
                         -> Aggregate: count(t2.a)  (rows=1)
                             -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t0` join `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived_1_2` where ((`test`.`t1`.`a` > `derived_1_2`.`cnt`) and (`test`.`t0`.`a` <> `test`.`t1`.`a`))
 # Query 2: Not simplified to inner join
 SELECT * FROM t0 LEFT OUTER JOIN t1 on t0.a = t1.a
 WHERE t0.a > (SELECT COUNT(a) AS cnt FROM t2);
@@ -110,6 +116,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t0` left join `test`.`t1` on((`test`.`t0`.`a` = `test`.`t1`.`a`)) join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived_1_2` where (`test`.`t0`.`a` > `derived_1_2`.`cnt`)
 # Equivalent manually recrafted query: same plan as previous
 SELECT t0.*, t1.* FROM (t0 LEFT OUTER JOIN t1 ON t0.a != t1.a) LEFT OUTER JOIN
 (SELECT COUNT(a) AS cnt FROM t2) AS derived
@@ -138,6 +146,8 @@ EXPLAIN
                         -> Aggregate: count(t2.a)  (rows=1)
                             -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t0` join `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived` where ((`test`.`t1`.`a` > `derived`.`cnt`) and (`test`.`t0`.`a` <> `test`.`t1`.`a`))
 # With deeper nested subquery (subquery inside an OR)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2) OR t1.a = 2;
@@ -157,6 +167,8 @@ EXPLAIN
                     -> Aggregate: count(t2.a)  (rows=1)
                         -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived_1_2` on(true) where ((`test`.`t1`.`a` > `derived_1_2`.`cnt`) or (`test`.`t1`.`a` = 2))
 # More than one subquery in the WHERE condition:
 SELECT t1.* FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2) AND
@@ -182,6 +194,8 @@ EXPLAIN
                 -> Aggregate: max(t2.a)  (rows=1)
                     -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `derived_1_2` join (/* select#3 */ select (max(`test`.`t2`.`a`) * 4) AS `mx` from `test`.`t2`) `derived_1_3` where ((`test`.`t1`.`a` > `derived_1_2`.`cnt`) and (`test`.`t1`.`a` < `derived_1_3`.`mx`))
 # Equivalent manually recrafted query: same plan as previous
 SELECT t1.* FROM t1
 LEFT JOIN (SELECT COUNT(a) AS cnt FROM t2) AS lj1 ON TRUE
@@ -209,6 +223,8 @@ EXPLAIN
                 -> Aggregate: max(t2.a)  (rows=1)
                     -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `lj1` join (/* select#3 */ select (max(`test`.`t2`.`a`) * 4) AS `mx` from `test`.`t2`) `lj2` where ((`test`.`t1`.`a` > `lj1`.`cnt`) and (`test`.`t1`.`a` < `lj2`.`mx`))
 # If we have an implicit grouping we we know that cardinality
 # of result set is one, so no need for runtime checking of the
 # cardinality of the derived tables
@@ -228,6 +244,8 @@ EXPLAIN
                 -> Aggregate: count(t3.a)  (rows=1)
                     -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `cnt` from `test`.`t3`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # If not, detect if we see more than one row in subquery
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY a);
@@ -244,6 +262,8 @@ EXPLAIN
                     -> Sort: t3.a  (rows=2)
                         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `cnt` from `test`.`t3` group by `test`.`t3`.`a`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1);
 ERROR 21000: Subquery returns more than 1 row
@@ -259,6 +279,8 @@ EXPLAIN
                     -> Table scan on t2  (rows=2)
                 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Should work, {2} \ {1} == {2}
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 EXCEPT SELECT 1);
@@ -279,6 +301,8 @@ EXPLAIN
                             -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` except /* select#3 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Should fail, {2} U {3} \ {1} == {2, 3}
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 3 EXCEPT SELECT 1);
@@ -300,6 +324,8 @@ EXPLAIN
                                 -> Rows fetched before execution  (rows=1)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join ((/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 3 AS `3`) except /* select#4 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Should return no rows, since the intersection is the empty set
 # {2} ∩ {1} == {}
 SELECT * FROM t1
@@ -319,6 +345,8 @@ EXPLAIN
                             -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` intersect /* select#3 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Should return no rows, since the result is the empty set
 # {2} \ {2} == {}
 SELECT * FROM t1
@@ -338,6 +366,8 @@ EXPLAIN
                             -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` except /* select#3 */ select 2 AS `2`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # This should give one row: {2} ∩ {2} == {2}
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 INTERSECT SELECT 2);
@@ -358,6 +388,8 @@ EXPLAIN
                             -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` intersect /* select#3 */ select 2 AS `2`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # This should give one row: {2} ∩ {2} == {2}
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 INTERSECT ALL SELECT 2);
@@ -378,6 +410,8 @@ EXPLAIN
                             -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` intersect all /* select#3 */ select 2 AS `2`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # This should remove the duplicate: {1, 1} ∩ALL {1} == {1}, so ok
 SELECT * FROM t1
 WHERE t1.a > ((SELECT COUNT(a) AS cnt FROM t2 GROUP BY a LIMIT 2) INTERSECT ALL SELECT 1);
@@ -401,6 +435,8 @@ EXPLAIN
                                     -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join ((/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` group by `test`.`t2`.`a` limit 2) intersect all /* select#3 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # ditto
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 GROUP BY a  INTERSECT ALL SELECT 1);
@@ -423,6 +459,8 @@ EXPLAIN
                                 -> Table scan on t2  (rows=2)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` group by `test`.`t2`.`a` intersect all /* select#3 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Empty scalar subquery
 SELECT * FROM t1
 WHERE t1.a > (SELECT a from t1 WHERE false);
@@ -432,6 +470,8 @@ WHERE t1.a > (SELECT a from t1 WHERE false);
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`a`)
 SELECT a + (SELECT a from t1 WHERE false) FROM t1;
 a + (SELECT a from t1 WHERE false)
 NULL
@@ -444,6 +484,8 @@ EXPLAIN
     -> Table scan on t1  (rows=4)
     -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`a` + `derived_1_2`.`a`) AS `a + (SELECT a from t1 WHERE false)` from `test`.`t1` left join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false) `derived_1_2` on(true)
 # If we limit the cardinality, it should work:
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1);
@@ -464,6 +506,8 @@ EXPLAIN
                 -> Limit table size: 1 unique row(s)
                     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 # Check that offset/limit doesn't fool us:
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 1);
@@ -486,6 +530,8 @@ EXPLAIN
                     -> Limit table size: 2 unique row(s)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 1,1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 0);
 a
@@ -505,6 +551,8 @@ EXPLAIN
                 -> Limit table size: 1 unique row(s)
                     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 0,1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 0);
 ERROR 21000: Subquery returns more than 1 row
@@ -522,6 +570,8 @@ EXPLAIN
                 -> Limit table size: 2 unique row(s)
                     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 0,2) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 1);
 a
@@ -543,6 +593,8 @@ EXPLAIN
                     -> Limit table size: 3 unique row(s)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 1,2) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION (SELECT 1 LIMIT 1));
 ERROR 21000: Subquery returns more than 1 row
@@ -559,6 +611,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union (/* select#3 */ select 1 AS `1` limit 1)) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 Without aggregation
 SELECT * FROM t1
 WHERE t1.a > (SELECT a FROM t2 LIMIT 1);
@@ -577,6 +631,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` limit 1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`a`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT a FROM t2);
 ERROR 21000: Subquery returns more than 1 row
@@ -590,6 +646,8 @@ EXPLAIN
             -> Materialize  (rows=2)
                 -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`a`)
 In the below, the query block under consideration for transformation is
 the outer subquery. It
 
@@ -618,6 +676,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select ((`derived_2_4`.`tmp_aggr_1` + `derived_2_5`.`SUM(t1.a)`) + sum(`test`.`t3`.`a`)) from (/* select#4 */ select sum(`test`.`t2`.`a`) AS `tmp_aggr_1` from `test`.`t2`) `derived_2_4` left join (/* select#5 */ select sum(`test`.`t1`.`a`) AS `SUM(t1.a)` from `test`.`t1`) `derived_2_5` on(true)) AS `(SELECT SUM(a) + (SELECT SUM(t1.a) FROM t1) + SUM(t3.a) FROM t2)` from `test`.`t3`
 Don't try transform grouping into a derived table if we have a reference
 to the scalar subquery in the HAVING clause
 EXPLAIN
@@ -630,6 +689,8 @@ EXPLAIN
         -> Aggregate: sum(t3.b)  (rows=1)
             -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`a`) AS `SUM(a)`,(/* select#2 */ select sum(`test`.`t3`.`b`) from `test`.`t3`) AS `scalar` from `test`.`t1` having (sum(`test`.`t1`.`a`) > `scalar`)
 #
 # Check that we disable transform if we set a user variable in the query
 # cf. WL#12885 requirement FR#6.
@@ -645,6 +706,7 @@ EXPLAIN
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Note	1003	/* select#1 */ select (`test`.`t1`.`a` + (@foo:=3)) AS `t1.a + (@foo:=3)` from `test`.`t1` where (`test`.`t1`.`a` > (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`))
 #
 # Check that RAND precludes transform
 #
@@ -656,6 +718,8 @@ EXPLAIN
     -> Aggregate: count(t1.a)  (rows=1)
         -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct (3 + (/* select#2 */ select (count(`test`.`t1`.`a`) + rand()) from `test`.`t1`)) AS `3 + (SELECT COUNT(a) + RAND() FROM t1)` from `test`.`t1`
 SELECT COUNT(*) > 1 FROM (SELECT DISTINCT 3 + (SELECT COUNT(a) + RAND() FROM t1) FROM t1) AS dt;
 COUNT(*) > 1
 1
@@ -685,6 +749,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` join `test`.`t2` where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = `derived_1_2`.`COUNT(*)`)
 SELECT t1.a, t2.a, t3.a
 FROM t1
 JOIN t2
@@ -721,6 +787,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` join `test`.`t2` join (/* select#3 */ select min(`test`.`t1`.`a`) AS `MIN(a)` from `test`.`t1`) `derived_1_3` join `test`.`t3` where (((`test`.`t1`.`a` + `derived_1_3`.`MIN(a)`) = `test`.`t3`.`b`) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = `derived_1_2`.`COUNT(*)`))
 OUTER join
 SELECT t1.a, t2.a, t3.a
 FROM t1
@@ -760,6 +828,8 @@ EXPLAIN
                                 -> Aggregate: count(0)  (rows=1)
                                     -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` left join (/* select#3 */ select min(`test`.`t1`.`a`) AS `MIN(a)` from `test`.`t1`) `derived_1_3` on(true) left join (`test`.`t2` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` join `test`.`t3`) on(((`test`.`t2`.`a` = `derived_1_2`.`COUNT(*)`) and ((`test`.`t1`.`a` + `derived_1_3`.`MIN(a)`) = `test`.`t3`.`b`)))
 SET optimizer_switch='subquery_to_derived=default';
 SELECT t1.a, t2.a, t3.a
 FROM t1
@@ -820,6 +890,8 @@ EXPLAIN
                                 -> Aggregate: count(0)  (rows=1)
                                     -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select min(`test`.`t1`.`a`) AS `MIN(a)` from `test`.`t1`) `derived_1` on(true) left join (`test`.`t2` join (/* select#3 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_2` join `test`.`t3`) on(((`test`.`t2`.`a` = `derived_2`.`COUNT(*)`) and ((`test`.`t1`.`a` + `derived_1`.`MIN(a)`) = `test`.`t3`.`b`)))
 SELECT t1.a, t2.a, t3.a
 FROM t1
 STRAIGHT_JOIN ( t2
@@ -854,6 +926,8 @@ EXPLAIN
                                 -> Aggregate: count(0)  (rows=1)
                                     -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` join (/* select#3 */ select min(`test`.`t1`.`a`) AS `MIN(a)` from `test`.`t1`) `derived_1_3` join `test`.`t2` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` straight_join `test`.`t3` where (((`test`.`t1`.`a` + `derived_1_3`.`MIN(a)`) = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `derived_1_2`.`COUNT(*)`))
 #
 # 2. S E L E C T  list expression subqueries
 #
@@ -871,6 +945,8 @@ EXPLAIN
                 -> Aggregate: sum(t1.a)  (rows=1)
                     -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t2`.`a` + `derived_1_2`.`-SUM(a)`) AS `cnt` from `test`.`t2` left join (/* select#2 */ select -(sum(`test`.`t1`.`a`)) AS `-SUM(a)` from `test`.`t1`) `derived_1_2` on(true)
 # Equivalent manually recrafted query: same plan as previous
 SELECT a + derived.cnt
 FROM t2
@@ -892,6 +968,8 @@ EXPLAIN
                 -> Aggregate: sum(t1.a)  (rows=1)
                     -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t2`.`a` + `derived`.`cnt`) AS `a + derived.cnt` from `test`.`t2` left join (/* select#2 */ select -(sum(`test`.`t1`.`a`)) AS `cnt` from `test`.`t1`) `derived` on(true)
 #
 # 2.1  S E L E C T  list expression subqueries and UNION
 #
@@ -927,6 +1005,8 @@ EXPLAIN
                         -> Aggregate: sum(t1.a)  (rows=1)
                             -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`a` + `derived_1_2`.`SUM(a)`) AS `a + (SELECT SUM(a) FROM t1)` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_1_2` on(true) union all /* select#3 */ select (`test`.`t1`.`a` + `derived_3_4`.`SUM(a)`) AS `a + (SELECT SUM(a) FROM t1)` from `test`.`t1` left join (/* select#4 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_3_4` on(true)
 #
 # 3. N E S T E D  scalar subqueries
 #
@@ -952,6 +1032,8 @@ EXPLAIN
                                 -> Aggregate: count(t1.a)  (rows=1)
                                     -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t2`.`a` + `derived_1_2`.`SUM(a) + (SELECT COUNT(a) FROM t1)`) AS `cnt` from `test`.`t2` left join (/* select#2 */ select (`derived_2_4`.`tmp_aggr_1` + `derived_2_5`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`test`.`t1`.`a`) AS `tmp_aggr_1` from `test`.`t1`) `derived_2_4` left join (/* select#5 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`) `derived_2_5` on(true)) `derived_1_2` on(true)
 # Equivalent manually recrafted query: same plan as previous
 SELECT (t2.a + derived_1_0.sum_plus_cnt) AS cnt
 FROM t2
@@ -985,6 +1067,8 @@ EXPLAIN
                         -> Aggregate: count(t1.a)  (rows=1)
                             -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t2`.`a` + (`derived_2_0`.`tmp_aggr_1` + `derived_2_1`.`count_a`)) AS `cnt` from `test`.`t2` left join ((/* select#3 */ select straight_join sum(`test`.`t1`.`a`) AS `tmp_aggr_1` from `test`.`t1`) `derived_2_0` left join (/* select#4 */ select count(`test`.`t1`.`a`) AS `count_a` from `test`.`t1`) `derived_2_1` on(true)) on(true)
 SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1)
 FROM (SELECT * from t1) t11) AS cnt FROM t2;
 cnt
@@ -1037,6 +1121,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (with recursive `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` union /* select#4 */ select (`dt`.`a` + 1) AS `a+1` from `dt` where (`dt`.`a` < 10)) /* select#2 */ select (`test`.`t1`.`a` * concat(count(0),'.',floor(avg(`dt`.`a`)))) from `dt`) AS `subq` from `test`.`t1`
 # Equivalent manually recrafted query: same plan as previous
 SELECT derived0.cnct AS subq
 FROM t1
@@ -1073,6 +1158,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `derived0`.`cnct` AS `subq` from `test`.`t1` left join lateral (with recursive `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` union /* select#4 */ select (`dt`.`a` + 1) AS `(dt.a + 1)` from `dt` where (`dt`.`a` < 10)) /* select#2 */ select (`test`.`t1`.`a` * concat(count(0),'.',floor(avg(`dt`.`a`)))) AS `cnct` from `dt`) `derived0` on(true)
 DROP TABLE t1, t2;
 # Detect correlation outside of transformed query block which
 # is not caught by the scalar aggregate function inspection in
@@ -1112,6 +1198,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t3.x' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select (`derived_2_3`.`COUNT(*)` + (/* select#4 */ select avg(`test`.`t2`.`a`) from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t3`.`x`))) AS `aggs` from `test`.`t1` left join (/* select#3 */ select count(0) AS `COUNT(*)` from `test`.`t2`) `derived_2_3` on(true)) AS `bignest` from `test`.`t3`
 # Without that subquery, we transform the level 2 query block,
 # but the the outermost still contains its subquery.
 EXPLAIN
@@ -1134,6 +1221,8 @@ EXPLAIN
                                 -> Aggregate: count(0)  (rows=1)
                                     -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_2`.`aggs` AS `bignest` from `test`.`t3` left join (/* select#2 */ select `derived_2_3`.`COUNT(*)` AS `aggs` from `test`.`t1` left join (/* select#3 */ select count(0) AS `COUNT(*)` from `test`.`t2`) `derived_2_3` on(true)) `derived_1_2` on(true)
 DROP TABLE t1, t2, t3;
 #
 # 5.  S U B Q U E R Y   I N   S E L E C T   L I S T   +   G R O U P E D
@@ -1171,6 +1260,8 @@ EXPLAIN
                     -> Filter: (t1.a = 11725)  (rows=0.1)
                         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_4`.`COUNT(*)` AS `tot`,((ifnull(`derived_1_3`.`MAX(b)`,0) + 1) + 5) AS `mx` from (/* select#3 */ select max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where false) `derived_1_3` left join (/* select#4 */ select count(0) AS `COUNT(*)` from `test`.`t1` where multiple equal(11725, `test`.`t1`.`a`)) `derived_1_4` on(true)
 # subquery is part of expression with aggregate in SELECT list
 SELECT (SELECT COUNT(*)
 FROM t1
@@ -1198,6 +1289,8 @@ EXPLAIN
                     -> Filter: (t1.a = 11725)  (rows=0.1)
                         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select (((`derived_1_4`.`COUNT(*)` + ifnull(`derived_1_3`.`MAX(b)`,0)) + 1) + 5) AS `mx` from (/* select#3 */ select max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where false) `derived_1_3` left join (/* select#4 */ select count(0) AS `COUNT(*)` from `test`.`t1` where multiple equal(11725, `test`.`t1`.`a`)) `derived_1_4` on(true)
 INSERT INTO t1 VALUES (13, 12);
 # outer query has DISTINCT, verify it is retained
 SELECT DISTINCT (SELECT COUNT(*)
@@ -1228,6 +1321,8 @@ EXPLAIN
                                 -> Aggregate: count(0)  (rows=1)
                                     -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct (((`derived_1_2`.`COUNT(*)` + ifnull(max(`test`.`t1`.`b`),0)) + 1) + 5) AS `mx` from `test`.`t1` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` on(true) where (`test`.`t1`.`a` > 5) group by `test`.`t1`.`a`
 # outer query has LIMIT: verify it is retained
 SELECT (SELECT COUNT(*)
 FROM t1) +
@@ -1253,6 +1348,8 @@ EXPLAIN
                             -> Aggregate: count(0)  (rows=1)
                                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select (((`derived_1_2`.`COUNT(*)` + ifnull(max(`test`.`t1`.`b`),0)) + 1) + 5) AS `mx` from `test`.`t1` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` on(true) group by `test`.`t1`.`a` limit 1
 # The subquery under under consideration for transformation contains a
 # aggregate function (MIN(t1_outer.a) and we have no explicit grouping,
 # so it would a priori be a candidate putting in a derived table.  But
@@ -1291,6 +1388,10 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1_outer.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select ((`derived_2_5`.`COUNT(*)` + `derived_2_4`.`tmp_aggr_1`) + min(`t1_outer`.`a`)) AS `tot` from (/* select#4 */ select max(`test`.`t1`.`b`) AS `tmp_aggr_1` from `test`.`t1`) `derived_2_4` left join (/* select#5 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_2_5` on(true)) AS `(SELECT (SELECT COUNT(*)
+FROM t1) +
+MAX(t1.b) + MIN(t1_outer.a) AS tot
+FROM t1)` from `test`.`t1` `t1_outer`
 # Aggregate aggregates in the transformation query block, but is
 # contained in a subquery. Currently, this blocks transformation, but can
 # be fixed if we let Item::transform visit subqueries.
@@ -1320,6 +1421,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.top.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (((/* select#2 */ select count(0) from `test`.`t1`) + max(`top`.`b`)) + (/* select#3 */ select (min(`test`.`t1`.`a`) + avg(`top`.`a`)) from `test`.`t1`)) AS `tot` from `test`.`t1` `top`
 # correlated version:
 # explicit grouping, no need for moving the grouping down into a
 # derived table
@@ -1346,6 +1448,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((((/* select#2 */ select (count(0) + `outer`.`a`) from `test`.`t1`) + ifnull(max(`outer`.`b`),0)) + 1) + 5) AS `mx` from `test`.`t1` `outer` group by `outer`.`a`
 Translated first step by hand
 SELECT (SELECT COUNT(*) + derived_1.d_1 FROM t1) +
 IFNULL(derived_1.`MAX(b)`,0) + 1 + 5 AS mx
@@ -1395,6 +1498,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.outer_t.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((((/* select#2 */ select (count(0) + max(`outer_t`.`b`)) from `test`.`t1`) + ifnull(max(`outer_t`.`b`),0)) + 1) + 5) AS `mx` from `test`.`t1` `outer_t` group by `outer_t`.`a`
 DROP TABLE t1;
 #
 # More complex example
@@ -1453,6 +1557,8 @@ EXPLAIN
                                     -> Aggregate: count(0)  (rows=1)
                                         -> Table scan on events_statements_summary_by_digest  (rows=200)
 
+Warnings:
+Note	1003	/* select#1 */ select `sys`.`s2`.`avg_us` AS `avg_us`,ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_2`.`COUNT(*)`,0)),0) AS `percentile` from `sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_2` on(true) left join (/* select#3 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_3` on(true) where (`sys`.`s1`.`avg_us` <= `sys`.`s2`.`avg_us`) group by `sys`.`s2`.`avg_us` having (ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_3`.`COUNT(*)`,0)),0) > 0.95) order by `percentile` limit 1
 # Manually translated, equivalent query (except we need to
 # include the derived_1_1.`COUNT(*)` in the select list for it
 # to be resolvable in the HAVING clause), and we need to
@@ -1506,6 +1612,8 @@ EXPLAIN
                                     -> Aggregate: count(0)  (rows=1)
                                         -> Table scan on events_statements_summary_by_digest  (rows=200)
 
+Warnings:
+Note	1003	/* select#1 */ select `sys`.`s2`.`avg_us` AS `avg_us`,ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_0`.`COUNT(*)`,0)),0) AS `percentile`,`derived_1_1`.`COUNT(*)` AS `COUNT(*)` from `sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_0` on(true) left join (/* select#3 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_1` on(true) where (`sys`.`s1`.`avg_us` <= `sys`.`s2`.`avg_us`) group by `sys`.`s2`.`avg_us` having (ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_1`.`COUNT(*)`,0)),0) > 0.95) order by `percentile` limit 1
 SET sql_mode=default;
 # outer query has window: verify it is retained on outer level
 SELECT AVG(s2.avg_us) OVER () + 3 AS avgsum,
@@ -1570,6 +1678,8 @@ EXPLAIN
                                             -> Aggregate: sum(t1.funds_requested)  (rows=1)
                                                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`country`) AS `countrycount`,sum(`test`.`t1`.`funds_requested`) AS `smcnt`,`test`.`t1`.`country` AS `country`,`derived_1_2`.`SUM(funds_requested)` AS `total_funds`,row_number() OVER (ORDER BY `std(t1.funds_requested)` )  AS `rn` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t1`.`funds_requested`) AS `SUM(funds_requested)` from `test`.`t1`) `derived_1_2` on(true) group by `test`.`t1`.`country` having (avg(`test`.`t1`.`funds_requested`) > 0) order by `sum(abs(t1.funds_requested))`
 SET sql_mode='';
 SELECT COUNT(country) AS countrycount,
 SUM(funds_requested) AS smcnt,
@@ -1604,6 +1714,8 @@ EXPLAIN
                         -> Aggregate: sum(t1.funds_requested)  (rows=1)
                             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_3`.`countrycount` AS `countrycount`,`derived_1_3`.`smcnt` AS `smcnt`,`derived_1_3`.`Name_exp_1` AS `country`,`derived_1_4`.`SUM(funds_requested)` AS `total_funds`,row_number() OVER (ORDER BY `derived_1_3`.`tmp_aggr_2` )  AS `rn` from (/* select#3 */ select count(`test`.`t1`.`country`) AS `countrycount`,sum(`test`.`t1`.`funds_requested`) AS `smcnt`,avg(`test`.`t1`.`funds_requested`) AS `tmp_aggr_1`,std(`test`.`t1`.`funds_requested`) AS `tmp_aggr_2`,`test`.`t1`.`country` AS `Name_exp_1` from `test`.`t1` having (avg(`test`.`t1`.`funds_requested`) > 0)) `derived_1_3` left join (/* select#4 */ select sum(`test`.`t1`.`funds_requested`) AS `SUM(funds_requested)` from `test`.`t1`) `derived_1_4` on(true)
 Manually translated
 SELECT derived_1_0.countrycount AS countrycount,
 derived_1_0.smcnt AS smcnt,
@@ -1659,6 +1771,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.cc_alias.i' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.cc.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select coalesce(`derived_1_2`.`COUNT(i)`,0) AS `cnt` from `test`.`cc` left join (/* select#2 */ select count(`cc_alias`.`i`) AS `COUNT(i)`,`cc_alias`.`i` AS `i` from `test`.`cc` `cc_alias` semi join (`test`.`cc`) group by `cc_alias`.`i`) `derived_1_2` on((`test`.`cc`.`i` = `derived_1_2`.`i`)) group by `test`.`cc`.`i`
 DROP TABLE cc;
 # Test: detect correlated aggregates deep inside scalar subquery (was
 # missed before we let has_correlated_aggregate walk subqueries
@@ -1684,6 +1797,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'q.i' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select group_concat((/* select#3 */ select count(`test`.`t`.`a`) from `test`.`t`) separator ',') from `test`.`t`) AS `i` from `test`.`t`
 DROP TABLE t;
 
 # IN to EXISTS transformation makes us skip subquery_to_derived.
@@ -1735,6 +1849,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `ta`.`a` AS `a`,`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb` join (/* select#3 */ select min(`tc`.`e`) AS `MIN(e)` from `test`.`t3` `tc` where true) `derived_2_3` join (/* select#4 */ select max(`tc`.`e`) AS `Name_exp_1`,count(0) AS `Name_exp_2`,`tc`.`e` AS `Name_exp_3` from `test`.`t3` `tc` group by `tc`.`e` having (coalesce(count(0),0) <> 0)) `derived_2_4`) where ((`derived_2_3`.`MIN(e)` < `derived_2_4`.`Name_exp_1`) and (`ta`.`a` = `tb`.`c`) and (`ta`.`b` = `derived_2_4`.`Name_exp_3`))
 #
 # Two parallel scalar subqueries + grouping to derived table
 #
@@ -1767,6 +1882,9 @@ EXPLAIN
                 -> Aggregate: count(t3.e)  (rows=1)
                     -> Table scan on t3  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (`derived_1_4`.`tmp_aggr_1` + `derived_1_6`.`SUM(t2.c)`) AS `SUM(t1.a) + (SELECT SUM(t2.c)
+FROM t2)`,`derived_1_5`.`COUNT(t3.e)` AS `(SELECT COUNT(t3.e) FROM t3)` from (/* select#4 */ select sum(`test`.`t1`.`a`) AS `tmp_aggr_1` from `test`.`t1`) `derived_1_4` left join (/* select#6 */ select sum(`test`.`t2`.`c`) AS `SUM(t2.c)` from `test`.`t2`) `derived_1_6` on(true) left join (/* select#5 */ select count(`test`.`t3`.`e`) AS `COUNT(t3.e)` from `test`.`t3`) `derived_1_5` on(true)
 DROP TABLE t1, t2, t3;
 # Bug discovered from running rapid.cp_i_subquery.test What is
 # different here is that we have a combination of an implicitly
@@ -1837,6 +1955,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_3`.`Name_exp_1` AS `def`,(5 + `derived_1_3`.`Name_exp_1`) AS `def2`,`derived_1_3`.`Name_exp_2` AS `any_v`,`derived_1_4`.`i` AS `subquery`,`derived_1_3`.`summ` AS `summ` from (/* select#3 */ select sum(`test`.`t`.`i`) AS `summ`,default(`test`.`t`.`i`) AS `Name_exp_1`,`test`.`t`.`i` AS `Name_exp_2` from `test`.`t`) `derived_1_3` left join (/* select#4 */ select `test`.`t`.`i` AS `i` from `test`.`t`) `derived_1_4` on(true)
 SET SQL_MODE=default;
 # Bug#35150438 Unwarranted error message for ANY_VALUE with
 #              scalar subquery transform
@@ -1861,6 +1981,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select any_value(`derived_1_3`.`Name_exp_1`) AS `i1`,`derived_1_4`.`i` AS `subquery`,`derived_1_3`.`summ` AS `summ` from (/* select#3 */ select sum(`test`.`t`.`i`) AS `summ`,any_value(`test`.`t`.`i`) AS `Name_exp_1` from `test`.`t`) `derived_1_3` left join (/* select#4 */ select `test`.`t`.`i` AS `i` from `test`.`t`) `derived_1_4` on(true)
 SELECT i + ANY_VALUE(i) AS i1,
 (SELECT i FROM t) AS subquery,
 SUM(i) AS summ
@@ -1892,6 +2014,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select any_value((any_value(`derived_1_3`.`Name_exp_1`) + `derived_1_3`.`Name_exp_1`)) AS `i1`,`derived_1_4`.`i` AS `subquery`,`derived_1_3`.`summ` AS `summ` from (/* select#3 */ select sum(`test`.`t`.`i`) AS `summ`,any_value(`test`.`t`.`i`) AS `Name_exp_1` from `test`.`t`) `derived_1_3` left join (/* select#4 */ select `test`.`t`.`i` AS `i` from `test`.`t`) `derived_1_4` on(true)
 SELECT ANY_VALUE(i) AS i1, i as i2,
 (SELECT i FROM t) AS subquery,
 SUM(i) AS summ
@@ -1923,6 +2047,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select any_value(`derived_1_3`.`Name_exp_1`) AS `i2`,any_value(`derived_1_3`.`Name_exp_1`) AS `i1`,`derived_1_4`.`i` AS `subquery`,`derived_1_3`.`summ` AS `summ` from (/* select#3 */ select sum(`test`.`t`.`i`) AS `summ`,any_value(`test`.`t`.`i`) AS `Name_exp_1` from `test`.`t`) `derived_1_3` left join (/* select#4 */ select `test`.`t`.`i` AS `i` from `test`.`t`) `derived_1_4` on(true)
 DROP TABLE t;
 #
 # 6.  S U B Q U E R Y   I N   H A V I N G   C L A U S E
@@ -1955,6 +2081,8 @@ EXPLAIN
         -> Aggregate: sum(t2.i)  (rows=1)
             -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`j`) AS `SUM(j)` from `test`.`t1` having (sum(`test`.`t1`.`j`) > (/* select#2 */ select sum(`test`.`t2`.`i`) from `test`.`t2`))
 Only HAVING is ok to transform, no implicit grouping
 SELECT j FROM t1
 HAVING j > (SELECT MIN(t2.i) FROM t2);
@@ -1973,6 +2101,8 @@ EXPLAIN
                     -> Aggregate: min(t2.i)  (rows=1)
                         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` left join (/* select#2 */ select min(`test`.`t2`.`i`) AS `MIN(t2.i)` from `test`.`t2`) `derived_1_2` on(true) having (`test`.`t1`.`j` > `derived_1_2`.`MIN(t2.i)`)
 HAVING and GROUP BY, also ok
 SELECT i, j FROM t1
 GROUP BY i, j
@@ -1995,6 +2125,8 @@ EXPLAIN
                             -> Aggregate: sum(t2.i)  (rows=1)
                                 -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t2`.`i`) AS `SUM(t2.i)` from `test`.`t2`) `derived_1_2` on(true) group by `test`.`t1`.`i`,`test`.`t1`.`j` having (sum(`test`.`t1`.`j`) > `derived_1_2`.`SUM(t2.i)`)
 HAVING, GROUP BY and ROLLUP
 SELECT i, j FROM t1
 GROUP BY i, j WITH ROLLUP
@@ -2020,6 +2152,8 @@ EXPLAIN
                             -> Aggregate: sum(t2.i)  (rows=1)
                                 -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`i`,0) AS `i`,rollup_group_item(`test`.`t1`.`j`,1) AS `j` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t2`.`i`) AS `SUM(t2.i)` from `test`.`t2`) `derived_1_2` on(true) group by `test`.`t1`.`i`,`test`.`t1`.`j` with rollup having (rollup_sum_switcher(sum(`test`.`t1`.`j`)) > `derived_1_2`.`SUM(t2.i)`)
 DROP TABLE t1, t2;
 Bigger example (TPC-H Q11) where we get a scalar transformation
 in the grouping derived table also, i.e. nested scalar to
@@ -2142,6 +2276,8 @@ EXPLAIN
                                                         -> Filter: (nation.n_name = 'germany')  (rows=0.3)
                                                             -> Index scan on nation using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`partsupp`.`ps_partkey` AS `ps_partkey`,sum((`test`.`partsupp`.`ps_supplycost` * `test`.`partsupp`.`ps_availqty`)) AS `value` from `test`.`partsupp` join `test`.`supplier` join `test`.`nation` left join (/* select#2 */ select (sum((`test`.`partsupp`.`ps_supplycost` * `test`.`partsupp`.`ps_availqty`)) * 0.1) AS `SUM(ps_supplycost * ps_availqty) * 0.1` from `test`.`partsupp` join `test`.`supplier` join `test`.`nation` where ((`test`.`partsupp`.`ps_suppkey` = `test`.`supplier`.`s_suppkey`) and (`test`.`supplier`.`s_nationkey` = `test`.`nation`.`n_nationkey`) and (`test`.`nation`.`n_name` = 'germany'))) `derived_1_2` on(true) where ((`test`.`partsupp`.`ps_suppkey` = `test`.`supplier`.`s_suppkey`) and (`test`.`supplier`.`s_nationkey` = `test`.`nation`.`n_nationkey`) and (`test`.`nation`.`n_name` = 'germany')) group by `test`.`partsupp`.`ps_partkey` having (sum((`test`.`partsupp`.`ps_supplycost` * `test`.`partsupp`.`ps_availqty`)) > `derived_1_2`.`SUM(ps_supplycost * ps_availqty) * 0.1`) order by `value` desc
 DROP TABLE partsupp, nation, supplier;
 Bugs discovered during full regression suite runs with
 transformation enabled, selectively repeated here, since we
@@ -3217,6 +3353,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`login` AS `tlogin`,((`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on(multiple equal(`t1`.`login`, `t2`.`login`, `derived_1_2`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on(multiple equal(`t1`.`login`, `t2`.`login`, `derived_1_3`.`login`)) where multiple equal(`t1`.`login`, `t2`.`login`) group by `t1`.`login` limit 5
 SELECT
 t1.login AS tlogin,
 numb -
@@ -3269,6 +3406,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`login` AS `tlogin`,((`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on(multiple equal(`t1`.`login`, `t2`.`login`, `derived_1_2`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on(multiple equal(`t1`.`login`, `t2`.`login`, `derived_1_3`.`login`)) where multiple equal(`t1`.`login`, `t2`.`login`) group by `t1`.`login` order by `sp` limit 5
 SELECT
 t1.login AS tlogin,
 numb -
@@ -3325,6 +3463,7 @@ Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #4 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`login` AS `tlogin`,((`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on(multiple equal(`t1`.`login`, `t2`.`login`, `derived_1_2`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on(multiple equal(`t1`.`login`, `t2`.`login`, `derived_1_3`.`login`)) where multiple equal(`t1`.`login`, `t2`.`login`) group by `t1`.`login` order by ((`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) limit 5
 DROP TABLE tbl1, tbl2;
 Bug 2
 CREATE TABLE t2 (a INT, b INT);
@@ -3357,6 +3496,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t4`.`b` AS `b`,max(`test`.`t4`.`a`) AS `ma` from `test`.`t4` left join (/* select#2 */ select max(`test`.`t2`.`a`) AS `MAX(t2.a)`,`test`.`t2`.`b` AS `b` from `test`.`t2` group by `test`.`t2`.`b`) `derived_1_2` on((`derived_1_2`.`b` = `test`.`t4`.`b`)) group by `test`.`t4`.`b` having (`ma` < `derived_1_2`.`MAX(t2.a)`)
 DROP TABLE t2, t4;
 Bug 3
 
@@ -3482,6 +3622,8 @@ EXPLAIN
                                     -> Aggregate: count(0)
                                         -> Covering index scan on tmp_digests using schema_name
 
+Warnings:
+Note	1003	insert into `test`.`tmp_digest_95th_percentile_by_avg_us` /* select#1 */ select `s2`.`avg_us` AS `avg_us`,ifnull((`sum(s1.cnt)` / `nullif(derived_1_2.``COUNT(*)``,0)`),0) AS `percentile` from `test`.`tmp_digest_avg_latency_distribution1` `s1` join `test`.`tmp_digest_avg_latency_distribution2` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`tmp_digests`) `derived_1_2` on(true) where (`s1`.`avg_us` <= `s2`.`avg_us`) group by `s2`.`avg_us` having (`percentile` > 0.95) order by `percentile` limit 1
 DROP PREPARE p;
 DROP TEMPORARY TABLE tmp_digest_95th_percentile_by_avg_us;
 DROP TEMPORARY TABLE tmp_digest_avg_latency_distribution2;
@@ -3560,6 +3702,12 @@ EXPLAIN
                         -> Aggregate: count(t1.col_int_key)  (rows=1)
                             -> Covering index scan on t1 using col_int_key  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`where_subselect_20070`.`field1` AS `field1`,`test`.`where_subselect_20070`.`( SELECT COUNT( col_int_key )
+FROM t1
+)` AS `( SELECT COUNT( col_int_key )
+FROM t1
+)` from `test`.`where_subselect_20070` join (/* select#2 */ select count(`test`.`t1`.`col_int_key`) AS `COUNT( col_int_key )` from `test`.`t1`) `derived_1_2` semi join (`test`.`t1` `table1` join `test`.`t1` `table2` join (/* select#4 */ select count(`test`.`t1`.`col_int_key`) AS `COUNT( col_int_key )` from `test`.`t1`) `derived_3_4`) where (multiple equal(`test`.`where_subselect_20070`.`field1`, `table2`.`col_int_key`, `table1`.`col_int_key`) and (`derived_1_2`.`COUNT( col_int_key )` = `derived_3_4`.`COUNT( col_int_key )`))
 DROP TABLE t1, where_subselect_20070;
 Bug 5
 
@@ -3636,6 +3784,8 @@ EXPLAIN
     -> Aggregate: min(t1.a)  (rows=1)
         -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select min(`test`.`t1`.`a`) from `test`.`t1`) AS `a`,max(`test`.`t1`.`a`) AS `mx` from `test`.`t1` where false having ((/* select#3 */ select min(`test`.`t1`.`a`) from `test`.`t1`) > 0)
 SELECT MAX(a) AS mx
 FROM t1
 WHERE FALSE
@@ -3653,6 +3803,8 @@ EXPLAIN
         -> Aggregate: min(t1.a)  (rows=1)
             -> Table scan on t1  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a`) AS `mx` from `test`.`t1` where false having ((/* select#2 */ select min(`test`.`t1`.`a`) from `test`.`t1`) > 0)
 DROP TABLE t1;
 #
 # Bug#30616646 WL#12885: SIG 6 IN JOIN::MAKE_JOIN_PLAN() AT SQL/SQL_OPTIMIZER.CC
@@ -3698,6 +3850,8 @@ EXPLAIN
                     -> Aggregate: min(tab1.pk)  (rows=1)
                         -> Covering index scan on tab1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`tab1` `table1` left join (`test`.`tab1` `table2` join (/* select#2 */ select count(`test`.`tab1`.`pk`) AS `COUNT(pk)` from `test`.`tab1`) `derived_1_2` join `test`.`tab1` `table3`) on((1 <= `derived_1_2`.`COUNT(pk)`)) join (/* select#3 */ select min(`test`.`tab1`.`pk`) AS `MIN(pk)` from `test`.`tab1` having (0 <> min(`test`.`tab1`.`pk`))) `derived_1_3`
 DROP TABLE tab1;
 #
 # Bug#30617216 WL#12885 SIG6 IN JOIN::ADD_HAVING_AS_TMP_TABLE_COND() AT SQL/SQL_SELECT.CC
@@ -3723,6 +3877,8 @@ EXPLAIN
             -> Aggregate: min(c2.col_varchar_key)  (rows=1)
                 -> Table scan on c2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `alias1`.`col_varchar_key` AS `col_varchar_key` from `test`.`c2` `alias1` having <nop>((`alias1`.`col_varchar_key` > (/* select#2 */ select min(`test`.`c2`.`col_varchar_key`) from `test`.`c2`))) order by `alias1`.`col_varchar_key`
 DROP TABLE c2;
 #
 # Bug#30622834 WL#12885: ASSERTION `SELECT_LEX->IS_RECURSIVE()' FAILED
@@ -3757,6 +3913,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `a2`.`col_int` AS `col_int`,`a1`.`col_int` AS `col_int`,`test`.`t1`.`col_int` AS `col_int` from `test`.`t1` `a2` left join `test`.`t1` `a1` on(<nop>((1 <= <max>(/* select#2 */ select count(0) from `test`.`t1`)))) left join `test`.`t1` on(true)
 SELECT *
 FROM ((t1 AS a2
 LEFT JOIN
@@ -3786,6 +3944,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `a2`.`col_int` AS `col_int`,`a1`.`col_int` AS `col_int`,`test`.`t1`.`col_int` AS `col_int` from `test`.`t1` `a2` left join `test`.`t1` `a1` on(<not>((1 > <min>(/* select#2 */ select count(0) from `test`.`t1`)))) left join `test`.`t1` on(true)
 SELECT *
 FROM (t1
 RIGHT JOIN
@@ -3815,6 +3975,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`a1`.`col_int` AS `col_int`,`a2`.`col_int` AS `col_int` from `test`.`t1` `a2` left join `test`.`t1` `a1` on(<nop>((1 <= <max>(/* select#2 */ select count(0) from `test`.`t1`)))) left join `test`.`t1` on(true)
 DROP TABLE t1;
 #
 # Bug#30626975 WL#12885: WL#12885: SIG 6 IN SELECT_LEX::SYNTHESIZE_DERIVED() AT SQL/SQL_RESOLVER.CC
@@ -3847,6 +4009,8 @@ EXPLAIN
                             -> Aggregate: max(t1.pk)  (rows=1)
                                 -> Covering index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t1` join (/* select#3 */ select max(`test`.`t1`.`pk`) AS `MAX(t1.pk)` from `test`.`t1`) `derived_2_3`) on((1 <= `derived_2_3`.`MAX(t1.pk)`))
 Another mode of the bug: exercises has_scalar_to_derived_transform
 which also needs to look inside join nest
 PREPARE p FROM "SELECT t1.pk
@@ -3908,6 +4072,8 @@ EXPLAIN
                                             -> Hash
                                                 -> Covering index scan on c_sq1_alias1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `alias1`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` `alias2` left join (`test`.`t1` join (/* select#3 */ select max(`c_sq1_alias1`.`pk`) AS `Name_exp_1`,count(0) AS `Name_exp_2` from `test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2` where true) `derived_2_3`) on(((1 <= `derived_2_3`.`Name_exp_1`) and (`derived_2_3`.`Name_exp_2` <> 0)))) on(true)
 DROP TABLE t1;
 #
 # Bug#30627570 WL#12885 SIG11 IN ITEM_SUBSELECT::PLACE() AT SQL/ITEM_SUBSELECT.H
@@ -3979,6 +4145,8 @@ EXPLAIN
                         -> Aggregate: max(n.col_int)  (rows=1)
                             -> Table scan on n  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`n`.`col_int` AS `col_int` from `test`.`n` join `test`.`n` join (/* select#4 */ select max(`test`.`n`.`col_int`) AS `MAX(col_int)` from `test`.`n`) `derived_1_4` join `test`.`n` where (`test`.`n`.`col_int` < `derived_1_4`.`MAX(col_int)`)
 DROP TABLE n;
 #
 # Bug#30644900 WL#12885 SIG 11 IN SELECT_LEX::TRANSFORM_SCALAR_SUBQUERIES_TO_DERIVED()
@@ -4015,6 +4183,8 @@ EXPLAIN
             -> Filter: (x.col_int_key < <cache>((@var1)))  (rows=0.333)
                 -> Table scan on x  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`x`.`col_int_key` AS `field1` from `test`.`x` join `test`.`x` `table2` where (`test`.`x`.`col_int_key` <= (/* select#3 */ select sum(`test`.`x`.`col_int_key`) from `test`.`x` where (`test`.`x`.`col_int_key` < <cache>((@`var1`)))))
 # Transform if no user variable
 SELECT table1.col_int_key AS field1
 FROM ((SELECT * FROM x
@@ -4044,6 +4214,8 @@ EXPLAIN
                             -> Filter: (x.col_int_key < 1)  (rows=0.333)
                                 -> Table scan on x  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`x`.`col_int_key` AS `field1` from `test`.`x` join (/* select#3 */ select sum(`test`.`x`.`col_int_key`) AS `SUM(col_int_key)` from `test`.`x` where (`test`.`x`.`col_int_key` < 1)) `derived_2_3` join `test`.`x` `table2` where (`test`.`x`.`col_int_key` <= `derived_2_3`.`SUM(col_int_key)`)
 DROP TABLE x;
 #
 # Bug#30645426 WL#12885: SIG11 AT TABLE_LIST::CREATE_MATERIALIZED_TABLE() AT SQL/TABLE.H
@@ -4099,6 +4271,9 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'table1.col_varchar' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select count(0) from `test`.`t1` where (1 <> `a2`.`col_varchar`)) AS `(SELECT COUNT(*)
+FROM t1
+WHERE 1 <> table1.col_varchar)` from `test`.`t1` `a1` join (/* select#4 */ select count(0) AS `COUNT(*)` from `test`.`t1` having (1 <> count(0))) `derived_3_4` join `test`.`t1` `a2` join `test`.`t1`
 DROP TABLE t1;
 #
 # Bug#30650326 WL#12885 SIG 11 IN ADD_KEY_FIELDS() AT SQL/SQL_OPTIMIZER.CC
@@ -4151,6 +4326,8 @@ EXPLAIN
         -> Filter: (b.i = <cache>(6))  (rows=0.1)
             -> Table scan on b  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`b`.`i` AS `i` from `test`.`b` semi join (`test`.`b` join `test`.`a` `sq1_alias2` join `test`.`c`) where (<in_optimizer>(6,<exists>(/* select#4 */ select `test`.`b`.`i` from `test`.`b` where multiple equal(<cache>(6), `test`.`b`.`i`))) and (`sq1_alias2`.`i` >= (/* select#3 */ select max(`test`.`b`.`i`) from `test`.`b`)))
 DROP TABLE a, b, c;
 #
 # Bug#30727021 WL#12885 SIG 6 IN SELECT_LEX::SYNTHESIZE_DERIVED() AT SQL/SQL_RESOLVER.CC
@@ -4191,6 +4368,8 @@ EXPLAIN
     -> Aggregate: avg(n.i)  (rows=1)
         -> Table scan on n  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select avg(`test`.`n`.`i`) from `test`.`n`) AS `feild1`,sum(`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join `test`.`n` `table2` semi join (`test`.`n`) where <nop>((`table1`.`i` <= (/* select#3 */ select max(`test`.`n`.`i`) from `test`.`n`)))
 These (manually transformed the ANY) trigger the error as
 well. Semi-join complication.
 SELECT (SELECT AVG(n.i)
@@ -4235,6 +4414,8 @@ EXPLAIN
                 -> Aggregate: avg(n.i)  (rows=1)
                     -> Table scan on n  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_8`.`AVG(n.i)` AS `feild1`,`derived_1_5`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#5 */ select sum(`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#7 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_5_7` join `test`.`n` `table2` semi join (`test`.`n`) where (`table1`.`i` <= `derived_5_7`.`MAX(``n``.``i``)`)) `derived_1_5` left join (/* select#8 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_8` on(true)
 SELECT (SELECT AVG(n.i)
 FROM n) AS feild1,
 SUM(table1.i)
@@ -4306,6 +4487,8 @@ EXPLAIN
                 -> Aggregate: avg(n.i)  (rows=1)
                     -> Table scan on n  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_14`.`AVG(n.i)` AS `feild1`,`derived_1_8`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#8 */ select sum(`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#13 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_8_13` join `test`.`n` `table2` join (/* select#12 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_8_12` join `test`.`n` `table3` semi join (`test`.`n`) semi join (`test`.`n`) semi join (`test`.`n`) where ((`table1`.`i` <= `derived_8_12`.`MAX(``n``.``i``)`) and (`table2`.`i` <= `derived_8_13`.`MAX(``n``.``i``)`) and (`test`.`n`.`i` = 5) and (`test`.`n`.`i` = 7))) `derived_1_8` left join (/* select#14 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_14` on(true)
 Follow-up fix.
 Anti-join complication.
 SELECT (SELECT AVG(n.i)
@@ -4374,6 +4557,8 @@ EXPLAIN
                 -> Aggregate: avg(n.i)  (rows=1)
                     -> Table scan on n  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_10`.`AVG(n.i)` AS `feild1`,`derived_1_6`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#6 */ select sum(`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#9 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_6_9` join `test`.`n` `table2` join (/* select#8 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_6_8` join `test`.`n` `table3` left join (/* select#7 */ select distinct 1 AS `Name_exp_1` from `test`.`n` `n1` join `test`.`n` `n2` where (`n1`.`i` > `n2`.`i`)) `derived_6_7` on(true) where ((`derived_6_7`.`Name_exp_1` is null) and (`table1`.`i` <= `derived_6_8`.`MAX(``n``.``i``)`) and (`table2`.`i` <= `derived_6_9`.`MAX(``n``.``i``)`))) `derived_1_6` left join (/* select#10 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_10` on(true)
 SELECT (SELECT AVG(n.i)
 FROM n) AS feild1,
 SUM(table1.i)
@@ -4445,6 +4630,8 @@ EXPLAIN
                 -> Aggregate: avg(n.i)  (rows=1)
                     -> Table scan on n  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_14`.`AVG(n.i)` AS `feild1`,`derived_1_8`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#8 */ select sum(`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#13 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_8_13` join `test`.`n` `table2` join (/* select#12 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_8_12` join `test`.`n` `table3` semi join (`test`.`n`) semi join (`test`.`n`) semi join (`test`.`n`) where ((`table1`.`i` <= `derived_8_12`.`MAX(``n``.``i``)`) and (`table2`.`i` <= `derived_8_13`.`MAX(``n``.``i``)`) and (`test`.`n`.`i` = 5) and (`test`.`n`.`i` = 7))) `derived_1_8` left join (/* select#14 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_14` on(true)
 Mix of semi-join and anti-join complications.
 SELECT (SELECT AVG(n.i)
 FROM n) AS feild1,
@@ -4534,6 +4721,8 @@ EXPLAIN
                 -> Aggregate: avg(n.i)  (rows=1)
                     -> Table scan on n  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_18`.`AVG(n.i)` AS `feild1`,`derived_1_10`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#10 */ select sum(`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#17 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_10_17` join `test`.`n` `table2` join (/* select#16 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_10_16` join `test`.`n` `table3` left join (/* select#14 */ select distinct 1 AS `Name_exp_1` from `test`.`n` where multiple equal(4, `test`.`n`.`i`)) `derived_10_14` on(true) left join (/* select#11 */ select distinct 1 AS `Name_exp_1` from `test`.`n` where multiple equal(3, `test`.`n`.`i`)) `derived_10_11` on(true) semi join (`test`.`n`) semi join (`test`.`n`) semi join (`test`.`n`) where ((`derived_10_14`.`Name_exp_1` is null) and (`derived_10_11`.`Name_exp_1` is null) and (`table1`.`i` <= `derived_10_16`.`MAX(``n``.``i``)`) and (`table2`.`i` <= `derived_10_17`.`MAX(``n``.``i``)`) and (`test`.`n`.`i` = 5) and (`test`.`n`.`i` = 7))) `derived_1_10` left join (/* select#18 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_18` on(true)
 DROP TABLE n;
 #
 # Bug#30736475 WL#12885 SIG 6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC
@@ -4611,6 +4800,8 @@ EXPLAIN
                 -> Aggregate: min(cc1.col_varchar_key)  (rows=1)
                     -> Index scan on cc1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_4`.`COUNT(table1.pk)` AS `COUNT(table1.pk)`,`derived_1_6`.`MIN(col_varchar_key)` AS `(SELECT MIN(col_varchar_key) FROM cc1 )` from (/* select#4 */ select count(`table1`.`pk`) AS `COUNT(table1.pk)` from `test`.`cc1` `table1` join `test`.`cc1` join `test`.`cc1` `table3` join (/* select#5 */ select count(0) AS `COUNT(*)` from `test`.`cc1` having (1 <> count(0))) `derived_4_5`) `derived_1_4` left join (/* select#6 */ select min(`test`.`cc1`.`col_varchar_key`) AS `MIN(col_varchar_key)` from `test`.`cc1`) `derived_1_6` on(true)
 INSERT INTO t1 SELECT COUNT(table1.pk),
 (SELECT MIN(col_varchar_key) FROM cc1 )
 FROM (cc1 AS table1
@@ -4653,6 +4844,8 @@ EXPLAIN
                     -> Aggregate: min(cc1.col_varchar_key)  (rows=1)
                         -> Index scan on cc1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select `derived_1_4`.`COUNT(table1.pk)` AS `COUNT(table1.pk)`,`derived_1_6`.`MIN(col_varchar_key)` AS `(SELECT MIN(col_varchar_key) FROM cc1 )` from (/* select#4 */ select count(`table1`.`pk`) AS `COUNT(table1.pk)` from `test`.`cc1` `table1` join `test`.`cc1` join `test`.`cc1` `table3` join (/* select#5 */ select count(0) AS `COUNT(*)` from `test`.`cc1` having (1 <> count(0))) `derived_4_5`) `derived_1_4` left join (/* select#6 */ select min(`test`.`cc1`.`col_varchar_key`) AS `MIN(col_varchar_key)` from `test`.`cc1`) `derived_1_6` on(true)
 SELECT * from t1;
 field1	field2
 0	NULL
@@ -4728,6 +4921,11 @@ EXPLAIN
                         -> Hash
                             -> Table scan on a  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_3`.`AVG(cc.col_varchar_key)` AS `AVG(cc.col_varchar_key)`,`derived_1_4`.`SUM(cc.col_int_key)` AS `(
+SELECT SUM(cc.col_int_key)
+FROM cc,a
+)` from (/* select#3 */ select avg(`test`.`cc`.`col_varchar_key`) AS `AVG(cc.col_varchar_key)` from `test`.`cc` straight_join `test`.`bb` where ((`test`.`cc`.`col_varchar` <> 'w') and (`test`.`bb`.`col_varchar` = `test`.`cc`.`col_varchar_key`))) `derived_1_3` left join (/* select#4 */ select sum(`test`.`cc`.`col_int_key`) AS `SUM(cc.col_int_key)` from `test`.`cc` join `test`.`a`) `derived_1_4` on(true)
 DROP TABLE a, bb, cc;
 #
 # Bug#30774730 WL#12885 SIG 6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC
@@ -4850,6 +5048,8 @@ EXPLAIN
                                     -> Hash
                                         -> Index scan on subquery1_t2 using PRIMARY  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_4`.`field1` AS `field1`,`derived_1_5`.`subquery1_field1` AS `field2` from (/* select#4 */ select avg(`table2`.`col_int`) AS `field1` from `test`.`cc` `table1` straight_join `test`.`cc` `table2` where (((((`table1`.`col_varchar_key` = 'D') or (`table1`.`col_varchar_key` = `table1`.`col_varchar_key`)) and (`table1`.`pk` = 1)) or (`table1`.`col_varchar_key` < 'O')) and (`table1`.`col_varchar_key` = `table1`.`col_varchar_key`))) `derived_1_4` left join (/* select#5 */ select count(`subquery1_t1`.`col_varchar_key`) AS `subquery1_field1` from `test`.`cc` `subquery1_t1` join `test`.`cc` `subquery1_t2` join `test`.`cc` where ((`subquery1_t1`.`col_varchar_key` <> `subquery1_t2`.`col_varchar`) and (`test`.`cc`.`col_int_key` = `subquery1_t2`.`col_int`) and (`test`.`cc`.`col_varchar` = `subquery1_t2`.`col_varchar_key`))) `derived_1_5` on(true) limit 2,1000
 DROP VIEW view_cc;
 DROP TABLE cc;
 #
@@ -4925,6 +5125,8 @@ EXPLAIN
                 -> Aggregate: avg(n.col_int)  (rows=1)
                     -> Table scan on n  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_5`.`Name_exp_1` AS `field_a`,`derived_1_7`.`MAX(col_int)` AS `field_b`,`derived_1_5`.`field_c` AS `field_c`,`derived_1_6`.`AVG(col_int)` AS `field_d` from (/* select#5 */ select count(`table_a`.`col_int`) AS `field_c`,`test`.`n`.`col_int` AS `Name_exp_1` from `test`.`n` `table_a` join `test`.`n` join `test`.`n` `table_c`) `derived_1_5` left join (/* select#7 */ select max(`test`.`n`.`col_int`) AS `MAX(col_int)` from `test`.`n`) `derived_1_7` on(true) left join (/* select#6 */ select avg(`test`.`n`.`col_int`) AS `AVG(col_int)` from `test`.`n`) `derived_1_6` on(true)
 DROP VIEW view_n;
 CREATE VIEW view_n(col_int2) AS SELECT col_int + 1 FROM n;
 More complex view featuring an expression and now also
@@ -4973,6 +5175,8 @@ EXPLAIN
                 -> Aggregate: avg(n.col_int)  (rows=1)
                     -> Table scan on n  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_5`.`Name_exp_1` AS `field_e`,`derived_1_5`.`Name_exp_2` AS `col_int`,`derived_1_7`.`MAX(col_int)` AS `field_a`,`derived_1_5`.`field_b` AS `field_b`,`derived_1_6`.`AVG(col_int)` AS `field_c`,`derived_1_5`.`Name_exp_1` AS `field_d` from (/* select#5 */ select count(`table_a`.`col_int`) AS `field_b`,(`test`.`n`.`col_int` + 1) AS `Name_exp_1`,`table_a`.`col_int` AS `Name_exp_2` from `test`.`n` `table_a` join `test`.`n` join `test`.`n` `table_c`) `derived_1_5` left join (/* select#7 */ select max(`test`.`n`.`col_int`) AS `MAX(col_int)` from `test`.`n`) `derived_1_7` on(true) left join (/* select#6 */ select avg(`test`.`n`.`col_int`) AS `AVG(col_int)` from `test`.`n`) `derived_1_6` on(true)
 SET sql_mode=default;
 DROP VIEW view_n;
 DROP TABLE n;
@@ -5065,6 +5269,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `derived_1_5`.`field1` AS `field1`,`derived_1_5`.`field2` AS `field2`,`derived_1_8`.`subquery1_field1` AS `field3` from (/* select#5 */ select min(`table2`.`col_int`) AS `field1`,sum(`table2`.`col_int`) AS `field2` from `test`.`cc` `table2` straight_join `test`.`c` `table3` join (/* select#7 */ select 9 AS `9` from `test`.`cc`) `derived_5_7` join `test`.`c` `table1` semi join (`test`.`c` `subquery3_t1`) where ((`table1`.`col_varchar_key` <> `table2`.`col_varchar_key`) and (`table1`.`col_int_key` > `derived_5_7`.`9`) and (`table1`.`pk` = `subquery3_t1`.`col_int_key`) and (`table2`.`col_varchar_key` = `table2`.`col_varchar`) and (`table2`.`pk` = `table2`.`col_int`))) `derived_1_5` left join (/* select#8 */ select max(`subquery1_t1`.`pk`) AS `subquery1_field1` from `test`.`cc` `subquery1_t1` join `test`.`cc` `subquery1_t2` where multiple equal(`subquery1_t2`.`col_varchar_key`, `subquery1_t1`.`col_varchar_key`)) `derived_1_8` on(true)
 DROP TABLE c, cc;
 #
 # Bug#30818896 WL#12885: ASSERTION FAILURE IN TEMPTABLE::COLUMN::READ_STD_USER_DATA()
@@ -5248,6 +5453,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.subquery1_t1.pk' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.subquery1_t1.col_varchar' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select straight_join `derived_1_8`.`subquery1_field1` AS `field1`,`derived_1_6`.`Name_exp_1` AS `field2`,`derived_1_6`.`field3` AS `field3`,`derived_1_6`.`field4` AS `field4` from (/* select#6 */ select sum(`table1`.`col_varchar_key`) AS `field3`,max(`table2`.`col_int`) AS `field4`,`table1`.`col_int_key` AS `Name_exp_1` from `test`.`cc` `table1` join `test`.`b` `table2` join `test`.`cc` `table3` left join (/* select#7 */ select distinct 1 AS `Name_exp_1` from `test`.`c` `subquery2_t1`) `derived_6_7` on(true) where ((`derived_6_7`.`Name_exp_1` is null) and (`table2`.`col_varchar_key` >= 'v') and (`table1`.`col_varchar` <= `table1`.`col_varchar_key`) and multiple equal(`table1`.`col_varchar_key`, `table2`.`col_varchar_key`, `table3`.`col_varchar_key`) and (`table3`.`col_int` = `table2`.`col_int_key`))) `derived_1_6` left join (/* select#8 */ select avg(`subquery1_t1`.`col_int`) AS `subquery1_field1` from `test`.`c` `subquery1_t1` semi join (`test`.`cc` left join `test`.`b` `child_subquery1_t2` on((`child_subquery1_t2`.`pk` = `test`.`cc`.`col_int_key`))) where ((`test`.`cc`.`col_varchar_key` > `subquery1_t1`.`col_varchar`) or (`test`.`cc`.`col_varchar_key` < `test`.`cc`.`col_varchar`))) `derived_1_8` on(true) limit 1
 DROP VIEW view_cc;
 DROP TABLES b, c, cc;
 SET sql_mode=default;
@@ -5289,6 +5495,8 @@ EXPLAIN
                 -> Aggregate: count(0)  (rows=1)
                     -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`derived_2_3`.`count(0)` AS `c` from `test`.`t1` left join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2`) `derived_2_3` on(true)
 The select does not reference the scalar subquery
 SELECT a FROM v1;
 a
@@ -5311,6 +5519,8 @@ EXPLAIN
                 -> Aggregate: count(0)  (rows=1)
                     -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2`) `derived_2_3` on(true)
 set sql_mode='';
 SELECT a,c FROM v1 GROUP BY b HAVING c > 0;
 a	c
@@ -5336,6 +5546,8 @@ EXPLAIN
                             -> Aggregate: count(0)  (rows=1)
                                 -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`derived_2_3`.`count(0)` AS `c` from `test`.`t1` left join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2`) `derived_2_3` on(true) group by `test`.`t1`.`b` having (`derived_2_3`.`count(0)` > 0)
 set sql_mode=default;
 The select references the scalar subquery from the view, but not in select list
 SELECT a FROM v1 WHERE c > 0;
@@ -5360,6 +5572,8 @@ EXPLAIN
                     -> Aggregate: count(0)  (rows=1)
                         -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2` having (count(0) > 0)) `derived_2_3`
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #
@@ -5426,6 +5640,8 @@ EXPLAIN
                                     -> Hash
                                         -> Index scan on sq1_alias1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `alias1`.`col_int` AS `col_int` from `test`.`c` `alias1` join (/* select#4 */ select min(`sq1_alias1`.`col_int`) AS `sq1_field1` from `test`.`c` `sq1_alias1` join `test`.`c` `sq1_alias2`) `derived_2_4` join `test`.`c` `alias2` join `test`.`c` `alias3` semi join (`test`.`c` `sq2_alias1` join `test`.`c` `sq2_alias2`) where ((`alias2`.`col_int` >= `derived_2_4`.`sq1_field1`) and (`sq2_alias2`.`col_int` = `sq2_alias1`.`pk`))
 DROP VIEW view_c;
 DROP TABLE c;
 #
@@ -5457,6 +5673,8 @@ EXPLAIN SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
 EXPLAIN
 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where true
 DROP TABLE t1;
 #
 # Bug#31462120 ASSERTION `NESTED_JOIN_LIST->SIZE() == 2' FAILED AT SQL/SQL_RESOLVER.CC
@@ -5514,6 +5732,8 @@ EXPLAIN
         -> Aggregate: min(a.col_varchar_key)  (rows=1)
             -> Table scan on a  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `sub1_t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`a` join `test`.`a` `sub1_t2` semi join (`test`.`a` `sub2_t1`) join `test`.`a` `table2` join `test`.`a` where ((1 >= (/* select#5 */ select min(`test`.`a`.`col_varchar_key`) from `test`.`a`)) and <in_optimizer>(`sub1_t2`.`col_varchar_key`,<exists>(/* select#3 */ select `test`.`a`.`col_varchar_key` from `test`.`a` where true)))
 DROP TABLE a;
 #
 # Bug#31566339 WRONG RESULT WITH OPTIMIZER_SWITCH SUBQUERY_TO_DERIVED ON: ANY
@@ -5618,6 +5838,8 @@ EXPLAIN
                                                 -> Hash
                                                     -> Index scan on table1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`alias1`.`col_decimal_10_8`,0) AS `field1`,rollup_group_item(`derived_1_2`.`SQ1_field1`,1) AS `field2`,grouping(rollup_group_item(log(`alias1`.`col_int`),2)) AS `field3` from `test`.`t1` `alias1` join `test`.`t1` `alias2` left join (/* select#2 */ select sum(`table1`.`col_smallint`) AS `SQ1_field1` from `test`.`t1` `table2` left join `test`.`t1` `table1` on(true)) `derived_1_2` on(true) semi join (`test`.`t1`) where (cast(`alias2`.`pk` as double) = cast(`test`.`t1`.`col_char_255` as double)) group by `field1`,`field2`,log(`alias1`.`col_int`) with rollup order by `test`.`alias1`.`col_datetime`,`field1`,`field2`,`rollup_group_item(log(alias1.col_int),2)`
 set sql_mode=default;
 DROP TABLE t1;
 #
@@ -5664,6 +5886,8 @@ EXPLAIN
                     -> Rows fetched before execution  (rows=1)
                     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `one` from `test`.`t` join (/* select#2 */ select 1 AS `1` union /* select#3 */ select 2 AS `2`) `derived_1_2` where multiple equal(1, `derived_1_2`.`1`)
 DROP TABLE t;
 #
 # Bug#34998721 Mysqld crash - Assertion `table_num_to_node_num[table_num] != -1' failed.
@@ -5720,6 +5944,8 @@ EXPLAIN
                         -> Aggregate: min(t.i)  (rows=1)
                             -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` left join (/* select#2 */ select min(`test`.`t`.`i`) AS `MIN(i)` from `test`.`t`) `derived_1_2` on(true) having (`test`.`t`.`i` <> `derived_1_2`.`MIN(i)`) order by `test`.`t`.`i`
 DROP TABLE t;
 SET optimizer_switch='subquery_to_derived=default';
 "Optimizer switch subquery_to_derived for subquery table to derived transformations."
@@ -5749,6 +5975,8 @@ EXPLAIN
                         -> Temporary table with deduplication  (rows=6.93)
                             -> Table scan on it  (rows=48)
 
+Warnings:
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_2` on((`ot`.`a` = `derived_1_2`.`Name_exp_1`)) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 a	b
@@ -5767,6 +5995,8 @@ EXPLAIN
                     -> Materialize with deduplication  (rows=48)
                         -> Table scan on it  (rows=48)
 
+Warnings:
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` where ((`ot`.`b` < 0) or <in_optimizer>(`ot`.`a`,`ot`.`a` in ( <materialize> (/* select#2 */ select (`it`.`a` + 1) from `test`.`t2` `it` where true ), <primary_index_lookup>(`ot`.`a` in <temporary table> on <auto_distinct_key> where ((`ot`.`a` = `<materialized_subquery>`.`it.a+1`))))))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 a	b
@@ -5789,6 +6019,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`it`.`a` + 1) AS `Name_exp_1`,(`it`.`a` + 2) AS `Name_exp_2`,(`it`.`a` + 3) AS `Name_exp_3`,(`it`.`a` + 3) AS `Name_exp_4` from `test`.`t2` `it`) `derived_1_2` on(((`ot`.`a` = `derived_1_2`.`Name_exp_1`) and ((`ot`.`a` + 1) = `derived_1_2`.`Name_exp_2`) and ((`ot`.`a` + 2) = `derived_1_2`.`Name_exp_3`) and ((`ot`.`a` + 2) = `derived_1_2`.`Name_exp_4`))) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR (ot.a,ot.a+1,ot.a+2)
 IN (SELECT it.a+1 AS myname,it.a+2 AS myname,it.a+3 FROM t2 it
@@ -5810,6 +6041,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,(`it`.`a` + 1) AS `Name_exp_2` from `test`.`t2` `it`) `derived_1_2` on((`ot`.`a` = `derived_1_2`.`Name_exp_2`)) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR EXISTS(SELECT * FROM t2 it WHERE ot.a=it.a+1);
 a	b
@@ -5829,6 +6061,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,(`it`.`a` + 1) AS `Name_exp_2` from `test`.`t2` `it`) `derived_1_2` on((`ot`.`a` = `derived_1_2`.`Name_exp_2`)) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR EXISTS(SELECT it.b FROM t2 it WHERE ot.a=it.a+1);
 a	b
@@ -5849,6 +6082,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.ot.b' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,1 AS `Name_exp_2`,(`it`.`a` + 1) AS `Name_exp_3` from `test`.`t2` `it`) `derived_1_2` on((`ot`.`a` = `derived_1_2`.`Name_exp_3`)) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR EXISTS(SELECT it.b,ot.b FROM t2 it WHERE ot.a=it.a+1);
 a	b
@@ -5875,6 +6109,8 @@ EXPLAIN
                     -> Temporary table with deduplication  (rows=6.93)
                         -> Table scan on it  (rows=48)
 
+Warnings:
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_2` on((`ot`.`a` = `derived_1_2`.`Name_exp_1`)) where ((`ot`.`b` < 0) or ((`ot`.`b` < 0) and ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))))
 SELECT * FROM t1 ot
 WHERE ot.b<0 OR (ot.b<0 AND (ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it)));
 a	b
@@ -5896,6 +6132,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `ot`.`a` AS `a`,`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`it`.`a` + 1) AS `Name_exp_1`,(`it`.`a` + 3) AS `Name_exp_2` from (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` limit 1) `it`) `derived_1_2` on(((`ot`.`a` = `derived_1_2`.`Name_exp_1`) and ((`ot`.`a` + 1) = `derived_1_2`.`Name_exp_2`))) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 BEGIN;
 EXPLAIN UPDATE t1 ot SET a=a*100
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
@@ -5911,6 +6148,8 @@ EXPLAIN
                             -> Temporary table with deduplication  (rows=6.93)
                                 -> Table scan on it  (rows=48)
 
+Warnings:
+Note	1003	update `test`.`t1` `ot` set `ot`.`a` = (`ot`.`a` * 100) where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 UPDATE t1 ot SET a=a*100
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 SELECT * FROM t1;
@@ -5940,6 +6179,8 @@ EXPLAIN
                     -> Materialize  (rows=1)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` `ot` join (/* select#2 */ select 1 AS `1`) `dummy` left join (/* select#3 */ select distinct (`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_3` on((`ot`.`a` = `derived_1_3`.`Name_exp_1`)) set `ot`.`a` = (`ot`.`a` * 100) where ((`ot`.`b` < 0) or (`derived_1_3`.`Name_exp_1` is not null))
 UPDATE t1 ot, (SELECT 1) AS dummy
 SET a=a*100
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
@@ -5964,6 +6205,8 @@ EXPLAIN
                             -> Temporary table with deduplication  (rows=6.93)
                                 -> Table scan on it  (rows=48)
 
+Warnings:
+Note	1003	delete from `test`.`t1` `ot` where ((`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
 DELETE FROM t1 ot
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 SELECT * FROM t1;
@@ -5990,6 +6233,8 @@ EXPLAIN
                                     -> Temporary table with deduplication  (rows=6.93)
                                         -> Table scan on it  (rows=48)
 
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` `ot` join (/* select#2 */ select 1 AS `1`) `dummy` left join (/* select#3 */ select distinct (`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_3` on((`ot`.`a` = `derived_1_3`.`Name_exp_1`)) where ((`ot`.`b` < 0) or (`derived_1_3`.`Name_exp_1` is not null))
 DELETE ot.* FROM t1 ot, (SELECT 1) AS dummy
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 SELECT * FROM t1;
@@ -6038,6 +6283,8 @@ EXPLAIN
                         -> Aggregate: sum(t1.a)  (rows=1)
                             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_1_2` semi join (`test`.`t1`) where (`derived_1_2`.`SUM(a)` = `test`.`t1`.`b`)
 # WL#12885 with WL#13425:
 # Scalar subquery as left expr
 EXPLAIN SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1) IN (SELECT b FROM t1) OR a>3;
@@ -6057,6 +6304,8 @@ EXPLAIN
                             -> Sort with duplicate removal: t1.b  (rows=1)
                                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_1_2` on(true) left join (/* select#3 */ select distinct `test`.`t1`.`b` AS `Name_exp_1` from `test`.`t1`) `derived_1_3` on((`derived_1_2`.`SUM(a)` = `derived_1_3`.`Name_exp_1`)) where ((`derived_1_3`.`Name_exp_1` is not null) or (`test`.`t1`.`a` > 3))
 # Scalar subquery as right expr
 EXPLAIN SELECT * FROM t1 WHERE 36 IN (SELECT (SELECT SUM(a) FROM t1)+b FROM t1) OR a>3;
 EXPLAIN
@@ -6075,6 +6324,8 @@ EXPLAIN
                                         -> Aggregate: sum(t1.a)  (rows=1)
                                             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct (`derived_2_3`.`SUM(a)` + `test`.`t1`.`b`) AS `Name_exp_1` from `test`.`t1` left join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` on(true)) `derived_1_2` on((36 = `derived_1_2`.`Name_exp_1`)) where ((`derived_1_2`.`Name_exp_1` is not null) or (`test`.`t1`.`a` > 3))
 # Scalar subquery in EXISTS
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1)=b) OR a>3;
 EXPLAIN
@@ -6093,6 +6344,8 @@ EXPLAIN
                                         -> Aggregate: sum(t1.a)  (rows=1)
                                             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1` from `test`.`t1` join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` where (`derived_2_3`.`SUM(a)` = `test`.`t1`.`b`)) `derived_1_2` on(true) where ((`derived_1_2`.`Name_exp_1` is not null) or (`test`.`t1`.`a` > 3))
 # Scalar subquery in NOT EXISTS
 EXPLAIN SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1)>b) OR a>3;
 EXPLAIN
@@ -6111,6 +6364,8 @@ EXPLAIN
                                         -> Aggregate: sum(t1.a)  (rows=1)
                                             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1` from `test`.`t1` join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` where (`derived_2_3`.`SUM(a)` > `test`.`t1`.`b`)) `derived_1_2` on(true) where ((`derived_1_2`.`Name_exp_1` is null) or (`test`.`t1`.`a` > 3))
 # Scalar subquery in NOT IN and non-nullables (antijoin)
 EXPLAIN SELECT * FROM t1 WHERE 36 NOT IN (SELECT COALESCE((SELECT SUM(a) FROM t1),b,55) FROM t1) OR a>3;
 EXPLAIN
@@ -6129,6 +6384,8 @@ EXPLAIN
                                         -> Aggregate: sum(t1.a)  (rows=1)
                                             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct coalesce(`derived_2_3`.`SUM(a)`,`test`.`t1`.`b`,55) AS `Name_exp_1` from `test`.`t1` left join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` on(true)) `derived_1_2` on((36 = `derived_1_2`.`Name_exp_1`)) where ((`derived_1_2`.`Name_exp_1` is null) or (`test`.`t1`.`a` > 3))
 DROP TABLE t1,t2;
 DROP view v2;
 # Bug#30697743 WL#13425: ASSERT: !THD->IS_ERROR()' IN SELECT_LEX::PREPARE() AT SQL/SQL_RESOLVE
@@ -6184,6 +6441,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` <> `derived_1_2`.`Name_exp_2`)) where (`derived_1_2`.`Name_exp_1` is null)
 SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b);
 a
@@ -6205,6 +6463,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` <> `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) AND t1.a>0;
 a
@@ -6229,6 +6488,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` >= `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 EXPLAIN
 SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a>t2.b) AND t1.a>0;
@@ -6245,6 +6505,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` > `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 EXPLAIN
 SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<=t2.b) AND t1.a>0;
@@ -6261,6 +6522,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` <= `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 EXPLAIN
 SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<t2.b) AND t1.a>0;
@@ -6277,6 +6539,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` < `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 # Reverse the order of arguments:
 EXPLAIN
 SELECT * FROM t1
@@ -6294,6 +6557,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` > `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 DROP TABLE t1,t2;
 SET OPTIMIZER_SWITCH="semijoin=on";
 #

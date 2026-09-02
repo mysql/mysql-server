@@ -33,8 +33,32 @@
 #ifndef YY_NO_UNISTD_H
 #define YY_NO_UNISTD_H
 #endif
+
+/* See debug_lo_parser.yy */
+#ifndef YYSTYPE_IS_DECLARED
+  #define YYSTYPE LOYYSTYPE
+  #define YYSTYPE_IS_DECLARED 1
+
+  union YYSTYPE
+  {
+    char *m_str;
+    int m_flags;
+  };
+#endif
+
+/*
+  Flex has a prefix option, but this only cover public APIs.
+  The option does not apply to the implementation in the generated
+  code, leading to ODR violations with other parsers (innodb).
+
+  Force the flex generated code to use alternate names.
+*/
+#define yy_buffer_state loyy_buffer_state
+#define yyalloc loyyalloc
+#define yyguts_t loyyguts_t
 }
 
+%option prefix="LOCK_ORDER_"
 %option noinput
 %option nounput
 %option noyywrap

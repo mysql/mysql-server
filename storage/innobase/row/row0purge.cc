@@ -199,7 +199,6 @@ static bool row_purge_reposition_pcur(
         const char act[] =
             "now SIGNAL pessimistic_row_purge_clust_pause WAIT_FOR "
             "pessimistic_row_purge_clust_continue";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     });

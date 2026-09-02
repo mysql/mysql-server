@@ -1,0 +1,151 @@
+--echo #
+--echo # Bug #120529: Warn when purge lag exceeds limits
+--echo #
+
+--disable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+let $max_purge_lag = `SELECT @@GLOBAL.innodb_max_purge_lag`;
+let $max_purge_lag_delay = `SELECT @@GLOBAL.innodb_max_purge_lag_delay`;
+let $purge_batch_size = `SELECT @@GLOBAL.innodb_purge_batch_size`;
+
+--source include/save_error_log_position.inc
+
+SET GLOBAL innodb_max_purge_lag = 2;
+SET GLOBAL innodb_max_purge_lag_delay = 1000;
+# Keep the DML-delay activation threshold above retained history from
+# preceding repeat runs.
+SET GLOBAL innodb_purge_batch_size = 5000;
+SET GLOBAL innodb_monitor_enable = 'purge_invoked';
+SET GLOBAL innodb_monitor_enable = 'purge_dml_delay_usec';
+
+# Keep the generated undo history from being purged.
+--connect (con1,localhost,root,,)
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT value FROM t1 WHERE id = 1;
+
+--connection default
+--disable_query_log
+let $purge_invoked_count_before = `SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked'`;
+let $i = 3;
+while ($i > 0) {
+  UPDATE t1 SET value = value + 1 WHERE id = 1;
+  --dec $i
+}
+
+# History length has exceeded innodb_max_purge_lag, but it has not reached
+# the DML-delay threshold (innodb_purge_threads * innodb_purge_batch_size).
+# Verify that only the history-length warning is emitted in this case.
+let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let $grep_pattern = InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2;
+let $wait_timeout = 30;
+let $skip_log_pattern = 1;
+--source include/wait_for_pattern_in_file.inc
+let $wait_condition = SELECT COUNT > $purge_invoked_count_before FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked';
+--source include/wait_condition.inc
+let $wait_condition = SELECT COUNT = 0 FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_dml_delay_usec';
+--source include/wait_condition.inc
+let $error_pattern =
+.*\[Warning\].*InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2.
+;
+--source include/assert_error_log.inc
+
+# Re-arm the warning before testing DML-delay warning suppression.
+SET GLOBAL innodb_max_purge_lag = 0;
+let $purge_invoked_count_before = `SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked'`;
+UPDATE t1 SET value = value + 1 WHERE id = 1;
+let $wait_condition = SELECT COUNT > $purge_invoked_count_before FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked';
+--source include/wait_condition.inc
+let $error_pattern = NONE;
+--source include/assert_error_log.inc
+
+SET GLOBAL innodb_max_purge_lag = 2;
+SET GLOBAL innodb_purge_batch_size = 1;
+
+# The warnings are emitted from the purge coordinator, which runs asynchronously.
+let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let $grep_pattern = InnoDB DML operations are being delayed by .* due to purge lag. History list length is .*, innodb_max_purge_lag=2, innodb_max_purge_lag_delay=1000;
+let $wait_timeout = 30;
+let $skip_log_pattern = 1;
+--source include/wait_for_pattern_in_file.inc
+
+# Verify that DML delay is reflected in the purge metric.
+let $wait_condition = SELECT COUNT > 0 FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_dml_delay_usec';
+--source include/wait_condition.inc
+
+# Wait for the warning-producing purge invocation to finish, then trigger
+# another purge invocation while the purge lag is still active. The following
+# assertion verifies that the already emitted warnings are suppressed.
+let $wait_condition = SELECT COUNT > $purge_invoked_count_before FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked';
+--source include/wait_condition.inc
+let $purge_invoked_count_before = `SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked'`;
+UPDATE t1 SET value = value + 1 WHERE id = 1;
+let $wait_condition = SELECT COUNT > $purge_invoked_count_before FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_invoked';
+--source include/wait_condition.inc
+
+let $error_pattern =
+.*\[Warning\].*InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2.
+.*\[Warning\].*InnoDB DML operations are being delayed by .* due to purge lag. History list length is .*, innodb_max_purge_lag=2, innodb_max_purge_lag_delay=1000.
+;
+--source include/assert_error_log.inc
+
+--connection con1
+COMMIT;
+
+--connection default
+
+# Disable purge lag, which clears the delay metric and re-arms both warnings.
+SET GLOBAL innodb_max_purge_lag = 0;
+UPDATE t1 SET value = value + 1 WHERE id = 1;
+let $wait_timeout = 30;
+let $wait_condition = SELECT COUNT = 0 FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'purge_dml_delay_usec';
+--source include/wait_condition.inc
+
+let $error_pattern = NONE;
+--source include/assert_error_log.inc
+
+SET GLOBAL innodb_max_purge_lag = 2;
+
+# Keep the generated undo history from being purged again.
+--connection con1
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT value FROM t1 WHERE id = 1;
+
+--connection default
+let $i = 6;
+while ($i > 3) {
+  UPDATE t1 SET value = value + 1 WHERE id = 1;
+  --dec $i
+}
+
+# Verify that both warnings are emitted after being re-armed.
+let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let $grep_pattern = InnoDB DML operations are being delayed by .* due to purge lag. History list length is .*, innodb_max_purge_lag=2, innodb_max_purge_lag_delay=1000;
+let $wait_timeout = 30;
+let $skip_first_x_occurences = 1;
+let $skip_log_pattern = 1;
+--source include/wait_for_pattern_in_file.inc
+
+let $error_pattern =
+.*\[Warning\].*InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2.
+.*\[Warning\].*InnoDB DML operations are being delayed by .* due to purge lag. History list length is .*, innodb_max_purge_lag=2, innodb_max_purge_lag_delay=1000.
+;
+--source include/assert_error_log.inc
+
+--connection con1
+COMMIT;
+--disconnect con1
+
+--connection default
+eval SET GLOBAL innodb_max_purge_lag = $max_purge_lag;
+eval SET GLOBAL innodb_max_purge_lag_delay = $max_purge_lag_delay;
+eval SET GLOBAL innodb_purge_batch_size = $purge_batch_size;
+SET GLOBAL innodb_monitor_disable = 'purge_invoked';
+SET GLOBAL innodb_monitor_disable = 'purge_dml_delay_usec';
+--disable_warnings
+SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_disable = default;
+--enable_warnings
+DROP TABLE t1;
+--enable_query_log

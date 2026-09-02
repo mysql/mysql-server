@@ -450,7 +450,7 @@ class Qmgr : public SimulatedBlock {
   void electionWon(Signal *signal);
   void cmInfoconf010Lab(Signal *signal);
 
-  void apiHbHandlingLab(Signal *signal, NDB_TICKS now);
+  void apiHbHandlingLab(Signal *signal, Uint32 nodeId, NDB_TICKS now);
   void timerHandlingLab(Signal *signal);
   void hbReceivedLab(Signal *signal);
   void sendCmRegrefLab(Signal *signal, BlockReference ref, CmRegRef::ErrorCode,
@@ -479,7 +479,7 @@ class Qmgr : public SimulatedBlock {
   void sendHeartbeat(Signal *signal);
   void checkHeartbeat(Signal *signal);
   void setHbDelay(UintR aHbDelay);
-  void setHbApiDelay(UintR aHbApiDelay);
+  void setHbApiDelay(Uint32 nodeId, UintR aHbApiDelay);
   void setArbitTimeout(UintR aArbitTimeout);
   void setCCDelay(UintR aCCDelay);
   void send_trp_keep_alive_start(Signal *signal);
@@ -581,7 +581,6 @@ class Qmgr : public SimulatedBlock {
   Uint16 cdelayRegreq;
   Uint16 cpresidentAlive;
   Uint16 c_allow_api_connect;
-  UintR chbApiDelay;
 
   UintR ccommitFailureNr;
   UintR cprepareFailureNr;
@@ -596,8 +595,10 @@ class Qmgr : public SimulatedBlock {
   Timer interface_check_timer;
   Timer hb_check_timer;
   Timer hb_send_timer;
-  Timer hb_api_timer;
   Timer ka_send_timer;
+  Timer hb_api_timer[MAX_NODES];
+  Uint32 cdefaultHbApiDelay;
+  Uint32 chbApiDelay[MAX_NODES];
 
   Int16 processInfoNodeIndex[MAX_NODES];
   ProcessInfo *receivedProcessInfo = nullptr;

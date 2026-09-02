@@ -543,6 +543,11 @@ struct Merge_cursor : public Load_cursor {
   /** @return the number of active readers. */
   [[nodiscard]] size_t size() const noexcept { return m_pq.size(); }
 
+  /** @return the underlying index being merged, if available. */
+  [[nodiscard]] const dict_index_t *index() const noexcept {
+    return m_builder != nullptr ? m_builder->index() : nullptr;
+  }
+
   /** @return the number of rows read from the files. */
   [[nodiscard]] uint64_t get_n_rows() const noexcept;
 

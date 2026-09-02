@@ -608,6 +608,10 @@ static inline const rec_t *page_rec_get_next_low(
 
   offs = rec_get_next_offs(rec, comp);
 
+#ifdef UNIV_DEBUG
+  const auto try_get_next = page_rec_try_get_next_offs(rec, comp);
+#endif
+
   if (offs >= UNIV_PAGE_SIZE) {
     fprintf(stderr,
             "InnoDB: Next record offset is nonsensical %lu"
@@ -615,12 +619,49 @@ static inline const rec_t *page_rec_get_next_low(
             "InnoDB: rec address %p, space id %lu, page %lu\n",
             (ulong)offs, (ulong)page_offset(rec), (void *)rec,
             (ulong)page_get_space_id(page), (ulong)page_get_page_no(page));
+    ut_ad(!try_get_next.has_value());
     ut_error;
   } else if (offs == 0) {
+    ut_ad(!try_get_next.has_value());
     return (nullptr);
   }
 
+  ut_ad(try_get_next.has_value());
+  ut_ad(try_get_next.value() == offs);
   return (page + offs);
+}
+
+static inline ut::Expected<uint16_t, uint16_t> page_rec_try_get_next_offs(
+    const rec_t *rec, bool comp) {
+  ut_ad(page_rec_check(rec));
+
+  const auto offs = rec_try_get_next_offs(rec, comp);
+  if (!offs) {
+    return offs;
+  }
+
+  if (offs.value() >= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) {
+    return ut::Unexpected{offs.value()};
+  }
+
+  /* The page format is so that at the start of the page data there is the
+  infimum record followed by the supremum record, after which user records
+  follow. There is no next record link to the infimum record, so there should be
+  no links to bytes before the supremum start. */
+  if (offs.value() < (comp ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM)) {
+    return ut::Unexpected{offs.value()};
+  }
+
+  const page_t *page = page_align(rec);
+  /* A record with a zero-length data payload can have its origin at
+  PAGE_HEAP_TOP when it is the last record allocated from the page heap,
+  because its header and field metadata precede the origin. Only offsets
+  beyond the heap are invalid. */
+  if (offs.value() > page_header_get_field(page, PAGE_HEAP_TOP)) {
+    return ut::Unexpected{offs.value()};
+  }
+
+  return offs.value();
 }
 
 /** Gets the pointer to the next record on the page.

@@ -140,11 +140,7 @@
     {"tls-version",
      OPT_TLS_VERSION,
      "TLS version to use, "
-#ifdef HAVE_TLSv13
      "permitted values are: TLSv1.2, TLSv1.3",
-#else
-     "permitted values are: TLSv1.2",
-#endif
      &opt_tls_version,
      &opt_tls_version,
      nullptr,

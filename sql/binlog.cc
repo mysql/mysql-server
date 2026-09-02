@@ -1505,6 +1505,19 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
   if (thd->owned_gtid.sidno > 0) {
     assert(thd->variables.gtid_next.type == ASSIGNED_GTID);
 
+    DBUG_EXECUTE_IF(
+        "rpl_gtid_table_sync_flush_privileges_gtid_end_transaction", {
+          if (thd->slave_thread && thd->lex->sql_command == SQLCOM_FLUSH &&
+              (thd->lex->type & REFRESH_GRANT)) {
+            const char wait_for_test[] = "now WAIT_FOR gtid_flush_arm";
+            const char wait_to_continue[] =
+                "now SIGNAL gtid_flush_hit WAIT_FOR gtid_flush_go";
+            assert(!debug_sync_set_action(thd, STRING_WITH_LEN(wait_for_test)));
+            assert(
+                !debug_sync_set_action(thd, STRING_WITH_LEN(wait_to_continue)));
+          }
+        });
+
     Transaction_ctx *trn_ctx = thd->get_transaction();
     if (!opt_bin_log || (thd->slave_thread && !opt_log_replica_updates) ||
         trn_ctx->m_transaction_flushed == Transaction_flushed::NO) {
@@ -7051,8 +7064,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     /*
       Mark the flag m_is_binlogged to true only after we are done
       with checking all the error cases.
+      The before-GTID action for XA PREPARE may change XID_STATE from
+      XA_IDLE to XA_PREPARED before we reach this point. Use the value
+      computed before commit processing started instead of re-checking the
+      current state.
     */
-    if (is_loggable_xa_prepare(thd)) {
+    if (skip_commit) {
       thd->get_transaction()->xid_state()->set_binlogged();
       /*
         Inform hook listeners that a XA PREPARE did commit, that
@@ -7212,7 +7229,6 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
   for (THD *head = first; head; head = head->next_to_commit) {
     Thd_backup_and_restore switch_thd(thd, head);
     auto all = head->get_transaction()->m_flags.real_commit;
-    // Mark transaction as prepared in TC, if applicable
     trx_coordinator::set_prepared_in_tc_in_engines(head, all);
     /*
       Decrement the prepared XID counter after storage engine commit.
@@ -7376,7 +7392,7 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
   assert(thd->commit_error != THD::CE_COMMIT_ERROR);
   finish_transaction_in_engines(thd, all, false);
 
-  // If the ordered commit didn't updated the GTIDs for this thd yet
+  // If the ordered commit didn't update the GTIDs for this thd yet
   // at process_commit_stage_queue (i.e. --binlog-order-commits=0)
   // the thd still has the ownership of a GTID and we must handle it.
   if (!thd->owned_gtid_is_empty()) {
@@ -7387,8 +7403,9 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
   }
 
   // If not yet done, mark transaction as prepared in TC, if applicable and
-  // unfence the rotation of the binary log
-  if (thd->get_transaction()->m_flags.xid_written) {
+  // unfence the rotation of the binary log.
+  const bool has_xid_written = thd->get_transaction()->m_flags.xid_written;
+  if (has_xid_written) {
     trx_coordinator::set_prepared_in_tc_in_engines(thd, all);
     dec_prep_xids(thd);
   }

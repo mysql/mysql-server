@@ -25,14 +25,16 @@
 
 #include <mysql/plugin_audit.h> /* mysql_event_connection */
 #include <cstddef>
+#include <atomic>
 
 #include <mysql/components/services/log_builtins.h>
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_systime.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "plugin/connection_control/connection_control_coordinator.h" /* g_connection_event_coordinator */
+#include "plugin/connection_control/connection_control_coordinator.h" /* Connection_event_coordinator */
 #include "plugin/connection_control/connection_delay_api.h" /* connection_delay apis */
 #include "plugin/connection_control/option_usage.h"
 #include "template_utils.h"
@@ -65,8 +67,63 @@ using connection_control::Error_handler;
 Connection_control_statistics g_statistics;
 Connection_control_variables g_variables;
 
-Connection_event_coordinator *g_connection_event_coordinator = nullptr;
 MYSQL_PLUGIN connection_control_plugin_info = nullptr;
+/*
+  RCU-protected coordinator. The atomics have trivial destructors, so they do
+  not cause teardown side effects when the plugin is unloaded.
+*/
+static std::atomic<Connection_event_coordinator *>
+    g_connection_event_coordinator{nullptr};
+alignas(128) static std::atomic<long> g_connection_event_coordinator_readers{0};
+
+class Connection_event_coordinator_read_guard {
+ public:
+  Connection_event_coordinator_read_guard() {
+    /*
+      Do not dereference the first value read here.  Teardown may remove and
+      reclaim it before this thread has registered as a reader.  The second,
+      sequentially-consistent load makes that race visible: if teardown got
+      there first, this guard remains empty; otherwise teardown observes this
+      reader before it can reclaim the coordinator.
+    */
+    auto *coordinator =
+        g_connection_event_coordinator.load(std::memory_order_seq_cst);
+    if (coordinator == nullptr) return;
+
+    g_connection_event_coordinator_readers.fetch_add(1,
+                                                     std::memory_order_seq_cst);
+    if (g_connection_event_coordinator.load(std::memory_order_seq_cst) ==
+        coordinator) {
+      coordinator_ = coordinator;
+    } else {
+      g_connection_event_coordinator_readers.fetch_sub(
+          1, std::memory_order_seq_cst);
+    }
+  }
+
+  Connection_event_coordinator_read_guard(
+      const Connection_event_coordinator_read_guard &) = delete;
+  Connection_event_coordinator_read_guard &operator=(
+      const Connection_event_coordinator_read_guard &) = delete;
+
+  ~Connection_event_coordinator_read_guard() {
+    if (coordinator_ != nullptr)
+      g_connection_event_coordinator_readers.fetch_sub(
+          1, std::memory_order_seq_cst);
+  }
+
+  Connection_event_coordinator *get() const { return coordinator_; }
+
+ private:
+  Connection_event_coordinator *coordinator_{nullptr};
+};
+
+static void wait_for_connection_event_coordinator_readers() {
+  while (g_connection_event_coordinator_readers.load(
+             std::memory_order_seq_cst) > 0) {
+    my_sleep(1000);
+  }
+}
 
 /* Performance Schema instrumentation */
 
@@ -133,8 +190,9 @@ static int connection_control_notify(MYSQL_THD thd,
           (const struct mysql_event_connection *)event;
       Connection_control_error_handler error_handler;
       /** Notify event coordinator */
-      g_connection_event_coordinator->notify_event(thd, &error_handler,
-                                                   connection_event);
+      const Connection_event_coordinator_read_guard coordinator_guard;
+      if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+        coordinator->notify_event(thd, &error_handler, connection_event);
     }
   } catch (...) {
     /* Happily ignore any bad behavior */
@@ -171,20 +229,22 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
 
   connection_control_plugin_info = plugin_info;
   Connection_control_error_handler error_handler;
-  g_connection_event_coordinator = new Connection_event_coordinator();
-  if (!g_connection_event_coordinator) {
+  auto *coordinator = new Connection_event_coordinator();
+  if (!coordinator) {
     error_handler.handle_error(ER_CONN_CONTROL_EVENT_COORDINATOR_INIT_FAILED);
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
 
-  if (init_connection_delay_event((Connection_event_coordinator_services *)
-                                      g_connection_event_coordinator,
-                                  &error_handler)) {
-    delete g_connection_event_coordinator;
+  if (init_connection_delay_event(
+          (Connection_event_coordinator_services *)coordinator,
+          &error_handler)) {
+    delete coordinator;
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
+
+  g_connection_event_coordinator.store(coordinator, std::memory_order_seq_cst);
 
   return 0;
 }
@@ -199,8 +259,10 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
 
 static int connection_control_deinit(void *arg [[maybe_unused]]) {
   if (connection_control_plugin_option_usage_deinit()) return 1;
-  delete g_connection_event_coordinator;
-  g_connection_event_coordinator = nullptr;
+  auto *coordinator = g_connection_event_coordinator.exchange(
+      nullptr, std::memory_order_seq_cst);
+  wait_for_connection_event_coordinator_readers();
+  delete coordinator;
   connection_control::deinit_connection_delay_event();
   connection_control_plugin_info = nullptr;
 
@@ -286,8 +348,11 @@ static void update_failed_connections_threshold(MYSQL_THD thd [[maybe_unused]],
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.failed_connections_threshold = (int64)new_value;
   Connection_control_error_handler error_handler;
-  g_connection_event_coordinator->notify_sys_var(
-      &error_handler, OPT_FAILED_CONNECTIONS_THRESHOLD, &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(&error_handler,
+                                OPT_FAILED_CONNECTIONS_THRESHOLD, &new_value);
+  return;
 }
 
 /** Declaration of connection_control_failed_connections_threshold */
@@ -350,8 +415,11 @@ static void update_min_connection_delay(MYSQL_THD thd [[maybe_unused]],
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.min_connection_delay = (int64)new_value;
   Connection_control_error_handler error_handler;
-  g_connection_event_coordinator->notify_sys_var(
-      &error_handler, OPT_MIN_CONNECTION_DELAY, &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(&error_handler, OPT_MIN_CONNECTION_DELAY,
+                                &new_value);
+  return;
 }
 
 /** Declaration of connection_control_max_connection_delay */
@@ -413,8 +481,11 @@ static void update_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.max_connection_delay = (int64)new_value;
   Connection_control_error_handler error_handler;
-  g_connection_event_coordinator->notify_sys_var(
-      &error_handler, OPT_MAX_CONNECTION_DELAY, &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(&error_handler, OPT_MAX_CONNECTION_DELAY,
+                                &new_value);
+  return;
 }
 
 /** Declaration of connection_control_max_connection_delay */
@@ -444,8 +515,10 @@ static void update_exempt_unknown_users(MYSQL_THD thd [[maybe_unused]],
   bool new_value = *(reinterpret_cast<const bool *>(save));
   g_variables.exempt_unknown_users = new_value;
   Connection_control_error_handler error_handler;
-  g_connection_event_coordinator->notify_sys_var(
-      &error_handler, OPT_EXEMPT_UNKNOWN_USERS, &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(&error_handler, OPT_EXEMPT_UNKNOWN_USERS,
+                                &new_value);
 }
 
 /** Declaration of connection_control_max_connection_delay */

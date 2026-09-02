@@ -783,6 +783,9 @@ class JOIN {
 
   AccessPath *root_access_path() const { return m_root_access_path; }
   void set_root_access_path(AccessPath *path) { m_root_access_path = path; }
+  AccessPath *root_access_path_no_in2exists() const {
+    return m_root_access_path_no_in2exists;
+  }
 
   /**
     If this query block was planned twice, once with and once without conditions

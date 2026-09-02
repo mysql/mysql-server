@@ -108,6 +108,9 @@ void Trpman::set_db_hb_sender(NodeId dbHbSender) {
   jam();
   if (dbHbSender == ZNIL || dbHbSender == 0) {
     jam();
+    if (m_dbHbSenderTrp != 0 && handles_this_trp(m_dbHbSenderTrp)) {
+      m_hbInterval[m_dbHbSenderTrp] = 0;
+    }
     m_dbHbSender = 0;
     m_dbHbSenderTrp = 0;
   } else {
@@ -121,6 +124,9 @@ void Trpman::set_db_hb_sender(NodeId dbHbSender) {
     ndbrequire(dbHbSenderTrp != 0);
     if (m_dbHbSenderTrp != dbHbSenderTrp) {
       jam();
+      if (m_dbHbSenderTrp != 0 && handles_this_trp(m_dbHbSenderTrp)) {
+        m_hbInterval[m_dbHbSenderTrp] = 0;
+      }
       m_dbHbSenderTrp = dbHbSenderTrp;
       /*
        * Skip late heartbeat detection for next receive.
@@ -128,6 +134,9 @@ void Trpman::set_db_hb_sender(NodeId dbHbSender) {
        * receive.
        */
       NdbTick_Invalidate(&m_trp_activity[m_dbHbSenderTrp].last_recv);
+    }
+    if (m_dbHbInterval != 0 && handles_this_trp(m_dbHbSenderTrp)) {
+      m_hbInterval[m_dbHbSenderTrp] = m_dbHbInterval;
     }
   }
 }
@@ -252,6 +261,7 @@ void Trpman::close_com_failed_node(Signal *signal, NodeId nodeId) {
   for (unsigned i = 0; i < num_ids; i++) {
     const TrpId trpId = trp_ids[i];
     if (!handles_this_trp(trpId)) continue;
+    m_hbInterval[trpId] = 0;
     globalTransporterRegistry.setIOState(trpId, HaltIO);
     globalTransporterRegistry.start_disconnecting(trpId);
   }
@@ -351,10 +361,16 @@ void Trpman::execCLOSE_COMCONF(Signal *signal) {
              CloseComReqConf::SignalLengthDB, JBA);
 }
 
-void Trpman::enable_com_node(Signal *signal, NodeId nodeId) {
+void Trpman::enable_com_node(Signal *signal, NodeId nodeId,
+                             Uint32 heartbeatInterval) {
   const TrpId trpId = get_the_only_base_trp(nodeId);
   if (!handles_this_trp(trpId)) return;
 
+  if (getNodeInfo(nodeId).getType() != NodeInfo::DB) {
+    m_hbInterval[trpId] = heartbeatInterval;
+  } else {
+    m_hbInterval[trpId] = 0;
+  }
   globalTransporterRegistry.setIOState(trpId, NoHalt);
   setNodeInfo(nodeId).m_connected = true;
 
@@ -387,6 +403,11 @@ void Trpman::execENABLE_COMREQ(Signal *signal) {
   Uint32 senderData = enableComReq->m_senderData;
   Uint32 enableNodeId = enableComReq->m_enableNodeId;
   Uint32 dbHbSender = enableComReq->m_dbHbSender;
+  Uint32 heartbeatInterval = enableComReq->m_heartbeatInterval;
+  if (enableNodeId == 0 ||
+      getNodeInfo(enableNodeId).getType() == NodeInfo::DB) {
+    m_dbHbInterval = heartbeatInterval;
+  }
 
   /* Enable communication with all our NDB blocks to these nodes. */
   if (enableNodeId == 0) {
@@ -404,10 +425,10 @@ void Trpman::execENABLE_COMREQ(Signal *signal) {
       Uint32 tStartingNode = NodeBitmask::find(nodes, search_from);
       if (tStartingNode == NodeBitmask::NotFound) break;
       search_from = tStartingNode + 1;
-      enable_com_node(signal, tStartingNode);
+      enable_com_node(signal, tStartingNode, heartbeatInterval);
     }
   } else {
-    enable_com_node(signal, enableNodeId);
+    enable_com_node(signal, enableNodeId, heartbeatInterval);
   }
 
   set_db_hb_sender(dbHbSender);
@@ -575,11 +596,8 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
         row.write_uint32(globalTransporterRegistry.get_transporter_type(trpId));
 
         /* Heartbeat interval (ms) */
-        const NodeInfo::NodeType type = getNodeInfo(nodeId).getType();
-        bool is_db = (type == NodeInfo::DB);
-        if (!is_db || trpId == m_dbHbSenderTrp) {
-          Uint32 heartbeat_interval = is_db ? m_hbDbDb : m_hbDbApi;
-          row.write_uint32(heartbeat_interval);
+        if (m_hbInterval[trpId] != 0) {
+          row.write_uint32(m_hbInterval[trpId]);
         } else {
           row.write_null();  // heartbeat_interval
         }
@@ -789,18 +807,13 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
         row.write_uint32(globalTransporterRegistry.get_connect_count(
             trpId));  // connect_count
 
-        const NodeInfo::NodeType type = getNodeInfo(nodeId).getType();
-        bool is_db = (type == NodeInfo::DB);
-
-        if (!is_db || trpId == m_dbHbSenderTrp) {
-          Uint32 heartbeat_interval = is_db ? m_hbDbDb : m_hbDbApi;
-          row.write_uint32(heartbeat_interval);
+        if (m_hbInterval[trpId] != 0) {
+          row.write_uint32(m_hbInterval[trpId]);
         } else {
           row.write_null();  // heartbeat_interval
         }
 
-        Uint64 upper_bound = is_db ? m_hbDbDb_bin_bounds[bin_index]
-                                   : m_hbDbApi_bin_bounds[bin_index];
+        Uint64 upper_bound = m_activity_bin_bounds[bin_index];
         if (upper_bound < UINT32_MAX)
           row.write_uint64(upper_bound);
         else
@@ -810,7 +823,7 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
 
         ndbinfo_send_row(signal, req, row, rl);
         bin_index++;
-        if (bin_index == (is_db ? m_hbDbDb_bin_count : m_hbDbApi_bin_count)) {
+        if (bin_index == m_activity_bin_count) {
           trpId++;
           bin_index = 0;
         }
@@ -841,201 +854,6 @@ void Trpman::execNODE_START_REP(Signal *signal) {
 #endif
 }
 
-unsigned Trpman::calculate_histogram_bin_limits(
-    unsigned hb_interval, std::span<unsigned> bin_limits) {
-  const unsigned sample_interval = TRP_TIME_SIGNAL_DELAY;
-  const unsigned max_bin_count = TRP_ACTIVITY_HIST_BIN_COUNT;
-  const unsigned min_bin_width = 2 * sample_interval;
-  const unsigned half_hb_interval_dn = hb_interval / 2;
-  const unsigned half_hb_interval_up = (hb_interval + 1) / 2;
-
-  assert(bin_limits.size() >= max_bin_count);
-
-  /*
-   * There are four parts of bins of the histogram. The first part uses bins
-   * with minimal width. The second increases the bin width exponentially. And
-   * the third part will use same size for remaining bins to have histogram
-   * cover 5 heartbeat intervals. Finally there is the last bin with infinite
-   * bound.
-   *
-   * In part 3 there can be 9 bins for 1 HBinterval to 5 HB interval with half
-   * HB interval steps. Part four always have one infinite bin.
-   * The rest can be used by part 1 and 2.
-   */
-  constexpr unsigned max_bin_count_part3_4 = 9 + 1;
-  constexpr unsigned max_bin_count_part1_2 =
-      max_bin_count - max_bin_count_part3_4;
-  /*
-   * There can be up to 11 bins covering the heartbeat interval. Up to 10 in
-   * part 1 and 2 the bin covering last part of heartbeat interval belongs to
-   * part 3.
-   */
-  const unsigned count =
-      std::min(hb_interval / min_bin_width, max_bin_count_part1_2 + 1);
-  unsigned bin_index = 0;
-
-  /*
-   * Part 1 with minimal sized bins.
-   *
-   * Use minimal sized bins until a suitable scaling factor is found for
-   * exponential part or that bin for heartbeat interval is next.
-   */
-  double factor;                   // calculated during part 1, used in part 2
-  unsigned first_part2_limit = 0;  // 0 indicates no value
-  unsigned first_part3_limit = 0;
-  unsigned bin_limit = min_bin_width;
-  while (bin_index + 1 < count) {
-    bin_limits[bin_index] = bin_limit;
-    bin_index++;
-    if (bin_index == count - 1) {
-      bin_limit += min_bin_width;
-      break;
-    }
-
-    const double ratio = 1.0 * hb_interval / bin_limit;
-    factor = std::pow(ratio, 1.0 / (count - bin_index));
-    /*
-     * If factor > 2.0 that would cause width of last bin before heartbeat
-     * interval bin to be wider than half heartbeat interval, that we do not
-     * allow since then it would be wider than bins in part 3. To come around
-     * that we use half heartbeat interval as limit of that bin and
-     * recalculate factor against that. In this case it is ok with a factor
-     * > 2.0 since bins below half heartbeat interval can not that wide.
-     */
-    bool bad_factor = false;
-    if (factor <= 2.0) {
-    } else if (bin_index < count - 1) {
-      const double ratio = 1.0 * half_hb_interval_dn / bin_limit;
-      factor = std::pow(ratio, 1.0 / (count - bin_index - 1));
-    } else
-      bad_factor = true;
-
-    if (!bad_factor) {
-      const unsigned part2_limit = std::round(bin_limit * factor);
-      if (part2_limit - bin_limit >= min_bin_width) {
-        first_part2_limit = bin_limit = part2_limit;
-        if (factor > 2.0)
-          first_part3_limit = half_hb_interval_dn;
-        else
-          first_part3_limit = hb_interval;
-        break;
-      }
-    }
-    bin_limit += min_bin_width;
-    if (bin_limit >= hb_interval) {
-      break;
-    }
-  }
-
-  /*
-   * Part 2 with exponentially increasing bin widths.
-   *
-   * Widths of each bin will be scaled from previous bin width with a factor.
-   * If factor is 2 or greater last width will be less than half the heartbeat
-   * interval else less than the heartbeat interval. The special handling of
-   * big scaling factor is to ensure the last bin width in exponential part
-   * will be less than half heartbeat interval since that will be used as bin
-   * width in next part and bin widths may not decrease.
-   */
-  if (first_part2_limit > 0) {  // std::isfinite(factor)) {
-    assert(first_part2_limit == bin_limit);
-    while (bin_limit < first_part3_limit &&
-           (bin_limit - bin_limits[bin_index - 1]) + bin_limit <
-               first_part3_limit) {
-      bin_limits[bin_index] = bin_limit;
-      bin_index++;
-      bin_limit = std::round(bin_limit * factor);
-    }
-  }
-
-  /*
-   * Part 3 with fixed sized bins covering 5 HB intervals.
-   *
-   * For small heartbeat intervals this part will fill up with bins of minimal
-   * size until bins cover 5 heartbeat intervals.
-   * For bigger heartbeat intervals bins will be added using half heartbeat
-   * interval as with until bins cover 5 heartbeat intervals. In this case the
-   * heartbeat interval will be the boundary of a bin. If heartbeat interval is
-   * odd the interval will be rounded up to ensure the bin will be wider than
-   * last bin in exponential part.
-   */
-  unsigned bin_width = half_hb_interval_up;
-  if (first_part3_limit == 0) {
-    unsigned prev_bin_limit = (bin_index > 0 ? bin_limits[bin_index - 1] : 0);
-    unsigned prev_bin_width [[maybe_unused]] =
-        (bin_index > 1 ? prev_bin_limit - bin_limits[bin_index - 2]
-                       : prev_bin_limit);
-    if ((half_hb_interval_up <= min_bin_width) ||
-        (hb_interval - prev_bin_limit > half_hb_interval_up)) {
-      /*
-       * If half hb_interval is too small, or, if width of bin with hb_interval
-       * as limit would be to large, continue with smallest bin width.
-       */
-      assert(prev_bin_width == 0 || prev_bin_width == min_bin_width);
-      bin_width = min_bin_width;
-    } else {
-      /*
-       * All looks good, go one with next bin using hb_interval as limit with
-       * half hb_interval as bin widths.
-       */
-      bin_limit = hb_interval;
-    }
-  } else {
-    bin_limit = first_part3_limit;
-  }
-  unsigned stop = 5 * hb_interval + bin_width;
-  while (bin_index < max_bin_count - 1 && bin_limit < stop) {
-    bin_limits[bin_index] = bin_limit;
-    bin_index++;
-    bin_limit += bin_width;
-  }
-
-  /*
-   * Part 4 with the last infinity bin.
-   */
-  bin_limits[bin_index] = UINT_MAX;
-  bin_index++;
-
-  return bin_index;
-}
-
-unsigned Trpman::verify_histogram(unsigned interval,
-                                  const std::span<unsigned> bin_limits) {
-  const unsigned sample_interval = TRP_TIME_SIGNAL_DELAY;
-  const unsigned min_bin_width = 2 * sample_interval;
-  const size_t bin_count = bin_limits.size();
-  const unsigned high_interval = 5 * interval;
-  unsigned ret = 0;
-
-  if (interval == 0) {
-    ret |= 1;
-  }
-  if (min_bin_width == 0) {
-    ret |= 2;
-  }
-  if (bin_count < 2) {
-    ret |= 4;
-  } else if (high_interval > bin_limits[bin_count - 2]) {
-    ret |= 8;
-  }
-  if (bin_count > 1 && bin_limits[bin_count - 1] != UINT_MAX) {
-    ret |= 16;
-  }
-  unsigned prev_width = bin_limits[0];
-  if (prev_width != min_bin_width) {
-    ret |= 32;
-  }
-  for (unsigned i = 1; i < bin_count; i++) {
-    unsigned width = bin_limits[i] - bin_limits[i - 1];
-    if (prev_width > width) {
-      ret |= 64;
-    }
-    prev_width = width;
-  }
-
-  return ret;
-}
-
 void Trpman::execREAD_CONFIG_REQ(Signal *signal) {
   jamEntry();
   const ReadConfigReq *req = (ReadConfigReq *)signal->getDataPtr();
@@ -1044,25 +862,9 @@ void Trpman::execREAD_CONFIG_REQ(Signal *signal) {
 
   m_dbHbSender = 0;
   m_dbHbSenderTrp = 0;
+  m_dbHbInterval = 0;
 
-  const ndb_mgm_configuration_iterator *p =
-      m_ctx.m_config.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  m_hbDbDb = 5000;  // ms
-  ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &m_hbDbDb);
-  m_hbDbDb_bin_count =
-      calculate_histogram_bin_limits(m_hbDbDb, m_hbDbDb_bin_bounds);
-  ndbassert(verify_histogram(m_hbDbDb,
-                             {m_hbDbDb_bin_bounds, m_hbDbDb_bin_count}) == 0);
-
-  m_hbDbApi = 1500;  // ms
-  ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL, &m_hbDbApi);
-  m_hbDbApi_bin_count =
-      calculate_histogram_bin_limits(m_hbDbApi, m_hbDbApi_bin_bounds);
-  ndbassert(verify_histogram(m_hbDbApi,
-                             {m_hbDbApi_bin_bounds, m_hbDbApi_bin_count}) == 0);
-
+  memset(m_hbInterval, 0, sizeof(m_hbInterval));
   memset(m_trp_activity, 0, sizeof(m_trp_activity));
 
   ReadConfigConf *conf = (ReadConfigConf *)signal->getDataPtrSend();
@@ -1538,9 +1340,8 @@ void Trpman::execTIME_SIGNAL(Signal *signal) {
 
     NDB_TICKS trp_last_recv = globalTransporterRegistry.get_last_recv(trp_id);
     if (likely(NdbTick_IsValid(m_trp_activity[trp_id].last_recv))) {
-      NodeId node_id =
+      const NodeId node_id =
           globalTransporterRegistry.get_transporter_node_id(trp_id);
-      bool is_db = (getNodeInfo(node_id).getType() == NODE_TYPE_DB);
       /*
        * We only know the time for the current last receive, not the first
        * receive in the last 50ms after a period of no data. By that elapsed_ms
@@ -1552,28 +1353,20 @@ void Trpman::execTIME_SIGNAL(Signal *signal) {
 
       // Update activity histogram
       unsigned hist_bin_index = 0;
-      unsigned hist_bin_count;
-      const Uint32 *hist_bin_bounds;
-      if (is_db) {
-        hist_bin_count = m_hbDbDb_bin_count;
-        hist_bin_bounds = m_hbDbDb_bin_bounds;
-      } else {
-        hist_bin_count = m_hbDbApi_bin_count;
-        hist_bin_bounds = m_hbDbApi_bin_bounds;
-      }
-      while (hist_bin_index < hist_bin_count &&
+      constexpr auto hist_bin_count = m_activity_bin_count;
+      constexpr auto hist_bin_bounds = m_activity_bin_bounds;
+      while (hist_bin_index < hist_bin_count - 1 &&
              hist_bin_bounds[hist_bin_index] < elapsed_ms)
         hist_bin_index++;
       m_trp_activity[trp_id].hist_bins[hist_bin_index]++;
 
       // Log late heartbeat
-      if (!is_db || trp_id == m_dbHbSenderTrp) {
-        Uint32 heartbeat_interval = is_db ? m_hbDbDb : m_hbDbApi;
+      if (m_hbInterval[trp_id] != 0) {
         /*
          * Since elapsed_ms may be an overestimate and not to report
          * late heartbeat when it was in time add TRP_TIME_SIGNAL_DELAY.
          */
-        if (elapsed_ms > heartbeat_interval + TRP_TIME_SIGNAL_DELAY) {
+        if (elapsed_ms > m_hbInterval[trp_id] + TRP_TIME_SIGNAL_DELAY) {
           signal->theData[0] = NDB_LE_LateHeartbeat;
           signal->theData[1] = node_id;
           signal->theData[2] = elapsed_ms;

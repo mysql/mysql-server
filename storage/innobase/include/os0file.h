@@ -1781,11 +1781,17 @@ struct Access_permissions {
 /** This function checks if we have read and/or write permissions at the time of
 checking. These are not just the FS-related file permissions, as they are not
 enough in case the file is locked for read and/or write.
+@param[in]      pfs_key          the key to use for this file, which determines
+                                 the EVENT_NAME for this path, so should be used
+                                 consistently for this path in all calls.
 @param[in]      path             pathname of the file
 @param[in]      is_raw_device    true if the path is specified to a raw device.
 @return Access modes possible for the path at the time of checking. */
-[[nodiscard]] Access_permissions os_file_check_access(const char *path,
-                                                      bool is_raw_device);
+[[nodiscard]] Access_permissions os_file_check_access(
+#ifdef UNIV_PFS_IO
+    mysql_pfs_key_t pfs_key,
+#endif /* UNIV_PFS_IO */
+    const char *path, bool is_raw_device);
 
 /** This function returns information about the specified file
 @param[in]      path            pathname of the file
@@ -1795,14 +1801,20 @@ enough in case the file is locked for read and/or write.
                                          os_file_stat_t *stat_info);
 
 /** Check if a file can be opened in read-write mode.
+ @param[in]   pfs_key       the pfs key to be used for io on this file, which
+                            determines the EVENT_NAME for it, and thus has to
+                            be used consistently in all calls for this path.
  @param[in]   name          filename to check
  @param[in]   is_raw_device true if the path is specified to a raw device.
  @param[in]   read_only     true if check for read-only mode only
  @retval true   if file can be opened in the specified mode (rw or ro);
                 or file does not exist
  @retval false  if file exists and can't be opened in the specified mode */
-[[nodiscard]] bool os_file_check_mode(const char *name, bool is_raw_device,
-                                      bool read_only);
+[[nodiscard]] bool os_file_check_mode(
+#ifdef UNIV_PFS_IO
+    mysql_pfs_key_t pfs_key,
+#endif /* UNIV_PFS_IO */
+    const char *name, bool is_raw_device, bool read_only);
 
 #ifndef UNIV_HOTBACKUP
 

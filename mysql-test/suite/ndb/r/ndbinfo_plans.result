@@ -75,7 +75,7 @@ ndb$disk_write_speed_base	488	48
 ndb$diskpagebuffer	10	64
 ndb$diskstat	10	48
 ndb$diskstats_1sec	200	52
-ndb$error_messages	796	52
+ndb$error_messages	797	52
 ndb$frag_locks	344	96
 ndb$frag_mem_use	344	100
 ndb$frag_operations	344	192
@@ -107,7 +107,7 @@ ndb$threads	26	40
 ndb$threadstat	22	144
 ndb$transactions	5	44
 ndb$transactions_full	5	44
-ndb$transporter_activity	10240	40
+ndb$transporter_activity	10752	40
 ndb$transporter_details	32	124
 ndb$transporters	32	68
 ndb$trusted_certs	4	60
@@ -117,7 +117,7 @@ CALL populate_sizes();
 SELECT table_name, est_rows, actual_rows from rowcounts
 WHERE table_name = "ndb$config_values";
 table_name	est_rows	actual_rows
-ndb$config_values	340	340
+ndb$config_values	342	342
 ## Note:
 ## the estimate for config_values relies on a constant in NdbinfoTables.cpp
 ## which must be manually maintained in order for the test to pass.
@@ -230,15 +230,27 @@ explain format=tree select * from blocks where block_number in (250,251);
 EXPLAIN	-> Filter: (ndb$blocks.block_number in (250,251))  (rows=2)
     -> Index range scan on ndb$blocks using PRIMARY over (block_number = 250) OR (block_number = 251)  (rows=2)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `ndbinfo`.`ndb$blocks`.`block_number` AS `block_number`,`ndbinfo`.`ndb$blocks`.`block_name` AS `block_name` from `ndbinfo`.`ndb$blocks` where (`ndbinfo`.`ndb$blocks`.`block_number` in (250,251))
 
 explain format=tree select * from blocks order by block_number;
 EXPLAIN	-> Index scan on ndb$blocks using PRIMARY  (rows=29)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `ndbinfo`.`ndb$blocks`.`block_number` AS `block_number`,`ndbinfo`.`ndb$blocks`.`block_name` AS `block_name` from `ndbinfo`.`ndb$blocks` order by `ndbinfo`.`ndb$blocks`.`block_number`
 
 explain format=tree select * from blocks where block_number < 250;
 EXPLAIN	-> Filter: (ndb$blocks.block_number < 250)  (rows=10)
     -> Index range scan on ndb$blocks using PRIMARY over (block_number < 250)  (rows=10)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `ndbinfo`.`ndb$blocks`.`block_number` AS `block_number`,`ndbinfo`.`ndb$blocks`.`block_name` AS `block_name` from `ndbinfo`.`ndb$blocks` where (`ndbinfo`.`ndb$blocks`.`block_number` < 250)
 
 ## Can scan backwards:
 explain format=tree select * from blocks where block_number > 250
@@ -246,6 +258,10 @@ explain format=tree select * from blocks where block_number > 250
 EXPLAIN	-> Filter: (ndb$blocks.block_number > 250)  (rows=10)
     -> Index range scan on ndb$blocks using PRIMARY over (250 < block_number) (reverse)  (rows=10)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `ndbinfo`.`ndb$blocks`.`block_number` AS `block_number`,`ndbinfo`.`ndb$blocks`.`block_name` AS `block_name` from `ndbinfo`.`ndb$blocks` where (`ndbinfo`.`ndb$blocks`.`block_number` > 250) order by `ndbinfo`.`ndb$blocks`.`block_number` desc
 
 select * from dict_obj_types where type_id = 6;
 type_id	6
@@ -283,6 +299,10 @@ EXPLAIN	-> Nested loop left join  (rows=200)
     -> Table scan on c  (rows=200)
     -> Single-row index lookup on b using PRIMARY (block_number = c.block_number)  (rows=1)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `c`.`node_id` AS `node_id`,`b`.`block_name` AS `block_name`,`c`.`block_instance` AS `block_instance`,`c`.`counter_id` AS `counter_id`,(case `c`.`counter_id` when 1 then 'ATTRINFO' when 2 then 'TRANSACTIONS' when 3 then 'COMMITS' when 4 then 'READS' when 5 then 'SIMPLE_READS' when 6 then 'WRITES' when 7 then 'ABORTS' when 8 then 'TABLE_SCANS' when 9 then 'RANGE_SCANS' when 10 then 'OPERATIONS' when 11 then 'READS_RECEIVED' when 12 then 'LOCAL_READS_SENT' when 13 then 'REMOTE_READS_SENT' when 14 then 'READS_NOT_FOUND' when 15 then 'TABLE_SCANS_RECEIVED' when 16 then 'LOCAL_TABLE_SCANS_SENT' when 17 then 'RANGE_SCANS_RECEIVED' when 18 then 'LOCAL_RANGE_SCANS_SENT' when 19 then 'REMOTE_RANGE_SCANS_SENT' when 20 then 'SCAN_BATCHES_RETURNED' when 21 then 'SCAN_ROWS_RETURNED' when 22 then 'PRUNED_RANGE_SCANS_RECEIVED' when 23 then 'CONST_PRUNED_RANGE_SCANS_RECEIVED' when 24 then 'LOCAL_READS' when 25 then 'LOCAL_WRITES' when 26 then 'LQHKEY_OVERLOAD' when 27 then 'LQHKEY_OVERLOAD_TC' when 28 then 'LQHKEY_OVERLOAD_READER' when 29 then 'LQHKEY_OVERLOAD_NODE_PEER' when 30 then 'LQHKEY_OVERLOAD_SUBSCRIBER' when 31 then 'LQHSCAN_SLOWDOWNS' else '<unknown>' end) AS `counter_name`,`c`.`val` AS `val` from `ndbinfo`.`ndb$counters` `c` left join `ndbinfo`.`ndb$blocks` `b` on((`b`.`block_number` = `c`.`block_number`)) where true
 
 ## The plan for memory_per_fragment
 explain format=tree select * from memory_per_fragment;
@@ -297,6 +317,10 @@ EXPLAIN	-> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent
     -> Hash
         -> Table scan on parent_name  (rows=43)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `name`.`fq_name` AS `fq_name`,`parent_name`.`fq_name` AS `parent_fq_name`,`types`.`type_name` AS `type`,`space`.`table_id` AS `table_id`,`space`.`node_id` AS `node_id`,`space`.`block_instance` AS `block_instance`,`space`.`fragment_num` AS `fragment_num`,`space`.`fixed_elem_alloc_bytes` AS `fixed_elem_alloc_bytes`,`space`.`fixed_elem_free_bytes` AS `fixed_elem_free_bytes`,`space`.`fixed_elem_size_bytes` AS `fixed_elem_size_bytes`,`space`.`fixed_elem_count` AS `fixed_elem_count`,floor((`space`.`fixed_elem_free_bytes` / `space`.`fixed_elem_size_bytes`)) AS `fixed_elem_free_count`,`space`.`var_elem_alloc_bytes` AS `var_elem_alloc_bytes`,`space`.`var_elem_free_bytes` AS `var_elem_free_bytes`,`space`.`var_elem_count` AS `var_elem_count`,`space`.`hash_index_alloc_bytes` AS `hash_index_alloc_bytes` from `ndbinfo`.`ndb$frag_mem_use` `space` join `ndbinfo`.`ndb$dict_obj_info` `name` join `ndbinfo`.`ndb$dict_obj_types` `types` left join `ndbinfo`.`ndb$dict_obj_info` `parent_name` on(((`parent_name`.`type` = `name`.`parent_obj_type`) and (`parent_name`.`id` = `name`.`parent_obj_id`))) where ((`space`.`table_id` = `name`.`id`) and (`types`.`type_id` = `name`.`type`) and (`name`.`type` <= 6))
 
 ## WL#11968 tables and views
 ##
@@ -361,5 +385,9 @@ EXPLAIN	-> Inner hash join (space.table_id = `name`.id)  (rows=1150)
             -> Hash
                 -> Table scan on parent_name  (rows=14)
 
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `name`.`fq_name` AS `fq_name`,`parent_name`.`fq_name` AS `parent_fq_name`,`types`.`type_name` AS `type`,`space`.`table_id` AS `table_id`,`space`.`node_id` AS `node_id`,`space`.`block_instance` AS `block_instance`,`space`.`fragment_num` AS `fragment_num`,`space`.`fixed_elem_alloc_bytes` AS `fixed_elem_alloc_bytes`,`space`.`fixed_elem_free_bytes` AS `fixed_elem_free_bytes`,`space`.`fixed_elem_size_bytes` AS `fixed_elem_size_bytes`,`space`.`fixed_elem_count` AS `fixed_elem_count`,floor((`space`.`fixed_elem_free_bytes` / `space`.`fixed_elem_size_bytes`)) AS `fixed_elem_free_count`,`space`.`var_elem_alloc_bytes` AS `var_elem_alloc_bytes`,`space`.`var_elem_free_bytes` AS `var_elem_free_bytes`,`space`.`var_elem_count` AS `var_elem_count`,`space`.`hash_index_alloc_bytes` AS `hash_index_alloc_bytes` from `test`.`ndb$frag_mem_use` `space` join `test`.`ndb$dict_obj_info` `name` join `test`.`ndb$dict_obj_types` `types` left join `test`.`ndb$dict_obj_info` `parent_name` on(((`parent_name`.`type` = `name`.`parent_obj_type`) and (`parent_name`.`id` = `name`.`parent_obj_id`))) where ((`space`.`table_id` = `name`.`id`) and (`types`.`type_id` = `name`.`type`) and (`name`.`type` <= 6))
 
 ## CLEANUP

@@ -34,6 +34,8 @@ jexst int exists path '$.b')
 EXPLAIN
 -> Materialize table function
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0}]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a', `jexst` int exists path '$.b')) `tt`
 select * from
 json_table(
 '[{"x":"3"},{"a":2},{"b":1},{"a":0}]',
@@ -2240,6 +2242,8 @@ EXPLAIN
             -> Materialize table function  (rows=2)
         -> Table scan on t  (rows=2)
 
+Warnings:
+Note	1003	delete from `test`.`t` where true
 DROP TABLE t;
 #
 # Bug#37382579: Hypergraph crash with JSON_TABLE and escaped characters

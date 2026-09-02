@@ -31,7 +31,6 @@
 #include <string_view>
 
 #include <openssl/evp.h>
-#include <openssl/opensslv.h>
 
 namespace openssl {
 class DigestFunc {
@@ -50,13 +49,7 @@ class DigestCtx {
  public:
   class Deleter {
    public:
-    void operator()(EVP_MD_CTX *ctx) {
-#if OPENSSL_VERSION_NUMBER >= 0x1010000fL
-      EVP_MD_CTX_free(ctx);
-#else
-      EVP_MD_CTX_destroy(ctx);
-#endif
-    }
+    void operator()(EVP_MD_CTX *ctx) { EVP_MD_CTX_free(ctx); }
   };
 
   DigestCtx(const EVP_MD *func) : digest_func_(func) {}
@@ -93,13 +86,7 @@ class DigestCtx {
  private:
   const EVP_MD *digest_func_{};
 
-  std::unique_ptr<EVP_MD_CTX, Deleter> ctx_ {
-#if OPENSSL_VERSION_NUMBER >= 0x1010000fL
-    EVP_MD_CTX_new()
-#else
-    EVP_MD_CTX_create()
-#endif
-  };
+  std::unique_ptr<EVP_MD_CTX, Deleter> ctx_{EVP_MD_CTX_new()};
 };
 }  // namespace openssl
 

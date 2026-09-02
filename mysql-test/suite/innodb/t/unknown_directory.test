@@ -36,11 +36,12 @@ WHERE space_type="Undo"  ORDER BY NAME;
 let $restart_parameters = ;
 --source include/start_mysqld_expecting_crash.inc
 
---sleep 10
-
-let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN=The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
---source include/search_pattern.inc
+let $_unknown_directory_old_wait_timeout=$wait_timeout;
+let $wait_timeout=300;
+let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let $grep_pattern=The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/wait_for_pattern_in_file.inc
+let $wait_timeout=$_unknown_directory_old_wait_timeout;
 
 --echo # Restart the engine to make the remote directory known.
 let $restart_parameters = restart: --innodb-directories=$REMOTE_DIR;
@@ -312,6 +313,3 @@ call mtr.add_suppression("\\[Warning\\] .* Cannot create a tablespace for table 
 call mtr.add_suppression("\\[ERROR\\] .* Assertion failure: srv0start.cc *");
 call mtr.add_suppression("Attempting backtrace.*");
 --enable_query_log
-
-
-

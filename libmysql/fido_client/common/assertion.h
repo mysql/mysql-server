@@ -66,7 +66,8 @@ class assertion {
   /* method to sign the received server challenge during authentication */
   virtual bool sign_challenge() = 0;
   /* parse challenge received from server during authentication */
-  virtual bool parse_challenge(const unsigned char *challenge) = 0;
+  virtual bool parse_challenge(const unsigned char *challenge,
+                               size_t challenge_len) = 0;
 
  protected:
   fido_dev_info_t *discover_fido2_devices(size_t num_devices);

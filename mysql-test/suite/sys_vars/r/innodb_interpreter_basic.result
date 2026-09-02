@@ -19,13 +19,13 @@ innodb_interpreter	init
 select * from performance_schema.session_variables where variable_name='innodb_interpreter';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_interpreter	init
-CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t1 (f1 INT PRIMARY KEY) STATS_PERSISTENT=0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int NOT NULL,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 START TRANSACTION;
 INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5);
 SELECT * FROM t1;
@@ -48,13 +48,13 @@ SELECT @@session.innodb_interpreter_output INTO @fil_page_lsn;
 SET SESSION innodb_interpreter = 'make_ondisk_root_page_zeroes test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 DROP TABLE t1;
-CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t1 (f1 INT PRIMARY KEY) STATS_PERSISTENT=0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int NOT NULL,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 START TRANSACTION;
 INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5);
 SELECT * FROM t1;
@@ -78,13 +78,13 @@ SELECT @@session.innodb_interpreter_output INTO @fil_page_lsn;
 SET SESSION innodb_interpreter = 'corrupt_ondisk_root_page test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 DROP TABLE t1;
-CREATE TABLE t1 (f1 INT PRIMARY KEY);
+CREATE TABLE t1 (f1 INT PRIMARY KEY) STATS_PERSISTENT=0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int NOT NULL,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 START TRANSACTION;
 INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5);
 SELECT * FROM t1;

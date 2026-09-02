@@ -48,8 +48,6 @@
     return NDBT_FAILED;                                              \
   }
 
-#if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
-
 static const char *exe_valgrind = nullptr;
 static const char *arg_valgrind = nullptr;
 
@@ -1591,7 +1589,6 @@ TESTCASE("NdbinfoTrustedCerts", "Test ndbinfo.trusted_certs") {
 }
 
 NDBT_TESTSUITE_END(testTls)
-#endif
 
 int main(int argc, const char **argv) {
   ndb_init();

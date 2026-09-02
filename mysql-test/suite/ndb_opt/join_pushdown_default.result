@@ -1962,6 +1962,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 't2' as child of 't1', it is in a sorted-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`b` AS `b`,count(distinct `t2`.`b`) AS `cnt` from `test`.`t1` join `test`.`t1` `t2` where (`t2`.`a` = `test`.`t1`.`c`) group by `test`.`t1`.`b` order by `test`.`t1`.`b`,`cnt`
 select straight_join t1.b, count(distinct t2.b) as cnt
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -5904,6 +5905,8 @@ EXPLAIN
     -> Hash
         -> Zero rows (Impossible filter)
 
+Warnings:
+Note	1003	/* select#1 */ select `a`.`k` AS `k`,`a`.`uq` AS `uq`,`b`.`k` AS `k`,`b`.`uq` AS `uq` from `test`.`t` `a` left join `test`.`t` `b` on(((`b`.`uq` = `a`.`uq`) and (`a`.`k` is null))) where true
 select * from t as a left join t as b
 on a.k is null and a.uq=b.uq;
 k	uq	k	uq
@@ -6195,6 +6198,7 @@ Note	1003	Can't push table 'x3' as child of 'x0', column 'x2.d' refers a table w
 Note	1003	Can't push table 'x4' as child of 'x0', column 'x3.d' refers a table which was not pushed
 Note	1003	Can't push table 'x3' as child of 'x1', column 'x2.d' refers a table which was not pushed
 Note	1003	Can't push table 'x4' as child of 'x1', column 'x3.d' refers a table which was not pushed
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x0` left join (`test`.`t1` `x1` join `test`.`t1` `x2` left join (`test`.`t1` `x3` join `test`.`t1` `x4`) on(((`x4`.`a` = `x3`.`d`) and (`x3`.`a` = `x2`.`d`)))) on(((`x1`.`a` = `x0`.`d`) and ((`x2`.`c` is null) or (`x4`.`d` = `x0`.`d`)))) where true
 select count(*) from t1 as x0
 left join (t1 as x1
 join (t1 as x2
@@ -6892,6 +6896,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't2' as child of 't3', it is in a materialized-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3`) where ((`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6915,6 +6920,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't2' as child of 't3', it is in a materialized-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3`) where ((`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`) and (`t2`.`b` = `<subquery2>`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -6937,6 +6943,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't2' as child of 't3', it is in a materialized-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#3` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t1`.`c` = `<subquery3>`.`c`) and (`t2`.`b` = `<subquery3>`.`c`) and (`t2`.`a` = `test`.`t1`.`b`))
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -6965,6 +6972,7 @@ Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't2' as child of 't3', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#3` MATERIALIZATION) SEMIJOIN(@`select#4` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` semi join (`test`.`t1` `t4`) where ((`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery3>`.`c`) and (`t2`.`b` = `<subquery3>`.`c`) and (`<subquery4>`.`c` = `<subquery3>`.`c`))
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -6993,6 +7001,7 @@ Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't4s' as child of 't1', it is in a aggregated-branch which can't be referred.
 Note	1003	Can't push table 't2' as child of 't1', column '<subquery2>.c' is in a subquery-branch which can't be referred
 Note	1003	Can't push table 't2' as child of 't3s', it is in a materialized-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) where ((`t4s`.`a` = `t3s`.`b`) and (`t2`.`c` = `<subquery2>`.`c`))
 select count(*)
 from t1 cross join t1 as t2
 where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
@@ -7168,6 +7177,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3s', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't2' as child of 't3s', it is in a materialized-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) where ((`t2`.`a` = `test`.`t1`.`b`) and (`t4s`.`a` = `t3s`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -7211,6 +7221,7 @@ Note	1003	Can't push table 't2' as child of 't3s1', it is in a materialized-bran
 Note	1003	Can't push table 't3s2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't4s2' as child of 't3s1', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 't4s2' as child of 't1', it is in a aggregated-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) SEMIJOIN(@`select#3` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3s1` join `test`.`t1` `t4s1`) semi join (`test`.`t1` `t3s2` join `test`.`t1` `t4s2`) where ((`t2`.`a` = `test`.`t1`.`b`) and (`t4s1`.`a` = `t3s1`.`b`) and (`t4s2`.`a` = `t3s2`.`b`) and (`<subquery3>`.`c` = `test`.`t1`.`d`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -7538,6 +7549,8 @@ EXPLAIN
             -> Sort: whatever
                 -> Table scan on t2
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,(/* select#2 */ select sum(`test`.`t2`.`a`) OVER `w` from `test`.`t2` window `w` AS (ORDER BY 'whatever' )  limit 1) AS `(select sum(a) over w from t2 window w as(order by "whatever") limit 1)` from `test`.`t3`
 select a,
 (select sum(a) over w from t2 window w as(order by "whatever") limit 1)
 from t3;
@@ -7588,6 +7601,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c`,`t2`.`d` AS `d`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t3`.`c` AS `c`,`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`t2`.`b` = `test`.`t1`.`c`) and (`t3`.`b` = `test`.`t1`.`c`) and (`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`d` = 1) and (`test`.`t1`.`a` = 1) and (`t2`.`a` = (`test`.`t1`.`b` + 0))) union all /* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c`,`t2`.`d` AS `d`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t3`.`c` AS `c`,`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`t2`.`b` = `test`.`t1`.`c`) and (`t3`.`b` = `test`.`t1`.`c`) and (`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`d` = 1) and (`test`.`t1`.`a` = 1) and (`t2`.`a` = (`test`.`t1`.`b` + 0)))
 select *
 from t1
 straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
@@ -7628,6 +7642,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c`,`t2`.`d` AS `d`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t3`.`c` AS `c`,`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`t2`.`b` = `test`.`t1`.`c`) and (`t3`.`b` = `test`.`t1`.`c`) and (`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`d` = 1) and (`test`.`t1`.`a` = 1) and (`t2`.`a` = (`test`.`t1`.`b` + 0))) union /* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c`,`t2`.`d` AS `d`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t3`.`c` AS `c`,`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`t2`.`b` = `test`.`t1`.`c`) and (`t3`.`b` = `test`.`t1`.`c`) and (`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`d` = 1) and (`test`.`t1`.`a` = 1) and (`t2`.`a` = (`test`.`t1`.`b` + 0)))
 select *
 from t1
 straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
@@ -7690,6 +7705,8 @@ EXPLAIN
         -> Single-row index lookup on t4 using PRIMARY (pk = t1.c), child of t3 in pushed join
         -> Single-row index lookup on t5 using PRIMARY (pk = t3.d), child of t3 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`pk` AS `pk`,`t2`.`pk` AS `pk`,`t3`.`pk` AS `pk`,`t4`.`pk` AS `pk`,`t5`.`pk` AS `pk` from `test`.`t` `t1` left join (`test`.`t` `t2` straight_join `test`.`t` `t3`) on(((`t3`.`pk` = `t2`.`b`) and (`t2`.`pk` = `t1`.`a`))) left join (`test`.`t` `t4` straight_join `test`.`t` `t5`) on(((`t5`.`pk` = `t3`.`d`) and (`t4`.`pk` = `t1`.`c`))) where true
 select t1.pk, t2.pk, t3.pk, t4.pk, t5.pk
 from t as t1
 left join (
@@ -7745,6 +7762,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push outer joined table 'table2' as child of 'table1', a table in its dependant join-nest(s) is not part of the pushed join
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table1`.`col_int_key` AS `col_int_key`,`table1`.`col_int` AS `col_int`,`table2`.`pk` AS `pk`,`table2`.`col_int_key` AS `col_int_key`,`table2`.`col_int` AS `col_int`,`table3`.`pk` AS `pk`,`table3`.`col_int_key` AS `col_int_key`,`table3`.`col_int` AS `col_int` from `test`.`t` `table1` left join (`test`.`t` `table2` join `test`.`t` `table3`) on(((`table3`.`pk` = `table1`.`pk`) and (`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table2`.`col_int` = `table1`.`col_int`) and (`table1`.`col_int` is null))) where true
 SELECT *
 FROM t AS table1
 LEFT JOIN t AS table2
@@ -7795,6 +7813,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Didn't push table 't10' as root, too few rows to enable full parallelism
+Note	1003	/* select#1 */ select `test`.`t10`.`k` AS `k`,`test`.`t10`.`i` AS `i`,`test`.`t1000`.`k` AS `k`,`test`.`t1000`.`i` AS `i`,`test`.`t100`.`k` AS `k`,`test`.`t100`.`i` AS `i` from `test`.`t10` straight_join `test`.`t1000` straight_join `test`.`t100` where ((`test`.`t1000`.`i` = `test`.`t10`.`i`) and (`test`.`t100`.`k` = `test`.`t1000`.`k`))
 explain format=tree select *
 from t10
 straight_join t1000 on t1000.i = t10.i
@@ -7806,6 +7825,8 @@ EXPLAIN
         -> Index lookup on t1000 using i (i = t10.i), child of t10 in pushed join
     -> Single-row index lookup on t100 using PRIMARY (k = t10.k), child of t10 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t10`.`k` AS `k`,`test`.`t10`.`i` AS `i`,`test`.`t1000`.`k` AS `k`,`test`.`t1000`.`i` AS `i`,`test`.`t100`.`k` AS `k`,`test`.`t100`.`i` AS `i` from `test`.`t10` straight_join `test`.`t1000` straight_join `test`.`t100` where ((`test`.`t1000`.`i` = `test`.`t10`.`i`) and (`test`.`t100`.`k` = `test`.`t10`.`k`))
 drop table t10,t100,t1000;
 ##################
 #
@@ -7834,6 +7855,8 @@ EXPLAIN
         -> Index lookup on t2 using ix2 (a = t1.k), child of t1 in pushed join
     -> Index lookup on t3 using ix1 (k = t1.k), child of t1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`k` AS `k`,`t2`.`a` AS `a`,`t3`.`k` AS `k`,`t3`.`a` AS `a` from `test`.`t` `t1` join `test`.`t` `t2` join `test`.`t` `t3` where ((`t2`.`a` = `t1`.`k`) and (`t3`.`k` = `t1`.`k`))
 select straight_join *
 from t as t1
 inner join t as t2 on t2.a = t1.k
@@ -7857,6 +7880,8 @@ EXPLAIN
         -> Index lookup on t2 using ix2 (a = t1.k), child of t1 in pushed join
     -> Index lookup on t3 using ix1 (k = t1.k), child of t1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`k` AS `k`,`t2`.`a` AS `a`,`t3`.`k` AS `k`,`t3`.`a` AS `a` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`k` = `t1`.`k`)) where (`t2`.`a` = `t1`.`k`)
 select straight_join *
 from t as t1
 inner join t as t2 on t2.a = t1.k
@@ -7880,6 +7905,8 @@ EXPLAIN
         -> Index lookup on t2 using ix2 (a = t1.k), child of t1 in pushed join
     -> Index lookup on t3 using ix1 (k = t1.k), child of t1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`k` AS `k`,`t2`.`a` AS `a`,`t3`.`k` AS `k`,`t3`.`a` AS `a` from `test`.`t` `t1` left join `test`.`t` `t2` on((`t2`.`a` = `t1`.`k`)) join `test`.`t` `t3` where (`t3`.`k` = `t1`.`k`)
 select straight_join *
 from t as t1
 left join t as t2 on t2.a = t1.k

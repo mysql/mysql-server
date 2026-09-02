@@ -1179,10 +1179,6 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
   buf_block_t *temp_block;
   page_t *temp_page;
-  ulint data_size1;
-  ulint data_size2;
-  ulint max_ins_size1;
-  ulint max_ins_size2;
   bool success = false;
   ulint pos;
   bool log_compressed;
@@ -1194,8 +1190,9 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
 #ifdef UNIV_ZIP_DEBUG
   ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
-  data_size1 = page_get_data_size(page);
-  max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
+  const ulint data_size1 = page_get_data_size(page);
+  const ulint max_ins_size1 =
+      page_get_max_insert_size_after_reorganize(page, 1);
 
   /* Turn logging off */
   mtr_log_t log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -1291,20 +1288,24 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
   }
 #endif /* !UNIV_HOTBACKUP */
 
-  data_size2 = page_get_data_size(page);
-  max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
+  /* The reorganized page must match the original data size and insert size
+  before the reorganization. If it doesn't, abort. */
+  {
+    const ulint data_size2 = page_get_data_size(page);
+    const ulint max_ins_size2 =
+        page_get_max_insert_size_after_reorganize(page, 1);
+    if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
+      ib::error(ER_IB_MSG_30)
+          << "Page old data size " << data_size1 << " new data size "
+          << data_size2 << ", page old max ins size " << max_ins_size1
+          << " new max ins size " << max_ins_size2;
 
-  if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
-    ib::error(ER_IB_MSG_30)
-        << "Page old data size " << data_size1 << " new data size "
-        << data_size2 << ", page old max ins size " << max_ins_size1
-        << " new max ins size " << max_ins_size2;
-
-    ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
-    ut_d(ut_error);
-  } else {
-    success = true;
+      ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
+      ut_error;
+    }
   }
+
+  success = true;
 
   /* Restore the cursor position. */
   if (pos > 0) {

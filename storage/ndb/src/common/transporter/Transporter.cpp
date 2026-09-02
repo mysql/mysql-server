@@ -226,6 +226,8 @@ bool Transporter::connect_server(NdbSocket &&sockfd, BaseString &msg) {
   if (m_connected) {
     msg.assfmt("line: %u : already connected ??", __LINE__);
     DEBUG_FPRINTF((stderr, "Transporter already connected\n"));
+    // Close the duplicate accepted connection before rejecting it
+    sockfd.close_with_reset();
     DBUG_RETURN(false);
   }
 
