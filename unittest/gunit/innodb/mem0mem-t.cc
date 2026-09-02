@@ -48,6 +48,22 @@ class mem0mem : public ::testing::Test {
   }
 };
 
+TEST_F(mem0mem, memheap_64bit_alloc_size) {
+  auto heap = mem_heap_create(100, UT_LOCATION_HERE);
+  /* We use a number which has more than 32 bits, and bottom 32 are zero, to
+  expose potential problems caused by use of 32-bit integers. */
+  const auto N = size_t{1} << 32;
+  /* We use `volatile` to force compiler to actually emit accesses to the `buf`,
+  so we can observe a crash if there's a buffer overrun. */
+  auto buf = (volatile char *)mem_heap_alloc(heap, N);
+  EXPECT_NE(buf, nullptr);
+  buf[0] = 42;
+  buf[N - 1] = 13;
+  EXPECT_EQ(buf[0], 42);
+  EXPECT_EQ(buf[N - 1], 13);
+  mem_heap_free(heap);
+}
+
 /* test mem_heap_is_top() */
 TEST_F(mem0mem, memheapistop) {
   mem_heap_t *heap;
