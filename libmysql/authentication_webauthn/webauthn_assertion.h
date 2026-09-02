@@ -31,7 +31,7 @@
 
 #include <string>
 
-#include <assertion.h>
+#include "assertion.h"
 
 /**
    Class to initiate authentication(aka assertion in FIDO terminology) on

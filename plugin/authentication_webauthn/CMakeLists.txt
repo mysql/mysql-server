@@ -21,10 +21,39 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF(NOT WITH_AUTHENTICATION_WEBAUTHN)
+  MESSAGE(STATUS "Skipping WEBAUTHN authentication plugin.")
+  RETURN()
+ENDIF()
+
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="authentication_webauthn")
+
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
 DISABLE_MISSING_PROFILE_WARNING()
 
-# Common
-ADD_SUBDIRECTORY(common)
+MYSQL_ADD_PLUGIN(authentication_webauthn
+  webauthn_authentication.cc
+  webauthn_assert_verification.cc
+  webauthn_attestation.cc
+  option_usage.cc
+  attestation.cc
+  assert_verification.cc
+  common.cc
+  LINK_LIBRARIES
+  ext::fido
+  OpenSSL::Crypto   # Needs RAND_bytes from libcrypto.
+  library_mysys
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "authentication_webauthn"
+)
 
-# FIDO webauthn authentication client plugin
-ADD_SUBDIRECTORY(authentication_webauthn)
+IF (INSTALL_RPATH_FOR_FIDO2)
+  ADD_INSTALL_RPATH_FOR_FIDO2(authentication_webauthn)
+ENDIF()
+
+IF(TARGET symlink_fido2_dlls)
+  ADD_DEPENDENCIES(authentication_webauthn symlink_fido2_dlls)
+ENDIF()

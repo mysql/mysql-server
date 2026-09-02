@@ -26,11 +26,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <common.h>
 #include <my_dbug.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <scope_guard.h>
+#include "common.h"
 
 #include "webauthn_assertion.h"
 #include "webauthn_registration.h"

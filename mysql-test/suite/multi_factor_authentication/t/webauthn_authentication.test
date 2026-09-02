@@ -1,0 +1,145 @@
+--source include/have_webauthn_plugin.inc
+--source include/have_debug.inc
+--source include/mysql_have_debug.inc
+--source include/count_sessions.inc
+--source include/not_solaris.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN authentication_webauthn SONAME '$WEBAUTHN_AUTHENTICATION_PLUGIN';
+
+--echo # Global - default
+SELECT @@global.authentication_webauthn_rp_id;
+
+let PLUGIN_DIR = $WEBAUTHN_CLIENT_PLUGIN_DIR;
+
+SET global DEBUG= '+d, simulate_fido_testing';
+--echo # CREATE USER with default 1FA method
+CREATE USER u1 IDENTIFIED BY 'pass';
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--connect (con1,localhost,u1,pass)
+SELECT USER();
+
+connection default;
+disconnect con1;
+
+--echo # Add fido authentication as 2nd factor
+ALTER USER u1 ADD 2 FACTOR IDENTIFIED WITH authentication_webauthn;
+
+--echo # connection should fail as --register-factor option was not set
+--error 1
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+--echo # check user_attributes, requires_registration flag should be ON
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # specify --register-factor with 2nd factor, connection should succeed with registration step done for 2nd factor
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --register-factor=2 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" --force -e "SELECT current_user(),user();"
+
+--echo # check user_attributes, requires_registration flag should be OFF
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # Add fido authentication as 3rd factor
+ALTER USER u1 ADD 3 FACTOR IDENTIFIED WITH authentication_webauthn;
+
+--echo # connection should fail as --register-factor option was not set
+--error 1
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+--echo # connection should succeed
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --register-factor=3 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" --force -e "SELECT current_user(),user();"
+
+--echo # check user_attributes, after registration requires_registration flag should be OFF
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # connection should succeed
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" --force -e "SELECT current_user(),user();"
+
+--echo # drop 2,3 factors
+ALTER USER u1 DROP 2 FACTOR DROP 3 FACTOR;
+
+--echo # user_attributes should be NULL
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # connection should pass
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+--echo # Add webauthn authentication plugin as 2nd, 3rd factors
+ALTER USER u1 ADD 2 FACTOR IDENTIFIED WITH authentication_webauthn ADD 3 FACTOR IDENTIFIED WITH authentication_webauthn;
+
+--echo # user_attributes requires_registration flag should be ON
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # connection should fail as --register-factor option was not set
+--error 1
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+--echo # connection should succeed
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --register-factor=2,3 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" --force -e "SELECT current_user(),user();"
+
+--echo # user_attributes requires_registration flag should be OFF
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+DROP USER u1;
+
+CREATE USER test_user;
+GRANT ALL ON *.* TO test_user;
+# for testing remove below privielge
+REVOKE PASSWORDLESS_USER_ADMIN ON *.* FROM test_user;
+RESET BINARY LOGS AND GTIDS;
+
+--connect (con1,localhost,test_user)
+
+--echo # Add fido authentication as a regular 2FA method
+CREATE USER u1 IDENTIFIED BY 'pass' AND IDENTIFIED WITH authentication_webauthn;
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # perform registration
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --register-factor=2 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();" > $MYSQLTEST_VARDIR/tmp/reg.out
+
+DROP USER u1;
+
+--echo # Add webauthn authentication as a passwordless authentication method
+
+CREATE USER u1 IDENTIFIED WITH authentication_webauthn INITIAL AUTHENTICATION IDENTIFIED BY 'pass';
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u1;
+
+SET GLOBAL authentication_policy = 'caching_sha2_password,authentication_webauthn';
+REVOKE AUTHENTICATION_POLICY_ADMIN ON *.* FROM test_user;
+
+--echo # registration step replaces webauthn as first factor which does not match with policy
+--error 1
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --register-factor=2 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+--echo # ensure nothing changes
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # reset policy to default and check that registration succeeds
+SET GLOBAL authentication_policy = default;
+
+--echo # do registration step and check that sandbox mode is removed after registration
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 -ppass --register-factor=2 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+--echo # after registration 1st factor auth method should be replaced with 2nd factor
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+
+--echo # now connection should succeed without password
+--exec $MYSQL -h localhost -P $MASTER_MYPORT -u u1 --plugin-dir=$PLUGIN_DIR --debug="d,simulate_fido_testing" -e "SELECT current_user(),user();"
+
+DROP USER u1;
+
+CREATE USER u1 IDENTIFIED WITH authentication_webauthn INITIAL AUTHENTICATION IDENTIFIED BY 'pass';
+--echo # below alter user should replace 1FA with 2FA method and will be allowed only if user has PASSWORDLESS_USER_ADMIN privilege
+--error ER_INVALID_MFA_OPERATIONS_FOR_PASSWORDLESS_USER
+ALTER USER u1 MODIFY 2 FACTOR IDENTIFIED WITH authentication_webauthn AS 'QLSVFbEVLmJm6TFE/ip92WDEkJhTMe4dHoYRobxJZqea6eaVsLMAtvjm+H5CBdInlB1uxexjuGt8==';
+DROP USER u1;
+RESET BINARY LOGS AND GTIDS;
+
+# drop test_user
+connection default;
+disconnect con1;
+DROP USER test_user;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/reg.out
+SET global DEBUG= '-d, simulate_fido_testing';
+UNINSTALL PLUGIN authentication_webauthn;

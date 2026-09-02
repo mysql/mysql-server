@@ -43,7 +43,6 @@ INCLUDE(CheckIncludeFiles)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/../common
   )
 
 DISABLE_MISSING_PROFILE_WARNING()
@@ -52,8 +51,11 @@ MYSQL_ADD_PLUGIN(authentication_webauthn_client
   webauthn_registration.cc
   webauthn_assertion.cc
   webauthn_client_plugin.cc
+  assertion.cc
+  common.cc
+  registration.cc
   LINK_LIBRARIES
-  fido_client_common
+  mysqlclient
   ext::fido
   OpenSSL::Crypto  # Needs RAND_bytes from libcrypto.
   CLIENT_ONLY

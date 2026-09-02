@@ -29,7 +29,7 @@
 #ifndef FIDO_REGISTRATION_H_
 #define FIDO_REGISTRATION_H_
 
-#include <registration.h>
+#include "registration.h"
 /**
   This class is used to perform registration step on client side.
 */

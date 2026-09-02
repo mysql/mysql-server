@@ -90,6 +90,7 @@ IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
   )
   SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
 ENDIF()
+
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MLE=ON")
@@ -115,7 +116,6 @@ usr/lib/mysql/plugin/authentication_openid_connect.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/authentication_pam.so
-usr/lib/mysql/plugin/authentication_webauthn.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/component_keyring_hashicorp.so

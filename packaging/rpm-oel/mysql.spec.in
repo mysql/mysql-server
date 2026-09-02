@@ -896,6 +896,9 @@ mkdir debug
            -DCMAKE_CXX_FLAGS="$optflags" \
 %if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_WEBAUTHN=0 \
@@ -948,6 +951,9 @@ mkdir release
            -DCMAKE_CXX_FLAGS="%{optflags}" \
 %if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_WEBAUTHN=0 \
@@ -1006,6 +1012,9 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
 %if 0%{?ssl_default}
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_FIDO=0 \
@@ -1312,6 +1321,11 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1360,9 +1374,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_component_filter_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %if 0%{?ssl_default}
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1426,6 +1437,11 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif # add_fido_plugins
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1469,9 +1485,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %if 0%{?ssl_default}
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so

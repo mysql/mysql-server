@@ -213,6 +213,9 @@ mkdir release
            -DWITH_ROUTER=OFF \
            -DWITH_NUMA=OFF \
            %{?mecab_option} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
            -DNDB_UTILS_LINK_DYNAMIC=1 \
@@ -254,6 +257,9 @@ mkdir release
            -DWITH_ROUTER=OFF \
            -DWITH_NUMA=OFF \
            %{?mecab_option} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
            -DNDB_UTILS_LINK_DYNAMIC=1 \
@@ -598,6 +604,9 @@ rm -r $(readlink var) var
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
@@ -699,9 +708,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
-%endif # add_fido_plugins
 %if 0%{?add_component_keyring_aws}
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_aws.so
 %endif # add_component_keyring_aws

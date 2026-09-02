@@ -608,6 +608,9 @@ mkdir debug
            -DWITH_MEB=%{with_meb} \
            -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
 %endif
@@ -648,6 +651,9 @@ mkdir release
            -DWITH_MEB=%{with_meb} \
            -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
 %endif
@@ -695,6 +701,9 @@ mkdir release
            -DWITH_MEB=%{with_meb} \
            -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
 %endif
@@ -958,6 +967,9 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
@@ -1015,9 +1027,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_plugin_to_component.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_component_object_policy.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_component_object_policy.sql
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1067,6 +1076,9 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
@@ -1115,9 +1127,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
-%endif # add_fido_plugins
 %if 0%{?add_component_keyring_aws}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_aws.so
 %endif # add_component_keyring_aws

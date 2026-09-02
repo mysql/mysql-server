@@ -6,6 +6,7 @@ Standards-Version: 3.9.8
 Homepage: https://www.mysql.com/
 Build-Depends: debhelper (>= 9.0.0),
  libaio-dev[linux-any],
+ libudev-dev[linux-any],
  libcurl4-openssl-dev,
  libncurses5-dev (>= 5.0-6),
  libjson-perl,
