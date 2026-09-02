@@ -38,8 +38,6 @@ void unregister_telemetry_callback();
 
 void abort_current_session();
 
-void wait_for_sessions();
-
 void setup_otel_meters_notification();
 void cleanup_otel_meters_notification();
 

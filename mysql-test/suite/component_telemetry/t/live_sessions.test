@@ -4,6 +4,7 @@
 --source include/have_no_telemetry_component.inc
 
 call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("telemetry: Stop failed");
 
 #
 # The purpose of this test is to verify that
@@ -121,6 +122,10 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
+
 --connection otel
 
 -- echo # Install component
@@ -163,6 +168,10 @@ SELECT COUNT(*) FROM performance_schema.threads
 SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
+
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --connection con2
 SELECT "Con2 now detects telemetry" as MARKER;
@@ -235,6 +244,10 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
+
 --connection con3
 SELECT "Con3 now detects telemetry" as MARKER;
 
@@ -290,6 +303,10 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
+
 --disconnect con6
 
 --disconnect con8
@@ -332,27 +349,21 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
+
 --connection ctrl
 # Do this before, not during, UNINSTALL, to get reproducible results
 SELECT "ctrl now detects telemetry" as MARKER;
 
 --connection otel
 
--- echo # Uninstall component, will block
---send UNINSTALL COMPONENT 'file://component_telemetry'
+-- echo # Uninstall component, will fail (1)
+-- error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT 'file://component_telemetry';
 
 --connection ctrl
-
--- echo
--- echo # Enforce UNINSTALL is blocked
-
-# Wait for UNINSTALL to wait on live sessions
-let $wait_condition=  select count(*) = 1
-  from performance_schema.events_stages_current
-  where
-  EVENT_NAME='stage/telemetry/session' and
-  THREAD_ID=$otel_THREAD_ID;
---source include/wait_condition.inc
 
 -- echo
 -- echo # State after UNLOAD(B)
@@ -384,12 +395,9 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --disconnect con2
 
@@ -400,6 +408,14 @@ let $wait_condition=  SELECT count(*) = 0
   FROM performance_schema.threads
   WHERE THREAD_ID = $con2_THREAD_ID;
 --source include/wait_condition.inc
+
+--connection otel
+
+-- echo # Uninstall component, will fail (2)
+-- error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--connection ctrl
 
 -- echo
 -- echo # State after CON2(D)
@@ -429,15 +445,18 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --connection con3
 SELECT "Con3 now detects telemetry" as MARKER;
+
+--connection otel
+
+-- echo # Uninstall component, will fail (3)
+-- error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT 'file://component_telemetry';
 
 --connection ctrl
 
@@ -469,12 +488,9 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 -- echo # Connection con11
 
@@ -482,6 +498,12 @@ connect (con11, localhost, root, , );
 
 let $con11_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
+
+--connection otel
+
+-- echo # Uninstall component, will fail (4)
+-- error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT 'file://component_telemetry';
 
 --connection ctrl
 
@@ -515,12 +537,9 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --disconnect con9
 
@@ -531,6 +550,14 @@ let $wait_condition=  SELECT count(*) = 0
   FROM performance_schema.threads
   WHERE THREAD_ID = $con9_THREAD_ID;
 --source include/wait_condition.inc
+
+--connection otel
+
+-- echo # Uninstall component, will fail (5)
+-- error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+--connection ctrl
 
 -- echo
 -- echo # State after CON9(D)
@@ -560,16 +587,18 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --connection con10
 
 select "CON10 performing work";
+
+--connection otel
+
+-- echo # Uninstall component, will succeed
+UNINSTALL COMPONENT 'file://component_telemetry';
 
 --connection ctrl
 
@@ -601,12 +630,9 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --disconnect con10
 
@@ -616,22 +642,6 @@ eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
 let $wait_condition=  SELECT count(*) = 0
   FROM performance_schema.threads
   WHERE THREAD_ID = $con10_THREAD_ID;
---source include/wait_condition.inc
-
---connection otel
---reap
-
---connection ctrl
-
--- echo
--- echo # Enforce UNINSTALL is complete
-
-# Wait for UNINSTALL to complete, idle on next command
-let $wait_condition=  select count(*) = 1
-  from performance_schema.events_waits_current
-  where
-  EVENT_NAME='idle' and
-  THREAD_ID=$otel_THREAD_ID;
 --source include/wait_condition.inc
 
 -- echo
@@ -660,12 +670,9 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.global_status
   WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 
---disable_query_log
-eval SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED,
-  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE
-  FROM performance_schema.events_stages_current
-  WHERE THREAD_ID = $otel_THREAD_ID;
---enable_query_log
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'telemetry.run_level';
 
 --disconnect con1
 --disconnect con3

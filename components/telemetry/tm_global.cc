@@ -50,12 +50,9 @@ opentelemetry::nostd::shared_ptr<opentelemetry::logs::Logger> g_logger;
 std::atomic_int64_t g_session_count(0LL);
 
 std::atomic_bool g_shutting_down(false);
-std::atomic_int64_t g_sessions_closed(0LL);
 
 std::atomic_int64_t g_run_level(RUN_LEVEL_BOOT);
 
-mysql_mutex_t g_session_notify_mutex;
-mysql_cond_t g_session_notify_cond;
 mysql_mutex_t g_all_meters_mutex;
 mysql_mutex_t g_option_usage_mutex;
 
@@ -70,15 +67,5 @@ opentelemetry::nostd::shared_ptr<opentelemetry::metrics::MeterProvider>
 #else
 MySQLMeterProviders g_all_meter_providers;
 #endif
-
-void to_timespec(const std::chrono::time_point<std::chrono::system_clock> &from,
-                 struct timespec &to) {
-  auto secs = std::chrono::time_point_cast<std::chrono::seconds>(from);
-  auto ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(from) -
-            std::chrono::time_point_cast<std::chrono::nanoseconds>(secs);
-
-  to.tv_sec = secs.time_since_epoch().count();
-  to.tv_nsec = ns.count();
-}
 
 }  // namespace telemetry

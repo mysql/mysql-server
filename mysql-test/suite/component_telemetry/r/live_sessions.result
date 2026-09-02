@@ -1,4 +1,5 @@
 call mtr.add_suppression("\\[OTEL\\]");
+call mtr.add_suppression("telemetry: Stop failed");
 # Connection con1
 # Connection con2
 # Connection con3
@@ -34,6 +35,10 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
 # Install component
 INSTALL COMPONENT 'file://component_telemetry'
   SET telemetry.trace_enabled = 'ON',
@@ -66,6 +71,11 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	READY
 SELECT "Con2 now detects telemetry" as MARKER;
 MARKER
 Con2 now detects telemetry
@@ -109,6 +119,11 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	6
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	READY
 SELECT "Con3 now detects telemetry" as MARKER;
 MARKER
 Con3 now detects telemetry
@@ -150,6 +165,11 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	7
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	READY
 
 # State after con6(D), con8(D)
 
@@ -178,13 +198,17 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	5
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	READY
 SELECT "ctrl now detects telemetry" as MARKER;
 MARKER
 ctrl now detects telemetry
-# Uninstall component, will block
+# Uninstall component, will fail (1)
 UNINSTALL COMPONENT 'file://component_telemetry';
-
-# Enforce UNINSTALL is blocked
+ERROR HY000: De-initialization method provided by component 'mysql::component_telemetry' failed.
 
 # State after UNLOAD(B)
 
@@ -213,8 +237,14 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	4
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
-stage/telemetry/session	2	5	tm_notification.cc:
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	UNINSTALL
+# Uninstall component, will fail (2)
+UNINSTALL COMPONENT 'file://component_telemetry';
+ERROR HY000: De-initialization method provided by component 'mysql::component_telemetry' failed.
 
 # State after CON2(D)
 
@@ -241,11 +271,17 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	3
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
-stage/telemetry/session	3	5	tm_notification.cc:
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	UNINSTALL
 SELECT "Con3 now detects telemetry" as MARKER;
 MARKER
 Con3 now detects telemetry
+# Uninstall component, will fail (3)
+UNINSTALL COMPONENT 'file://component_telemetry';
+ERROR HY000: De-initialization method provided by component 'mysql::component_telemetry' failed.
 
 # State after CON3(W), detects component is unloading
 
@@ -272,9 +308,15 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	2
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
-stage/telemetry/session	4	5	tm_notification.cc:
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	UNINSTALL
 # Connection con11
+# Uninstall component, will fail (4)
+UNINSTALL COMPONENT 'file://component_telemetry';
+ERROR HY000: De-initialization method provided by component 'mysql::component_telemetry' failed.
 
 # State after CON11(C) while UNLOAD is still blocked
 
@@ -303,8 +345,14 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	2
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
-stage/telemetry/session	4	5	tm_notification.cc:
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	UNINSTALL
+# Uninstall component, will fail (5)
+UNINSTALL COMPONENT 'file://component_telemetry';
+ERROR HY000: De-initialization method provided by component 'mysql::component_telemetry' failed.
 
 # State after CON9(D)
 
@@ -331,11 +379,16 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
 telemetry.live_sessions	1
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
-stage/telemetry/session	5	5	tm_notification.cc:
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
+telemetry.run_level	UNINSTALL
 select "CON10 performing work";
 CON10 performing work
 CON10 performing work
+# Uninstall component, will succeed
+UNINSTALL COMPONENT 'file://component_telemetry';
 
 # State after CON10(W)
 
@@ -361,11 +414,10 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
-telemetry.live_sessions	0
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
-stage/telemetry/session	6	5	tm_notification.cc:
-
-# Enforce UNINSTALL is complete
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
 
 # State after CON10(D), UNLOAD completed
 
@@ -389,7 +441,10 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'telemetry.live_sessions';
 VARIABLE_NAME	VARIABLE_VALUE
-EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED	PRINT_SOURCE
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'telemetry.run_level';
+VARIABLE_NAME	VARIABLE_VALUE
 
 # State after CON1(D), CON3(D), CON4(D), CON11(D)
 
