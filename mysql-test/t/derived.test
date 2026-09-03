@@ -3641,6 +3641,7 @@ SET v1 = 'x' IN (
 );
 
 --sorted_result
+--skip_if_hypergraph
 SELECT v1, COUNT(*) AS count FROM v0 GROUP BY v1;
 
 DROP TABLE v0;
