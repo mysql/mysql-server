@@ -37,9 +37,12 @@ bool register_udfs();
 /**
  * Unregisters the plugin's UDFs.
  *
+ * @param wait_for_references if true, wait until all UDF references are
+ * released
+ *
  * @retval true if there was an error
  * @retval false if all UDFs were unregistered
  */
-bool unregister_udfs();
+bool unregister_udfs(bool wait_for_references = false);
 
 #endif /* PLUGIN_GR_INCLUDE_UDF_REGISTRATION_H */
