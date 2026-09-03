@@ -25,6 +25,7 @@ Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`e` `table1` left join `test`.`e` `table2` on((`table2`.`pk` = `table1`.`pk`)) left join `test`.`e` `table3` on((`table3`.`col_int_unique` = `table2`.`col_int_unique`)) where true
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM e AS table1
@@ -49,6 +50,8 @@ EXPLAIN
             -> Table scan on table2  (cost=250 rows=4)
     -> Single-row index lookup on table3 using ix1 (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`e` `table1` left join `test`.`e` `table2` on((`table2`.`pk` = `table1`.`pk`)) left join `test`.`e` `table3` on((`table3`.`col_int_unique` = `table2`.`col_int_unique`)) where true
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM e AS table1

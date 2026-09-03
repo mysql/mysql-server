@@ -879,6 +879,8 @@ EXPLAIN
 -> Filter: (t.x <= 'ae')
     -> Covering index range scan on t using x over (NULL < x <= 'a')
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` <= 'ae')
 SELECT * FROM t WHERE x BETWEEN 'r' AND 'ss';
 x
 s
@@ -887,6 +889,8 @@ EXPLAIN
 -> Filter: (t.x between 'r' and 'ss')
     -> Covering index range scan on t using x over ('r' <= x <= 's')
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` between 'r' and 'ss')
 SET @soft_hyphen = CAST(_utf16 x'00AD' AS CHAR CHARSET utf8mb4);
 SELECT * FROM t WHERE x <= CONCAT(REPEAT(@soft_hyphen, 100), 'a');
 x
@@ -895,6 +899,8 @@ EXPLAIN
 -> Filter: (t.x <= <cache>(concat(repeat((@soft_hyphen),100),'a')))
     -> Covering index range scan on t using x over (NULL < x <= '­')
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` <= <cache>(concat(repeat((@`soft_hyphen`),100),'a')))
 SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
 x
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
@@ -902,11 +908,15 @@ EXPLAIN
 -> Filter: (t.x in ('ae','ss',<cache>(concat('­','b'))))
     -> Covering index range scan on t using x over (x = '­') OR (x = 'a') OR (x = 's')
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` in ('ae','ss',<cache>(concat('­','b'))))
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
 EXPLAIN
 -> Filter: (t.x in ('a','s','ae','ss'))
     -> Covering index range scan on t using x over (x = 'a') OR (x = 's')
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` in ('a','s','ae','ss'))
 SELECT * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
 x
 a
@@ -916,6 +926,8 @@ EXPLAIN
 -> Filter: (t.x in ('a','s','ae','ss'))
     -> Table scan on t
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t`@`select#1`) */ `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` in ('a','s','ae','ss'))
 SELECT /*+ NO_INDEX(t) */ * FROM t WHERE x IN ('a', 's', 'ae', 'ss');;
 x
 a

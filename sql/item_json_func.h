@@ -186,7 +186,7 @@ class Item_json_func : public Item_func {
     @param parent_args  arguments to forward to Item_func's constructor
   */
   template <typename... Args>
-  Item_json_func(THD *thd, Args &&...parent_args)
+  explicit Item_json_func(THD *thd, Args &&...parent_args)
       : Item_func(std::forward<Args>(parent_args)...),
         m_path_cache(thd, arg_count) {
     set_data_type_json();
@@ -785,16 +785,24 @@ class Item_func_json_row_object : public Item_json_func {
 };
 
 /**
- * @brief Represents the JSON function JSON_DUALITY_OBJECT()
- */
+  Implements JSON_DUALITY_OBJECT(). It exists separately from JSON_OBJECT() to
+  retain JDV tags and add ETAG metadata to the root object.
+*/
 class Item_func_json_duality_object final : public Item_func_json_row_object {
   typedef Item_func_json_row_object super;
 
   jdv::Duality_view_tags m_table_tags{0};
   PT_jdv_name_value_list *m_jdv_name_value_list{nullptr};
+
+  /// True when this is the root JDV object that adds ETAG metadata.
   bool m_inject_object_hash{false};
+
+  /// JDV table reference used to obtain the ETAG content tree.
+  Table_ref *m_jdv_table_ref{nullptr};
+
   std::unordered_set<std::string> m_json_arrayagg_keys;
-  bool get_inject_object_hash() const { return m_inject_object_hash; }
+
+  bool inject_etag_metadata(Json_wrapper *wr);
 
  public:
   Item_func_json_duality_object(THD *thd, const POS &pos, int table_tags,
@@ -813,7 +821,7 @@ class Item_func_json_duality_object final : public Item_func_json_row_object {
 
   jdv::Duality_view_tags table_tags() const { return m_table_tags; }
   Mem_root_array<LEX_STRING> *name_list();
-  Mem_root_array<uint> *col_tags_list();
+  Mem_root_array<uint> *col_tags_list() const;
 
   std::unordered_set<std::string> get_json_arrayagg_keys() {
     return m_json_arrayagg_keys;
@@ -838,7 +846,7 @@ class Item_func_json_search : public Item_json_func {
     @param parent_args arguments to pass to Item_json_func's constructor
   */
   template <typename... Args>
-  Item_func_json_search(Args &&...parent_args)
+  explicit Item_func_json_search(Args &&...parent_args)
       : Item_json_func(std::forward<Args>(parent_args)...),
         m_cached_ooa(ooa_uninitialized) {}
 
@@ -872,7 +880,7 @@ class Item_func_json_remove : public Item_json_func {
 
  public:
   template <typename... Args>
-  Item_func_json_remove(Args &&...parent_args)
+  explicit Item_func_json_remove(Args &&...parent_args)
       : Item_json_func(std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_remove"; }

@@ -28,6 +28,8 @@ EXPLAIN
             -> Table scan on t1  (cost=1.22 rows=7)
             -> Single-row index lookup on t2 using PRIMARY (a = t1.a)  (cost=0.264 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true order by `test`.`t1`.`grp`,`test`.`t1`.`a`,`test`.`t2`.`c`
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 grp	a	c	id	a	c	d
 NULL	NULL		NULL	NULL	NULL	NULL
@@ -419,6 +421,8 @@ EXPLAIN
         -> Filter: (t2.`owner` = t3.id)  (cost=0.184 rows=3)
             -> Table scan on t2  (cost=0.184 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`owner` AS `owner`,`t3`.`id` AS `id` from `test`.`t1` `t3` left join (`test`.`t1` join `test`.`t2`) on(((`test`.`t1`.`id` = `t3`.`id`) and (`test`.`t2`.`owner` = `t3`.`id`))) where true
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
@@ -448,6 +452,8 @@ explain format=tree select * from t1 where str is null;
 EXPLAIN
 -> Index lookup on t1 using str (str = NULL), with index condition: (t1.str is null)  (cost=0.7 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 drop table t1;
 CREATE TABLE t1 (
 t1_id bigint(21) NOT NULL auto_increment,
@@ -2022,6 +2028,8 @@ EXPLAIN
                     -> Table scan on t3  (cost=0.35 rows=1)
                 -> Single-row covering index lookup on t4 using PRIMARY (pk = t3.col_int)  (cost=0.35 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int` from `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`pk` = `test`.`t3`.`col_int`) and (`test`.`t3`.`col_varchar_10` = `test`.`t2`.`col_varchar_10`)))) on((`test`.`t2`.`col_int` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`col_int_key` is null) or (`test`.`t4`.`pk` < `test`.`t3`.`col_int`))
 DROP TABLE t1,t2,t3,t4;
 
 # BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN
@@ -3746,6 +3754,8 @@ EXPLAIN
         -> Single-row covering index lookup on t2 using PRIMARY (pk = t1.pk)  (cost=0.3 rows=1)
     -> Index lookup on t3 using k2 (f2 = t1.pk)  (cost=0.375 rows=1.25)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk`,`test`.`t3`.`f1` AS `f1`,`test`.`t3`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`f2` = `test`.`t1`.`pk`)) where ((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 5))
 SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
 pk	pk	f1	f2
 1	1	NULL	NULL
@@ -3794,6 +3804,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t3  (cost=0.0439 rows=8)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `t1_ci`,`test`.`t1`.`a` AS `t1_a`,`test`.`t1`.`b` AS `t1_b`,`test`.`t2`.`a` AS `t2_a`,`test`.`t2`.`b` AS `t2_b`,`t3`.`col_int` AS `t3_ci`,`t3`.`a` AS `t3_a`,`t3`.`b` AS `t3_b` from `test`.`t1` left join (`test`.`t2` left join `test`.`t1` `t3` on((`t3`.`a` = `test`.`t2`.`a`))) on((`test`.`t2`.`b` = `test`.`t1`.`b`)) where true
 SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
 FROM t1
 LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
@@ -3823,6 +3835,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
 EXPLAIN
 -> Table scan on t1  (cost=0.75 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(false) where true
 DROP TABLE t1, t2;
 set optimizer_switch='block_nested_loop=on';
 #
@@ -4074,6 +4088,8 @@ EXPLAIN
         -> Filter: (t2.a > 0)
             -> Table scan on t2
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` > 0))) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a > 0;
 a	b	c	a	b	c
 -1	-1	y	NULL	NULL	NULL
@@ -4093,6 +4109,8 @@ EXPLAIN
         -> Filter: (0 <> t2.a)
             -> Table scan on t2
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (0 <> `test`.`t2`.`a`))) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a;
 a	b	c	a	b	c
 -1	-1	y	NULL	NULL	NULL
@@ -4114,6 +4132,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 0))) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.a > 0;
 a	b	c	a	b	c
 -1	-1	y	NULL	NULL	NULL
@@ -4140,6 +4160,8 @@ EXPLAIN
                 -> Hash
                     -> Table scan on t3
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` > 0))) where true
 DROP TABLE t3;
 #
 # Correctness guard: equality nested under OR in the ON clause.
@@ -4156,6 +4178,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and ((`test`.`t2`.`b` = `test`.`t1`.`b`) or (`test`.`t2`.`c` is null)))) where true
 SELECT * FROM t1 LEFT JOIN t2
 ON t1.a = t2.a AND (t1.b = t2.b OR t2.c IS NULL);
 a	b	c	a	b	c

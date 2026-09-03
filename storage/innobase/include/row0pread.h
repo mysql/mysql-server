@@ -284,27 +284,15 @@ class Parallel_reader {
     Thread_ctx &operator=(const Thread_ctx &) = delete;
   };
 
-  /** Constructor.
-  @param[in]  max_threads Maximum number of threads to use. */
-  explicit Parallel_reader(size_t max_threads);
+  /** Constructor. Reserves up to the requested number of global parallel-read
+  slots for the lifetime of this reader.
+  @param[in]  max_threads Maximum number of threads to use.
+  @param[in]  use_reserved_threads Whether reserved slots may be used. */
+  explicit Parallel_reader(size_t max_threads,
+                           bool use_reserved_threads = false);
 
   /** Destructor. */
   ~Parallel_reader();
-
-  /** Check how many threads are available for parallel reads.
-  @param[in] n_required   Number of threads required.
-  @param[in] use_reserved true if reserved threads needs to be considered
-  while checking for availability of threads
-  @return number of threads available. */
-  [[nodiscard]] static size_t available_threads(size_t n_required,
-                                                bool use_reserved);
-
-  /** Release the parallel read threads. */
-  static void release_threads(size_t n_threads) {
-    const auto SEQ_CST = std::memory_order_seq_cst;
-    auto active = s_active_threads.fetch_sub(n_threads, SEQ_CST);
-    ut_a(active >= n_threads);
-  }
 
   /** Add scan context.
   @param[in,out]  trx         Covering transaction.
@@ -344,10 +332,13 @@ class Parallel_reader {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t spawn(size_t n_threads) noexcept;
 
-  /** Start the threads to do the parallel read for the specified range.
-  @param[in] n_threads          Number of threads to use for the scan.
+  /** Run the scan using the reserved threads. Runs synchronously when zero
+  or one thread was reserved.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t run(size_t n_threads);
+  [[nodiscard]] dberr_t run();
+
+  /** Run the scan synchronously. */
+  [[nodiscard]] dberr_t run_sync();
 
   /** @return the configured max threads size. */
   [[nodiscard]] size_t max_threads() const { return m_max_threads; }
@@ -380,6 +371,20 @@ class Parallel_reader {
   Parallel_reader &operator=(const Parallel_reader &) = delete;
 
  private:
+  /** Reserve available global parallel-read slots. */
+  [[nodiscard]] static size_t available_threads(size_t n_required,
+                                                bool use_reserved);
+
+  /** Run the scan using the specified number of worker threads. */
+  [[nodiscard]] dberr_t run(size_t n_threads);
+
+  /** Release the parallel read threads. */
+  static void release_threads(size_t n_threads) {
+    const auto SEQ_CST = std::memory_order_seq_cst;
+    auto active = s_active_threads.fetch_sub(n_threads, SEQ_CST);
+    ut_a(active >= n_threads);
+  }
+
   /** Release unused threads back to the pool.
   @param[in] unused_threads     Number of threads to "release". */
   void release_unused_threads(size_t unused_threads) {

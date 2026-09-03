@@ -20,6 +20,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` where (`x1`.`b` = (/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2` where (`x2`.`a` > `x1`.`a`)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
@@ -33,6 +34,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` where <in_optimizer>(`x1`.`b`,<exists>(/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2` where (`x2`.`a` > `x1`.`a`) having (<cache>(`x1`.`b`) = <ref_null_helper>(max(`x2`.`b`)))))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
@@ -42,6 +44,8 @@ EXPLAIN
         -> Aggregate: max(x2.b)  (rows=1)
             -> Index range scan on x2 using PRIMARY over (5 < a)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` where (`x1`.`b` = (/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2` where (`x2`.`a` > 5)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
@@ -55,6 +59,8 @@ EXPLAIN
                         -> Aggregate: max(x2.b)  (rows=1)
                             -> Index range scan on x2 using PRIMARY over (5 < a)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` where <in_optimizer>(`x1`.`b`,`x1`.`b` in ( <materialize> (/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2` where (`x2`.`a` > 5) having (<cache>(`x1`.`b`) = <ref_null_helper>(max(`x2`.`b`))) ), <primary_index_lookup>(`x1`.`b` in <temporary table> on <auto_distinct_key> where ((`x1`.`b` = `<materialized_subquery>`.`MAX(b)`)))))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
@@ -65,6 +71,8 @@ EXPLAIN
             -> Filter: (x2.a > (10 * rand(0)))  (rows=3.33)
                 -> Index scan on x2 using PRIMARY  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` where (`x1`.`b` = (/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2` where (`x2`.`a` > (10 * rand(0)))))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
@@ -76,6 +84,8 @@ EXPLAIN
                 -> Filter: (x2.a > (10 * rand(0)))  (rows=3.33)
                     -> Index scan on x2 using PRIMARY  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` where <in_optimizer>(`x1`.`b`,<exists>(/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2` where (`x2`.`a` > (10 * rand(0))) having (<cache>(`x1`.`b`) = <ref_null_helper>(max(`x2`.`b`)))))
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
 EXPLAIN
@@ -87,6 +97,8 @@ EXPLAIN
         -> Aggregate: max(x2.a)  (rows=1)
             -> Covering index scan on x2 using PRIMARY  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`x1`.`a`) AS `s` from `test`.`t1` `x1` group by `x1`.`b` having (`s` > (/* select#2 */ select max(`x2`.`a`) from `test`.`t1` `x2`))
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
 EXPLAIN
@@ -98,6 +110,8 @@ EXPLAIN
         -> Aggregate: max((x2.a + rand(0)))  (rows=1)
             -> Covering index scan on x2 using PRIMARY  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`x1`.`a`) AS `s` from `test`.`t1` `x1` group by `x1`.`b` having (`s` > (/* select#2 */ select max((`x2`.`a` + rand(0))) from `test`.`t1` `x2`))
 DROP TABLE num,t1;
 #
 # Bug#34114563 EXPLAIN ANALYZE: Use at least one significant digit for average
@@ -137,6 +151,8 @@ EXPLAIN
 -> Filter: (t1.c < 720)  (rows=720)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`h` AS `h` from `test`.`t1` where (`test`.`t1`.`c` < 720)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.c<721 AND x2.c<900;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=649e+6)
@@ -149,6 +165,8 @@ EXPLAIN
     -> Hash
         -> Table scan on x3  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x1`.`e` AS `e`,`x1`.`f` AS `f`,`x1`.`g` AS `g`,`x1`.`h` AS `h`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x2`.`e` AS `e`,`x2`.`f` AS `f`,`x2`.`g` AS `g`,`x2`.`h` AS `h`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x3`.`c` AS `c`,`x3`.`d` AS `d`,`x3`.`e` AS `e`,`x3`.`f` AS `f`,`x3`.`g` AS `g`,`x3`.`h` AS `h` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`x1`.`c` < 721) and (`x2`.`c` < 900))
 EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.c=x2.d AND x1.d>900 AND x2.a=x2.b;
 EXPLAIN
 -> Nested loop inner join  (rows=5.82) (actual rows=17 loops=1)
@@ -168,16 +186,22 @@ EXPLAIN
     -> Hash
         -> Table scan on x3  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x1`.`e` AS `e`,`x1`.`f` AS `f`,`x1`.`g` AS `g`,`x1`.`h` AS `h`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x2`.`e` AS `e`,`x2`.`f` AS `f`,`x2`.`g` AS `g`,`x2`.`h` AS `h`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x3`.`c` AS `c`,`x3`.`d` AS `d`,`x3`.`e` AS `e`,`x3`.`f` AS `f`,`x3`.`g` AS `g`,`x3`.`h` AS `h` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`x1`.`c` < 921) and (`x2`.`c` < 900))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE e=0 AND c=0;
 EXPLAIN
 -> Filter: ((t1.e = 0) and (t1.c = 0))  (rows=0.001)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`h` AS `h` from `test`.`t1` where (multiple equal(0, `test`.`t1`.`e`) and multiple equal(0, `test`.`t1`.`c`))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE e=0 AND c=0 AND f<999;
 EXPLAIN
 -> Filter: ((t1.e = 0) and (t1.c = 0) and (t1.f < 999))  (rows=999e-6)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`h` AS `h` from `test`.`t1` where ((`test`.`t1`.`f` < 999) and multiple equal(0, `test`.`t1`.`e`) and multiple equal(0, `test`.`t1`.`c`))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 LIMIT 999999;
 EXPLAIN
 -> Limit: 999999 row(s)  (rows=999999)
@@ -186,17 +210,23 @@ EXPLAIN
         -> Hash
             -> Table scan on x2  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x1`.`e` AS `e`,`x1`.`f` AS `f`,`x1`.`g` AS `g`,`x1`.`h` AS `h`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x2`.`e` AS `e`,`x2`.`f` AS `f`,`x2`.`g` AS `g`,`x2`.`h` AS `h` from `test`.`t1` `x1` join `test`.`t1` `x2` limit 999999
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE d=0 AND c=0 AND e=0 AND f=0 AND g=0;
 EXPLAIN
 -> Filter: ((t1.c = 0) and (t1.e = 0) and (t1.f = 0) and (t1.g = 0))  (rows=1e-12)
     -> Index lookup on t1 using d (d = 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`h` AS `h` from `test`.`t1` where (multiple equal(0, `test`.`t1`.`d`) and multiple equal(0, `test`.`t1`.`c`) and multiple equal(0, `test`.`t1`.`e`) and multiple equal(0, `test`.`t1`.`f`) and multiple equal(0, `test`.`t1`.`g`))
 EXPLAIN FORMAT=TREE
 SELECT * FROM t1 WHERE a=0 AND b=0 AND c=0 AND e=0 AND f=0 AND g=0 AND h=0;
 EXPLAIN
 -> Filter: ((t1.c = 0) and (t1.e = 0) and (t1.f = 0) and (t1.g = 0) and (t1.h = 0) and (t1.b = 0) and (t1.a = 0))  (rows=0)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`h` AS `h` from `test`.`t1` where (multiple equal(0, `test`.`t1`.`a`) and multiple equal(0, `test`.`t1`.`b`) and multiple equal(0, `test`.`t1`.`c`) and multiple equal(0, `test`.`t1`.`e`) and multiple equal(0, `test`.`t1`.`f`) and multiple equal(0, `test`.`t1`.`g`) and multiple equal(0, `test`.`t1`.`h`))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 LIMIT 999500000;
 EXPLAIN
 -> Limit: 999500000 row(s)  (rows=1e+9)
@@ -208,6 +238,8 @@ EXPLAIN
         -> Hash
             -> Table scan on x3  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x1`.`e` AS `e`,`x1`.`f` AS `f`,`x1`.`g` AS `g`,`x1`.`h` AS `h`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x2`.`e` AS `e`,`x2`.`f` AS `f`,`x2`.`g` AS `g`,`x2`.`h` AS `h`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x3`.`c` AS `c`,`x3`.`d` AS `d`,`x3`.`e` AS `e`,`x3`.`f` AS `f`,`x3`.`g` AS `g`,`x3`.`h` AS `h` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` limit 999500000
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 LIMIT 999499999;
 EXPLAIN
 -> Limit: 999499999 row(s)  (rows=999e+6)
@@ -219,6 +251,8 @@ EXPLAIN
         -> Hash
             -> Table scan on x3  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x1`.`e` AS `e`,`x1`.`f` AS `f`,`x1`.`g` AS `g`,`x1`.`h` AS `h`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x2`.`e` AS `e`,`x2`.`f` AS `f`,`x2`.`g` AS `g`,`x2`.`h` AS `h`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x3`.`c` AS `c`,`x3`.`d` AS `d`,`x3`.`e` AS `e`,`x3`.`f` AS `f`,`x3`.`g` AS `g`,`x3`.`h` AS `h` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` limit 999499999
 DROP TABLE num10,t1;
 #
 # Bug#34527697: EXPLAIN and EXPLAIN ANALYZE disagree on
@@ -240,6 +274,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t;
 EXPLAIN
 -> Covering index scan on t using x  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
 EXPLAIN ANALYZE SELECT 1 FROM t;
 EXPLAIN
 -> Covering index scan on t using x  (rows=160) (actual rows=160 loops=1)
@@ -248,6 +284,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
 -> Covering index lookup on t using x (x = 4)  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where multiple equal(4, `test`.`t`.`x`)
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
 -> Covering index lookup on t using x (x = 4)  (rows=16) (actual rows=16 loops=1)
@@ -256,6 +294,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
 -> Covering index range scan on t using x over (4 < x)  (rows=96)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where (`test`.`t`.`x` > 4)
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
 -> Covering index range scan on t using x over (4 < x)  (rows=96) (actual rows=96 loops=1)
@@ -265,6 +305,8 @@ EXPLAIN
 -> Sort: (t.x % 2)  (rows=160)
     -> Covering index scan on t using x  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` order by (`test`.`t`.`x` % 2)
 EXPLAIN ANALYZE SELECT x FROM t ORDER BY MOD(x, 2);
 EXPLAIN
 -> Sort: (t.x % 2)  (rows=160) (actual rows=160 loops=1)
@@ -277,6 +319,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where (`t1`.`x` < `t2`.`y`)
 EXPLAIN ANALYZE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
 EXPLAIN
 -> Inner hash join (no condition), extra conditions: (t1.x < t2.y)  (rows=8532) (actual rows=11520 loops=1)
@@ -296,11 +340,21 @@ EXPLAIN
 -> Insert into t
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	insert into `test`.`t` values (4),(5),(6)
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	insert into `test`.`t` values (4),(5),(6)
 EXPLAIN FORMAT=TREE REPLACE INTO t VALUES (7), (8), (9);
 EXPLAIN
 -> Replace into t
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	replace into `test`.`t` values (7),(8),(9)
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	replace into `test`.`t` values (7),(8),(9)
 DROP TABLE t;
 #
 # Bug#35845129: Missing subqueries in EXPLAIN with hypergraph optimizer
@@ -321,6 +375,8 @@ EXPLAIN
     -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t.x) = t.x) or (t.x is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(t.x), true))  (rows=1)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t`.`x`,<exists>(/* select#2 */ select `test`.`t`.`x` from `test`.`t` where true having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t`.`x`), true))) AS `x IN (SELECT x FROM t)` from `test`.`t` group by `test`.`t`.`x` order by `max(t.y)`
 DROP TABLE t;
 #
 # Bug#36614948 No information about MRR in EXPLAIN with explain_json_format_version=2
@@ -338,6 +394,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN (3, 4, 6);
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t using x over (x = 3) OR (x = 4) OR (x = 6)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x`,`test`.`t`.`y` AS `y`,`test`.`t`.`z` AS `z` from `test`.`t` where (`test`.`t`.`x` in (3,4,6))
 DROP TABLE t;
 SET @@optimizer_switch = @save_optimizer_switch;
 # Bug#36773414: Explain format=tree does not display
@@ -359,6 +417,8 @@ EXPLAIN
             -> Table scan on t  (rows=20)
     -> Table scan on t  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` semi join (`test`.`t`) where (4 = (`test`.`t`.`b` + 1))
 EXPLAIN FORMAT=JSON INTO @var SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
@@ -373,6 +433,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t`) where multiple equal(`test`.`t`.`b`, `test`.`t`.`a`)
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE b IN (SELECT a FROM t);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
@@ -393,6 +455,8 @@ EXPLAIN
         -> Covering index scan on t using a  (rows=20)
         -> Covering index lookup on t1 using b (b = t.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` FIRSTMATCH) */ `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where multiple equal(`test`.`t`.`a`, `t1`.`b`) limit 1
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN
 (SELECT /*+ SEMIJOIN(FIRSTMATCH) */t1.b FROM t AS t1) LIMIT 1;
 SELECT
@@ -413,6 +477,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t using a  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where multiple equal(`test`.`t`.`a`, `t1`.`a`, `t2`.`b`)
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN
 (SELECT /*+ SEMIJOIN(LOOSESCAN) */ t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
 SELECT

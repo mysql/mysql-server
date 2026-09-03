@@ -28,3 +28,241 @@ CREATE RESOURCE GROUP CAFE TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
 DROP RESOURCE GROUP CaFé;
 
 SET NAMES default;
+
+--echo #
+--echo # Bug#35696738 RESOURCE GROUP hint fails when used within a
+--echo #              prepared statement
+--echo #
+
+CREATE RESOURCE GROUP r1 TYPE=USER VCPU=0,1;
+CREATE RESOURCE GROUP r2 TYPE=USER VCPU=2,3;
+
+--echo
+--echo # Test 1
+--echo # Validate that a direct statement with RESOURCE_GROUP(r1) executes
+--echo # in resource group 'r1'.
+--echo # Expected behavior: query should return 1.
+SELECT /*+ RESOURCE_GROUP(r1) */ resource_group = 'r1' AS is_r1
+  FROM performance_schema.threads WHERE processlist_id = connection_id();
+
+--echo
+--echo # Test 2
+--echo # Validate that a prepared statement preserves RESOURCE_GROUP(r1)
+--echo # across first execution and re-execution.
+--echo # Expected behavior: each EXECUTE should return 1.
+PREPARE stmt1 FROM
+  'SELECT /*+ RESOURCE_GROUP(r1) */ resource_group = ''r1'' AS is_r1
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+EXECUTE stmt1;
+EXECUTE stmt1;
+
+--echo
+--echo # Test 3
+--echo # Validate that a prepared statement's RESOURCE_GROUP(r1) hint takes
+--echo # precedence over a session resource group selected after PREPARE.
+--echo # Expected behavior: EXECUTE should return 1 for resource group 'r1'.
+SET RESOURCE GROUP r2;
+EXECUTE stmt1;
+--echo # The hint is temporary; the session resource group must be restored.
+SELECT resource_group = 'r2' AS is_r2
+  FROM performance_schema.threads WHERE processlist_id = connection_id();
+SET RESOURCE GROUP USR_default;
+
+--echo
+--echo # Test 4
+--echo # Validate that a prepared statement without a RESOURCE_GROUP hint
+--echo # executes in the session resource group selected after PREPARE.
+--echo # Expected behavior: EXECUTE should return 1 for resource group 'r2'.
+PREPARE stmt_no_hint FROM
+  'SELECT resource_group = ''r2'' AS is_r2
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+SET RESOURCE GROUP r2;
+EXECUTE stmt_no_hint;
+SET RESOURCE GROUP USR_default;
+DEALLOCATE PREPARE stmt_no_hint;
+
+--echo
+--echo # Test 5
+--echo # Validate that executing the prepared statement does not affect
+--echo # later statements in the same connection.
+--echo # Expected behavior: query should return 1 for default group.
+SELECT resource_group = 'USR_default' AS is_default
+  FROM performance_schema.threads WHERE processlist_id = connection_id();
+
+--echo
+--echo # Test 6
+--echo # Validate that multiple prepared statements in the same connection
+--echo # keep their own resource-group behavior across re-execution.
+--echo # Expected behavior: every EXECUTE should return 1.
+PREPARE stmt2 FROM
+  'SELECT /*+ RESOURCE_GROUP(r2) */ resource_group = ''r2'' AS is_r2
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+PREPARE stmt3 FROM
+  'SELECT resource_group = ''USR_default'' AS is_default
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+EXECUTE stmt1;
+EXECUTE stmt2;
+EXECUTE stmt3;
+EXECUTE stmt1;
+EXECUTE stmt2;
+EXECUTE stmt3;
+
+--echo # Clean-up.
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DROP RESOURCE GROUP r1;
+DROP RESOURCE GROUP r2;
+
+--echo
+--echo #
+--echo # Additional prepared statement coverage for resource group hints.
+--echo #
+
+CREATE RESOURCE GROUP r1 TYPE=USER VCPU=0,1;
+CREATE RESOURCE GROUP r2 TYPE=USER VCPU=2,3;
+CREATE RESOURCE GROUP r3 TYPE=USER VCPU=0;
+
+
+--echo
+--echo # Test 7
+--echo # Validate that a prepared statement keeps the hinted resource
+--echo # group name for warning reporting even if the resource group does not
+--echo # exist at EXECUTE time.
+--echo # Expected behavior: EXECUTE should return 1 for the default group,
+--echo # warning_count should be 1, and diagnostics should report
+--echo # ER_RESOURCE_GROUP_NOT_EXISTS for the hinted group name.
+PREPARE stmt_missing FROM
+  'SELECT /*+ RESOURCE_GROUP(missing_rg) */ resource_group = ''USR_default'' AS is_default
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+--disable_warnings
+EXECUTE stmt_missing;
+--enable_warnings
+SHOW COUNT(*) WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @missing_errno = MYSQL_ERRNO, @missing_txt = MESSAGE_TEXT;
+SELECT @missing_errno = 3651 AS is_expected_errno,
+       @missing_txt = 'Resource Group ''missing_rg'' does not exist.' AS is_expected_text;
+DEALLOCATE PREPARE stmt_missing;
+
+--echo
+--echo # Test 8
+--echo # Validate that a prepared statement still rejects binding a
+--echo # SYSTEM resource group when the hint is restored from prepared statement
+--echo # state during EXECUTE.
+--echo # Expected behavior: EXECUTE should return 1 for the default group,
+--echo # warning_count should be 1, and diagnostics should report warning code
+--echo # 3661.
+PREPARE stmt_system FROM
+  'SELECT /*+ RESOURCE_GROUP(SYS_default) */ resource_group = ''USR_default'' AS is_default
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+--disable_warnings
+EXECUTE stmt_system;
+--enable_warnings
+SHOW COUNT(*) WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @system_errno = MYSQL_ERRNO;
+SELECT @system_errno = 3661 AS is_expected_errno;
+DEALLOCATE PREPARE stmt_system;
+
+
+--echo
+--echo # Test 9
+--echo # Validate that a prepared statement executed by a user without
+--echo # RESOURCE_GROUP_ADMIN or RESOURCE_GROUP_USER still preserves the hint
+--echo # name and emits the expected warning.
+--echo # Expected behavior: EXECUTE should return 1, warning_count should be 1,
+--echo # and diagnostics should report ER_SPECIFIC_ACCESS_DENIED_ERROR.
+CREATE USER u_no_rg@localhost IDENTIFIED BY 'pwd';
+connect(con_no_rg, localhost, u_no_rg, pwd, test);
+PREPARE stmt_access FROM 'SELECT /*+ RESOURCE_GROUP(r1) */ 1 AS ok';
+--disable_warnings
+EXECUTE stmt_access;
+--enable_warnings
+SHOW COUNT(*) WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @access_errno = MYSQL_ERRNO;
+SELECT @access_errno = 1227 AS is_expected_errno;
+DEALLOCATE PREPARE stmt_access;
+disconnect con_no_rg;
+connection default;
+DROP USER u_no_rg@localhost;
+
+
+--echo
+--echo # Test 10
+--echo # Validate duplicate RESOURCE_GROUP hints inside a prepared
+--echo # statement.
+--echo # Expected behavior: the last RESOURCE_GROUP hint should win, so EXECUTE
+--echo # should return 1 for resource group 'r2'.
+PREPARE stmt_dups FROM
+  'SELECT /*+ RESOURCE_GROUP(r1) RESOURCE_GROUP(r2) */ resource_group = ''r2'' AS is_r2
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+EXECUTE stmt_dups;
+DEALLOCATE PREPARE stmt_dups;
+
+
+--echo
+--echo # Test 11
+--echo # Validate that the resource group referenced by a prepared
+--echo # statement is resolved at EXECUTE time, not frozen at PREPARE time.
+--echo # Expected behavior: if the resource group is dropped after PREPARE but
+--echo # before EXECUTE, EXECUTE should return 1 for the default group,
+--echo # warning_count should be 1, and diagnostics should report
+--echo # ER_RESOURCE_GROUP_NOT_EXISTS.
+PREPARE stmt_dropped FROM
+  'SELECT /*+ RESOURCE_GROUP(r3) */ resource_group = ''USR_default'' AS is_default
+   FROM performance_schema.threads WHERE processlist_id = connection_id()';
+DROP RESOURCE GROUP r3;
+--disable_warnings
+EXECUTE stmt_dropped;
+--enable_warnings
+SHOW COUNT(*) WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @dropped_errno = MYSQL_ERRNO, @dropped_txt = MESSAGE_TEXT;
+SELECT @dropped_errno = 3651 AS is_expected_errno,
+       @dropped_txt = 'Resource Group ''r3'' does not exist.' AS is_expected_text;
+DEALLOCATE PREPARE stmt_dropped;
+
+--echo
+--echo # Test 12
+--echo # Validate that a missing hinted resource group leaves the session
+--echo # resource group active when EXECUTE resolves the hint.
+--echo # Expected behavior: EXECUTE should return 1 for resource group 'r2',
+--echo # emit one warning, and report ER_RESOURCE_GROUP_NOT_EXISTS.
+PREPARE stmt_missing_session FROM
+  'SELECT /*+ RESOURCE_GROUP(missing_session_rg) */
+          resource_group = ''r2'' AS is_r2
+     FROM performance_schema.threads
+    WHERE processlist_id = connection_id()';
+SET RESOURCE GROUP r2;
+--disable_warnings
+EXECUTE stmt_missing_session;
+--enable_warnings
+SHOW COUNT(*) WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @missing_session_errno = MYSQL_ERRNO,
+                            @missing_session_txt = MESSAGE_TEXT;
+SELECT @missing_session_errno = 3651 AS is_expected_errno,
+       @missing_session_txt =
+           'Resource Group ''missing_session_rg'' does not exist.' AS is_expected_text;
+SET RESOURCE GROUP USR_default;
+DEALLOCATE PREPARE stmt_missing_session;
+
+--echo
+--echo # Test 13
+--echo # Validate that RESOURCE_GROUP hint state is preserved when a
+--echo # prepared statement is reprepared after metadata changes.
+--echo # Expected behavior: EXECUTE should return 1 for resource group 'r1'
+--echo # even after ALTER TABLE forces statement reprepare.
+CREATE TABLE t_reprepare (a INT);
+INSERT INTO t_reprepare VALUES (1);
+PREPARE stmt_reprepare FROM
+  'SELECT /*+ RESOURCE_GROUP(r1) */
+          (SELECT resource_group = ''r1''
+             FROM performance_schema.threads
+            WHERE processlist_id = connection_id()) AS is_r1
+     FROM t_reprepare';
+ALTER TABLE t_reprepare ADD COLUMN b INT;
+EXECUTE stmt_reprepare;
+DEALLOCATE PREPARE stmt_reprepare;
+DROP TABLE t_reprepare;
+
+--echo # Clean-up additional coverage.
+DROP RESOURCE GROUP r1;
+DROP RESOURCE GROUP r2;

@@ -28,13 +28,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-int handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                 SSL *ssl_ctx) {
+Gr_incoming_connection_status handle_group_replication_incoming_connection(
+    THD *thd, int fd, SSL *ssl_ctx) {
   (void)thd;
   (void)fd;
   (void)ssl_ctx;
 
-  return 0;
+  return Gr_incoming_connection_status::ACCEPTED;
 }
 
 // To fool the compiler
@@ -77,6 +77,7 @@ class mock_gcs_mysql_network_provider_native_interface
               (MYSQL * mysql, enum enum_server_command command,
                const unsigned char *arg, size_t length, bool skip_check),
               (override));
+  MOCK_METHOD(unsigned int, mysql_errno, (MYSQL * mysql), (override));
   MOCK_METHOD(MYSQL *, mysql_init, (MYSQL * sock), (override));
   MOCK_METHOD(void, mysql_close, (MYSQL * sock), (override));
   MOCK_METHOD(void, mysql_free, (void *ptr), (override));
@@ -458,6 +459,10 @@ TEST_F(MySQLNetworkProviderTest, CreateConnectionToSelfSendCommandErrorTest) {
       .Times(1)
       .WillRepeatedly(testing::Return(true));
 
+  EXPECT_CALL(*native_interface, mysql_errno(testing::_))
+      .Times(1)
+      .WillOnce(testing::Return(ER_UNKNOWN_COM_ERROR));
+
   EXPECT_CALL(*native_interface, mysql_close(testing::_));
 
   Gcs_mysql_network_provider net_provider(auth_interface, native_interface);
@@ -472,6 +477,66 @@ TEST_F(MySQLNetworkProviderTest, CreateConnectionToSelfSendCommandErrorTest) {
   net_provider.stop();
 
   free(fake_conn);
+}
+
+TEST_F(MySQLNetworkProviderTest, BusyConnectionHandoffCanBeRetried) {
+  EXPECT_CALL(*auth_interface, get_credentials(testing::_, testing::_))
+      .Times(2)
+      .WillRepeatedly(testing::Return(false));
+
+  MYSQL *busy_mysql = (MYSQL *)malloc(sizeof(MYSQL));
+  MYSQL *successful_mysql = (MYSQL *)malloc(sizeof(MYSQL));
+  constexpr int successful_fd = 43;
+  successful_mysql->net.fd = successful_fd;
+
+  EXPECT_CALL(*native_interface, mysql_init(testing::_))
+      .Times(2)
+      .WillOnce(testing::Return(busy_mysql))
+      .WillOnce(testing::Return(successful_mysql));
+
+  EXPECT_CALL(
+      *native_interface,
+      mysql_real_connect(testing::_, testing::_, testing::_, testing::_,
+                         testing::_, testing::_, testing::_, testing::_))
+      .Times(2)
+      .WillOnce(testing::Return(busy_mysql))
+      .WillOnce(testing::Return(successful_mysql));
+
+  EXPECT_CALL(
+      *native_interface,
+      send_command(testing::_, testing::_, testing::_, testing::_, testing::_))
+      .Times(2)
+      .WillOnce(testing::Return(true))
+      .WillOnce(testing::Return(false));
+
+  EXPECT_CALL(*native_interface, mysql_errno(busy_mysql))
+      .Times(1)
+      .WillOnce(testing::Return(ER_GRP_RPL_CONNECTION_HANDOFF_BUSY));
+
+  EXPECT_CALL(*native_interface, mysql_close(busy_mysql)).Times(1);
+  EXPECT_CALL(*native_interface, mysql_close(successful_mysql)).Times(1);
+  EXPECT_CALL(*native_interface, mysql_free(successful_mysql)).Times(1);
+
+  Gcs_mysql_network_provider net_provider(auth_interface, native_interface);
+
+  ASSERT_FALSE(net_provider.start().first);
+
+  auto busy_connection =
+      net_provider.open_connection("localhost", 12345, {"", "", false});
+
+  ASSERT_EQ(-1, busy_connection->fd);
+
+  auto successful_connection =
+      net_provider.open_connection("localhost", 12345, {"", "", false});
+
+  ASSERT_EQ(successful_fd, successful_connection->fd);
+  ASSERT_FALSE(successful_connection->has_error);
+  EXPECT_EQ(0, net_provider.close_connection(*successful_connection));
+
+  net_provider.stop();
+
+  free(busy_mysql);
+  free(successful_mysql);
 }
 
 TEST_F(MySQLNetworkProviderTest, NewServerConnectionTest) {
@@ -491,7 +556,8 @@ TEST_F(MySQLNetworkProviderTest, NewServerConnectionTest) {
 
   Network_connection fake_network_conn(socket_to_use);
 
-  net_provider.set_new_connection(&fake_thd, &fake_network_conn);
+  ASSERT_EQ(Gr_incoming_connection_status::ACCEPTED,
+            net_provider.set_new_connection(&fake_thd, &fake_network_conn));
 
   Network_connection *retrieved_network_connection =
       net_provider.get_new_connection();
@@ -503,6 +569,59 @@ TEST_F(MySQLNetworkProviderTest, NewServerConnectionTest) {
 
   fake_thd.clear_active_vio();
   vio_delete(active_vio);
+}
+
+TEST_F(MySQLNetworkProviderTest, BusyServerConnectionIsRejectedAndCanRetry) {
+  Gcs_mysql_network_provider net_provider(auth_interface, native_interface);
+
+  ASSERT_FALSE(net_provider.start().first);
+
+  constexpr int first_socket = 42;
+  constexpr int second_socket = 43;
+
+  THD first_thd(false);
+  MYSQL_VIO first_vio = vio_new(first_socket, VIO_TYPE_TCPIP, 0);
+  first_vio->mysql_socket.fd = first_socket;
+  first_vio->vioshutdown = [](Vio *) { return 0; };
+  first_thd.set_active_vio(first_vio);
+
+  THD second_thd(false);
+  MYSQL_VIO second_vio = vio_new(second_socket, VIO_TYPE_TCPIP, 0);
+  second_vio->mysql_socket.fd = second_socket;
+  second_vio->vioshutdown = [](Vio *) { return 0; };
+  second_thd.set_active_vio(second_vio);
+
+  Network_connection first_connection(first_socket);
+  Network_connection second_connection(second_socket);
+
+  ASSERT_EQ(Gr_incoming_connection_status::ACCEPTED,
+            net_provider.set_new_connection(&first_thd, &first_connection));
+  const Gr_incoming_connection_status second_result =
+      net_provider.set_new_connection(&second_thd, &second_connection);
+  EXPECT_EQ(Gr_incoming_connection_status::BUSY, second_result);
+
+  Network_connection *retrieved_connection = net_provider.get_new_connection();
+  ASSERT_EQ(&first_connection, retrieved_connection);
+
+  if (second_result == Gr_incoming_connection_status::ACCEPTED) {
+    // Clean up if this test is run against a queueing implementation.
+    retrieved_connection = net_provider.get_new_connection();
+    ASSERT_EQ(&second_connection, retrieved_connection);
+  } else {
+    // Rejection must remove the THD registration so the same connection can
+    // be accepted after the pending connection is consumed.
+    ASSERT_EQ(Gr_incoming_connection_status::ACCEPTED,
+              net_provider.set_new_connection(&second_thd, &second_connection));
+    retrieved_connection = net_provider.get_new_connection();
+    ASSERT_EQ(&second_connection, retrieved_connection);
+  }
+
+  net_provider.stop();
+
+  first_thd.clear_active_vio();
+  second_thd.clear_active_vio();
+  vio_delete(first_vio);
+  vio_delete(second_vio);
 }
 
 TEST_F(MySQLNetworkProviderTest, LogMappingTest) {
@@ -529,6 +648,15 @@ TEST_F(MySQLNetworkProviderTest, LogMappingTest) {
   ASSERT_EQ(Gcs_mysql_network_provider_util::OUT_OF_RANGE_LOG_LEVEL,
             Gcs_mysql_network_provider_util::log_level_adaptation(
                 coded_log_level, provided_log_level));
+}
+
+TEST_F(MySQLNetworkProviderTest, RetryableConnectionHandoffErrorTest) {
+  EXPECT_TRUE(
+      Gcs_mysql_network_provider_util::is_retryable_connection_handoff_error(
+          ER_GRP_RPL_CONNECTION_HANDOFF_BUSY));
+  EXPECT_FALSE(
+      Gcs_mysql_network_provider_util::is_retryable_connection_handoff_error(
+          ER_UNKNOWN_COM_ERROR));
 }
 
 }  // namespace group_replication_gcs_mysql_networkprovidertest

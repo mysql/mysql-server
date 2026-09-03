@@ -51,6 +51,8 @@ EXPLAIN
                 -> Table scan on t1  (cost=0.65 rows=4)
             -> Single-row covering index lookup on t2 using PRIMARY (userID = t1.userID)  (cost=0.275 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`userID` AS `userid`,min(`test`.`t1`.`score`) AS `MIN(t1.score)` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`userID` = `test`.`t1`.`userID`) group by `test`.`t2`.`userID`
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
 1	1
@@ -3827,6 +3829,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
 Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `col1`,count(distinct `test`.`t`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t` group by -(`a`)
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 col1	COUNT(DISTINCT b)
 1	2
@@ -3861,6 +3864,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
 Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `col1`,count(distinct `test`.`t`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t` group by -(`a`)
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 col1	COUNT(DISTINCT b)
 1	2
@@ -3966,6 +3970,8 @@ EXPLAIN
         -> Group aggregate: count(distinct t1.f2)  (rows=2.45)
             -> Index scan on t1 using k1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,(`test`.`t1`.`f1` + 1) AS `f1 + 1`,count(distinct `test`.`t1`.`f2`) AS `x` from `test`.`t1` group by `test`.`t1`.`f1` order by `x`
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 f1	f1 + 1	x
 3	4	1
@@ -4525,6 +4531,8 @@ EXPLAIN
             -> Single-row covering index lookup on t2 using PRIMARY (b = t1.b)  (rows=1)
         -> Single-row covering index lookup on t3 using PRIMARY (b = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,count(0) AS `COUNT(*)` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b` = `test`.`t1`.`b`)) left join `test`.`t3` on((`test`.`t3`.`b` = `test`.`t1`.`b`)) where true group by `test`.`t1`.`b`
 FLUSH STATUS;
 SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
 GROUP BY b;
@@ -4818,6 +4826,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.y' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`dt`.`y` AS `y`,`dt`.`SUM(t3.x)` AS `SUM(t3.x)` from `test`.`t1` join lateral (/* select#2 */ select sql_big_result `test`.`t2`.`y` AS `y`,sum(`test`.`t3`.`x`) AS `SUM(t3.x)` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`id` = `test`.`t2`.`x`) and ((`test`.`t2`.`y` + `test`.`t3`.`y`) < `test`.`t1`.`y`)) group by `test`.`t2`.`y`) `dt`
 SELECT t1.x, dt.* FROM t1, LATERAL (
 SELECT SQL_BIG_RESULT t2.y, SUM(t3.x)
 FROM t2, t3 WHERE t2.x = t3.id AND t2.y + t3.y < t1.y
@@ -4875,6 +4884,8 @@ EXPLAIN
         -> Filter: (t1.a <> 2)  (rows=1)
             -> Single-row index lookup on t2 using PRIMARY (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t2`.`b`) AS `MAX(t2.b)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` <> 2))) where true group by `test`.`t1`.`a`
 SELECT t1.a, MAX(t2.b) FROM t1 LEFT JOIN t2 ON t1.b = t2.a AND t1.a <> 2
 GROUP BY t1.a;
 a	MAX(t2.b)

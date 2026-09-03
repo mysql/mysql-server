@@ -59,6 +59,11 @@ IF(MY_COMPILER_IS_GNU)
   TARGET_LINK_OPTIONS(xprotocol_plugin PRIVATE -Wl,--no-as-needed -lpthread)
 ENDIF()
 
+SET(XPROTOCOL_TAG_DEPENDENCIES
+  xprotocol_plugin
+  ${MYSQLX_PROTOBUF_PROTO_FILES}
+  ${PROTOBUF_PROTOC_EXECUTABLE})
+
 ADD_CUSTOM_COMMAND(
   OUTPUT "${MYSQLX_GENERATE_DIR}/xprotocol_tags.h"
          "${MYSQLX_GENERATE_DIR}/encoding_descriptors.h"
@@ -69,7 +74,7 @@ ADD_CUSTOM_COMMAND(
        -I "${MYSQLX_PROTOBUF_PROTO_DIR}"
        ${MYSQLX_PROTOBUF_PROTO_FILES}
   DEPENDS
-  xprotocol_plugin
+  ${XPROTOCOL_TAG_DEPENDENCIES}
   COMMENT "Running protocol buffer plugin on all 'proto' files"
   VERBATIM
 )

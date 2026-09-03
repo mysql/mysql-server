@@ -35,6 +35,77 @@ def	test	t1	t2	a	b	1	4	0	Y	32768	0	63
 def	test	t1	t2	b	c	2	6	0	Y	32768	0	63
 b	c
 drop table t1;
+#
+# Bug#39734461: Preserve aliases for duplicate merged derived fields
+#
+CREATE TABLE t1 (
+c1 INT NOT NULL,
+c5 DATE NOT NULL,
+c6 VARCHAR(10) NOT NULL
+);
+INSERT INTO t1 VALUES (50, '2026-01-01', 'x');
+WITH cte_1 AS (
+SELECT
+(SELECT c6 FROM t1 WHERE c1 > 43 LIMIT 1) AS col_1,
+c5 AS col_2
+FROM t1
+WHERE c1 > 42
+AND NOT c5 IN (SELECT c5 FROM t1)
+)
+SELECT
+t20.col_1 AS a,
+t20.col_1 AS b
+FROM cte_1 AS t20
+ORDER BY t20.col_2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			t20	col_1	a	253	40	0	Y	0	31	255
+def			t20	col_1	b	253	40	0	Y	0	31	255
+a	b
+DROP TABLE t1;
+CREATE TABLE t1 (i INT NOT NULL);
+SET optimizer_switch = 'derived_merge=off';
+SELECT DISTINCT
+dt.a AS x,
+dt.a AS y
+FROM (
+SELECT i AS a
+FROM t1
+) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	a	x	3	11	0	N	36865	0	63
+def	test	t1	dt	a	y	3	11	0	N	36865	0	63
+x	y
+SET optimizer_switch = default;
+DROP TABLE t1;
+#
+# Bug#38249983: Select Query is showing wrong column name alias
+#                from sub-query
+#
+CREATE TABLE t1 (i INT NOT NULL);
+INSERT INTO t1 VALUES (1);
+SELECT dt.*, a AS b
+FROM (
+SELECT ABS(i) AS a
+FROM t1
+) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			dt	a	a	8	11	1	N	32897	0	63
+def			dt	a	b	8	11	1	N	32897	0	63
+a	b
+1	1
+SELECT
+dt.a AS x,
+dt.a AS y
+FROM (
+SELECT i AS a
+FROM t1
+) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	a	x	3	11	1	N	36865	0	63
+def	test	t1	dt	a	y	3	11	1	N	36865	0	63
+x	y
+1	1
+DROP TABLE t1;
 CREATE TABLE t1 (id tinyint(3) default NULL, data varchar(255) default NULL);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.

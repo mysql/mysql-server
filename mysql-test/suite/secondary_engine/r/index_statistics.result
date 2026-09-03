@@ -21,8 +21,6 @@ EXPLAIN
 -> Filter: (t1.id = 1)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Uses the secondary index to determine 70% filtering effect (matches
 # rows 1 to 7).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
@@ -30,8 +28,6 @@ EXPLAIN
 -> Filter: (t1.x = 1)  (rows=7)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Uses the secondary index to determine 20% filtering effect (matches
 # rows 8 and 9).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
@@ -39,8 +35,6 @@ EXPLAIN
 -> Filter: (t1.x = 2)  (rows=2)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Uses the secondary index to determine 10% filtering effect (matches
 # row 10).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
@@ -48,60 +42,44 @@ EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # No index on y, so a heuristic is used for the filtering effect.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE y = 1;
 EXPLAIN
 -> Filter: (t1.y = 1)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Ignoring indexes cause heuristics to be used.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE id = 1;
 EXPLAIN
 -> Filter: (t1.id = 1)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE x = 1;
 EXPLAIN
 -> Filter: (t1.x = 1)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
 EXPLAIN
 -> Filter: (t1.id = 1)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
 EXPLAIN
 -> Filter: (t1.x = 1)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # No matching rows. Rounds up estimates to one matching row (10%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 100;
 EXPLAIN
 -> Filter: (t1.id = 100)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 100;
 EXPLAIN
 -> Filter: (t1.x = 100)  (rows=1)
     -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
-Warnings:
-Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Matches two rows in the primary index (20%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 3 OR id = 7;
 EXPLAIN
@@ -110,6 +88,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`id` = 3) or (`test`.`t1`.`id` = 7))
 # Matches three rows in the secondary index (30%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2 OR x = 3;
 EXPLAIN
@@ -118,6 +97,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`x` = 2) or (`test`.`t1`.`x` = 3))
 # Matches all rows in the secondary index (100%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
 EXPLAIN
@@ -126,6 +106,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`x` = 1) or (`test`.`t1`.`x` = 2) or (`test`.`t1`.`x` = 3))
 # Ranges in the primary index.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 0;
 EXPLAIN
@@ -134,6 +115,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 0)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 1;
 EXPLAIN
 -> Filter: (t1.id > 1)  (rows=9)
@@ -141,6 +123,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 1)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 3;
 EXPLAIN
 -> Filter: (t1.id > 3)  (rows=7)
@@ -148,6 +131,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 3)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 9;
 EXPLAIN
 -> Filter: (t1.id > 9)  (rows=1)
@@ -155,6 +139,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 9)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 10;
 EXPLAIN
 -> Filter: (t1.id > 10)  (rows=1)
@@ -162,6 +147,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 10)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 1;
 EXPLAIN
 -> Filter: (t1.id < 1)  (rows=1)
@@ -169,6 +155,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 1)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 3;
 EXPLAIN
 -> Filter: (t1.id < 3)  (rows=2)
@@ -176,6 +163,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 3)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 10;
 EXPLAIN
 -> Filter: (t1.id < 10)  (rows=9)
@@ -183,6 +171,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 10)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
 EXPLAIN
 -> Filter: (t1.id between 3 and 7)  (rows=5)
@@ -190,6 +179,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` between 3 and 7)
 # Ranges in the secondary index.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 1;
 EXPLAIN
@@ -198,6 +188,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 1)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 2;
 EXPLAIN
 -> Filter: (t1.x < 2)  (rows=7)
@@ -205,6 +196,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 2)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 3;
 EXPLAIN
 -> Filter: (t1.x < 3)  (rows=9)
@@ -212,6 +204,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 3)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 4;
 EXPLAIN
 -> Filter: (t1.x < 4)  (rows=10)
@@ -219,6 +212,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 4)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
 EXPLAIN
 -> Filter: (t1.x between 1 and 2)  (rows=9)
@@ -226,6 +220,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` between 1 and 2)
 # Indexes should only be used during optimization. Verify that the
 # execution plan for this query does not use DYNAMIC RANGE access.
 # (No occurrence of "Range checked for each record" in the plan.)
@@ -239,6 +234,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select `a`.`id` AS `id`,`a`.`x` AS `x`,`a`.`y` AS `y`,`b`.`id` AS `id`,`b`.`x` AS `x`,`b`.`y` AS `y` from `test`.`t1` `a` join `test`.`t1` `b` where (`a`.`id` < `b`.`id`)
 DROP TABLE t1;
 # Getting range statistics from spatial indexes is not supported,
 # since spatial indexes are not ordered.
@@ -259,4 +255,5 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select st_astext(`test`.`geom`.`g`) AS `ST_AsText(g)` from `test`.`geom` where mbrcontains(<cache>(polygon(linestring(point(0,0),point(3,0),point(3,3),point(0,0)))),`test`.`geom`.`g`)
 DROP TABLE geom;

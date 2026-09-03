@@ -27,7 +27,6 @@
 #include "sql/sql_load.h"
 #include "my_sqlcommand.h"
 #include "sql/mysqld_cs.h"
-#include "sql/sql_rename.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -42,6 +41,7 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -71,6 +71,7 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::table_storage_engine
 #include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/schema.h"  // dd::Schema
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h"  // Ignore_error_handler
@@ -118,7 +119,203 @@
 class READ_INFO;
 
 using std::max;
-using std::min;
+
+/**
+  Lock a generated backup table name and verify that it is not already in use.
+
+  @param thd          Thread context.
+  @param schema_name  Schema containing the table.
+  @param table_name   Original table name, used for error reporting.
+  @param backup_name  Generated name for the backup table.
+
+  @retval false  Success.
+  @retval true   Error.
+*/
+static bool lock_and_check_bulk_load_backup_name(
+    THD *thd, const std::string &schema_name, const std::string &table_name,
+    const std::string &backup_name) {
+  MDL_request backup_name_mdl_request;
+  MDL_REQUEST_INIT(&backup_name_mdl_request, MDL_key::TABLE,
+                   schema_name.c_str(), backup_name.c_str(), MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
+                                    thd->variables.lock_wait_timeout)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             "Failed to acquire metadata lock on temporary backup table name "
+             "for table duplication during incremental bulk load!");
+    return true;
+  }
+
+  const dd::Table *backup_table = nullptr;
+  if (thd->dd_client()->acquire(schema_name.c_str(), backup_name.c_str(),
+                                &backup_table)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             "Failed to check temporary backup table name for table "
+             "duplication during incremental bulk load!");
+    return true;
+  }
+
+  if (backup_table != nullptr) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             "Temporary backup table name already exists!");
+    return true;
+  }
+
+  return false;
+}
+
+/**
+  Rename a table as part of an atomic copy-style bulk load replacement.
+
+  The rename does not commit data dictionary changes or rename generated
+  foreign key names.
+
+  @param thd           Thread context.
+  @param hton          Table storage engine handlerton.
+  @param schema        Data dictionary object for the table schema.
+  @param schema_name   Schema containing the table.
+  @param table_name    Original table name, used for error reporting.
+  @param from_name     Current name of the table being renamed.
+  @param from_fk_name  Name used to identify self-referencing foreign keys.
+  @param to_name       New name for the table.
+
+  @retval false  Success.
+  @retval true   Error.
+*/
+static bool rename_table_for_bulk_load(THD *thd, handlerton *hton,
+                                       const dd::Schema &schema,
+                                       const std::string &schema_name,
+                                       const std::string &table_name,
+                                       const std::string &from_name,
+                                       const std::string &from_fk_name,
+                                       const std::string &to_name) {
+  constexpr uint flags = NO_DD_COMMIT | NO_FK_RENAME;
+
+  const dd::Table *from_table_def = nullptr;
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  if (thd->dd_client()->acquire(schema_name.c_str(), from_name.c_str(),
+                                &from_table_def) ||
+      from_table_def == nullptr) {
+    std::string message = "Failed to acquire table definition for '";
+    message += from_name;
+    message += "' during copy-style replacement!";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             message.c_str());
+    return true;
+  }
+
+  /*
+    mysql_rename_table() renames generated check constraint names. Lock their
+    source and target names before it updates the data dictionary.
+  */
+  if (lock_check_constraint_names_for_rename(
+          thd, schema_name.c_str(), from_name.c_str(), from_table_def,
+          schema_name.c_str(), to_name.c_str())) {
+    std::string message =
+        "Failed to acquire metadata locks on check "
+        "constraint names for table '";
+    message += from_name;
+    message += "' during copy-style replacement!";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             message.c_str());
+    return true;
+  }
+
+  if (mysql_rename_table(thd, hton, schema_name.c_str(), from_name.c_str(),
+                         schema_name.c_str(), from_fk_name.c_str(), schema,
+                         schema_name.c_str(), to_name.c_str(), flags)) {
+    std::string message = "Failed to rename table from '";
+    message += from_name;
+    message += "' to '";
+    message += to_name;
+    message += "' during copy-style replacement!";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             message.c_str());
+    return true;
+  }
+
+  return false;
+}
+
+static bool replace_table_for_bulk_load(THD *thd, handlerton *hton,
+                                        Table_ref *table_ref,
+                                        const std::string &schema_name,
+                                        const std::string &original_name,
+                                        const std::string &loaded_table_name,
+                                        const std::string &backup_name) {
+  /*
+    Generated backup names are only reasonably unique. Lock the rename target
+    while verifying that no existing table uses it.
+  */
+  if (lock_and_check_bulk_load_backup_name(thd, schema_name, original_name,
+                                           backup_name))
+    return true;
+
+  const dd::Schema *schema = nullptr;
+  if (thd->dd_client()->acquire(schema_name.c_str(), &schema) ||
+      schema == nullptr) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to acquire schema for table replacement after incremental "
+             "bulk load!");
+    return true;
+  }
+
+  if (table_ref->table == nullptr) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to find open table for table replacement after "
+             "incremental bulk load!");
+    return true;
+  }
+
+  /*
+    Match ALTER TABLE COPY: evict open and cached instances of the old table
+    before renaming it to the backup that will later be dropped.
+  */
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, schema_name.c_str(), original_name.c_str(),
+      MDL_EXCLUSIVE));
+  close_all_tables_for_name(thd, table_ref->table->s, false, nullptr);
+  table_ref->table = nullptr;
+
+  /*
+    Incremental bulk load replaces only the physical parent table. The loaded
+    duplicate has the same definition and logical name, so FK children must not
+    follow either internal rename and their definitions need no adjustment.
+  */
+  if (rename_table_for_bulk_load(thd, hton, *schema, schema_name, original_name,
+                                 original_name, original_name, backup_name))
+    return true;
+
+  if (rename_table_for_bulk_load(thd, hton, *schema, schema_name, original_name,
+                                 loaded_table_name, original_name,
+                                 original_name))
+    return true;
+
+  /* Reload reverse FK metadata for the newly installed parent definition. */
+  if (adjust_fk_parents(thd, schema_name.c_str(), original_name.c_str(), true,
+                        nullptr)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to refresh foreign key parent metadata after table "
+             "replacement for incremental bulk load!");
+    return true;
+  }
+
+  close_thread_tables(thd);
+
+  if (quick_rm_table(thd, hton, schema_name.c_str(), backup_name.c_str(),
+                     NO_DD_COMMIT)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to remove temporary backup table after table "
+             "replacement for incremental bulk load!");
+    return true;
+  }
+
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, schema_name.c_str(),
+                   backup_name.c_str(), false);
+
+  return false;
+}
 
 /*
   Temporary NULL values must outlive temporary nullability so that NOT NULL
@@ -384,29 +581,6 @@ bool Sql_cmd_load_table::validate_table_for_bulk_load(
   */
 
   return false;
-}
-
-bool Sql_cmd_load_table::rename_table_for_incremental_bulk_load(
-    THD *thd, const std::string &schema_name, const std::string &old_table_name,
-    const std::string &new_table_name) {
-  close_thread_tables(thd);
-
-  Table_ref old_table_ref{};
-  old_table_ref.table_name = old_table_name.c_str();
-  old_table_ref.table_name_length = old_table_name.length();
-  old_table_ref.db = schema_name.c_str();
-  old_table_ref.db_length = schema_name.length();
-  old_table_ref.alias = old_table_ref.table_name;
-  Table_ref new_table_ref{};
-  new_table_ref.table_name = new_table_name.c_str();
-  new_table_ref.table_name_length = new_table_name.length();
-  new_table_ref.db = schema_name.c_str();
-  new_table_ref.db_length = schema_name.length();
-  new_table_ref.alias = new_table_ref.table_name;
-  new_table_ref.next_local = nullptr;
-  old_table_ref.next_local = &new_table_ref;
-
-  return mysql_rename_tables(thd, &old_table_ref);
 }
 
 bool Sql_cmd_load_table::duplicate_table_for_bulk_load(
@@ -837,6 +1011,13 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
     }
   });
 
+  ulonglong auto_increment_value = 0;
+  if (table_ref->table->found_next_number_field) {
+    HA_CREATE_INFO create_info;
+    table_ref->table->file->update_create_info(&create_info);
+    auto_increment_value = create_info.auto_increment_value;
+  }
+
   if (!table_ref->table->file->is_table_empty()) {
     m_non_empty_table = true;
   }
@@ -927,6 +1108,15 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
 
   TABLE *const bulk_loaded_table = bulk_loaded_table_ref->table;
 
+  if (!m_non_empty_table && auto_increment_value != 0 &&
+      bulk_loaded_table->file->bulk_load_preserve_auto_increment(
+          auto_increment_value) != 0) {
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "BULK LOAD: Failed to preserve AUTO_INCREMENT value");
+    success = false;
+    return true;
+  }
+
   if (validate_check_constraints_for_bulk_load(thd, bulk_loaded_table)) {
     return true;
   }
@@ -971,38 +1161,10 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   if (m_non_empty_table && !info.m_is_dryrun) {
     auto final_temp_name =
         table_ref->table->file->bulk_load_generate_temporary_table_name();
-    Table_ref final_table_ref{};
-    final_table_ref.table_name = final_temp_name.c_str();
-    final_table_ref.table_name_length = final_temp_name.length();
-    final_table_ref.db = schema_name.c_str();
-    final_table_ref.db_length = schema_name.length();
-    MDL_REQUEST_INIT(&final_table_ref.mdl_request, MDL_key::TABLE,
-                     final_table_ref.db, final_table_ref.table_name,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
-    if (lock_table_names(thd, &final_table_ref, nullptr,
-                         thd->variables.lock_wait_timeout, 0)) {
-      success = false;
-      return true;
-    }
-    if (rename_table_for_incremental_bulk_load(thd, schema_name, original_name,
-                                               final_temp_name)) {
-      success = false;
-      return true;
-    }
-    if (rename_table_for_incremental_bulk_load(thd, schema_name, temp_name,
-                                               original_name)) {
-      success = false;
-      return true;
-    }
 
-    Table_ref old_table_ref;
-    old_table_ref.table_name = final_temp_name.c_str();
-    old_table_ref.table_name_length = final_temp_name.length();
-    old_table_ref.db = schema_name.c_str();
-    old_table_ref.db_length = schema_name.length();
-    old_table_ref.alias = old_table_ref.table_name;
-    close_thread_tables(thd);
-    if (mysql_rm_table(thd, &old_table_ref, false, false)) {
+    if (replace_table_for_bulk_load(thd, hton, table_ref, schema_name,
+                                    original_name, temp_name,
+                                    final_temp_name)) {
       success = false;
       return true;
     }

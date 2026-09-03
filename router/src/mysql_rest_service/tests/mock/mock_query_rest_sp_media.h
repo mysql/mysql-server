@@ -32,19 +32,8 @@
 class MockQueryRestSPMedia : public mrs::database::QueryRestSPMedia {
  public:
   MOCK_METHOD(void, query_entries,
-              (MySQLSession * session, const std::string &schema,
-               const std::string &object,
-               const std::vector<std::string> &values),
-              (override));
-  MOCK_METHOD(void, query_entries,
-              (MySQLSession * session, const std::string &column,
-               const std::string &schema, const std::string &object,
-               const std::string &primary, const std::string &primary_value),
-              (override));
-  MOCK_METHOD(void, query_entries,
-              (MySQLSession * session, const std::string &column,
-               const std::string &schema, const std::string &object,
-               const uint32_t limit, const uint32_t offset),
+              (mysqlrouter::MySQLSession * session, const std::string &schema,
+               const std::string &object, const mysqlrouter::sqlstring &values),
               (override));
 };
 

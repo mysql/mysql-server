@@ -899,6 +899,12 @@ struct ContainedSubquery {
   /// @see kMaxItemLengthEstimate and
   /// @see Item_in_subselect::get_contained_subquery().
   int row_width;
+
+  /// For a kMaterializable subquery: the root path of the plan without
+  /// injected IN-to-EXISTS conditions, i.e. the plan that is actually
+  /// executed when the subquery is materialized. Used to cost the one-time
+  /// materialization build. Falls back to 'path' if null.
+  AccessPath *path_no_in2exists{nullptr};
 };
 
 /**
@@ -6360,12 +6366,6 @@ class Item_view_ref final : public Item_ref {
   table_map used_tables() const override;
 
   bool eq(const Item *item) const override;
-  Item *get_tmp_table_item(THD *thd) override {
-    DBUG_TRACE;
-    Item *item = Item_ref::get_tmp_table_item(thd);
-    item->item_name = item_name;
-    return item;
-  }
   Ref_Type ref_type() const override { return VIEW_REF; }
 
   bool check_column_privileges(uchar *arg) override;

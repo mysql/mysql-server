@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "connection_control.h"
+#include <my_systime.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/bits/psi_memory_bits.h>
 #include <mysql/components/services/connection_control_pfs.h>
@@ -31,7 +32,8 @@
 #include <mysql/components/services/psi_memory.h>
 #include <mysqld_error.h>
 #include <template_utils.h>
-#include "connection_control_coordinator.h" /* g_connection_event_coordinator */
+#include <atomic>
+#include "connection_control_coordinator.h" /* Connection_event_coordinator */
 #include "connection_control_memory.h"
 #include "connection_control_pfs_table.h"
 #include "connection_delay.h"
@@ -49,7 +51,62 @@ using connection_control::Connection_event_coordinator;
 Connection_control_statistics g_statistics;
 Connection_control_variables g_variables;
 connection_control::Failed_attempts_list_imp g_failed_attempts_list;
-static Connection_event_coordinator *g_connection_event_coordinator = nullptr;
+/*
+  RCU-protected coordinator. The atomics have trivial destructors, so they do
+  not cause teardown side effects when the component is unloaded.
+*/
+static std::atomic<Connection_event_coordinator *>
+    g_connection_event_coordinator{nullptr};
+alignas(128) static std::atomic<long> g_connection_event_coordinator_readers{0};
+
+class Connection_event_coordinator_read_guard {
+ public:
+  Connection_event_coordinator_read_guard() {
+    /*
+      Do not dereference the first value read here.  Teardown may remove and
+      reclaim it before this thread has registered as a reader.  The second,
+      sequentially-consistent load makes that race visible: if teardown got
+      there first, this guard remains empty; otherwise teardown observes this
+      reader before it can reclaim the coordinator.
+    */
+    auto *coordinator =
+        g_connection_event_coordinator.load(std::memory_order_seq_cst);
+    if (coordinator == nullptr) return;
+
+    g_connection_event_coordinator_readers.fetch_add(1,
+                                                     std::memory_order_seq_cst);
+    if (g_connection_event_coordinator.load(std::memory_order_seq_cst) ==
+        coordinator) {
+      coordinator_ = coordinator;
+    } else {
+      g_connection_event_coordinator_readers.fetch_sub(
+          1, std::memory_order_seq_cst);
+    }
+  }
+
+  Connection_event_coordinator_read_guard(
+      const Connection_event_coordinator_read_guard &) = delete;
+  Connection_event_coordinator_read_guard &operator=(
+      const Connection_event_coordinator_read_guard &) = delete;
+
+  ~Connection_event_coordinator_read_guard() {
+    if (coordinator_ != nullptr)
+      g_connection_event_coordinator_readers.fetch_sub(
+          1, std::memory_order_seq_cst);
+  }
+
+  Connection_event_coordinator *get() const { return coordinator_; }
+
+ private:
+  Connection_event_coordinator *coordinator_{nullptr};
+};
+
+static void wait_for_connection_event_coordinator_readers() {
+  while (g_connection_event_coordinator_readers.load(
+             std::memory_order_seq_cst) > 0) {
+    my_sleep(1000);
+  }
+}
 
 /* Performance Schema instrumentation */
 
@@ -100,12 +157,14 @@ mysql_event_tracking_connection_subclass_t Event_tracking_implementation::
 bool Event_tracking_implementation::Event_tracking_connection_implementation::
     callback(const mysql_event_tracking_connection_data *data) {
   try {
-    if (data->event_subclass == EVENT_TRACKING_CONNECTION_CONNECT) {
+    if (data->event_subclass == EVENT_TRACKING_CONNECTION_CONNECT ||
+        data->event_subclass == EVENT_TRACKING_CONNECTION_CHANGE_USER) {
       THD *thd;
       mysql_service_mysql_current_thread_reader->get(&thd);
       /** Notify event coordinator */
-      if (g_connection_event_coordinator != nullptr)
-        g_connection_event_coordinator->notify_event(thd, data);
+      const Connection_event_coordinator_read_guard coordinator_guard;
+      if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+        coordinator->notify_event(thd, data);
     }
   } catch (...) {
     /* Happily ignore any bad behavior */
@@ -170,8 +229,9 @@ static void update_failed_connections_threshold(MYSQL_THD thd [[maybe_unused]],
   */
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.failed_connections_threshold = static_cast<int64>(new_value);
-  g_connection_event_coordinator->notify_sys_var(
-      OPT_FAILED_CONNECTIONS_THRESHOLD, &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(OPT_FAILED_CONNECTIONS_THRESHOLD, &new_value);
 }
 
 /**
@@ -225,8 +285,9 @@ static void update_min_connection_delay(MYSQL_THD thd [[maybe_unused]],
                                         const void *save) {
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.min_connection_delay = static_cast<int64>(new_value);
-  g_connection_event_coordinator->notify_sys_var(OPT_MIN_CONNECTION_DELAY,
-                                                 &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(OPT_MIN_CONNECTION_DELAY, &new_value);
 }
 
 /**
@@ -280,8 +341,9 @@ static void update_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
                                         const void *save) {
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.max_connection_delay = static_cast<int64>(new_value);
-  g_connection_event_coordinator->notify_sys_var(OPT_MAX_CONNECTION_DELAY,
-                                                 &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(OPT_MAX_CONNECTION_DELAY, &new_value);
 }
 
 /**
@@ -341,8 +403,9 @@ static void update_exempt_unknown_users(MYSQL_THD thd [[maybe_unused]],
                                         const void *save) {
   bool new_value = *(reinterpret_cast<const bool *>(save));
   g_variables.exempt_unknown_users = new_value;
-  g_connection_event_coordinator->notify_sys_var(OPT_EXEMPT_UNKNOWN_USERS,
-                                                 &new_value);
+  const Connection_event_coordinator_read_guard coordinator_guard;
+  if (auto *coordinator = coordinator_guard.get(); coordinator != nullptr)
+    coordinator->notify_sys_var(OPT_EXEMPT_UNKNOWN_USERS, &new_value);
 }
 
 SHOW_VAR static component_connection_control_status_variables[STAT_LAST + 1] = {
@@ -550,8 +613,9 @@ static mysql_service_status_t connection_control_init() {
     connection_control::unregister_pfs_table();
     return 1;
   }
-  g_connection_event_coordinator = new Connection_event_coordinator();
-  init_connection_delay_event(g_connection_event_coordinator);
+  auto *coordinator = new Connection_event_coordinator();
+  init_connection_delay_event(coordinator);
+  g_connection_event_coordinator.store(coordinator, std::memory_order_seq_cst);
   return 0;
 }
 
@@ -562,10 +626,6 @@ static mysql_service_status_t connection_control_init() {
 */
 
 static mysql_service_status_t connection_control_deinit() {
-  delete g_connection_event_coordinator;
-  g_connection_event_coordinator = nullptr;
-  connection_control::deinit_connection_delay_event();
-
   if (connection_control::connection_control_component_option_usage_deinit()) {
     LogComponentErr(ERROR_LEVEL, ER_CONNECTION_CONTROL_FAILED_DEINIT,
                     "connection_control_component_option_usage");
@@ -580,6 +640,12 @@ static mysql_service_status_t connection_control_deinit() {
     LogComponentErr(ERROR_LEVEL, ER_CONNECTION_CONTROL_FAILED_DEINIT,
                     "system_variable");
   }
+
+  auto *coordinator = g_connection_event_coordinator.exchange(
+      nullptr, std::memory_order_seq_cst);
+  wait_for_connection_event_coordinator_readers();
+  delete coordinator;
+  connection_control::deinit_connection_delay_event();
 
   if (connection_control::unregister_pfs_table()) {
     LogComponentErr(ERROR_LEVEL, ER_CONNECTION_CONTROL_FAILED_DEINIT,

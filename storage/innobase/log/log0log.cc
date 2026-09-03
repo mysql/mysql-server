@@ -781,8 +781,22 @@ dberr_t log_start(log_t &log, const lsn_t start_lsn) {
     auto file_handle = file->open(Log_file_access_mode::READ_ONLY);
     ut_a(file_handle.is_open());
 
-    const auto err = log_data_blocks_read(file_handle, file->offset(block_lsn),
-                                          OS_FILE_LOG_BLOCK_SIZE, block);
+    const os_offset_t block_offset = file->offset(block_lsn);
+
+    /* Probe without supplying encryption metadata. An encrypted block cannot
+    be decrypted and returns DB_IO_DECRYPT_FAIL; a plaintext block is returned
+    unchanged. */
+    dberr_t err = log_data_blocks_read(file_handle, block_offset,
+                                       OS_FILE_LOG_BLOCK_SIZE, block, false);
+
+    if (err == DB_IO_DECRYPT_FAIL) {
+      srv_recovered_redo_block_was_encrypted = true;
+      err = log_data_blocks_read(file_handle, block_offset,
+                                 OS_FILE_LOG_BLOCK_SIZE, block);
+    } else if (err == DB_SUCCESS) {
+      srv_recovered_redo_block_was_encrypted = false;
+    }
+
     if (err != DB_SUCCESS) {
       return err;
     }

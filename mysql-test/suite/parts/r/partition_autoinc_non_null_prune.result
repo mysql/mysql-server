@@ -778,3 +778,28 @@ SELECT COUNT(*) FROM sbtest1;
 COUNT(*)
 3
 DROP TABLE sbtest1;
+#
+# Bug#39596279 SEGV in Field::is_nullable() from
+#              partition_info::can_prune_insert() with DEFAULT
+#
+CREATE TABLE t1 (
+pk INT PRIMARY KEY AUTO_INCREMENT,
+c1 INT
+) PARTITION BY HASH(pk) PARTITIONS 2;
+INSERT INTO t1 VALUES (DEFAULT, 1);
+INSERT INTO t1 (pk, c1) VALUES (DEFAULT, 2);
+INSERT INTO t1 VALUES (10, 3), (DEFAULT, 4);
+EXPLAIN INSERT INTO t1 VALUES (DEFAULT, 5);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` values (default,5)
+INSERT INTO t1 VALUES (DEFAULT, 5);
+SELECT c1 FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+DROP TABLE t1;

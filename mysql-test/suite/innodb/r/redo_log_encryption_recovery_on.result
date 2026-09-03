@@ -1,0 +1,79 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+DO innodb_redo_log_consumer_register();
+CREATE TABLE t1 (a INT PRIMARY KEY, b LONGBLOB) ENGINE = InnoDB;
+CREATE TABLE t2(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(16) CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+c INT,
+INDEX(b))
+ENGINE = InnoDB STATS_PERSISTENT = 0;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_disable_background_merge = ON;
+SET GLOBAL innodb_change_buffering_debug = 1;
+INSERT INTO t2 VALUES (0, REPEAT('X', 16), 1);
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+INSERT INTO t2 SELECT 0,b,c FROM t2;
+SET GLOBAL innodb_redo_log_encrypt = ON;
+INSERT INTO t1 VALUES (1, REPEAT('b', 6*512*512));
+BEGIN;
+SELECT b FROM t2 LIMIT 3;
+b
+XXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXX
+BEGIN;
+DELETE FROM t2 WHERE a = 1;
+INSERT INTO t2 VALUES (1, REPEAT('x', 16), 1);
+COMMIT;
+# Kill the server
+# restart: --plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --innodb-disable-background-merge=ON
+SELECT COUNT(*) = 2 AS ibuf_counters_unchanged_during_recovery
+FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME IN ('ibuf_merges_delete_mark', 'ibuf_merges_insert')
+AND COUNT = 0;
+ibuf_counters_unchanged_during_recovery
+1
+SELECT COUNT(*) FROM t2 FORCE INDEX (b)
+WHERE b = REPEAT('x', 16);
+COUNT(*)
+8192
+SELECT COUNT(*) = 2 AS ibuf_counters_increased_after_foreground_access
+FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME IN ('ibuf_merges_delete_mark', 'ibuf_merges_insert')
+AND COUNT > 0;
+ibuf_counters_increased_after_foreground_access
+1
+SELECT a, LEFT(b, 8) FROM t1;
+a	LEFT(b, 8)
+1	bbbbbbbb
+INSERT INTO t1 VALUES (2, REPEAT('c', 6*512*512));
+# Kill the server
+# restart: --plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --innodb-disable-background-merge=ON
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+DROP TABLE t1, t2;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

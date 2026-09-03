@@ -320,6 +320,9 @@ class DB_restrictions_aggregator : public Restrictions_aggregator {
   /** Security context of the current user */
   const Security_context *m_sctx;
 
+  /** Whether the current user is the grantee */
+  const bool m_current_user_is_grantee;
+
  private:
   virtual Status validate() = 0;
   virtual void aggregate(DB_restrictions &restrictions) = 0;

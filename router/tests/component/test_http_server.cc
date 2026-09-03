@@ -993,10 +993,8 @@ INSTANTIATE_TEST_SUITE_P(
 const char kServerCertFile[]{"server-cert.pem"};  // 2048 bit
 const char kServerKeyFile[]{"server-key.pem"};
 const char kServerCertCaFile[]{"cacert.pem"};
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
 static const char kServerCertRsa1024File[]{
     "server-sha1-1024-cert.pem"};  // 1024 bit
-#endif
 
 static const char kWrongServerCertCaFile[]{"ca-sha512.pem"};
 const char kDhParams4File[]{"dhparams-4.pem"};
@@ -1129,8 +1127,7 @@ TEST_P(HttpClientSecureTest, ensure) {
 
   tls_ctx.version_range(GetParam().min_version, GetParam().max_version);
 
-  // as min-version isn't set, it may either be "AUTO" aka the lowest supported
-  // or SSL_3 ... which is the lowest supported (openssl 1.1.0 and before)
+  // as min-version isn't set, it may be "AUTO" aka the lowest supported
   std::set<TlsVersion> allowed{TlsVersion::AUTO, GetParam().min_version,
                                library_min_version};
   EXPECT_THAT(allowed, ::testing::Contains(tls_ctx.min_version()));
@@ -1380,9 +1377,8 @@ class HttpServerSecureTest
       SCOPED_TRACE("// stderr should be empty");
       EXPECT_THAT(http_server.get_full_output(), ::testing::IsEmpty());
 
-      // if openssl 1.1.0 is used and it is compiled with
-      // "-DOPENSSL_TLS_SECURITY_LEVEL" > 1 we may also get "ee key too small"
-      // instead of kErrmsgRegexWeakSslKey.
+      // With "-DOPENSSL_TLS_SECURITY_LEVEL" > 1 we may also get
+      // "ee key too small" instead of kErrmsgRegexWeakSslKey.
       const auto errmsg_regex =
           (GetParam().errmsg_regex == kErrmsgRegexWeakSslKey &&
            TlsClientContext().security_level() > 1)
@@ -1602,40 +1598,6 @@ INSTANTIATE_TEST_SUITE_P(
           (info.param.expected_success ? "_works" : "_fails"));
     });
 
-#if (OPENSSL_VERSION_NUMBER < 0x10101000L)
-// This fails with OpenSSL 1.1.1 that added TLS1.3 default ciphers that we
-// can't disable
-const HttpServerSecureParams http_server_secure_params_pre_openssl_111[]{
-    {"ssl_1_cert_only_unacceptable_ciphers",
-     "WL12524::TS_CR_04",
-     {
-         {"bind_address", "127.0.0.1"},
-         {"port", std::string(kPlaceholder)},
-         {"ssl", "1"},
-         {"ssl_key",
-          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
-         {"ssl_cert",
-          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
-         {"ssl_cipher", "AES128-SHA"},
-     },
-     // connection will fail as ciphers can't be negotiated or libevent may
-     // not support SSL
-     false,
-     "no cipher match"},
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Openssl111, HttpServerSecureTest,
-    ::testing::ValuesIn(http_server_secure_params_pre_openssl_111),
-    [](const ::testing::TestParamInfo<HttpServerSecureParams> &info) {
-      return info.param.test_name +
-             (info.param.expected_success ? "_works" : "_fails");
-    });
-#endif
-
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
-// the bitsize of the public key can only be determined with
-// openssl 1.0.2 and later
 const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
     {"ssl_cert weak",
      "WL12524::TS_SR6_01",
@@ -1664,9 +1626,8 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
          {"ssl_curves", "P-256"},
      },
      true,
-     // if openssl 1.1.0 is used and it is compiled with
-     // "-DOPENSSL_TLS_SECURITY_LEVEL" > 4 we may also get "ee key too small"
-     // here.
+     // With "-DOPENSSL_TLS_SECURITY_LEVEL" > 4 we may also get
+     // "ee key too small" here.
      "no-error"},
 };
 
@@ -1678,7 +1639,6 @@ INSTANTIATE_TEST_SUITE_P(
           info.param.test_name +
           (info.param.expected_success ? "_works" : "_fails"));
     });
-#endif
 
 //
 // HTTP auth

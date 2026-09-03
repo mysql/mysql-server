@@ -9034,6 +9034,9 @@ void Dbdih::execNODE_FAILREP(Signal *signal) {
   Uint32 failedNodes[MAX_NDB_NODES];
   jamEntry();
   NodeFailRep *const nodeFail = (NodeFailRep *)&signal->theData[0];
+  NodeFailRep nodeFailCopy;
+  memcpy(&nodeFailCopy, nodeFail, sizeof(NodeFailRep));
+
   NdbNodeBitmask allFailed;
 
   if (signal->getNoOfSections() >= 1) {
@@ -9053,15 +9056,6 @@ void Dbdih::execNODE_FAILREP(Signal *signal) {
   Uint32 newMasterId = nodeFail->masterNodeId;
   const Uint32 noOfFailedNodes = nodeFail->noOfNodes;
 
-  /* Send NODE_FAILREP to rest of blocks (not NDBCNTR, QMGR, DBDIH).
-   * Some of them will respond with NF_COMPLETEREP to DBDIH when they handled
-   * the node failure.
-   */
-
-  LinearSectionPtr lsptr[1];
-  lsptr[0].p = allFailed.rep.data;
-  lsptr[0].sz = allFailed.getPackedLengthInWords();
-
   /*-------------------------------------------------------------------------*/
   // The first step is to convert from a bit mask to an array of failed nodes.
   /*-------------------------------------------------------------------------*/
@@ -9075,59 +9069,6 @@ void Dbdih::execNODE_FAILREP(Signal *signal) {
   }    // for
   ndbrequire(noOfFailedNodes == index);
   ndbrequire(noOfFailedNodes - 1 < MAX_NDB_NODES);
-
-  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
-             lsptr, 1);
-
-  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(TRIX_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
-             lsptr, 1);
-
-  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
-             lsptr, 1);
-
-  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-             JBB, lsptr, 1);
-
-  if ((globalData.ndbMtQueryThreads + globalData.ndbMtRecoverThreads) > 0) {
-    sendSignal(DBQLQH_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
-               JBB, lsptr, 1);
-  } else {
-    /* No query threads, report complete already here */
-    for (i = 0; i < noOfFailedNodes; i++) {
-      jam();
-      NodeRecordPtr TNodePtr;
-      TNodePtr.i = failedNodes[i];
-      ptrCheckGuard(TNodePtr, MAX_NDB_NODES, nodeRecord);
-      /* ----------------------------------------------------------------- */
-      // Report the event that DBQLQH completed node failure handling.
-      /* ----------------------------------------------------------------- */
-      signal->theData[0] = NDB_LE_NodeFailCompleted;
-      signal->theData[1] = DBQLQH;
-      signal->theData[2] = TNodePtr.i;
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
-    }
-  }
 
   if (ERROR_INSERTED(7179) || ERROR_INSERTED(7217)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -9312,6 +9253,70 @@ void Dbdih::execNODE_FAILREP(Signal *signal) {
     jam();
     ndbrequire(isMaster());
     startNextChkpt(signal);
+  }
+
+  /**
+   * Send NODE_FAILREP to rest of blocks (not NDBCNTR, QMGR, DBDIH).
+   * Some of them will respond with NF_COMPLETEREP to DBDIH when they
+   * have handled the node failure.
+   */
+  LinearSectionPtr lsptr[1];
+  lsptr[0].p = allFailed.rep.data;
+  lsptr[0].sz = allFailed.getPackedLengthInWords();
+
+  memcpy(&signal->theData[0], &nodeFailCopy, sizeof(NodeFailRep));
+
+  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
+             lsptr, 1);
+
+  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(TRIX_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
+             lsptr, 1);
+
+  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
+             lsptr, 1);
+
+  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+             JBB, lsptr, 1);
+
+  if ((globalData.ndbMtQueryThreads + globalData.ndbMtRecoverThreads) > 0) {
+    sendSignal(DBQLQH_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
+               JBB, lsptr, 1);
+  } else {
+    /* No query threads, report complete already here */
+    for (i = 0; i < noOfFailedNodes; i++) {
+      jam();
+      NodeRecordPtr TNodePtr;
+      TNodePtr.i = failedNodes[i];
+      ptrCheckGuard(TNodePtr, MAX_NDB_NODES, nodeRecord);
+      /* ----------------------------------------------------------------- */
+      // Report the event that DBQLQH completed node failure handling.
+      /* ----------------------------------------------------------------- */
+      signal->theData[0] = NDB_LE_NodeFailCompleted;
+      signal->theData[1] = DBQLQH;
+      signal->theData[2] = TNodePtr.i;
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+    }
   }
 }  // Dbdih::execNODE_FAILREP()
 

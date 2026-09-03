@@ -67,6 +67,8 @@ say 3rd byte, it means that it is 3rd byte from the record origin.
 #include "dict0boot.h"
 #include "dict0dict.h"
 
+#include <optional>
+
 /* Compact flag ORed to the extra size returned by rec_get_offsets() */
 constexpr uint32_t REC_OFFS_COMPACT = 1U << 31;
 /* SQL NULL flag in offsets returned by rec_get_offsets() */
@@ -721,6 +723,41 @@ static inline bool rec_new_temp_is_versioned(const rec_t *rec) {
   return ((info & REC_INFO_VERSION_FLAG) != 0);
 }
 
+#if defined(UNIV_DEBUG) && !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP)
+#define UNIV_ROW_IMPORT_DBG
+/* Declarations of methods from row0import that are less efficient but check
+against page corruptions. */
+
+[[nodiscard]] bool row_import_rec_get_n_fields_instant_checked(
+    const page_t *page, const byte *ptr, uint16_t *n_fields, uint16_t *length,
+    bool force_page_boundary_check);
+
+[[nodiscard]] bool row_import_rec_check_old_metadata(const dict_index_t *index,
+                                                     const rec_t *rec);
+
+[[nodiscard]] bool row_import_rec_check_comp_metadata(const dict_index_t *index,
+                                                      const rec_t *rec);
+
+void row_import_assert_rec_metadata_valid(const rec_t *rec,
+                                          const dict_index_t *index);
+
+void row_import_assert_index_page_records_links_and_types_valid(
+    const page_t *page, const dict_index_t *index);
+#endif
+
+class Row_import_metadata_check_guard {
+#ifdef UNIV_ROW_IMPORT_DBG
+ public:
+  Row_import_metadata_check_guard();
+  ~Row_import_metadata_check_guard();
+
+  Row_import_metadata_check_guard(const Row_import_metadata_check_guard &) =
+      delete;
+  Row_import_metadata_check_guard &operator=(
+      const Row_import_metadata_check_guard &) = delete;
+#endif
+};
+
 /** Get the number of fields for one new style leaf page record.
 This is only needed for table after instant ADD COLUMN.
 @param[in]      rec             leaf page record
@@ -735,8 +772,25 @@ static inline uint32_t rec_get_n_fields_instant(const rec_t *rec,
 
   ptr = rec - (extra_bytes + 1);
 
+  ut_d(std::optional<uint32_t> checked_result);
+  ut_d(uint16_t checked_length{});
+#ifdef UNIV_ROW_IMPORT_DBG
+  /* This helper is also used for compact temporary records. Only normal
+  compact page records use REC_N_NEW_EXTRA_BYTES and have the record layout
+  validated by row import. */
+  if (extra_bytes == REC_N_NEW_EXTRA_BYTES) {
+    uint16_t checked_fields;
+    const bool res = row_import_rec_get_n_fields_instant_checked(
+        (const page_t *)ut_align_down(rec, UNIV_PAGE_SIZE), ptr,
+        &checked_fields, &checked_length, false);
+    ut_a(res);
+    checked_result = checked_fields;
+  }
+#endif
+
   if ((*ptr & REC_N_FIELDS_TWO_BYTES_FLAG) == 0) {
     *length = 1;
+    ut_ad(!checked_result || (checked_result == *ptr && checked_length == 1));
     return (*ptr);
   }
 
@@ -746,6 +800,8 @@ static inline uint32_t rec_get_n_fields_instant(const rec_t *rec,
   ut_ad(n_fields < REC_MAX_N_FIELDS);
   ut_ad(n_fields != 0);
 
+  ut_ad(!checked_result ||
+        (checked_result == n_fields && checked_length == *length));
   return (n_fields);
 }
 

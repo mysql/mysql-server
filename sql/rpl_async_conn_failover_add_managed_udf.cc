@@ -125,7 +125,9 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
     return true;
   }
 
-  if (args->lengths[1] != 16 || strcmp(args->args[1], "GroupReplication")) {
+  constexpr std::string_view managed_gr{"GroupReplication"};
+  if (args->lengths[1] != managed_gr.size() ||
+      memcmp(args->args[1], managed_gr.data(), managed_gr.size()) != 0) {
     my_stpcpy(message, "Wrong value: Managed type must be GroupReplication.");
     return true;
   }
@@ -135,7 +137,8 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
     return true;
   }
 
-  if ((args->lengths[1] == 16 && !strcmp(args->args[1], "GroupReplication")) &&
+  if ((args->lengths[1] == managed_gr.size() &&
+       memcmp(args->args[1], managed_gr.data(), managed_gr.size()) == 0) &&
       (!mysql::gtid::Uuid::is_valid(args->args[2], args->lengths[2]))) {
     my_stpcpy(message,
               "Wrong value: Please specify valid UUID for managed name.");

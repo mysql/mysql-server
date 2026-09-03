@@ -28,7 +28,7 @@ CREATE USER u2@localhost IDENTIFIED BY 'abcd';
 CREATE USER u3@localhost IDENTIFIED BY 'abcd';
 
 --echo # Save original values of connection_control variables
-SET @saved_connections_threshold = @@global.component_connection_control.failed_connections_threshold;
+let $saved_connections_threshold = `SELECT @@global.component_connection_control.failed_connections_threshold`;
 
 -- echo # Avoid triggering delay
 SET @@global.component_connection_control.failed_connections_threshold = 100;
@@ -192,7 +192,7 @@ SELECT * FROM performance_schema.connection_control_failed_login_attempts;
 connection default;
 
 --echo # Restore original values of conenction_control variables
-SET @@global.component_connection_control.failed_connections_threshold = @saved_connections_threshold;
+--eval SET @@global.component_connection_control.failed_connections_threshold = $saved_connections_threshold
 
 --echo # Remove user accounts created for the test
 DROP USER u1@localhost;

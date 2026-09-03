@@ -118,6 +118,12 @@ COMMIT;
 --source include/rpl/start_receiver.inc
 
 --echo
+# Preserve a full-size crash-safe index file so relay-log
+# sanitization must replace it with a shorter index during restart.
+--let $relay_log_index= `SELECT @@GLOBAL.relay_log_index`
+--let $relay_log_crash_safe_index= `SELECT CONCAT(@@GLOBAL.relay_log_index, '_crash_safe')`
+--copy_file $relay_log_index $relay_log_crash_safe_index
+
 --echo # T1.4. On the replica: Kill the server, restart replication
 --echo
 

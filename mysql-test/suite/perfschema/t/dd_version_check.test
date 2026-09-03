@@ -175,7 +175,7 @@ insert into test.pfs_published_schema
         "35db2eec06572b58ec3936dae10701cc4beeca120059d5ee7d174181a7b444eb");
 
 insert into test.pfs_published_schema
- values("MySQL 10.0.0", 100000,
+ values("MySQL 26.07.00", 260700,
         "3f3a73ef2a9f7238be4a9c6e0be64fe8e94e2c74b354079824d57edc6fcfb4ba");
 
 create table test.pfs_check_table

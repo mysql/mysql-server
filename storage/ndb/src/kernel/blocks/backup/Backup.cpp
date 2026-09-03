@@ -7845,7 +7845,6 @@ void Backup::init_file_for_lcp(Signal *signal, Uint32 index,
  * The limit 4000 is ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set in DblqhMain.cpp.
  * This constant limit the impact of wide rows on responsiveness.
  *
-<<<<<<< HEAD
  * When operating in normal mode, we will not continue gathering when we
  * already gathered at least 500 words. However we will only operate in
  * this mode when we are in low load scenario in which case this speed will

@@ -1,0 +1,142 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(32)) ENGINE = InnoDB
+  DEFAULT CHARACTER SET utf8mb3;
+
+SELECT TABLE_ID INTO @old_table_id
+  FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+
+CONNECT (con1, localhost, root,,);
+SET DEBUG_SYNC =
+  'alter_table_inplace_after_lock_downgrade SIGNAL insert1 WAIT_FOR continue1';
+--send ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ALGORITHM = INPLACE
+
+CONNECTION default;
+SET DEBUG_SYNC = 'now WAIT_FOR insert1';
+INSERT INTO t1 VALUES (1, 'a');
+SET DEBUG_SYNC = 'now SIGNAL continue1';
+
+CONNECTION con1;
+--reap
+SET DEBUG_SYNC = 'RESET';
+
+CONNECTION default;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (2, REPEAT(CONVERT(0xF09F9880 USING utf8mb4), 32));
+SELECT id, CHAR_LENGTH(c1), LENGTH(c1) FROM t1 ORDER BY id;
+SELECT @old_table_id = TABLE_ID AS table_was_not_rebuilt
+  FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+
+DISCONNECT con1;
+DROP TABLE t1;
+
+# Equal VARCHAR packing is insufficient for a metadata-only ALTER when the
+# character-set change also changes InnoDB's storage class from DATA_VARMYSQL
+# to DATA_BINARY.
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  c1 VARCHAR(32) CHARACTER SET utf8mb3
+) ENGINE = InnoDB DEFAULT CHARACTER SET utf8mb3;
+
+INSERT INTO t1 VALUES
+  (1, 'abc'),
+  (2, REPEAT('z', 32));
+
+SELECT TABLE_ID INTO @old_table_id
+  FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE NAME = 'test/t1';
+
+ALTER TABLE t1
+  DEFAULT CHARACTER SET binary,
+  MODIFY c1 VARCHAR(96) CHARACTER SET binary,
+  ALGORITHM = INPLACE;
+
+# The storage-class change requires a rebuild even though both definitions
+# use the same one-byte VARCHAR length field.
+SELECT @old_table_id <> TABLE_ID AS table_was_rebuilt
+  FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE NAME = 'test/t1';
+
+# CREATE LIKE materializes the SQL definition as a fresh InnoDB table. Its
+# internal column definition must match the altered table.
+CREATE TABLE t2 LIKE t1;
+
+SELECT
+  altered_col.MTYPE = reference_col.MTYPE AS mtype_matches,
+  altered_col.PRTYPE = reference_col.PRTYPE AS prtype_matches,
+  altered_col.LEN = reference_col.LEN AS length_matches
+FROM INFORMATION_SCHEMA.INNODB_TABLES AS altered_table
+JOIN INFORMATION_SCHEMA.INNODB_COLUMNS AS altered_col
+  ON altered_col.TABLE_ID = altered_table.TABLE_ID
+     AND altered_col.NAME = 'c1'
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS reference_table
+  ON reference_table.NAME = 'test/t2'
+JOIN INFORMATION_SCHEMA.INNODB_COLUMNS AS reference_col
+  ON reference_col.TABLE_ID = reference_table.TABLE_ID
+     AND reference_col.NAME = 'c1'
+WHERE altered_table.NAME = 'test/t1';
+
+SELECT id, LENGTH(c1), LEFT(HEX(c1), 6) FROM t1 ORDER BY id;
+
+CHECK TABLE t1;
+
+DROP TABLE t1, t2;
+
+# A collation change on an indexed column is classified as a stored-column
+# type change and is not supported by InnoDB with ALGORITHM=INPLACE.
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  c1 VARCHAR(32),
+  INDEX idx (c1)
+) ENGINE = InnoDB DEFAULT CHARACTER SET utf8mb3
+  COLLATE utf8mb3_general_ci;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'z');
+SELECT TABLE_ID INTO @old_table_id
+  FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4
+  COLLATE utf8mb4_0900_ai_ci, ALGORITHM = INPLACE;
+SELECT * FROM t1 FORCE INDEX (idx) ORDER BY c1, id;
+CHECK TABLE t1;
+SELECT @old_table_id = TABLE_ID AS table_was_not_rebuilt
+  FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t1';
+DROP TABLE t1;
+
+# Equal-pack-length column changes that are not binary-compatible for InnoDB
+# may still use a native in-place rebuild, but not an online rebuild. The
+# compatible VARCHAR column confirms that LOCK=NONE is rejected if any changed
+# column is incompatible.
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  c1 VARCHAR(32),
+  c2 CHAR(3)
+) ENGINE = InnoDB ROW_FORMAT = COMPACT
+  DEFAULT CHARACTER SET utf8mb3;
+INSERT INTO t1 VALUES (1, 'compatible', 'old'), (2, 'delete', 'del');
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ADD PRIMARY KEY (id),
+  ALGORITHM = INPLACE, LOCK = NONE;
+SELECT * FROM t1 ORDER BY id;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ADD PRIMARY KEY (id),
+  ALGORITHM = INPLACE, LOCK = SHARED;
+CHECK TABLE t1;
+SELECT * FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+# A no-rebuild character-set conversion may be combined with work that still
+# has to run in the in-place main phase.
+CREATE TABLE t1 (id INT PRIMARY KEY, i1 INT, c1 VARCHAR(32)) ENGINE = InnoDB
+  DEFAULT CHARACTER SET utf8mb3;
+INSERT INTO t1 VALUES (1, 10, 'first'), (2, 20, 'second'),
+  (3, 10, 'duplicate');
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4, ADD INDEX idx (i1),
+  ALGORITHM = INPLACE;
+SELECT COUNT(*) AS index_was_created
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND INDEX_NAME = 'idx';
+SELECT id, c1 FROM t1 FORCE INDEX (idx) WHERE i1 = 10 ORDER BY id;
+SELECT id, c1 FROM t1 FORCE INDEX (idx) WHERE i1 = 20 ORDER BY id;
+DROP TABLE t1;

@@ -5557,6 +5557,33 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "reconsidering_access_paths_for_index_ordering": {
                   "clause": "ORDER BY",
                   "steps": [
+                    {
+                      "test_if_cheaper_ordering": {
+                        "read_cost": 0.501587,
+                        "fanout": 1,
+                        "refkey_rows_estimate": 2,
+                        "indexes": [
+                          {
+                            "index": "k1",
+                            "is_covering": true,
+                            "select_limit": 2,
+                            "index_scan_cost": 0.5,
+                            "rows": 2,
+                            "best_so_far": true
+                          },
+                          {
+                            "index": "k2",
+                            "is_covering": true,
+                            "select_limit": 2,
+                            "index_scan_cost": 0.5,
+                            "rows": 2,
+                            "best_so_far": false,
+                            "cause": "not_better_than_chosen"
+                          }
+                        ] /* indexes */,
+                        "selected_index": "k1"
+                      } /* test_if_cheaper_ordering */
+                    }
                   ] /* steps */,
                   "index_order_summary": {
                     "table": "`t1`",
@@ -5571,6 +5598,33 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "reconsidering_access_paths_for_index_ordering": {
                   "clause": "GROUP BY",
                   "steps": [
+                    {
+                      "test_if_cheaper_ordering": {
+                        "read_cost": 0.501587,
+                        "fanout": 1,
+                        "refkey_rows_estimate": 2,
+                        "indexes": [
+                          {
+                            "index": "k1",
+                            "is_covering": true,
+                            "select_limit": 2,
+                            "index_scan_cost": 0.5,
+                            "rows": 2,
+                            "best_so_far": true
+                          },
+                          {
+                            "index": "k2",
+                            "is_covering": true,
+                            "select_limit": 2,
+                            "index_scan_cost": 0.5,
+                            "rows": 2,
+                            "best_so_far": false,
+                            "cause": "not_better_than_chosen"
+                          }
+                        ] /* indexes */,
+                        "selected_index": "k1"
+                      } /* test_if_cheaper_ordering */
+                    }
                   ] /* steps */,
                   "index_order_summary": {
                     "table": "`t1`",
@@ -5599,6 +5653,33 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "steps": [
+                {
+                  "test_if_cheaper_ordering": {
+                    "read_cost": 0.501587,
+                    "fanout": 1,
+                    "refkey_rows_estimate": 2,
+                    "indexes": [
+                      {
+                        "index": "k1",
+                        "is_covering": true,
+                        "select_limit": 2,
+                        "index_scan_cost": 0.5,
+                        "rows": 2,
+                        "best_so_far": true
+                      },
+                      {
+                        "index": "k2",
+                        "is_covering": true,
+                        "select_limit": 2,
+                        "index_scan_cost": 0.5,
+                        "rows": 2,
+                        "best_so_far": false,
+                        "cause": "not_better_than_chosen"
+                      }
+                    ] /* indexes */,
+                    "selected_index": "k1"
+                  } /* test_if_cheaper_ordering */
+                }
               ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",

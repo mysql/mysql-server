@@ -866,13 +866,16 @@ ulint btr_copy_externally_stored_field_prefix_func(
     return (0);
   }
 
+  const ulint external_len = len - local_len;
+
   ReadContext rctx(page_size, data, local_len + BTR_EXTERN_FIELD_REF_SIZE,
-                   buf + local_len, len IF_DEBUG(, false));
+                   buf + local_len, external_len IF_DEBUG(, false));
 
   rctx.m_index = (dict_index_t *)index;
   rctx.m_trx = trx;
 
-  ulint fetch_len = lob::read(&rctx, rctx.m_blobref, 0, len, buf + local_len);
+  ulint fetch_len =
+      lob::read(&rctx, rctx.m_blobref, 0, external_len, buf + local_len);
   return (local_len + fetch_len);
 }
 

@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb_tls/include/check_openssl.inc
 
 # Test with RequireTls=true.
 

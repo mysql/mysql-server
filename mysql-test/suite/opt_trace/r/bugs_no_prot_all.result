@@ -3048,6 +3048,24 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
               "steps": [
+                {
+                  "test_if_cheaper_ordering": {
+                    "read_cost": 1,
+                    "fanout": 1,
+                    "refkey_rows_estimate": 1000,
+                    "indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "is_covering": true,
+                        "select_limit": 1,
+                        "index_scan_cost": 0.25,
+                        "rows": 1000,
+                        "best_so_far": true
+                      }
+                    ] /* indexes */,
+                    "selected_index": "PRIMARY"
+                  } /* test_if_cheaper_ordering */
+                }
               ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",

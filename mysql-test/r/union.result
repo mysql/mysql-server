@@ -630,6 +630,8 @@ EXPLAIN
         -> Zero rows (no matching row in const table)  (rows=0)
         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t1` where multiple equal(5, NULL) union /* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where true
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
 1	10
@@ -2073,6 +2075,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Zero input rows (No matching min/max row), aggregated into one output row  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,sum(`test`.`t2`.`a`) AS `SUM(a)` from `test`.`t2` union all /* select#2 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`a`) AS `MIN(a)` from `test`.`t1`
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 a	SUM(a)
 1	1
@@ -3320,6 +3324,8 @@ EXPLAIN
             -> Limit: 10 row(s)
                 -> Table scan on t1
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,'a' AS `a` from `test`.`t1` limit 10) union all (/* select#2 */ select `test`.`t1`.`a` AS `a`,'b' AS `b` from `test`.`t1` limit 10) limit 3
 FLUSH STATUS;
 ( SELECT *, 'a' FROM t1 LIMIT 10 )
 UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
@@ -3350,6 +3356,8 @@ EXPLAIN FORMAT=tree SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * F
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `pk`,'' AS `b` from dual
 SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 pk	b
 1	
@@ -3491,6 +3499,8 @@ EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
 EXPLAIN
 -> Zero rows (Zero limit)  (cost=0..0 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` union /* select#2 */ select 1 AS `1` limit 0
 SELECT 1 UNION SELECT 1 LIMIT 0;
 1
 #
@@ -3543,6 +3553,8 @@ EXPLAIN
     -> Stream results  (rows=5)
         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN SELECT * FROM r UNION ALL
 SELECT * FROM s UNION ALL
 SELECT * FROM t;
@@ -3602,6 +3614,8 @@ EXPLAIN
             -> Table scan on s  (rows=5)
             -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `a`
 PREPARE q FROM "SELECT * FROM r UNION ALL
 SELECT * FROM s UNION ALL
 SELECT * FROM t ORDER BY a";
@@ -3652,6 +3666,8 @@ EXPLAIN
             -> Disable deduplication
                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `a`
 PREPARE q FROM "SELECT * FROM r UNION DISTINCT
 SELECT * FROM s UNION ALL
 SELECT * FROM t ORDER BY a";
@@ -3700,6 +3716,8 @@ EXPLAIN
                 -> Disable deduplication
                     -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `a` limit 11
 PREPARE q FROM "SELECT * FROM r UNION DISTINCT
 SELECT * FROM s UNION ALL
 SELECT * FROM t ORDER BY a LIMIT 11";
@@ -3745,6 +3763,8 @@ EXPLAIN
                 -> Table scan on s  (rows=5)
                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `a` limit 11
 PREPARE q FROM "SELECT * FROM r UNION ALL
 SELECT * FROM s UNION ALL
 SELECT * FROM t ORDER BY a LIMIT 11";
@@ -3789,6 +3809,8 @@ EXPLAIN
                             -> Table scan on r  (rows=4)
                             -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 11) order by -(`a`)
 PREPARE q FROM "( SELECT * FROM r UNION
 SELECT * FROM s ORDER BY a LIMIT 11)
 ORDER BY -a";
@@ -3827,6 +3849,8 @@ EXPLAIN
                                 -> Table scan on r  (rows=4)
                                 -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 11) order by -(`a`) limit 1,4
 PREPARE q FROM "( SELECT * FROM r UNION
 SELECT * FROM s ORDER BY a LIMIT 11)
 ORDER BY -a LIMIT 4 OFFSET 1";
@@ -3852,6 +3876,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `a`.`a` AS `a` from ((/* select#2 */ select `test`.`r`.`a` AS `a` from `test`.`r` limit 1) union (/* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` limit 1)) `a`
 PREPARE q FROM "SELECT * FROM ( (SELECT * FROM r LIMIT 1) UNION
 (SELECT * FROM s LIMIT 1) ) a";
 EXECUTE q;
@@ -3913,6 +3939,8 @@ EXPLAIN
                                             -> Sort: t.a, limit input to 5 row(s) per chunk  (rows=5)
                                                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(((/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 5) order by -(`a`) limit 3) order by `a` limit 2) union all (((/* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 5) order by -(`a`) limit 3) order by `a` limit 2)
 EXPLAIN (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION ALL
 (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3967,6 +3995,8 @@ EXPLAIN
                                             -> Sort: t.a, limit input to 5 row(s) per chunk  (rows=5)
                                                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(((/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 5) order by -(`a`) limit 3) order by `a` limit 2) union (((/* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 5) order by -(`a`) limit 3) order by `a` limit 2)
 EXPLAIN (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION DISTINCT
 (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4024,6 +4054,8 @@ EXPLAIN
                                                     -> Sort: t.a, limit input to 5 row(s) per chunk  (rows=5)
                                                         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(((/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 5) order by -(`a`) limit 3) order by `a` limit 2) union all (((/* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 5) order by -(`a`) limit 3) order by `a` limit 2) order by `a` limit 3
 EXPLAIN ((((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION ALL
 (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2)) ORDER BY a LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4077,6 +4109,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `a` limit 3) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by -(`a`) limit 5)
 EXPLAIN (SELECT * FROM r UNION DISTINCT SELECT * FROM t ORDER BY a LIMIT 3) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t ORDER BY -a LIMIT 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4139,6 +4173,8 @@ EXPLAIN
     -> Stream results  (rows=5)
         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM t)";
 EXECUTE q;
@@ -4201,6 +4237,8 @@ EXPLAIN
                 -> Table scan on r  (rows=4)
                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t)";
 EXECUTE q;
@@ -4265,6 +4303,8 @@ EXPLAIN
                 -> Table scan on r  (rows=4)
                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#5 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM r UNION DISTINCT SELECT * FROM t)";
 EXECUTE q;
@@ -4335,6 +4375,8 @@ EXPLAIN
     -> Stream results  (rows=5)
         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union all /* select#5 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM t)";
@@ -4402,6 +4444,8 @@ EXPLAIN
     -> Stream results  (rows=5)
         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union all /* select#5 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM t)";
@@ -4458,6 +4502,8 @@ EXPLAIN
                 -> Table scan on t  (rows=5)
         -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union /* select#5 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION
 (SELECT * FROM t)";
@@ -4510,6 +4556,8 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s)";
@@ -4563,6 +4611,8 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION
 (SELECT * FROM r UNION ALL SELECT * FROM s)";
@@ -4634,6 +4684,8 @@ EXPLAIN
                 -> Table scan on r  (rows=4)
                 -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`) union all (/* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s`)
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s)";
@@ -4717,6 +4769,8 @@ EXPLAIN
     -> Stream results  (rows=5)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union all /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 PREPARE q FROM "(SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s)";
@@ -4800,6 +4854,8 @@ EXPLAIN
     -> Stream results  (rows=5)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union all /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 PREPARE q FROM "(SELECT * FROM r UNION ALL SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s)";
@@ -4891,6 +4947,8 @@ EXPLAIN
                 -> Table scan on r  (rows=4)
                 -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	((/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select 1 AS `1` order by `a` limit 4) union (/* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union (/* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 10)) union (values row(1),row(2) union /* select#8 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `column_0` limit 3) order by `a` limit 3) union /* select#9 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#10 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `a` limit 5
 PREPARE q FROM "((((SELECT a FROM r UNION DISTINCT
 SELECT 1) ORDER BY a LIMIT 4) UNION ALL
 (SELECT a FROM s UNION DISTINCT
@@ -4933,6 +4991,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
 a
@@ -4957,6 +5017,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1);
 a
@@ -4981,6 +5043,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY 1 LIMIT 1);
 a
@@ -5005,6 +5069,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 (SELECT * FROM r UNION DISTINCT  SELECT * FROM s ORDER BY 1 LIMIT 1) UNION DISTINCT
 (SELECT * FROM r UNION ALL       SELECT * FROM s ORDER BY 1 LIMIT 1);
 a
@@ -5027,6 +5093,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1) UNION DISTINCT
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
 a
@@ -5049,6 +5117,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1) UNION DISTINCT
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
 a
@@ -5071,6 +5141,8 @@ EXPLAIN
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1) union (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 1)
 # No limit, but ordering does not prohibit merging:
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1) UNION DISTINCT
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1);
@@ -5093,6 +5165,8 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 #
 # [NEW] Check maximum depth 63
 #
@@ -5549,6 +5623,8 @@ EXPLAIN
                                 -> Table scan on s  (rows=5)
                 -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#5 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#7 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#8 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#9 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#10 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#11 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#12 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#13 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#14 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#15 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#16 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#17 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#18 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#19 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#20 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#21 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#22 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#23 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#24 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#25 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#26 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#27 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#28 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#29 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#30 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#31 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#32 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#33 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#34 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#35 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#36 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#37 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#38 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#39 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#40 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#41 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#42 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#43 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#44 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#45 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#46 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#47 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#48 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#49 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#50 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#51 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#52 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#53 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#54 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#55 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#56 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#57 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#58 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#59 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#60 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#61 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#62 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#63 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) union /* select#64 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5
 # This query one exceeds max and should fail
 ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((SELECT * FROM r
 UNION SELECT * FROM s ORDER BY a LIMIT 5)
@@ -5637,6 +5713,8 @@ EXPLAIN
         -> Rows fetched before execution  (rows=1)
         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `col1` union /* select#2 */ select 2 AS `2` union /* select#3 */ select 1 AS `1` union /* select#4 */ select 2 AS `2` union /* select#5 */ select 3 AS `3` union /* select#6 */ select 3 AS `3`
 #
 # WL#11350 bug: upper level ALL in nesting context, e.g. ORDER
 # BY: non-first lower level operand with DISTINCT incorrectly
@@ -5660,6 +5738,8 @@ EXPLAIN
                         -> Rows fetched before execution  (rows=1)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` union /* select#2 */ select 2 AS `2` union all (/* select#3 */ select 1 AS `1` union /* select#4 */ select 1 AS `1`) order by `1`
 #
 # WL#11350 bug: upper level ALL in nesting context, e.g ORDER
 # BY: first operand lower level with DISTINCT can be merged,
@@ -5683,6 +5763,8 @@ EXPLAIN
                         -> Rows fetched before execution  (rows=1)
                         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` union /* select#2 */ select 1 AS `1` union all (/* select#3 */ select 1 AS `1` union /* select#4 */ select 1 AS `1`) order by `1`
 DROP TABLE r, s, t;
 #
 # Bug#35590128 Wrong first-row cost for 'Append'.
@@ -5708,6 +5790,8 @@ EXPLAIN
     -> Stream results  (rows=3)
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`) union all /* select#3 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
 DROP TABLE t1;
 # Bug#35736158: Insert on duplicate assertion error
 CREATE TABLE t1 (c1 INTEGER);

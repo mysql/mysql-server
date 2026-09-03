@@ -25,6 +25,8 @@ EXPLAIN
     -> Sort: r.a, limit input to 2 row(s) per chunk  (rows=4)
         -> Table scan on r  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` order by `test`.`r`.`a` limit 2
 PREPARE q FROM "(SELECT * FROM r ORDER BY a LIMIT 2) LIMIT 4";
 EXECUTE q;
 a
@@ -44,6 +46,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` limit 1
 # New behavior, std compliant, effective limit is 1
 ((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3;
 1
@@ -53,6 +57,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` limit 1
 # From here on, we have mostly [NEW] tricks, stuff that was not
 # allowed prior to this WL, but also some WL coverage of old
 # behavior, not marked [NEW].
@@ -77,6 +83,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select 1 AS `1` limit 1) union all (/* select#2 */ select 1 AS `1` limit 1) order by `1` limit 3
 PREPARE p FROM '(SELECT * FROM t LIMIT 3) LIMIT ?';
 SET @a = '2';
 EXECUTE p USING @a;
@@ -116,6 +124,8 @@ EXPLAIN
                 -> Limit: 6 row(s)  (rows=6)
                     -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `c` from `test`.`t1` limit 6) order by (`c` + 1) limit 5
 DROP TABLE t1;
 #
 # The outer block is not collapsed, so binding of 'a' fails
@@ -141,6 +151,8 @@ EXPLAIN
             -> Limit: 3 row(s)  (rows=3)
                 -> Rows fetched before execution  (rows=5)
 
+Warnings:
+Note	1003	(values row(1,1),row(2,2),row(3,3),row(4,4),row(5,5)) order by `column_0`,`column_1`
 ( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
 ORDER BY column_0 LIMIT 4)
 LIMIT 3)
@@ -165,6 +177,7 @@ Note	1276	Field or reference 'column_0' of SELECT #6 was resolved in SELECT #1
 Note	1249	Select 6 was reduced during optimization
 Note	1276	Field or reference 'column_1' of SELECT #5 was resolved in SELECT #1
 Note	1249	Select 5 was reduced during optimization
+Note	1003	(values row(1,1),row(2,2),row(3,3),row(4,4),row(5,5)) order by `column_0`,`column_1` limit 2
 ( ( (VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(-1,-1))
 ORDER BY column_0 LIMIT 4)
 LIMIT 3)
@@ -184,6 +197,8 @@ EXPLAIN
             -> Limit: 3 row(s)  (rows=3)
                 -> Rows fetched before execution  (rows=5)
 
+Warnings:
+Note	1003	(values row(1,1),row(2,2),row(3,3),row(4,4),row(-(1),-(1))) order by `column_0`
 (SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
 a
 2
@@ -200,6 +215,8 @@ EXPLAIN
                     -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
                         -> Table scan on r  (rows=4)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` order by `test`.`r`.`a` limit 5) order by -(`a`) limit 4
 EXPLAIN (SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
@@ -242,6 +259,8 @@ EXPLAIN
                                     -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
                                         -> Table scan on r  (rows=4)
 
+Warnings:
+Note	1003	((/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` order by `test`.`r`.`a` limit 5) order by -(`a`) limit 4) order by `a` limit 3
 PREPARE q FROM "((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
 ORDER BY a LIMIT 3";
 EXECUTE q;
@@ -287,6 +306,8 @@ EXPLAIN
                                                     -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
                                                         -> Table scan on r  (rows=4)
 
+Warnings:
+Note	1003	(((/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` order by `test`.`r`.`a` limit 5) order by -(`a`) limit 4) order by `a` limit 3) order by -(`a`) limit 2
 PREPARE q FROM "( ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
 ORDER BY a LIMIT 3)
 ORDER BY -a LIMIT 2";
@@ -326,6 +347,8 @@ EXPLAIN
                                                     -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
                                                         -> Table scan on r  (rows=4)
 
+Warnings:
+Note	1003	(((/* select#1 */ select `test`.`r`.`a` AS `c` from `test`.`r` order by `test`.`r`.`a` limit 5) order by -(`c`) limit 4) order by `c` limit 3) order by -(`c`) limit 2
 PREPARE q FROM "( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
 ORDER BY c LIMIT 3)
 ORDER BY -c LIMIT 2";
@@ -408,6 +431,8 @@ EXPLAIN
                             -> Table scan on r  (rows=4)
                             -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 10) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 5) limit 7
 # [NEW]
 # Two union materialized tmp tables, 2nd w/dedup, 1st is
 # sorted, limited and both streamed for UNION ALL
@@ -442,6 +467,8 @@ EXPLAIN
                     -> Table scan on r  (rows=4)
                     -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `a` limit 10) union all (/* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s`) limit 7
 #
 # Bug in contexualize: missing add of unary node
 #
@@ -462,6 +489,8 @@ EXPLAIN
         -> Stream results  (rows=5)
             -> Table scan on t  (rows=5)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` limit 3
 #
 # Check maximum depth 63
 #
@@ -852,6 +881,8 @@ EXPLAIN
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     -> Sort: r.a, limit input to 1 row(s) per chunk  (rows=4)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         -> Table scan on r  (rows=4)
 
+Warnings:
+Note	1003	(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` order by `test`.`r`.`a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1) order by `a` limit 1
 (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((SELECT * FROM r ORDER BY a LIMIT 1)
 ORDER BY a LIMIT 1)
 ORDER BY a LIMIT 1)
@@ -959,6 +990,8 @@ EXPLAIN
             -> Filter: (cte.n < 5)  (rows=1.33)
                 -> Scan new records on cte  (rows=4)
 
+Warnings:
+Note	1003	with recursive `cte` (`n`) as ((/* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` limit 1) union all /* select#4 */ select (`cte`.`n` + 1) AS `n + 1` from `cte` where (`cte`.`n` < 5)) /* select#1 */ select `cte`.`n` AS `n` from `cte`
 WITH RECURSIVE cte (n) AS
 (  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 2)
 UNION ALL
@@ -993,6 +1026,8 @@ EXPLAIN
             -> Filter: (cte.n < 5)  (rows=1.33)
                 -> Scan new records on cte  (rows=4)
 
+Warnings:
+Note	1003	with recursive `cte` (`n`) as ((/* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` limit 2) union all /* select#4 */ select (`cte`.`n` + 1) AS `n + 1` from `cte` where (`cte`.`n` < 5)) /* select#1 */ select `cte`.`n` AS `n` from `cte`
 WITH RECURSIVE cte (n) AS
 (  (SELECT a FROM t UNION SELECT a FROM t LIMIT 2)
 UNION ALL
@@ -1026,6 +1061,8 @@ EXPLAIN
             -> Filter: (cte.n < 5)  (rows=1.33)
                 -> Scan new records on cte  (rows=4)
 
+Warnings:
+Note	1003	with recursive `cte` (`n`) as ((/* select#2 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t` limit 2) union all /* select#4 */ select (`cte`.`n` + 1) AS `n + 1` from `cte` where (`cte`.`n` < 5) limit 7) /* select#1 */ select `cte`.`n` AS `n` from `cte`
 DROP TABLE t;
 WL bug in contexualize: pop stack on PT_subquery
 added for coverage

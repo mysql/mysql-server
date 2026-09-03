@@ -13539,6 +13539,12 @@ ER_DD_DOWNGRADE
 ER_INVALID_SERVER_UPGRADE_SKIPS_LTS_LINEAGE
   eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Target MySQL server version belongs to a compatibility lineage whose previous LTS is %u, not %u."
 
+ER_IB_MSG_MAX_PURGE_LAG_EXCEEDED
+  eng "InnoDB purge history list length %llu has exceeded innodb_max_purge_lag=%lu."
+
+ER_IB_MSG_DML_PURGE_DELAY_STARTED
+  eng "InnoDB DML operations are being delayed by %lu microseconds due to purge lag. History list length is %llu, innodb_max_purge_lag=%lu, innodb_max_purge_lag_delay=%lu."
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #

@@ -60,6 +60,7 @@ void QueryRestTableSingleRow::query_entry(
   compute_etag_ = compute_etag;
   metadata_received_ = false;
   items = 0;
+  response.clear();
   config_ = {0, 0, false, url_route};
   field_filter_ = &field_filter;
 
@@ -70,7 +71,7 @@ void QueryRestTableSingleRow::query_entry(
 }
 
 void QueryRestTableSingleRow::on_row(const ResultRow &r) {
-  if (!response.empty())
+  if (items != 0)
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
 

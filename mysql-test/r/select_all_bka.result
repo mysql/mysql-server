@@ -2114,6 +2114,8 @@ explain format=tree select min(fld1),max(fld1),count(*) from t2;
 EXPLAIN
 -> Count rows in t2
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
@@ -2123,6 +2125,8 @@ EXPLAIN
     -> Filter: (rand() > 0.5)  (rows=1199)
         -> Covering index scan on t2 using fld1  (rows=1199)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2` where (rand() > 0.5)
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)
 0	1232609	1199
@@ -5601,6 +5605,8 @@ EXPLAIN
     -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.399 rows=1.38)
         -> Multi-range index lookup on alias2 using i1 (f2 = alias1.f1)  (cost=0.399 rows=1.56)
 
+Warnings:
+Note	1003	/* select#1 */ select `alias1`.`f1` AS `f1`,`alias1`.`f2` AS `f2`,`alias2`.`f1` AS `f1`,`alias2`.`f2` AS `f2` from `test`.`t1` `alias1` join `test`.`t1` `alias2` where ((`alias2`.`f2` = `alias1`.`f1`) and (`alias2`.`f1` not between 4 and 12))
 SELECT *
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
 WHERE alias2.f1 NOT BETWEEN 4 AND 12;

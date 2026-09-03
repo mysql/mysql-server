@@ -108,6 +108,21 @@ The tablespace memory cache */
 dberr_t dict_stats_rename_table(const char *old_name, const char *new_name,
                                 char *errstr, size_t errstr_sz);
 
+/** Build a space name from a dictionary table name. MEB returns the
+path-derived name unchanged because it has already translated the file name.
+@param[in]      dict_table_name table name in dictionary
+@return space name */
+static std::string convert_dict_to_space_name(
+    const std::string &dict_table_name) {
+#ifndef UNIV_HOTBACKUP
+  std::string space_name{dict_table_name};
+  dict_name::convert_to_space(space_name);
+  return space_name;
+#else
+  return dict_table_name;
+#endif /* !UNIV_HOTBACKUP */
+}
+
 /** Used for collecting the data in boot_tablespaces() */
 namespace dd_fil {
 
@@ -5698,14 +5713,9 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
     return FIL_LOAD_OK;
   }
 #endif /* UNIV_HOTBACKUP */
-  std::string tablespace_name = fil_path_to_space_name(
-      path, df.get_cached_space_id(), df.get_cached_space_flags());
-
-  /* During the apply-log operation, MEB already has translated the
-  file name, so file name to space name conversion is not required. */
-#ifndef UNIV_HOTBACKUP
-  dict_name::convert_to_space(tablespace_name);
-#endif /* !UNIV_HOTBACKUP */
+  const std::string tablespace_name =
+      convert_dict_to_space_name(fil_path_to_space_name(
+          path, df.get_cached_space_id(), df.get_cached_space_flags()));
 
   auto space_ptr =
       Fil_shard::space_create(tablespace_name.c_str(), space_id,
@@ -9559,9 +9569,10 @@ const byte *fil_tablespace_redo_extend_wrapper(const byte *ptr, const byte *end,
     ut_a(fil_space_t::s_sys_space);
   } else {
     ut_a(tablespace_scanning != nullptr);
-    if (!tablespace_scanning->is_tablespace_file_found(space_id)) {
-      /* No nodes found for this tablespace ID. It's possible that the
-      nodes were deleted later. */
+    if (!fil_tablespace_lookup_for_recovery(space_id)) {
+      /* It's possible that it was deleted "later". We optimistically ignore it
+      now, and at the end of recovery we check if MLOG_FILE_DELETE for this
+      space_id was observed. */
       return fil_tablespace_redo_extend(ptr, end, space_id, true);
     }
 
@@ -9576,16 +9587,11 @@ const byte *fil_tablespace_redo_extend_wrapper(const byte *ptr, const byte *end,
               undo_truncate::id2num(space_id))) {
         return fil_tablespace_redo_extend(ptr, end, space_id, true);
       }
-      /* The `fil_tablespace_open_for_recovery()` could have called
-      tablespace_scanning->erase_path(space_id) if the keyring is
-      missing. Abort recovery if it happened. It may have been corrupted also,
-      in which case we abort it the same way.*/
-      if (err == DB_CORRUPTION ||
-          !tablespace_scanning->is_tablespace_file_found(space_id)) {
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_TABLESPACE_NOT_OPENED,
-                  ulong{space_id});
-      }
-      return nullptr;
+
+      /* More redo cannot resolve an error opening a file found during
+      tablespace discovery. */
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_TABLESPACE_NOT_OPENED,
+                ulong{space_id});
     }
   }
 
@@ -9978,9 +9984,27 @@ std::optional<bool> fil_tablespace_redo_encryption(const byte *ptr,
 
   ut_ad(!Fil_path::has_suffix(IBD, reconstructed_new_name));
 
-  dberr_t err =
-      fil_rename_tablespace(space->id, old_name.c_str(),
-                            reconstructed_new_name.c_str(), new_name.c_str());
+  const std::string new_space_name =
+      convert_dict_to_space_name(reconstructed_new_name);
+
+  dberr_t err = fil_rename_tablespace(space->id, old_name.c_str(),
+                                      new_space_name.c_str(), new_name.c_str());
+
+  if (err != DB_SUCCESS) {
+    const char *current_space_name =
+        space->name == nullptr ? "nullptr" : space->name;
+    const char *current_file_path =
+        space->files.empty() ? "none" : space->files.front().name;
+
+    ib::error() << "Failed to replay tablespace rename: error=" << int{err}
+                << " (" << ut_strerr(err) << "), space_id=" << space->id
+                << ", current_space_name='" << current_space_name
+                << "', current_file_path='" << current_file_path
+                << "', old_file_path='" << old_name << "', new_file_path='"
+                << new_name << "', filename_derived_space_name='"
+                << reconstructed_new_name << "', new_space_name='"
+                << new_space_name << "'.";
+  }
 
   /* Stop recovery if this does not succeed. */
   ut_a_eq(err, DB_SUCCESS);

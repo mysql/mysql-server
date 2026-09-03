@@ -515,6 +515,22 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
               "steps": [
+                {
+                  "test_if_cheaper_ordering": {
+                    "read_cost": 0.505493,
+                    "fanout": 1,
+                    "refkey_rows_estimate": 10,
+                    "indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "is_covering": false,
+                        "best_so_far": false,
+                        "cause": "no_limit_and_not_covering"
+                      }
+                    ] /* indexes */,
+                    "selected_index": null
+                  } /* test_if_cheaper_ordering */
+                }
               ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
@@ -711,6 +727,24 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "steps": [
+                {
+                  "test_if_cheaper_ordering": {
+                    "read_cost": 0.505493,
+                    "fanout": 1,
+                    "refkey_rows_estimate": 10,
+                    "indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "is_covering": false,
+                        "select_limit": 10,
+                        "index_scan_cost": 2.5,
+                        "rows": 10,
+                        "best_so_far": true
+                      }
+                    ] /* indexes */,
+                    "selected_index": "PRIMARY"
+                  } /* test_if_cheaper_ordering */
+                }
               ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",

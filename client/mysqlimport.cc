@@ -718,6 +718,7 @@ end:
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
 #endif
+  mysql_server_end();
   my_end(my_end_arg);
   return (exitcode);
 }

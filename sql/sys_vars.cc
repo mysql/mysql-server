@@ -2406,6 +2406,14 @@ static Sys_var_ulong Sys_rpl_stop_replica_timeout(
 static Sys_var_deprecated_alias Sys_rpl_stop_slave_timeout(
     "rpl_stop_slave_timeout", Sys_rpl_stop_replica_timeout);
 
+static Sys_var_bool Sys_rpl_dump_thread_account_affinity(
+    "rpl_dump_thread_account_affinity",
+    "Require a reconnect matching an existing dump thread's replica "
+    "identity to use the same authenticated account. Disabled by default "
+    "to preserve legacy dump-thread replacement behavior.",
+    GLOBAL_VAR(opt_rpl_dump_thread_account_affinity), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static Sys_var_enum Sys_binlog_error_action(
     "binlog_error_action",
     "When statements cannot be written to the binary log due to a fatal "
@@ -7477,7 +7485,7 @@ static char *opt_replication_tls_kex = nullptr;
 
 static bool replication_tls_force_pqc_supported_for_version(
     const char *tls_version [[maybe_unused]]) {
-#if !defined(HAVE_TLSv13) || OPENSSL_VERSION_NUMBER < 0x30500000L
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
   return false;
 #else
   return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
@@ -7519,7 +7527,7 @@ static bool validate_replication_force_pqc_channel_tls_versions(sys_var *self) {
 }
 
 void adjust_startup_replication_force_pqc_for_tls_versions() {
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (!opt_replication_force_pqc) return;
 
   channel_map.assert_some_lock();

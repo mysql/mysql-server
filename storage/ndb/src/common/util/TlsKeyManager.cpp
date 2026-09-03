@@ -32,7 +32,6 @@
 #include "openssl/x509v3.h"
 
 #include "debugger/EventLogger.hpp"
-#include "portlib/ndb_openssl_version.h"
 #include "util/NodeCertificate.hpp"
 #include "util/TlsKeyManager.hpp"
 #include "util/cstrbuf.h"
@@ -75,18 +74,6 @@ void TlsKeyManager::log_error() const {
     g_eventLogger->error("TLS key error: %s (with path: %s).\n",
                          TlsKeyError::message(m_error), m_path_string);
 }
-
-#if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
-
-void TlsKeyManager::init(int, const NodeCertificate *) {}
-
-void TlsKeyManager::init(const char *, int, int) {}
-
-void TlsKeyManager::init(const char *, int, Node::Type) {}
-
-void TlsKeyManager::init(int, struct stack_st_X509 *, struct evp_pkey_st *) {}
-
-#else
 
 /* This is the list of allowed ciphers.
  * It includes all TLS 1.3 cipher suites, plus one TLS 1.2 cipher suite,
@@ -281,8 +268,6 @@ void TlsKeyManager::initialize_context() {
   /* Store our own NodeCertificate in the cert table */
   cert_table_set(m_node_id, m_node_cert.cert());
 }
-
-#endif
 
 int TlsKeyManager::on_verify(int result, X509_STORE_CTX *store) {
   /* If result is 0, verification has failed, and this callback is

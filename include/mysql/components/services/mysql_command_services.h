@@ -63,7 +63,8 @@ enum mysql_command_option {
   MYSQL_COMMAND_HOST_NAME,
   MYSQL_COMMAND_TCPIP_PORT,
   MYSQL_NO_LOCK_REGISTRY,
-  MYSQL_COMMAND_CLIENT_FLAGS
+  MYSQL_COMMAND_CLIENT_FLAGS,
+  MYSQL_COMMAND_PASSWORD
 };
 
 /**
@@ -223,6 +224,24 @@ uint32_t      |MYSQL_COMMAND_CLIENT_FLAGS     |Client flags passed to          |
               |                               |by the default capabilities     |
               |                               |consumer.                       |
 --------------+-------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_PASSWORD         |Password used to authenticate   |
+              |                               |against the current server.     |
+--------------+-------------------------------+--------------------------------+
+
+  @note MYSQL_COMMAND_PASSWORD is write-only and non-owning. The pointer must
+  remain valid until connect() returns. A non-null pointer, including an empty
+  string, selects normal authentication against the current server. A null
+  pointer selects the embedded backend. After an authenticated connection
+  attempt, close and reinitialize the handle before connecting again.
+
+  @note Authenticated connections are limited to the current server's local
+  socket or named pipe, or loopback TCP endpoint. They are incompatible with
+  MYSQL_COMMAND_LOCAL_THD_HANDLE, MYSQL_NO_LOCK_REGISTRY,
+  MYSQL_TEXT_CONSUMER_* options, and client option-file settings. Loopback TCP
+  supports only literal bind_address values: *, the matching address-family
+  wildcard, or the matching loopback address. Hostname and multi-address
+  values are rejected. Loopback TCP defaults to preferred TLS and permits
+  server public-key retrieval.
 
   @note For the other mysql client options it calls the mysql_options api.
 

@@ -156,9 +156,9 @@ set debug='-d,crash_records_in_range';
 
 DROP TABLE t1;
 
---echo # Verify that, for non-unique indexes, when index dives are skipped
---echo # due to eq_range_index_dive_limit, records_in_range() is also skipped
---echo # for an IS NULL range.
+--echo # Verify that, for non-unique indexes, an IS NULL range still uses
+--echo # records_in_range() even when the non-NULL ranges reach
+--echo # eq_range_index_dive_limit (Bug#37743879, WL#5957).
 
 SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
 SET SESSION eq_range_index_dive_limit=3;
@@ -178,10 +178,9 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1);
 EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2);
 
-# IS NULL is included in the range count, so this should not use index dives
-set debug='+d,crash_records_in_range';
+# IS NULL is not counted toward the dive limit and always index-dives;
+# the three non-NULL ranges reach the limit and use index statistics.
 EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2, 3);
-set debug='-d,crash_records_in_range';
 
 --echo # For unique indexes, the index dive limit currently does not apply
 --echo # if there is an IS NULL condition. (See Bug#39586297 / Bug#120729)
@@ -245,4 +244,84 @@ ALTER TABLE t1 DROP INDEX i1, ADD INDEX i2 USING BTREE (c1);
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (1, 2);
 
 DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;
+
+--echo #
+--echo # Bug#37743879 Index statistics is unexpectedly used to estimate
+--echo #              eq ranges with null part
+--echo #
+
+--source include/elide_costs.inc
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=2;
+
+--echo # Non-unique key
+CREATE TABLE t1 (c1 INT, c2 INT, KEY k12 (c1, c2)) STATS_PERSISTENT=1;
+--disable_query_log
+let $i = 100;
+while ($i) {
+  eval INSERT INTO t1 VALUES (1, NULL);
+  dec $i;
+}
+let $i = 80;
+while ($i) {
+  eval INSERT INTO t1 VALUES (NULL, 1);
+  dec $i;
+}
+INSERT INTO t1 VALUES (1,1),(1,2),(1,3);
+let $i = 200;
+while ($i) {
+  eval INSERT INTO t1 VALUES (2, $i);
+  dec $i;
+}
+--enable_query_log
+ANALYZE TABLE t1;
+
+# Three eq-ranges: (1,NULL), (1,1), (1,2). The two non-NULL ranges reach
+# the dive limit and use records_per_key(); the IS NULL range must still
+# index-dive, so its estimate reflects the 100 matching rows rather than
+# the per-key average.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c1, c2 FROM t1
+  WHERE (c1 = 1 AND c2 IS NULL)
+     OR (c1 = 1 AND c2 = 1)
+     OR (c1 = 1 AND c2 = 2);
+
+# IS NULL on the first keypart: (NULL,1) must index-dive to ~80 rows.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c1, c2 FROM t1
+  WHERE (c1 IS NULL AND c2 = 1)
+     OR (c1 = 1 AND c2 = 1)
+     OR (c1 = 1 AND c2 = 2);
+
+DROP TABLE t1;
+
+--echo # Prefix of a unique key
+CREATE TABLE t2 (c1 INT, c2 INT, c3 INT,
+                 UNIQUE KEY u123 (c1, c2, c3)) STATS_PERSISTENT=1;
+--disable_query_log
+let $i = 50;
+while ($i) {
+  eval INSERT INTO t2 VALUES (1, NULL, $i);
+  dec $i;
+}
+INSERT INTO t2 VALUES (1,1,1),(1,2,1),(1,3,1);
+let $i = 100;
+while ($i) {
+  eval INSERT INTO t2 VALUES (2, $i, 1);
+  dec $i;
+}
+--enable_query_log
+ANALYZE TABLE t2;
+
+# Two-keypart prefix of a three-column unique key: not UNIQUE_RANGE, so
+# before the fix (1,NULL) fell through to records_per_key(). Expect the
+# IS NULL range to index-dive and report ~50 rows.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t2
+  WHERE (c1 = 1 AND c2 IS NULL)
+     OR (c1 = 1 AND c2 = 1)
+     OR (c1 = 1 AND c2 = 2);
+
+DROP TABLE t2;
 SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;

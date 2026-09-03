@@ -33,6 +33,8 @@ call proc_gis();
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('POINT(0 0)',4326)) AS `d` from `test`.`cafe` order by `d`
 ## the hypergraph optimizer must use the spatial index for knn search if the below debug flag is disabled
 ## Always return result set because below query chooses full table scan
 SET debug = '-d,handlerton_supports_distance_scan';
@@ -41,6 +43,8 @@ EXPLAIN
 -> Sort: d  (rows=14)
     -> Index scan on cafe using PRIMARY  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('POINT(0 0)',4326)) AS `d` from `test`.`cafe` order by `d`
 ## Test partition tables are not supported in GIS
 CREATE TABLE tab(
 location point NOT NULL srid 4326, SPATIAL INDEX(location),

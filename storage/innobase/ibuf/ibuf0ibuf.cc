@@ -3583,6 +3583,7 @@ static void ibuf_insert_to_index_page(
       btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec, index, update, 0, 0,
                                   mtr);
 
+      // TODO: The mtr has not been committed yet, so its redo is not durable.
       DBUG_EXECUTE_IF("crash_after_log_ibuf_upd_inplace",
                       ib::redo::must_persist_all(UT_LOCATION_HERE);
                       ib::info(ER_IB_MSG_615) << "Wrote log record for ibuf"

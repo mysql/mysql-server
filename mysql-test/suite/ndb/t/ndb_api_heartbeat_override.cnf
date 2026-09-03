@@ -1,0 +1,28 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+[cluster_config.1]
+ndbd=,
+ndb_mgmd=
+mysqld=,
+HeartbeatIntervalDbApi=2000
+MaxBufferedEpochs=800
+
+
+[cluster_config.mysqld.1.1]
+NodeId=11
+HeartbeatIntervalDbApi=5000
+
+[cluster_config.mysqld.2.1]
+NodeId=12
+HeartbeatIntervalDbApi=5000
+
+[mysqld]
+ndbcluster
+ndb-cluster-connection-pool=2
+
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=11,12
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring

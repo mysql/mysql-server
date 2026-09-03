@@ -1,0 +1,19 @@
+On data node 1, block sending signals to API node 12
+HeartbeatIntervalDbApi is configured on both 'global'
+section (2000ms) and API node 12 section (5000ms)
+sleep 10 sec (more than 3 * the global HeartbeatIntervalDbApi),
+to show that the global HeartbeatIntervalDbApi is not in use (node is not disconnected)
+include/assert_grep.inc [No 'Node 12 Disconnected' message in the log]
+sleep 10 sec more (10sec + 10sec > 3 * the API node HeartbeatIntervalDbApi),
+the missing of 3 heartbeats will trigger the node to disconnect
+include/assert_grep.inc ['Node 12 Disconnected' message in the log]
+On data node 1, resume sending signals to API node 12
+Now, let's test communication in the opposite direction
+On data node 1, block receiving signals from API node 11
+sleep 10 sec (more than 3 * the global HeartbeatIntervalDbApi),
+to show that the global HeartbeatIntervalDbApi is not in use (node is not disconnected)
+include/assert_grep.inc [No 'Node 11 declared dead due to missed heartbeat' message in the log]
+sleep 20 sec more (20sec + 10sec > 4 * the API node HeartbeatIntervalDbApi),
+the missing of 4 heartbeats will trigger the node to disconnect
+include/assert_grep.inc ['Node 11 declared dead due to missed heartbeat' message in the log]
+On data node 1, resume receiving signals from API node 11

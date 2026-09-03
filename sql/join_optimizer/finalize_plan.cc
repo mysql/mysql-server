@@ -772,26 +772,84 @@ Item *AddCachesAroundConstantConditions(Item *item) {
   }
 }
 
+/**
+  Returns the initial set of tables whose row IDs are needed for an UPDATE or
+  DELETE. This includes all target tables and, for UPDATE, any tables referenced
+  by a target table's CHECK OPTION.
+
+  FinalizeUpdateOrDelete() refines this set based on which access paths restore
+  handler::ref.
+ */
+table_map GetInitialUpdateOrDeleteRowidRequirements(
+    const AccessPath *root_path, const Query_block *query_block) {
+  if (root_path->type == AccessPath::DELETE_ROWS) {
+    return root_path->delete_rows().tables_to_delete_from;
+  }
+
+  const table_map tables_to_update = root_path->update_rows().tables_to_update;
+  table_map tables = tables_to_update;
+
+  for (const Table_ref *table_ref = query_block->leaf_tables;
+       table_ref != nullptr; table_ref = table_ref->next_leaf) {
+    if (Overlaps(table_ref->map(), tables_to_update) &&
+        table_ref->check_option != nullptr) {
+      tables |= table_ref->check_option->used_tables();
+    }
+  }
+
+  return tables;
+}
+
 /// Perform finalization specific to UPDATE and DELETE access paths. Make sure
-/// that rows in the target tables can be deleted using the information that
-/// comes up through the access paths. In particular, paths that potentially
-/// reorder the rows returned by the underlying scans, specifically SORT and
-/// HASH_JOIN, must be told to preserve row IDs, so that the correct row can be
-/// updated or deleted.
-void FinalizeUpdateOrDelete(AccessPath *root_path, table_map target_tables) {
-  WalkAccessPaths(
-      root_path, /*join=*/nullptr,
-      WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-      [target_tables](AccessPath *path, const JOIN *) {
-        if ((path->type == AccessPath::SORT ||
-             path->type == AccessPath::HASH_JOIN) &&
-            Overlaps(target_tables,
-                     GetUsedTableMap(path, /*include_pruned_tables=*/true))) {
-          FindTablesToGetRowidFor(path);
-          return true;
-        }
-        return false;
-      });
+/// that rows in the target tables can be modified using the information that
+/// comes up through the access paths, and that rows needed to evaluate a view's
+/// CHECK OPTION are available. In particular, paths that potentially reorder
+/// the rows returned by the underlying scans, specifically SORT and HASH_JOIN,
+/// must be told to preserve row IDs, so that the correct row can be updated or
+/// deleted.
+void FinalizeUpdateOrDelete(AccessPath *root_path,
+                            const Query_block *query_block) {
+  table_map tables_to_get_rowid_for =
+      GetInitialUpdateOrDeleteRowidRequirements(root_path, query_block);
+
+  // By default, the modification iterator gets the row ID from the handler.
+  // A hash join may instead provide it in handler::ref.
+  auto finalize_rowid_requirements = [&tables_to_get_rowid_for](
+                                         AccessPath *path, const JOIN *) {
+    // If support for BKA join is added, it needs to be handled in a similar
+    // way as hash join. See FindTablesToGetRowidFor().
+    assert(path->type != AccessPath::BKA_JOIN);
+
+    if (path->type != AccessPath::SORT && path->type != AccessPath::HASH_JOIN) {
+      return false;  // Continue into the children.
+    }
+
+    const table_map tables_in_subtree =
+        GetUsedTableMap(path, /*include_pruned_tables=*/true);
+    if (!Overlaps(tables_in_subtree, tables_to_get_rowid_for)) {
+      return true;  // No tables whose row IDs are needed in this subtree.
+    }
+
+    // The first relevant SORT or HASH_JOIN seen from the root determines
+    // whether handler::ref is valid when the row reaches the modification
+    // iterator. Configure that path and its subtree here, then prune it from
+    // this traversal.
+    if (path->type == AccessPath::HASH_JOIN) {
+      tables_to_get_rowid_for &= ~tables_in_subtree;
+    }
+    FindTablesToGetRowidFor(path);
+    return true;
+  };
+
+  WalkAccessPaths(root_path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  finalize_rowid_requirements);
+
+  if (root_path->type == AccessPath::UPDATE_ROWS) {
+    root_path->update_rows().tables_to_get_rowid_for = tables_to_get_rowid_for;
+  } else {
+    root_path->delete_rows().tables_to_get_rowid_for = tables_to_get_rowid_for;
+  }
 }
 
 /// Create Filesort objects for all SORT access paths in a query block. This is
@@ -884,12 +942,8 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
       // return immediately.
       return false;
     case AccessPath::DELETE_ROWS:
-      FinalizeUpdateOrDelete(root_path,
-                             root_path->delete_rows().tables_to_delete_from);
-      break;
     case AccessPath::UPDATE_ROWS:
-      FinalizeUpdateOrDelete(root_path,
-                             root_path->update_rows().tables_to_update);
+      FinalizeUpdateOrDelete(root_path, query_block);
       break;
     default:
       break;

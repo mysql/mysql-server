@@ -120,16 +120,17 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       }
 
       if (!m_single_threaded_mode) {
-        /* Check how many threads can actually be allocated. */
-        n_threads = Parallel_reader::available_threads(use_n_threads, false);
-
-        /* May as well do a synchronous read. */
-        if (n_threads == 1) {
-          Parallel_reader::release_threads(n_threads);
-          n_threads = 0;
-        }
+        n_threads = use_n_threads;
       }
     }
+  }
+
+  Parallel_reader reader{n_threads};
+  n_threads = reader.max_threads();
+
+  /* May as well do a synchronous read. */
+  if (n_threads == 1) {
+    n_threads = 0;
   }
 
   const auto use_n_threads = n_threads == 0 ? 1 : n_threads;
@@ -185,8 +186,6 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       }
     }
   }
-
-  Parallel_reader reader{n_threads};
 
   const Parallel_reader::Scan_range FULL_SCAN;
 
@@ -424,7 +423,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       });
 
   if (err == DB_SUCCESS) {
-    err = reader.run(n_threads);
+    err = reader.run();
 
     if (err == DB_OUT_OF_RESOURCES) {
       ut_a(!m_single_threaded_mode);
@@ -438,7 +437,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
         builder->fallback_to_single_thread();
       }
 
-      err = reader.run(0);
+      err = reader.run_sync();
     }
   }
 

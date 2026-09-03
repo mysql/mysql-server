@@ -71,8 +71,6 @@ ERROR HY000: NULL is not allowed when updating a JSON DUALITY VIEW.
 SELECT * FROM p_dv1;
 data
 {"f2": 2, "_id": 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"}}
-UPDATE p_dv1 SET data = '{ "_id" : 1 } ';
-ERROR HY000: Value was not provided for path '$' and could not be inferred for column `test`.`p_t1`.f2.
 UPDATE p_dv1 SET data = '{ "_id" : 1, "f2" : 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"} } ';
 SELECT * FROM p_dv1;
 data
@@ -389,11 +387,6 @@ JSON_DUALITY_OBJECT(WITH UPDATE
 SELECT * FROM  p_dv1;
 data
 {"f2": 2, "_id": 1, "childN": null, "_metadata": {"etag": "6c529e2adb31bc08ce63c57af35ffae4"}}
-UPDATE p_dv1 SET data = ' {
-     "_id" : 1,
-     "childN" : [ {"f11" : 1, "f13":333} ]
-} ';
-ERROR HY000: Value was not provided for path '$' and could not be inferred for column `test`.`p_t1`.f2.
 UPDATE p_dv1 SET data = ' {
      "_id" : 1,
      "f2" : 222,
@@ -1358,3 +1351,289 @@ DROP TABLE p_t2;
 DROP TABLE p_t1;
 DROP VIEW p_dv1;
 ################################################################################
+################################################################################
+# WL#17054: granular column UPDATE behavior
+################################################################################
+# 1. Root-column permissions and runtime validation
+#
+# Setup for 1.1 through 1.5: prepare a root view whose table is
+# NO UPDATE, with one column explicitly restored to UPDATE.
+CREATE TABLE gct_dml_root (
+id INT PRIMARY KEY,
+protected_value INT,
+mutable_value INT,
+default_value INT DEFAULT 77
+);
+INSERT INTO gct_dml_root VALUES (1, 10, 100, 50);
+CREATE JSON DUALITY VIEW gct_dml_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, NO UPDATE)
+"_id" : id,
+"protected_value" : protected_value,
+"mutable_value" : mutable_value WITH UPDATE,
+"default_value" : default_value
+)
+FROM gct_dml_root;
+# 1.1: changing an inherited NO UPDATE column fails with
+# ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_dml_view
+SET data = JSON_SET(data, '$.protected_value', 11)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_dml_root`.protected_value, path '$.protected_value'.
+# The protected base value is unchanged after the rejected update.
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+ORDER BY id;
+id	protected_value	mutable_value	default_value
+1	10	100	50
+# 1.2: a column-level UPDATE overrides table-level NO UPDATE.
+UPDATE gct_dml_view
+SET data = JSON_SET(data, '$.mutable_value', 101)
+WHERE data->>'$._id' = 1;
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+ORDER BY id;
+id	protected_value	mutable_value	default_value
+1	10	101	50
+# 1.3: omitted CHECK and NO UPDATE fields remain unchanged on
+# a partial JDV update; ER_JDV_MISSING_VALUE is not expected.
+UPDATE gct_dml_view
+SET data = JSON_REMOVE(
+JSON_SET(data, '$.mutable_value', 102),
+'$.protected_value', '$.default_value')
+WHERE data->>'$._id' = 1;
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+ORDER BY id;
+id	protected_value	mutable_value	default_value
+1	10	102	50
+# 1.4: NO UPDATE permits the initial value of a new row.
+INSERT INTO gct_dml_view VALUES
+('{"_id": 2, "protected_value": 20, "mutable_value": 200, "default_value": 60}');
+# 1.5: an omitted non-PK field receives its base-table default.
+INSERT INTO gct_dml_view VALUES
+('{"_id": 3, "protected_value": 30, "mutable_value": 300}');
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+ORDER BY id;
+id	protected_value	mutable_value	default_value
+1	10	102	50
+2	20	200	60
+3	30	300	77
+# 1.6: changing the root PK through JDV DML fails with
+# ER_JDV_PK_UPDATES_NOT_ALLOWED.
+UPDATE gct_dml_view
+SET data = JSON_SET(data, '$._id', 4)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Cannot update primary key column `test`.`gct_dml_root`.id from path '$._id'.
+# The original root row still exists after the rejected PK update.
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+ORDER BY id;
+id	protected_value	mutable_value	default_value
+1	10	102	50
+2	20	200	60
+3	30	300	77
+DROP VIEW gct_dml_view;
+# Setup for 1.7 and 1.8: switch to table UPDATE with one explicit NO UPDATE
+# column to exercise the opposite inheritance direction.
+CREATE JSON DUALITY VIEW gct_dml_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : id,
+"protected_value" : protected_value WITH NO UPDATE,
+"mutable_value" : mutable_value,
+"default_value" : default_value
+)
+FROM gct_dml_root;
+# 1.7: changing a protected and mutable value together fails
+# atomically with ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_dml_view
+SET data = JSON_SET(data,
+'$.protected_value', 11,
+'$.mutable_value', 103)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_dml_root`.protected_value, path '$.protected_value'.
+# Neither requested value changed after the rejected mixed update.
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+WHERE id = 1;
+id	protected_value	mutable_value	default_value
+1	10	102	50
+# 1.8: supplying the unchanged protected value while changing
+# an updatable sibling succeeds.
+UPDATE gct_dml_view
+SET data = JSON_SET(data,
+'$.protected_value', 10,
+'$.mutable_value', 103)
+WHERE data->>'$._id' = 1;
+SELECT id, protected_value, mutable_value, default_value
+FROM gct_dml_root
+WHERE id = 1;
+id	protected_value	mutable_value	default_value
+1	10	103	50
+DROP VIEW gct_dml_view;
+DROP TABLE gct_dml_root;
+# 2. Existing singleton INSERT and remap paths
+#
+# Setup for 2.1 through 2.3: prepare the existing-singleton INSERT path.
+CREATE TABLE gct_insert_child (
+id INT PRIMARY KEY,
+protected_value INT,
+mutable_value INT
+);
+CREATE TABLE gct_insert_parent (
+id INT PRIMARY KEY,
+child_id INT,
+FOREIGN KEY (child_id) REFERENCES gct_insert_child(id)
+);
+INSERT INTO gct_insert_child VALUES (1, 10, 100);
+CREATE JSON DUALITY VIEW gct_insert_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH INSERT
+"_id" : p.id,
+"child" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE)
+"id" : c.id,
+"protected_value" : c.protected_value WITH NO UPDATE,
+"mutable_value" : c.mutable_value
+)
+FROM gct_insert_child AS c
+WHERE c.id = p.child_id
+)
+)
+FROM gct_insert_parent AS p;
+# 2.1: changing an existing singleton's NO UPDATE value during
+# INSERT fails with ER_JDV_MISSING_UPDATE_TAG.
+INSERT INTO gct_insert_view VALUES
+('{"_id": 1, "child": {"id": 1, "protected_value": 11, "mutable_value": 101}}');
+ERROR HY000: Missing UPDATE tag on `test`.`gct_insert_child`.protected_value, path '$.child.protected_value'.
+# No parent was inserted and the child was not partly changed.
+SELECT id, child_id FROM gct_insert_parent ORDER BY id;
+id	child_id
+SELECT id, protected_value, mutable_value FROM gct_insert_child ORDER BY id;
+id	protected_value	mutable_value
+1	10	100
+# 2.2: retaining the protected value while changing the mutable
+# sibling lets the existing-child INSERT path succeed.
+INSERT INTO gct_insert_view VALUES
+('{"_id": 1, "child": {"id": 1, "protected_value": 10, "mutable_value": 101}}');
+SELECT id, child_id FROM gct_insert_parent ORDER BY id;
+id	child_id
+1	1
+SELECT id, protected_value, mutable_value FROM gct_insert_child ORDER BY id;
+id	protected_value	mutable_value
+1	10	101
+# 2.3: a genuinely new singleton child can receive its initial
+# NO UPDATE value during INSERT.
+INSERT INTO gct_insert_view VALUES
+('{"_id": 2, "child": {"id": 2, "protected_value": 20, "mutable_value": 200}}');
+SELECT id, child_id FROM gct_insert_parent ORDER BY id;
+id	child_id
+1	1
+2	2
+SELECT id, protected_value, mutable_value FROM gct_insert_child ORDER BY id;
+id	protected_value	mutable_value
+1	10	101
+2	20	200
+DROP VIEW gct_insert_view;
+DROP TABLE gct_insert_parent;
+DROP TABLE gct_insert_child;
+# Setup for 2.4 and 2.5: prepare singleton remapping to an existing child.
+CREATE TABLE gct_remap_child (
+id INT PRIMARY KEY,
+protected_value INT,
+mutable_value INT
+);
+CREATE TABLE gct_remap_parent (
+id INT PRIMARY KEY,
+child_id INT,
+FOREIGN KEY (child_id) REFERENCES gct_remap_child(id)
+);
+INSERT INTO gct_remap_child VALUES (1, 10, 100), (2, 20, 200);
+INSERT INTO gct_remap_parent VALUES (1, 1);
+CREATE JSON DUALITY VIEW gct_remap_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : p.id,
+"child" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"id" : c.id,
+"protected_value" : c.protected_value WITH NO UPDATE,
+"mutable_value" : c.mutable_value
+)
+FROM gct_remap_child AS c
+WHERE c.id = p.child_id
+)
+)
+FROM gct_remap_parent AS p;
+# 2.4: remapping while changing the destination's protected
+# value fails atomically with ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_remap_view
+SET data = JSON_SET(data,
+'$.child.id', 2,
+'$.child.protected_value', 21,
+'$.child.mutable_value', 201)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_remap_child`.protected_value, path '$.child.protected_value'.
+# The mapping and both child rows are unchanged after the error.
+SELECT id, child_id FROM gct_remap_parent ORDER BY id;
+id	child_id
+1	1
+SELECT id, protected_value, mutable_value FROM gct_remap_child ORDER BY id;
+id	protected_value	mutable_value
+1	10	100
+2	20	200
+# 2.5: remapping succeeds when the protected destination value
+# is retained and only the mutable sibling changes.
+UPDATE gct_remap_view
+SET data = JSON_SET(data,
+'$.child.id', 2,
+'$.child.protected_value', 20,
+'$.child.mutable_value', 201)
+WHERE data->>'$._id' = 1;
+SELECT id, child_id FROM gct_remap_parent ORDER BY id;
+id	child_id
+1	2
+SELECT id, protected_value, mutable_value FROM gct_remap_child ORDER BY id;
+id	protected_value	mutable_value
+1	10	100
+2	20	201
+DROP VIEW gct_remap_view;
+DROP TABLE gct_remap_parent;
+DROP TABLE gct_remap_child;
+# 2.6: remapping a singleton child must not change an unprojected
+# join column in a read-only parent.
+CREATE TABLE gct_default_remap_target (
+id INT PRIMARY KEY
+);
+CREATE TABLE gct_default_remap_root (
+id INT PRIMARY KEY,
+target_id INT
+);
+INSERT INTO gct_default_remap_target VALUES (1), (2);
+INSERT INTO gct_default_remap_root VALUES (1, 1);
+CREATE JSON DUALITY VIEW gct_default_remap_view AS
+SELECT JSON_DUALITY_OBJECT(WITH NO UPDATE
+"_id" : p.id,
+"target" : (
+SELECT JSON_DUALITY_OBJECT(
+"id" : t.id WITH NO UPDATE
+)
+FROM gct_default_remap_target AS t
+WHERE t.id = p.target_id
+)
+)
+FROM gct_default_remap_root AS p;
+UPDATE gct_default_remap_view
+SET data = JSON_SET(data, '$.target.id', 2)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_default_remap_root`.target_id, path '$.target.id'.
+SELECT id, target_id FROM gct_default_remap_root;
+id	target_id
+1	1
+DROP VIEW gct_default_remap_view;
+DROP TABLE gct_default_remap_root;
+DROP TABLE gct_default_remap_target;

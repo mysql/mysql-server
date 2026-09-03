@@ -207,8 +207,7 @@ INSERT INTO t VALUES (2);
 XA END 'a';
 XA PREPARE 'a';
 include/rpl/sync_to_replica.inc
-[connection slave]
-include/wait_for_xa_prepared_count.inc
+include/assert.inc [1 XA transaction(s) in PREPARED state]
 XA ROLLBACK 'a';
 include/rpl/save_binlog_file_position.inc
 [connection master]
@@ -224,7 +223,7 @@ INSERT INTO t VALUES (3);
 XA END 'a';
 XA PREPARE 'a';
 include/rpl/sync_to_replica.inc
-include/wait_for_xa_prepared_count.inc
+include/assert.inc [1 XA transaction(s) in PREPARED state]
 XA ROLLBACK 'a';
 include/rpl/save_binlog_file_position.inc
 [connection master]

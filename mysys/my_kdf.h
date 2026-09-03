@@ -61,8 +61,6 @@ class Key_derivation_function {
   virtual int validate_options() = 0;
 };
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-
 /** Class to implement KDF method hkdf. */
 class Key_hkdf_function : public Key_derivation_function {
   string salt_;
@@ -90,7 +88,6 @@ class Key_hkdf_function : public Key_derivation_function {
                  unsigned char *rkey, unsigned int key_size) override;
   int validate_options() override;
 };
-#endif
 
 /** Class to implement KDF method pbkdf2_hmac. */
 class Key_pbkdf2_hmac_function : public Key_derivation_function {

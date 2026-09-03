@@ -72,6 +72,10 @@ Mysqlx.Prepare.Prepare {
 -->expecterror ER_CANT_INITIALIZE_UDF
 -->recvresult
 
+-->stmtsql SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(CAST(NULL AS SIGNED));
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
 -->stmtsql DO MYSQLX_GET_PREPARED_STATEMENT_ID(123.45);
 -->expecterror ER_CANT_INITIALIZE_UDF
 -->recvresult
@@ -101,6 +105,17 @@ EOF
 --let $assert_text= Validation of MYSQLX_GET_PREPARED_STATEMENT_ID(2)
 --let $assert_cond= [SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(2) AS Value, Value, 1] IS NULL
 --source include/assert.inc
+
+--error 1123
+SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(CAST(NULL AS SIGNED));
+
+CREATE TEMPORARY TABLE get_prepared_statement_id_argument (
+  client_stmt_id INT NOT NULL
+);
+INSERT INTO get_prepared_statement_id_argument VALUES (1);
+SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(client_stmt_id)
+  FROM get_prepared_statement_id_argument;
+DROP TEMPORARY TABLE get_prepared_statement_id_argument;
 
 
 exec $MYSQLXTEST

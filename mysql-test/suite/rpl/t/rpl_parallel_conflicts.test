@@ -140,16 +140,16 @@ DROP DATABASE db3;
 #         it is scheduled
 #
 
+--disable_query_log
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 if ($is_preserve_commit_order)
 {
-  --disable_result_log
-  --source include/rpl/connection_replica.inc
-  --source include/rpl/stop_replica.inc
   --let $save_replica_preserve_commit_order = `SELECT @@global.replica_preserve_commit_order`
   SET GLOBAL replica_preserve_commit_order = FALSE;
-  --source include/rpl/start_replica.inc
-  --enable_result_log
 }
+--source include/rpl/start_replica.inc
+--enable_query_log
 
 --source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
@@ -221,15 +221,15 @@ ROLLBACK;
 DROP TABLE t1;
 --source include/rpl/sync_to_replica.inc
 
+--disable_query_log
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 if ($is_preserve_commit_order)
 {
-  --disable_result_log
-  --source include/rpl/connection_replica.inc
-  --source include/rpl/stop_replica.inc
   --eval SET GLOBAL replica_preserve_commit_order = $save_replica_preserve_commit_order
-  --source include/rpl/start_replica.inc
-  --enable_result_log
 }
+--source include/rpl/start_replica.inc
+--enable_query_log
 
 --source include/rpl/connection_source.inc
 --source include/rpl/reset.inc

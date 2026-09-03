@@ -4363,8 +4363,7 @@ void calc_sum_of_all_status(System_status_var *to) {
 extern ST_SCHEMA_TABLE schema_tables[];
 
 /*
-  Store record to I_S table, convert HEAP table
-  to MyISAM if necessary
+  Store record to I_S table, convert HEAP table to InnoDB if necessary
 
   SYNOPSIS
     schema_table_store_record()

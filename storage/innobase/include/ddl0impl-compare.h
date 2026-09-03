@@ -98,7 +98,11 @@ struct Compare_key {
         }
       }
 
-      if (report) {
+      /* For a non-unique secondary index, m_n_unique includes the
+      clustered-key fields and is equal to m_n_fields.  If all of those
+      fields match, the records have the same clustered key even if a
+      secondary-key field is NULL. */
+      if (report || m_n_unique == m_n_fields) {
         m_dups->save_duplicate(lhs);
       }
     }

@@ -422,7 +422,7 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
 
 static inline bool is_valid_row_version(const row_version_t version) {
   /* NOTE : 0 is also a valid row versions for rows which are inserted after
-  upgrading from earlier INSTANT implemenation */
+  upgrading from earlier INSTANT implementation */
   if (std::cmp_less_equal(version, MAX_ROW_VERSION)) {
     return true;
   }

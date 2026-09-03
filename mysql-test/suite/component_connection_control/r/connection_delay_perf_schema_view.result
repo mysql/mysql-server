@@ -20,7 +20,6 @@ CREATE USER u1@localhost IDENTIFIED BY 'abcd';
 CREATE USER u2@localhost IDENTIFIED BY 'abcd';
 CREATE USER u3@localhost IDENTIFIED BY 'abcd';
 # Save original values of connection_control variables
-SET @saved_connections_threshold = @@global.component_connection_control.failed_connections_threshold;
 # Avoid triggering delay
 SET @@global.component_connection_control.failed_connections_threshold = 100;
 
@@ -140,7 +139,7 @@ USERHOST	FAILED_ATTEMPTS
 
 # Cleanup
 # Restore original values of conenction_control variables
-SET @@global.component_connection_control.failed_connections_threshold = @saved_connections_threshold;
+SET @@global.component_connection_control.failed_connections_threshold = 3;
 # Remove user accounts created for the test
 DROP USER u1@localhost;
 DROP USER u2@localhost;

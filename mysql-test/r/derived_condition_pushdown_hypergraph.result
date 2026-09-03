@@ -26,6 +26,8 @@ EXPLAIN
     -> Materialize  (rows=4)
         -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 2)) `dt`
 SELECT * FROM (SELECT f1, f2 FROM t1) as dt WHERE f1 > 2;
 f1	f2
 3	33
@@ -40,6 +42,8 @@ EXPLAIN
         -> Filter: (t1.f2 > 11)  (rows=2)
             -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 3)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f1` < 3) and (`test`.`t1`.`f2` > 11))) `dt`
 SELECT * FROM (SELECT f1, f2 FROM t1) as dt
 WHERE f1 < 3 and f2 > 11;
 f1	f2
@@ -53,6 +57,8 @@ EXPLAIN
         -> Filter: ((t1.f1 > 2) and (t1.f2 < 25) and (t1.f3 > 200))  (rows=0.667)
             -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`f3` AS `f3` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` < 25) and (`test`.`t1`.`f3` > 200))) `dt`
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE f1 > 2 and f2 < 25 and f3 > 200;
 f1	f2	f3
@@ -64,6 +70,8 @@ EXPLAIN
         -> Filter: (((t1.f1 > 3) and (t1.f2 < 50)) or (t1.f3 > 200))  (rows=8)
             -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`f3` AS `f3` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where (((`test`.`t1`.`f1` > 3) and (`test`.`t1`.`f2` < 50)) or (`test`.`t1`.`f3` > 200))) `dt`
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE f1 > 3 and f2 < 50 or f3 > 200;
 f1	f2	f3
@@ -85,6 +93,8 @@ EXPLAIN
                 -> Materialize  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2`,`dt`.`f1` AS `f1`,`dt`.`f3` AS `f3` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1`) `dt` where ((`dt`.`f1` = 6) or ((`test`.`t1`.`f2` = 50) and (`dt`.`f3` = 200)))
 SELECT t1.f2 as f2, dt.f1 as f1, dt.f3 as f3 FROM t1,
 (SELECT f1, f2, f3 FROM t1) as dt
 WHERE (dt.f1 = 6) or( t1.f2 = 50 and dt.f3 = 200);
@@ -102,6 +112,8 @@ EXPLAIN
         -> Filter: (t0.i0 > 3)  (rows=1.67)
             -> Table scan on t0  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t0`,`dt`) */ `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`f3` AS `f3`,`test`.`t0`.`i0` AS `i0` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` > 3) and (`test`.`t1`.`f2` < 50))) `dt` join `test`.`t0` where (`test`.`t0`.`i0` > 3)
 SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
 (SELECT f1, f2, f3 FROM t1) as dt, t0
 WHERE f1 > 3 and f2 < 50 and i0 > 3;
@@ -118,6 +130,8 @@ EXPLAIN
                 -> Filter: ((t1.f1 > 3) and (t1.f2 < 50) and (t1.f3 > 200))  (rows=0.333)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt1`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` > 3) and (`test`.`t1`.`f2` < 50) and (`test`.`t1`.`f3` > 200))) `dt1`) `dt2`
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2
 WHERE f1 > 3 and f2 < 50 and f3 > 200;
 f1	f2	f3
@@ -131,6 +145,8 @@ EXPLAIN
         -> Filter: ((t1.f1 > 2) and (t1.f2 < 35) and ((t1.f1 + t1.f3) > 300))  (rows=1.33)
             -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`f3` AS `f3` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` < 35) and ((`test`.`t1`.`f1` + `test`.`t1`.`f3`) > 300))) `dt`
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 300;
 f1	f2	f3
@@ -144,6 +160,8 @@ EXPLAIN
         -> Filter: (((t1.f1 > 2) and (t1.f2 < 35)) or ((t1.f1 + t1.f3) > 300) or (t1.f1 < 2))  (rows=12)
             -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`f3` AS `f3` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where (((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` < 35)) or ((`test`.`t1`.`f1` + `test`.`t1`.`f3`) > 300) or (`test`.`t1`.`f1` < 2))) `dt`
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE (f1 > 2 and f2 < 35) or (f1+f3) > 300 or (f1 < 2);
 f1	f2	f3
@@ -170,6 +188,8 @@ EXPLAIN
                 -> Filter: (t1.f2 < 35)  (rows=1.33)
                     -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` < 35))) `dt1` join (/* select#3 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where (`test`.`t1`.`f3` < 400)) `dt2` where ((`dt1`.`f1` + `dt2`.`f3`) > 300)
 SELECT * FROM (SELECT f1, f2 FROM t1) as dt1,
 (SELECT f3 FROM t1) as dt2
 WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 300
@@ -196,6 +216,8 @@ EXPLAIN
                         -> Filter: (t1.f2 < 35)  (rows=1.33)
                             -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt3`.`f1` AS `f1`,`dt3`.`f2` AS `f2`,`dt3`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` < 35))) `dt1` join (/* select#4 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where (`test`.`t1`.`f3` < 300)) `dt2` where ((`dt1`.`f1` + `dt2`.`f3`) > 200)) `dt3`
 SELECT * FROM (SELECT * FROM (SELECT f1, f2 FROM t1) as dt1,
 (SELECT f3 FROM t1) as dt2) as dt3
 WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 200
@@ -213,6 +235,8 @@ EXPLAIN
         -> Filter: ((t1.f1 + t1.f2) > 40)  (rows=6)
             -> Covering index range scan on t1 using f1_2 over (1 < f1)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`i` AS `i`,`dt`.`j` AS `j`,`dt`.`k` AS `k` from (/* select#2 */ select `test`.`t1`.`f1` AS `i`,`test`.`t1`.`f2` AS `j`,`test`.`t1`.`f2` AS `k` from `test`.`t1` where ((`test`.`t1`.`f1` > 1) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40))) `dt`
 SELECT i, j, k FROM (SELECT f1 as i, f2 as j, f2 as k FROM t1) as dt
 WHERE i > 1 and i+j > 40;
 i	j	k
@@ -231,6 +255,8 @@ EXPLAIN
                 -> Filter: ((t1.f1 > 1) and ((t1.f1 + t1.f2) > 40))  (rows=6)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`i` AS `i`,`dt2`.`j` AS `j`,`dt2`.`k` AS `k` from (/* select#2 */ select `dt1`.`l` AS `i`,`dt1`.`m` AS `j`,`dt1`.`n` AS `k` from (/* select#3 */ select `test`.`t1`.`f1` AS `l`,`test`.`t1`.`f2` AS `m`,`test`.`t1`.`f3` AS `n` from `test`.`t1` where ((`test`.`t1`.`f1` > 1) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40))) `dt1`) `dt2`
 SELECT i, j, k
 FROM (SELECT l as i, m as j, n as k
 FROM (SELECT f1 as l, f2 as m, f3 as n
@@ -255,6 +281,8 @@ EXPLAIN
                 -> Filter: (t1.f2 < 20)  (rows=4)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`i` AS `i`,`dt1`.`j` AS `j`,`dt2`.`l` AS `l`,`dt2`.`m` AS `m`,`dt2`.`n` AS `n` from (/* select#2 */ select `test`.`t1`.`f1` AS `i`,`test`.`t1`.`f2` AS `j` from `test`.`t1` where ((`test`.`t1`.`f1` > 1) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40))) `dt1` join (/* select#3 */ select `test`.`t1`.`f1` AS `l`,`test`.`t1`.`f2` AS `m`,`test`.`t1`.`f3` AS `n` from `test`.`t1` where (`test`.`t1`.`f2` < 20)) `dt2` where ((`dt2`.`m` + `dt1`.`i`) > 20)
 SELECT i, j, l, m, n
 FROM (SELECT f1 as i, f2 as j FROM t1 ) as dt1 ,
 (SELECT f1 as l, f2 as m, f3 as n FROM t1) as dt2
@@ -281,6 +309,8 @@ EXPLAIN
                     -> Materialize  (rows=12)
                         -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt3`.`g` AS `g`,`dt3`.`f1` AS `f1` from (/* select#2 */ select (`dt1`.`i` + `dt1`.`j`) AS `g`,`dt2`.`f1` AS `f1` from (/* select#3 */ select (`dt0`.`f1` + `dt0`.`f2`) AS `i`,(`dt0`.`f1` - `dt0`.`f2`) AS `j` from (/* select#4 */ select (`test`.`t1`.`f1` + 10) AS `f1`,(`test`.`t1`.`f2` + 10) AS `f2` from `test`.`t1` where ((((`test`.`t1`.`f1` + 10) + (`test`.`t1`.`f2` + 10)) + ((`test`.`t1`.`f1` + 10) - (`test`.`t1`.`f2` + 10))) > 26)) `dt0`) `dt1` join (/* select#5 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt2` where (((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)) `dt3`
 SELECT * FROM
 (SELECT (i+j) AS g, f1 FROM
 (SELECT (f1+f2) AS i, (f1-f2) AS j FROM
@@ -303,6 +333,8 @@ EXPLAIN
                 -> Filter: ((((t1.f1 + t1.f2) + 3) > 20) and ((((t1.f1 + t1.f2) + 3) + ((t1.f3 + 10) + 4)) > 10))  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`l` AS `l`,`dt2`.`m` AS `m` from (/* select#2 */ select (`dt1`.`i` + 3) AS `l`,(`dt1`.`j` + 4) AS `m` from (/* select#3 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `i`,(`test`.`t1`.`f3` + 10) AS `j` from `test`.`t1` where ((((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + 3) > 20) and ((((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + 3) + ((`test`.`t1`.`f3` + 10) + 4)) > 10))) `dt1`) `dt2`
 SELECT l, m  FROM (SELECT (i+3) as l, (j+4) as m FROM
 (SELECT (f1+f2) as i, (f3+10) as j FROM t1) as
 dt1) as dt2 WHERE l > 20 and l+m > 10 ;
@@ -319,6 +351,8 @@ EXPLAIN
     -> Materialize  (rows=1)
         -> Covering index range scan on t1 using f1 over (10 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`i` AS `i` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 10)) `dt` (`i`)
 SELECT i FROM (SELECT f1 FROM t1) as dt(i) WHERE i > 10;
 i
 EXPLAIN FORMAT=tree SELECT m FROM (SELECT k+2 as l
@@ -333,6 +367,8 @@ EXPLAIN
                 -> Filter: (((t1.f1 + t1.f2) + 2) > 30)  (rows=12)
                     -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`m` AS `m` from (/* select#2 */ select (`dt1`.`k` + 2) AS `l` from (/* select#3 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `j` from `test`.`t1` where (((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + 2) > 30)) `dt1` (`k`)) `dt` (`m`)
 SELECT m FROM (SELECT k+2 as l
 FROM (SELECT f1+f2 as j
 FROM t1) as dt1(k)) as dt(m)
@@ -350,6 +386,8 @@ EXPLAIN
         -> Group aggregate: sum(t1.f2)  (rows=1.41)
             -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`test`.`t1`.`f1` > 3) group by `test`.`t1`.`f1`) `dt`
 SELECT f1 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3;
 f1
@@ -364,6 +402,8 @@ EXPLAIN
                 -> Filter: ((t1.f1 + t1.f2) > 30)  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f3`) AS `SUM(f3)` from `test`.`t1` where ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 30) group by `test`.`t1`.`f1`,`test`.`t1`.`f2`) `dt`
 SELECT f1 FROM (SELECT f1, f2, SUM(f3) FROM t1 GROUP BY f1,f2) as dt
 WHERE f1+f2 > 30;
 f1
@@ -379,6 +419,8 @@ EXPLAIN
             -> Group aggregate with rollup: sum(t1.f2)  (rows=7)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `f1`,rollup_sum_switcher(sum(`test`.`t1`.`f2`)) AS `SUM(f2)` from `test`.`t1` group by `test`.`t1`.`f1` with rollup having (rollup_group_item(`test`.`t1`.`f1`,0) is null)) `dt`
 SELECT f1
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP) as dt
 WHERE f1 IS NULL;
@@ -396,6 +438,8 @@ EXPLAIN
             -> Group aggregate with rollup: sum(t1.f2)  (rows=7)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`j` AS `j`,`dt`.`sum` AS `sum` from (/* select#2 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `j`,rollup_sum_switcher(sum(`test`.`t1`.`f2`)) AS `sum` from `test`.`t1` group by `test`.`t1`.`f1` with rollup having (((rollup_group_item(`test`.`t1`.`f1`,0) + rollup_sum_switcher(sum(`test`.`t1`.`f2`))) > 50) or (rollup_group_item(`test`.`t1`.`f1`,0) is null))) `dt`
 SELECT *
 FROM (SELECT f1 as j, SUM(f2) as sum
 FROM t1 GROUP BY f1 WITH ROLLUP) as dt WHERE j+sum > 50 OR
@@ -417,6 +461,8 @@ EXPLAIN
             -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)  (rows=7)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`j` AS `j`,`dt`.`sum` AS `sum` from (/* select#2 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `j`,rollup_sum_switcher(sum(`test`.`t1`.`f2`)) AS `sum` from `test`.`t1` group by `test`.`t1`.`f1` with rollup having ((rollup_sum_switcher(avg(`test`.`t1`.`f2`)) > 1) and (((rollup_group_item(`test`.`t1`.`f1`,0) + rollup_sum_switcher(sum(`test`.`t1`.`f2`))) > 50) or (rollup_group_item(`test`.`t1`.`f1`,0) is null)))) `dt`
 SELECT *
 FROM (SELECT f1 as j, SUM(f2) as sum
 FROM t1 GROUP BY f1 WITH ROLLUP
@@ -434,6 +480,8 @@ EXPLAIN
         -> Sort: t1.f2  (rows=2)
             -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 3) order by `test`.`t1`.`f2`) `dt`
 SELECT f1 FROM (SELECT f1, f2 FROM t1 ORDER BY f2) as dt
 WHERE f1 > 3;
 f1
@@ -448,6 +496,8 @@ EXPLAIN
             -> Sort: t1.f2, limit input to 4 row(s) per chunk  (rows=4)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2` limit 4) `dt` where (`dt`.`f1` > 0)
 SELECT f1 FROM (SELECT f1, f2 FROM t1 ORDER BY f2 LIMIT 4) as dt
 WHERE f1 > 0 ;
 f1
@@ -459,6 +509,8 @@ EXPLAIN
             -> Limit: 4 row(s)  (rows=4)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` limit 4) `dt` where (`dt`.`f1` > 0)
 SELECT f1 FROM (SELECT f1, f2 FROM t1 LIMIT 4) as dt WHERE f1 > 0;
 f1
 set sql_mode="";
@@ -473,6 +525,8 @@ EXPLAIN
                     -> Group (no aggregates)  (rows=2.45)
                         -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER()` AS `SUM(f2) OVER()` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER ()  AS `SUM(f2) OVER()` from `test`.`t1` group by `test`.`t1`.`f1`) `dt` where (`dt`.`f1` > 2)
 SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
 f1	SUM(f2) OVER()
@@ -489,6 +543,8 @@ EXPLAIN
                 -> Group (no aggregates)  (rows=2)
                     -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER(PARTITION BY f1)` AS `SUM(f2) OVER(PARTITION BY f1)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER (PARTITION BY `test`.`t1`.`f1` )  AS `SUM(f2) OVER(PARTITION BY f1)` from `test`.`t1` where (`test`.`t1`.`f1` > 2) group by `test`.`t1`.`f1`) `dt`
 SELECT *
 FROM (SELECT f1, SUM(f2) OVER(PARTITION BY f1)
 FROM t1 GROUP BY f1) as dt WHERE f1 > 2;
@@ -508,6 +564,8 @@ EXPLAIN
                         -> Temporary table with deduplication  (rows=6)
                             -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f3) OVER(PARTITION BY f2)` AS `SUM(f3) OVER(PARTITION BY f2)` from (/* select#2 */ select sql_small_result `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f2` )  AS `SUM(f3) OVER(PARTITION BY f2)` from `test`.`t1` group by `test`.`t1`.`f1` having (`test`.`t1`.`f2` > 30)) `dt`
 SELECT *
 FROM (SELECT SQL_SMALL_RESULT f1, f2, SUM(f3) OVER(PARTITION BY f2)
 FROM t1 GROUP BY f1) as dt WHERE f2 > 30;
@@ -529,6 +587,8 @@ EXPLAIN
                             -> Filter: (t1.f1 > 2)  (rows=4)
                                 -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f3) OVER(PARTITION BY f1)` AS `SUM(f3) OVER(PARTITION BY f1)` from (/* select#2 */ select sql_small_result `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f1` )  AS `SUM(f3) OVER(PARTITION BY f1)` from `test`.`t1` where (`test`.`t1`.`f1` > 2) group by `test`.`t1`.`f1`) `dt` where ((`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))
 SELECT *
 FROM (SELECT SQL_SMALL_RESULT f1, f2, SUM(f3) OVER(PARTITION BY f1)
 FROM t1 GROUP BY f1) as dt
@@ -551,6 +611,8 @@ EXPLAIN
                             -> Filter: (t1.f1 > 2)  (rows=4)
                                 -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f3) OVER(PARTITION BY f1,f2)` AS `SUM(f3) OVER(PARTITION BY f1,f2)` from (/* select#2 */ select sql_small_result `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f1`,`test`.`t1`.`f2` )  AS `SUM(f3) OVER(PARTITION BY f1,f2)` from `test`.`t1` where (`test`.`t1`.`f1` > 2) group by `test`.`t1`.`f1` having ((`test`.`t1`.`f2` > 30) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40))) `dt`
 SELECT *
 FROM (SELECT SQL_SMALL_RESULT f1, f2,
 SUM(f3) OVER(PARTITION BY f1,f2)
@@ -576,6 +638,8 @@ EXPLAIN
                                 -> Filter: (t1.f1 > 2)  (rows=4)
                                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f3) OVER(PARTITION BY f1,f2)` AS `SUM(f3) OVER(PARTITION BY f1,f2)`,`dt`.`AVG(f3) OVER (PARTITION BY f1)` AS `AVG(f3) OVER (PARTITION BY f1)` from (/* select#2 */ select sql_small_result `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f1`,`test`.`t1`.`f2` )  AS `SUM(f3) OVER(PARTITION BY f1,f2)`,avg(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f1` )  AS `AVG(f3) OVER (PARTITION BY f1)` from `test`.`t1` where (`test`.`t1`.`f1` > 2) group by `test`.`t1`.`f1`) `dt` where ((`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))
 SELECT *
 FROM (SELECT SQL_SMALL_RESULT f1, f2,
 SUM(f3) OVER(PARTITION BY f1,f2),
@@ -599,6 +663,8 @@ EXPLAIN
                             -> Sort: t1.f1  (rows=12)
                                 -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM` AS `SUM`,`dt`.`AVG(f3) OVER (PARTITION BY SUM(f2))` AS `AVG(f3) OVER (PARTITION BY SUM(f2))` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM`,avg(`test`.`t1`.`f3`) OVER (PARTITION BY sum(`test`.`t1`.`f2`) )  AS `AVG(f3) OVER (PARTITION BY SUM(f2))` from `test`.`t1` group by `test`.`t1`.`f1` having (sum(`test`.`t1`.`f2`) > 40)) `dt`
 SELECT *
 FROM (SELECT f1, SUM(f2) as SUM, AVG(f3) OVER (PARTITION BY SUM(f2))
 FROM t1 GROUP BY f1) as dt
@@ -623,6 +689,8 @@ EXPLAIN
                         -> Filter: (t1.f1 > 2)  (rows=4)
                             -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER (PARTITION by f1,f2)` AS `SUM(f2) OVER (PARTITION by f1,f2)`,`dt`.`AVG(f3) OVER (PARTITION BY f2,f1)` AS `AVG(f3) OVER (PARTITION BY f2,f1)`,`dt`.`FIRST_VALUE(f3) OVER (PARTITION by f1)` AS `FIRST_VALUE(f3) OVER (PARTITION by f1)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER (PARTITION BY `test`.`t1`.`f1`,`test`.`t1`.`f2` )  AS `SUM(f2) OVER (PARTITION by f1,f2)`,avg(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f2`,`test`.`t1`.`f1` )  AS `AVG(f3) OVER (PARTITION BY f2,f1)`,first_value(`test`.`t1`.`f3`) OVER (PARTITION BY `test`.`t1`.`f1` )  AS `FIRST_VALUE(f3) OVER (PARTITION by f1)` from `test`.`t1` where (`test`.`t1`.`f1` > 2)) `dt`
 SELECT *
 FROM (SELECT f1, SUM(f2) OVER (PARTITION by f1,f2),
 AVG(f3) OVER (PARTITION BY f2,f1),
@@ -648,6 +716,8 @@ EXPLAIN
                     -> Window aggregate with buffering: avg(t1.f2) OVER (PARTITION BY t1.f1 )   (rows=12)
                         -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f1) OVER (PARTITION by f2)` AS `SUM(f1) OVER (PARTITION by f2)`,`dt`.`AVG(f2) OVER (PARTITION BY f1)` AS `AVG(f2) OVER (PARTITION BY f1)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f1`) OVER (PARTITION BY `test`.`t1`.`f2` )  AS `SUM(f1) OVER (PARTITION by f2)`,avg(`test`.`t1`.`f2`) OVER (PARTITION BY `test`.`t1`.`f1` )  AS `AVG(f2) OVER (PARTITION BY f1)` from `test`.`t1`) `dt` where (`dt`.`f1` > 2)
 SELECT *
 FROM (SELECT f1, SUM(f1) OVER (PARTITION by f2),
 AVG(f2) OVER (PARTITION BY f1)
@@ -674,6 +744,8 @@ EXPLAIN
     -> Materialize  (rows=2)
         -> Covering index range scan on t1 using f1 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 3)) `dt`
 DROP PREPARE p;
 SET @p1 = 1;
 PREPARE p FROM "EXPLAIN FORMAT=tree SELECT l, m
@@ -691,6 +763,8 @@ EXPLAIN
                 -> Filter: ((((t1.f1 + t1.f2) + 3) > 20) and ((((t1.f1 + t1.f2) + 3) + ((t1.f3 + 1) + 4)) > 10))  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`l` AS `l`,`dt2`.`m` AS `m` from (/* select#2 */ select (`dt1`.`i` + 3) AS `l`,(`dt1`.`j` + 4) AS `m` from (/* select#3 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `i`,(`test`.`t1`.`f3` + 1) AS `j` from `test`.`t1` where ((((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + 3) > 20) and ((((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + 3) + ((`test`.`t1`.`f3` + 1) + 4)) > 10))) `dt1`) `dt2`
 PREPARE p FROM "SELECT l, m
 FROM (SELECT (i+3) as l, (j+4) as m
 FROM (SELECT (f1+f2) AS i, (f3+?) AS j
@@ -713,6 +787,8 @@ EXPLAIN
         -> Materialize  (rows=12)
             -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`a` AS `a` from (/* select#2 */ select rand() AS `a` from `test`.`t1`) `dt` where (`dt`.`a` > 0.5)
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
@@ -722,6 +798,8 @@ EXPLAIN
             -> Group aggregate: sum(t1.f2)  (rows=3.16)
                 -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`test`.`t1`.`f1` < 10) group by `test`.`t1`.`f1` having (`test`.`t1`.`f1` > (3 * rand()))) `dt`
 EXPLAIN FORMAT=tree SELECT * FROM
 (SELECT f1, SUM(f2) OVER(PARTITION BY f1) FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
@@ -732,6 +810,8 @@ EXPLAIN
             -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 )   (rows=10)
                 -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER(PARTITION BY f1)` AS `SUM(f2) OVER(PARTITION BY f1)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER (PARTITION BY `test`.`t1`.`f1` )  AS `SUM(f2) OVER(PARTITION BY f1)` from `test`.`t1` where (`test`.`t1`.`f1` < 10)) `dt` where (`dt`.`f1` > (3 * rand()))
 EXPLAIN FORMAT=tree SELECT * FROM
 (SELECT f1 FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1<10;
@@ -741,6 +821,8 @@ EXPLAIN
         -> Filter: (t1.f1 > (3 * rand()))  (rows=3.33)
             -> Covering index range scan on t1 using f1 over (NULL < f1 < 10)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f1` > (3 * rand())) and (`test`.`t1`.`f1` < 10))) `dt`
 EXPLAIN FORMAT=tree SELECT f1 FROM
 (SELECT (SELECT 1 FROM t1 LIMIT 1) as f1 FROM t1) as dt WHERE f1 = 1;
 EXPLAIN
@@ -751,6 +833,8 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select (/* select#3 */ select 1 from `test`.`t1` limit 1) AS `f1` from `test`.`t1`) `dt` where multiple equal(1, `dt`.`f1`)
 SELECT f1 FROM
 (SELECT (SELECT 1 FROM t1 LIMIT 1) as f1 FROM t1) as dt WHERE f1 = 1;
 f1
@@ -781,6 +865,8 @@ EXPLAIN
             -> Group aggregate: sum(t1.f2)  (rows=6)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` group by `test`.`t1`.`f1`) `dt` where (`p`() = 1)
 SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 f1	SUM(f2)
@@ -800,6 +886,8 @@ EXPLAIN
             -> Filter: <cache>((p() = 1))  (rows=12)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`p`() = 1) group by `test`.`t1`.`f1`) `dt`
 SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 f1	SUM(f2)
@@ -836,6 +924,8 @@ EXPLAIN
                         -> Filter: ((3 * (10 * t1.f1)) > 1)  (rows=12)
                             -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f2` AS `f2` from (with `qn` as (/* select#4 */ select (10 * `test`.`t1`.`f1`) AS `f1` from `test`.`t1` where ((3 * (10 * `test`.`t1`.`f1`)) > 1)), `qn2` as (/* select#3 */ select (3 * `qn`.`f1`) AS `f2` from `qn`) /* select#2 */ select `qn2`.`f2` AS `f2` from `qn2`) `dt`
 SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn2)) as dt WHERE f2 > 1;
@@ -866,6 +956,8 @@ EXPLAIN
                         -> Materialize CTE qn if needed  (rows=12)
                             -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from (with `qn` as (/* select#3 */ select (10 * `test`.`t1`.`f1`) AS `f1` from `test`.`t1`), `qn2` as (/* select#4 */ select (3 * `qn`.`f1`) AS `f2` from `qn` where ((3 * `qn`.`f1`) > 1)) /* select#2 */ select `qn`.`f1` AS `f1`,`qn2`.`f2` AS `f2` from `qn` join `qn2` where (`qn`.`f1` < 10)) `dt`
 SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn,qn2)) as dt WHERE f1 < 10 and f2 > 1;
@@ -897,6 +989,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (31 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 31)) `dt` where ((`test`.`t1`.`f2` > 40) and (`test`.`t1`.`f2` = `dt`.`f2`))
 SELECT * FROM t1 JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 31 and t1.f2  > 40;
 f2	f1	f3	f1
@@ -911,6 +1005,8 @@ EXPLAIN
                 -> Materialize  (rows=12)
                     -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1` from `test`.`t1` left join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt` on((`test`.`t1`.`f2` = `dt`.`f2`)) where (`dt`.`f1` is null)
 SELECT * FROM t1 LEFT JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 is null;
 f2	f1	f3	f1
@@ -928,6 +1024,8 @@ EXPLAIN
             -> Materialize  (rows=2)
                 -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 3)) `dt` where multiple equal(`test`.`t1`.`f2`, `dt`.`f2`)
 SELECT * FROM t1 LEFT JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 3;
 f2	f1	f3	f1
@@ -945,6 +1043,8 @@ EXPLAIN
             -> Materialize  (rows=2)
                 -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 3)) `dt`
 SELECT * FROM t1 INNER JOIN (SELECT f1, f2 FROM t1) as dt
 ON dt.f1 > 3;
 f1	f2	f3	f1	f2
@@ -986,6 +1086,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from `test`.`t1` join (/* select#2 */ select `t2`.`f1` AS `f1`,`t2`.`f2` AS `f2` from `test`.`t1` left join `test`.`t1` `t2` on(true) where (`t2`.`f1` > 3)) `dt`
 set optimizer_switch="derived_merge=on";
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM (SELECT f1, SUM(f2) AS sum
 FROM t1 GROUP BY f1) as dt1
@@ -997,6 +1099,8 @@ EXPLAIN
             -> Group aggregate: sum(t1.f2)  (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (10 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`f1` AS `f1`,`dt1`.`sum` AS `sum` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `sum` from `test`.`t1` where (`test`.`t1`.`f1` > 10) group by `test`.`t1`.`f1` having (sum(`test`.`t1`.`f2`) > 10)) `dt1`
 SELECT * FROM (SELECT * FROM (SELECT f1, SUM(f2) AS sum
 FROM t1 GROUP BY f1) as dt1
 WHERE f1 > 10) dt2 WHERE sum > 10;
@@ -1011,6 +1115,8 @@ EXPLAIN
             -> Group aggregate: sum(t1.f2)  (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (10 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`f1` AS `f1`,`dt2`.`sum` AS `sum` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `sum` from `test`.`t1` where (`test`.`t1`.`f1` > 10) group by `test`.`t1`.`f1` having (sum(`test`.`t1`.`f2`) > 10)) `dt2`
 SELECT * FROM (SELECT f1, SUM(f2) AS sum
 FROM (SELECT f1, f2 FROM t1 WHERE f1 > 10) as dt1
 GROUP BY f1) dt2 WHERE sum > 10;
@@ -1031,6 +1137,8 @@ EXPLAIN SELECT /*+ no_merge(dt,dt1) */ * FROM
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) NO_MERGE(`dt1`@`select#1`) */ `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt` join (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt1` where false
 SELECT /*+ no_merge(dt,dt1) */ * FROM
 ((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
 f1	f2	f1	f2
@@ -1045,6 +1153,8 @@ EXPLAIN
                 -> Materialize  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_DERIVED_CONDITION_PUSHDOWN(`dt2`@`select#1`) */ `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt1`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1`) `dt1`) `dt2` where (`dt2`.`f1` > 3)
 SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
 f1	f2	f3
@@ -1060,6 +1170,8 @@ EXPLAIN
                 -> Materialize  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_DERIVED_CONDITION_PUSHDOWN(@`select#1`) */ `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt1`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1`) `dt1`) `dt2` where (`dt2`.`f1` > 3)
 SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN() */ * FROM
 (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
 f1	f2	f3
@@ -1077,6 +1189,8 @@ EXPLAIN
                 -> Materialize  (rows=12)
                     -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_DERIVED_CONDITION_PUSHDOWN(`dt1`@`select#2`) DERIVED_CONDITION_PUSHDOWN(`dt2`@`select#1`) */ `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt1`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1`) `dt1` where (`dt1`.`f1` > 3)) `dt2`
 SELECT /*+ DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 (SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN(dt1) */ * FROM
 (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
@@ -1143,6 +1257,8 @@ EXPLAIN
                     -> Aggregate: max(2)  (rows=1)
                         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`a1` AS `a1`,(@`a`) AS `a2` from (/* select#2 */ select max(2) AS `a1` from `test`.`t` having (max(2) <= <cache>((@`a`)))) `dt1` join `test`.`t`
 SELECT a1, a2
 FROM (SELECT MAX(f1) AS a1 FROM t) as dt1,
 (SELECT @a AS a2 FROM t) as dt2
@@ -1175,6 +1291,8 @@ EXPLAIN
         -> Materialize  (rows=1)
             -> Covering index lookup on t1 using f1 (f1 = 2)  (rows=1)
 
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`v`.`f1` AS `f1` from `test`.`v`
 INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 EXPLAIN
@@ -1185,6 +1303,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Covering index lookup on t1 using f1 (f1 = 2)  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`f1` = 3 where multiple equal(`test`.`t2`.`f1`, `test`.`v`.`f1`)
 UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 EXPLAIN
@@ -1195,6 +1315,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Covering index lookup on t1 using f1 (f1 = 3)  (rows=1)
 
+Warnings:
+Note	1003	delete from `test`.`t2` where multiple equal(`test`.`t2`.`f1`, `test`.`v`.`f1`)
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 DROP TABLE t1;
 DROP TABLE t2;
@@ -1219,6 +1341,7 @@ EXPLAIN
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`r` AS `r` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,(@rownum_r:=((@`rownum_r`) + 1)) AS `r` from `test`.`t1`) `dt` where multiple equal(300, `dt`.`f1`)
 SET @rownum_r=0;
 SELECT *
 FROM (SELECT f1, (@rownum_r := @rownum_r + 1) AS r FROM t1) AS dt
@@ -1261,6 +1384,8 @@ EXPLAIN
         -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
         -> Covering index range scan on t2 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 2) union /* select#3 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f1` > 2)) `dt`
 SELECT *
 FROM (SELECT f1, f2 FROM t1
 UNION
@@ -1280,6 +1405,8 @@ EXPLAIN
         -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
         -> Covering index range scan on t2 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 2) intersect /* select#3 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f1` > 2)) `dt`
 SELECT *
 FROM (SELECT f1, f2 FROM t1
 INTERSECT
@@ -1299,6 +1426,8 @@ EXPLAIN
         -> Covering index range scan on t1 using f1_2 over (2 < f1)  (rows=4)
         -> Covering index range scan on t2 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 2) except /* select#3 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f1` > 2)) `dt`
 SELECT *
 FROM (SELECT f1, f2 FROM t1
 EXCEPT
@@ -1324,6 +1453,8 @@ EXPLAIN
         -> Filter: ((t2.f1 + t2.f2) > 22)  (rows=12)
             -> Table scan on t2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt1`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 22) union /* select#4 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 22)) `dt1` union /* select#6 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t2` where ((`test`.`t2`.`f1` + `test`.`t2`.`f2`) > 22)) `dt2`
 SELECT *
 FROM (SELECT * FROM (SELECT * FROM t1
 UNION
@@ -1354,6 +1485,8 @@ EXPLAIN
         -> Filter: ((t2.f1 + t2.f2) > 22)  (rows=12)
             -> Table scan on t2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2`,`dt2`.`f3` AS `f3` from (/* select#2 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2`,`dt1`.`f3` AS `f3` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 22) intersect /* select#4 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 22)) `dt1` intersect /* select#6 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t2` where ((`test`.`t2`.`f1` + `test`.`t2`.`f2`) > 22)) `dt2`
 SELECT *
 FROM (SELECT * FROM (SELECT * FROM t1
 INTERSECT
@@ -1378,6 +1511,8 @@ EXPLAIN
         -> Filter: ((t2.f1 > 1) and (t2.f3 < 500) and ((t2.f1 + t2.f2) > 40))  (rows=6)
             -> Table scan on t2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`i` AS `i`,`dt`.`j` AS `j`,`dt`.`k` AS `k` from (/* select#2 */ select `test`.`t1`.`f1` AS `i`,`test`.`t1`.`f2` AS `j`,`test`.`t1`.`f3` AS `k` from `test`.`t1` where ((`test`.`t1`.`f1` > 1) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40) and (`test`.`t1`.`f3` < 500)) union /* select#3 */ select `test`.`t2`.`f1` AS `l`,`test`.`t2`.`f2` AS `m`,`test`.`t2`.`f3` AS `n` from `test`.`t2` where ((`test`.`t2`.`f1` > 1) and ((`test`.`t2`.`f1` + `test`.`t2`.`f2`) > 40) and (`test`.`t2`.`f3` < 500))) `dt`
 SELECT i, j, k
 FROM (SELECT f1 as i, f2 as j, f3 as k FROM t1
 UNION
@@ -1398,6 +1533,8 @@ EXPLAIN
         -> Filter: ((t2.f1 + (t2.f2 + t2.f3)) > 300)  (rows=1)
             -> Index range scan on t2 using f1 over (30 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`i` AS `i`,`dt`.`j` AS `j` from (/* select#2 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `i`,(`test`.`t1`.`f2` + `test`.`t1`.`f3`) AS `j` from `test`.`t1` where (((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 30) and (((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + (`test`.`t1`.`f2` + `test`.`t1`.`f3`)) > 300)) union /* select#3 */ select `test`.`t2`.`f1` AS `l`,(`test`.`t2`.`f2` + `test`.`t2`.`f3`) AS `m` from `test`.`t2` where ((`test`.`t2`.`f1` > 30) and ((`test`.`t2`.`f1` + (`test`.`t2`.`f2` + `test`.`t2`.`f3`)) > 300))) `dt`
 EXPLAIN FORMAT=tree SELECT i, j
 FROM (SELECT f1+f2 as i, f2+f3 as j FROM t1
 INTERSECT
@@ -1411,6 +1548,8 @@ EXPLAIN
         -> Filter: ((t2.f1 + (t2.f2 + t2.f3)) > 300)  (rows=1)
             -> Index range scan on t2 using f1 over (30 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`i` AS `i`,`dt`.`j` AS `j` from (/* select#2 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `i`,(`test`.`t1`.`f2` + `test`.`t1`.`f3`) AS `j` from `test`.`t1` where (((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 30) and (((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + (`test`.`t1`.`f2` + `test`.`t1`.`f3`)) > 300)) intersect /* select#3 */ select `test`.`t2`.`f1` AS `l`,(`test`.`t2`.`f2` + `test`.`t2`.`f3`) AS `m` from `test`.`t2` where ((`test`.`t2`.`f1` > 30) and ((`test`.`t2`.`f1` + (`test`.`t2`.`f2` + `test`.`t2`.`f3`)) > 300))) `dt`
 EXPLAIN FORMAT=tree SELECT i
 FROM (SELECT f1 FROM t1
 UNION
@@ -1423,6 +1562,8 @@ EXPLAIN
         -> Filter: (t2.f2 > 10)  (rows=4)
             -> Covering index scan on t2 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`i` AS `i` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 10) union /* select#3 */ select `test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` > 10)) `dt` (`i`)
 SELECT i
 FROM (SELECT f1 FROM t1
 UNION
@@ -1445,6 +1586,8 @@ EXPLAIN
             -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
         -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`test`.`t1`.`f1` > 3) group by `test`.`t1`.`f1` union /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 3)) `dt`
 SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
 UNION
@@ -1471,6 +1614,8 @@ EXPLAIN
             -> Group aggregate: sum(t1.f2)  (rows=6)
                 -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`j` AS `j`,`dt`.`sum` AS `sum` from (/* select#2 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `j`,rollup_sum_switcher(sum(`test`.`t1`.`f2`)) AS `sum` from `test`.`t1` group by `test`.`t1`.`f1` with rollup having ((rollup_sum_switcher(avg(`test`.`t1`.`f2`)) > 1) and (((rollup_group_item(`test`.`t1`.`f1`,0) + rollup_sum_switcher(sum(`test`.`t1`.`f2`))) > 50) or (rollup_group_item(`test`.`t1`.`f1`,0) is null))) union all /* select#3 */ select `test`.`t1`.`f1` AS `j`,sum(`test`.`t1`.`f2`) AS `sum` from `test`.`t1` group by `test`.`t1`.`f1` having (((`test`.`t1`.`f1` + sum(`test`.`t1`.`f2`)) > 50) or (`test`.`t1`.`f1` is null))) `dt`
 SELECT *
 FROM (SELECT f1 as j, SUM(f2) as sum
 FROM t1 GROUP BY f1 WITH ROLLUP
@@ -1500,6 +1645,8 @@ EXPLAIN
                     -> Covering index range scan on t1 using f1_2 over (3 < f1)  (rows=2)
                     -> Covering index range scan on t2 using f1_2 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 3) union /* select#3 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f1` > 3) order by `f2`) `dt`
 SELECT f1
 FROM (SELECT f1, f2 FROM t1
 UNION
@@ -1528,6 +1675,8 @@ EXPLAIN
                     -> Filter: ((t2.f2 > 30) and ((t2.f1 + t2.f2) > 40))  (rows=1.33)
                         -> Covering index range scan on t2 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f2) OVER(PARTITION BY f1,f2)` AS `SUM(f2) OVER(PARTITION BY f1,f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f2`) OVER (PARTITION BY `test`.`t1`.`f1`,`test`.`t1`.`f2` )  AS `SUM(f2) OVER(PARTITION BY f1,f2)` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` > 30) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40)) group by `test`.`t1`.`f1`,`test`.`t1`.`f2` union all /* select#3 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,sum(`test`.`t2`.`f2`) OVER (PARTITION BY `test`.`t2`.`f1`,`test`.`t2`.`f2` )  AS `SUM(f2) OVER(PARTITION BY f1,f2)` from `test`.`t2` where ((`test`.`t2`.`f1` > 2) and (`test`.`t2`.`f2` > 30) and ((`test`.`t2`.`f1` + `test`.`t2`.`f2`) > 40)) group by `test`.`t2`.`f1`,`test`.`t2`.`f2`) `dt`
 SELECT *
 FROM (SELECT f1, f2, SUM(f2) OVER(PARTITION BY f1,f2)
 FROM t1 GROUP BY f1, f2
@@ -1559,6 +1708,8 @@ EXPLAIN
                     -> Filter: ((t2.f2 > 30) and ((t2.f1 + t2.f2) > 40))  (rows=1.33)
                         -> Covering index range scan on t2 using f1_2 over (2 < f1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f2) OVER(PARTITION BY f1,f2)` AS `SUM(f2) OVER(PARTITION BY f1,f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,sum(`test`.`t1`.`f2`) OVER (PARTITION BY `test`.`t1`.`f1`,`test`.`t1`.`f2` )  AS `SUM(f2) OVER(PARTITION BY f1,f2)` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f2` > 30) and ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 40)) group by `test`.`t1`.`f1`,`test`.`t1`.`f2` intersect all /* select#3 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,sum(`test`.`t2`.`f2`) OVER (PARTITION BY `test`.`t2`.`f1`,`test`.`t2`.`f2` )  AS `SUM(f2) OVER(PARTITION BY f1,f2)` from `test`.`t2` where ((`test`.`t2`.`f1` > 2) and (`test`.`t2`.`f2` > 30) and ((`test`.`t2`.`f1` + `test`.`t2`.`f2`) > 40)) group by `test`.`t2`.`f1`,`test`.`t2`.`f2`) `dt`
 SELECT *
 FROM (SELECT f1, f2, SUM(f2) OVER(PARTITION BY f1,f2)
 FROM t1 GROUP BY f1, f2
@@ -1588,6 +1739,8 @@ EXPLAIN
         -> Covering index range scan on t1 using f1 over (3 < f1)  (rows=2)
         -> Covering index range scan on t1 using f1 over (3 < f1)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 3) union /* select#3 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 3)) `dt`
 DROP PREPARE p;
 SET @p1=1, @p2=2, @p3=3, @p4=4, @p5=5, @p6=6;
 PREPARE p FROM "EXPLAIN FORMAT=tree SELECT l,m
@@ -1611,6 +1764,8 @@ EXPLAIN
                         -> Filter: (((((t2.f1 + t2.f3) + 10) + 1) > 20) and (((5 - (((t2.f2 + 4) + 11) + 2)) + 6) > 10))  (rows=12)
                             -> Table scan on t2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`l` AS `l`,`dt2`.`m` AS `m` from (/* select#2 */ select ((`dt1`.`i` + 10) + 1) AS `l`,((`dt1`.`j` + 11) + 2) AS `m` from (/* select#3 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `i`,(`test`.`t1`.`f3` + 3) AS `j` from `test`.`t1` where (((((`test`.`t1`.`f1` + `test`.`t1`.`f2`) + 10) + 1) > 20) and (((5 - (((`test`.`t1`.`f3` + 3) + 11) + 2)) + 6) > 10)) union /* select#4 */ select (`test`.`t2`.`f1` + `test`.`t2`.`f3`) AS `i`,(`test`.`t2`.`f2` + 4) AS `j` from `test`.`t2` where (((((`test`.`t2`.`f1` + `test`.`t2`.`f3`) + 10) + 1) > 20) and (((5 - (((`test`.`t2`.`f2` + 4) + 11) + 2)) + 6) > 10))) `dt1` group by `l`,`m`) `dt2`
 PREPARE p FROM "SELECT l,m
 FROM (SELECT (i+10+?) as l, (j+11+?) as m
 FROM (SELECT (f1+f2) as i, (f3+?) as j
@@ -1633,6 +1788,8 @@ EXPLAIN
             -> Covering index scan on t1 using f1  (rows=12)
             -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`f1` AS `a` from `test`.`t1` union all /* select#3 */ select rand() AS `a` from `test`.`t1`) `dt` where (`dt`.`a` > 0.5)
 EXPLAIN FORMAT=tree SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
 UNION ALL
@@ -1646,6 +1803,8 @@ EXPLAIN
                 -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)
             -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`test`.`t1`.`f1` < 10) group by `test`.`t1`.`f1` union all /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` < 10)) `dt` where (`dt`.`f1` > (3 * rand()))
 EXPLAIN FORMAT=tree SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
 INTERSECT ALL
@@ -1659,6 +1818,8 @@ EXPLAIN
                 -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)
             -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`test`.`t1`.`f1` < 10) group by `test`.`t1`.`f1` intersect all /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` < 10)) `dt` where (`dt`.`f1` > (3 * rand()))
 EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1 FROM t1
 UNION ALL
@@ -1674,6 +1835,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union all /* select#3 */ select (/* select#4 */ select 1 from `test`.`t1` limit 1) AS `f1` from `test`.`t1`) `dt` where multiple equal(1, `dt`.`f1`)
 SELECT f1
 FROM (SELECT f1 FROM t1
 UNION ALL
@@ -1708,6 +1871,8 @@ EXPLAIN
             -> Limit table size: 1 row(s)
                 -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union all /* select#3 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 1) `dt` where multiple equal(1, `dt`.`f1`)
 EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1 FROM t1
 UNION ALL
@@ -1721,6 +1886,8 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Covering index scan on t1 using f1  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union all (/* select#3 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 1)) `dt` where multiple equal(1, `dt`.`f1`)
 CREATE FUNCTION p() RETURNS INTEGER
 BEGIN
 DECLARE retn INTEGER;
@@ -1740,6 +1907,8 @@ EXPLAIN
                 -> Covering index scan on t1 using f1_2  (rows=12)
             -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` group by `test`.`t1`.`f1` union /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt` where (`p`() = 1)
 SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
 UNION
@@ -1767,6 +1936,8 @@ EXPLAIN
         -> Filter: <cache>((p() = 1))  (rows=12)
             -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2)` AS `SUM(f2)` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) AS `SUM(f2)` from `test`.`t1` where (`p`() = 1) group by `test`.`t1`.`f1` union /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`p`() = 1)) `dt`
 SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
 UNION
@@ -1825,6 +1996,8 @@ EXPLAIN
             -> Repeat until convergence
                 -> Scan new records on qn  (rows=0)
 
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select (10 * `test`.`t1`.`f1`) AS `f1` from `test`.`t1` union /* select#3 */ select `qn`.`f1` AS `f1` from `qn`) /* select#1 */ select `qn`.`f1` AS `f1` from `qn` where (`qn`.`f1` > 1)
 WITH recursive qn AS
 (SELECT 10*f1 as f1 FROM t1
 UNION
@@ -1848,6 +2021,8 @@ EXPLAIN
                 -> Covering index range scan on t1 using f1_2 over (31 < f1)  (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (31 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 31) union /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 31)) `dt` where ((`test`.`t1`.`f2` > 40) and (`test`.`t1`.`f2` = `dt`.`f2`))
 SELECT *
 FROM t1 JOIN (SELECT f1, f2 FROM t1
 UNION SELECT f1, f2 FROM t1) as dt USING (f2)
@@ -1867,6 +2042,8 @@ EXPLAIN
                 -> Covering index range scan on t1 using f1_2 over (31 < f1)  (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (31 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f3` AS `f3`,`dt`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 31) except /* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 31)) `dt` where ((`test`.`t1`.`f2` > 40) and (`test`.`t1`.`f2` = `dt`.`f2`))
 SELECT *
 FROM t1 JOIN (SELECT f1, f2 FROM t1
 EXCEPT SELECT f1, f2 FROM t1) as dt USING (f2)
@@ -1887,6 +2064,8 @@ EXPLAIN
         -> Filter: (t1.f2 > 30)  (rows=0.333)
             -> Covering index range scan on t1 using f1_2 over (10 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f2` > 30) and (`test`.`t1`.`f1` > 10)) union /* select#4 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f2` > 30) and (`test`.`t1`.`f1` > 10))) `dt1`
 SELECT *
 FROM (SELECT *
 FROM (SELECT f1, f2 FROM t1
@@ -1908,6 +2087,8 @@ EXPLAIN
             -> Covering index scan on t1 using f1_2  (rows=12)
         -> Covering index range scan on t1 using f1_2 over (30 < f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`f1` AS `f1`,`dt2`.`f2` AS `f2` from (/* select#2 */ select (`test`.`t1`.`f1` + `test`.`t1`.`f2`) AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f1` + `test`.`t1`.`f2`) > 30) union /* select#4 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 30)) `dt2`
 SELECT *
 FROM (SELECT f1, f2
 FROM (SELECT f1+f2 as f1, f2 FROM t1) as dt1
@@ -1930,6 +2111,8 @@ EXPLAIN
             -> Filter: (t1.f1 = 2)  (rows=2)
                 -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`v`.`f1` AS `f1`,`test`.`v`.`f2` AS `f2`,`test`.`v`.`f3` AS `f3` from `test`.`v`
 INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 EXPLAIN
@@ -1944,6 +2127,8 @@ EXPLAIN
                     -> Filter: (t1.f1 = 2)  (rows=2)
                         -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`f1` = 3 where multiple equal(`test`.`t2`.`f1`, `test`.`v`.`f1`)
 UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 EXPLAIN format=tree UPDATE t2 JOIN v ON t2.f2=v.f2
 SET t2.f1 = t2.f1 + v.f1
@@ -1960,6 +2145,8 @@ EXPLAIN
                     -> Filter: (t1.f2 > 10)  (rows=4)
                         -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	update `test`.`t2` join `test`.`v` set `test`.`t2`.`f1` = (`test`.`t2`.`f1` + `test`.`v`.`f1`) where multiple equal(`test`.`t2`.`f2`, `test`.`v`.`f2`)
 UPDATE t2 JOIN v ON t2.f2=v.f2 SET t2.f1 = t2.f1 + v.f1 WHERE v.f2 > 10;
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 EXPLAIN
@@ -1974,6 +2161,8 @@ EXPLAIN
                     -> Filter: (t1.f1 = 3)  (rows=2)
                         -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	delete from `test`.`t2` where multiple equal(`test`.`t2`.`f1`, `test`.`v`.`f1`)
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 EXPLAIN format=tree DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 EXPLAIN
@@ -1988,6 +2177,8 @@ EXPLAIN
                     -> Filter: (t1.f2 > 10)  (rows=4)
                         -> Table scan on t1  (rows=12)
 
+Warnings:
+Note	1003	delete `test`.`t2` from `test`.`t2` join `test`.`v` where multiple equal(`test`.`t2`.`f2`, `test`.`v`.`f2`)
 DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 DROP VIEW v;
 DROP TABLE t0;
@@ -2038,6 +2229,8 @@ EXPLAIN SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
 EXPLAIN
 -> Zero input rows (Impossible HAVING), aggregated into one output row  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from (/* select#2 */ select sum(`test`.`t1`.`f1`) AS `SUM(f1)` from `test`.`t1` having false) `dt`
 SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
 COUNT(*)
 0
@@ -2069,6 +2262,8 @@ EXPLAIN
                 -> Zero rows (Impossible WHERE)  (rows=0)
                 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`time` AS `time` from (/* select#2 */ select now() AS `time` from `test`.`t1` where false union /* select#3 */ select now() AS `time` from `test`.`t1` where false) `dt`
 SET @a = 2;
 SET @b = '2023-05-06 16:49:45';
 SET timestamp=UNIX_TIMESTAMP('2023-05-06 16:49:45');
@@ -2081,6 +2276,8 @@ EXPLAIN
         -> Filter: (t1.f1 = 0)  (rows=0.1)
             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`time` AS `time` from (/* select#2 */ select now() AS `time` from `test`.`t1` where (`test`.`t1`.`f1` = 2) union /* select#3 */ select now() AS `time` from `test`.`t1` where multiple equal(0, `test`.`t1`.`f1`)) `dt`
 SET timestamp=default;
 DROP TABLE t1;
 #
@@ -2137,6 +2334,8 @@ EXPLAIN
         -> Filter: ((t1.str like '\0P\0a\0t\0c\0%' escape '\0\\') and (t1.str like '\0P\0%' escape '\0\\'))  (...)
             -> Table scan on t1  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`str` AS `str` from (/* select#2 */ select `test`.`t2`.`str` AS `str` from `test`.`t2` where ((`test`.`t2`.`str` like 'Patc%' escape '\\') and (`test`.`t2`.`str` like 'P%' escape '\\')) union all /* select#3 */ select `test`.`t1`.`str` AS `str` from `test`.`t1` where ((`test`.`t1`.`str` like 'Patc%' escape '\\') and (`test`.`t1`.`str` like 'P%' escape '\\'))) `dt`
 SELECT dt.str
 FROM (SELECT t2.str
 FROM t2
@@ -2269,6 +2468,8 @@ EXPLAIN
         -> Filter: (if((t1.f2 = 'Y'),'Y',<cache>((case when (t1.f2 is null) then 'N' else 'Y' end))) = 'Y')  (rows=1)
             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`case_f` AS `case_f` from (/* select#2 */ select if((`test`.`t1`.`f2` = 'Y'),'Y',(case when (`test`.`t1`.`f2` is null) then 'N' else 'Y' end)) AS `case_f` from `test`.`t1` where (if((`test`.`t1`.`f2` = 'Y'),'Y',<cache>((case when (`test`.`t1`.`f2` is null) then 'N' else 'Y' end))) = 'Y') union all /* select#3 */ select if((`test`.`t1`.`f2` = 'Y'),'Y',(case when (`test`.`t1`.`f2` is null) then 'N' else 'Y' end)) AS `case_f` from `test`.`t1` where (if((`test`.`t1`.`f2` = 'Y'),'Y',<cache>((case when (`test`.`t1`.`f2` is null) then 'N' else 'Y' end))) = 'Y')) `dt1`
 SET optimizer_switch="derived_merge=off";
 SET @a1 = 'Y';
 PREPARE stmt FROM "SELECT * FROM (SELECT ? AS case_f FROM t1) as dt1 WHERE case_f = 'Y'";
@@ -2282,6 +2483,8 @@ EXPLAIN
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt1`.`case_f` AS `case_f` from (/* select#2 */ select 'Y' AS `case_f` from `test`.`t1` where true) `dt1`
 SET optimizer_switch=default;
 DROP TABLE t1;
 #
@@ -2337,6 +2540,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.f1' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`f1` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 0) except /* select#4 */ select `t2`.`f1` AS `f1` from `test`.`t1` where (`t2`.`f1` > 0)) `dt`) AS `f3` from `test`.`t1` join `test`.`t1` `t2` group by `f3`
 SELECT
 (WITH cte AS (SELECT f1 AS f2 FROM t1)
 SELECT f1
@@ -2373,6 +2577,8 @@ EXPLAIN
                 -> Zero rows (Impossible WHERE)  (rows=0)
                 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`v1`.`field1` AS `field1` from `test`.`v1`
 SELECT * FROM v1 WHERE field1 IN ('C');
 field1
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
@@ -2389,6 +2595,8 @@ EXPLAIN
                 -> Table scan on t1  (rows=2)
                 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`field1` AS `field1` from (/* select#2 */ select `test`.`v1`.`field1` AS `field1` from `test`.`v1` union /* select#3 */ select `test`.`v1`.`field1` AS `field1` from `test`.`v1`) `dt`
 SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
 WHERE field1 IN ('A');
 field1
@@ -2404,6 +2612,8 @@ EXPLAIN
                 -> Zero rows (Impossible WHERE)  (rows=0)
                 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`v1`.`field1` AS `field1` from `test`.`v1`
 SELECT * FROM v1
 WHERE field1 IN ('C') OR
 COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
@@ -2418,6 +2628,8 @@ EXPLAIN FORMAT=tree SELECT * FROM v1 WHERE field1 IN ('C');
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`v1`.`field1` AS `field1` from `test`.`v1`
 SELECT * FROM v1 WHERE field1 IN ('C');
 field1
 SET optimizer_switch=default;

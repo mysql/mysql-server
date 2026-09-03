@@ -81,7 +81,7 @@ class Message_compare {
   }
 
  private:
-  std::string reformat_text_message(const std::string &text_message) const {
+  static std::string reformat_text_message(const std::string &text_message) {
     M m;
     std::string text_message_reformated;
 

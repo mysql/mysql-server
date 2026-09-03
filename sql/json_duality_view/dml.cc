@@ -1873,6 +1873,32 @@ constexpr std::size_t BINDINGS_RESERVE_SIZE = 48;
 enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
 
 /**
+  Rejects an attempt to change a column whose effective tag is NO UPDATE.
+
+  This common check ensures that every statement-generation path, including
+  duplicate-key updates and singleton remapping, enforces the same column-level
+  update restriction.
+
+  @param ct_node       content-tree node containing the column
+  @param kci           column information, including its effective update tag
+  @param updated_value value supplied for the column
+
+  @retval false the column allows updates
+  @retval true  the column does not allow updates and an error was reported
+*/
+[[nodiscard]] static bool check_column_update_allowed(
+    const Content_tree_node &ct_node, const Key_column_info &kci,
+    const Json_dom *updated_value) {
+  if (kci.allows_update()) return false;
+
+  assert(updated_value != nullptr);
+  my_jdv_error<ER_JDV_MISSING_UPDATE_TAG>(ct_node.quoted_qualified_table_name(),
+                                          kci.column_name(),
+                                          updated_value->get_location());
+  return true;
+}
+
+/**
   Produces an INSERT statement from a binding. For INSERT this is
   a Single_object_binding, but when an update decays into an INSERT,
   this function is also invoked with a Two_object_binding.
@@ -1968,6 +1994,22 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
         }
         return Stmt_state::SKIP;
       }
+
+      // Existing child rows must honor the same NO UPDATE tags as normal
+      // updates.
+      const auto &column_info = ct_node.key_column_info_list();
+      for (std::size_t i = 0; i < dr->size(); ++i) {
+        if (dr->at(i) &&
+            check_column_update_allowed(ct_node, column_info.at(i),
+                                        c_resolved_columns.at(i).value)) {
+          return Stmt_state::ERROR;
+        }
+      }
+
+      // No values changed, so no update permission or statement is needed.
+      if (std::ranges::none_of(*dr, std::identity{})) {
+        return Stmt_state::SKIP;
+      }
     }
   }
 
@@ -2002,7 +2044,8 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
     return Stmt_state::EXECUTE;
   }
 
-  // Updatable sub-nodes can have existing row, so need ON DUPLICATE KEY UPDATE
+  // Child rows may already exist, so INSERT must preserve update behavior on
+  // duplicate keys.
   auto values_pos = sbuf.size();
   for (const Resolve_column &rc : c_resolved_columns) {
     DBUG_LOG("jdv_dml", "DML-INSERT: Considering " << rc.kci->column_name()
@@ -2019,6 +2062,20 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
       values_pos += 9;
       continue;
     }
+
+    // NO UPDATE columns may be populated in a new row, but must not become
+    // assignments when this statement takes its duplicate-key update path.
+    if (!rc.kci->allows_update()) {
+      std::string value;
+      if (append_json_dom(&value, rc.value, col_expects_b64(*rc.kci))) {
+        return Stmt_state::ERROR;
+      }
+      value.append(", ");
+      sbuf.insert(values_pos, value);
+      values_pos += value.size();
+      continue;
+    }
+
     append_identifier(&sbuf, rc.kci->column_name());
     sbuf.append(" = ");
     auto vstart = sbuf.size();
@@ -2136,20 +2193,6 @@ static bool check_etag(const Two_object_binding &binding) {
   const auto &resolved_columns = binding.resolve_row->columns;
   assert(resolved_columns.size() == ct_node.key_column_info_list().size());
 
-  // On update all columns must be resolved in order the perform
-  // etag check.
-  if (std::ranges::any_of(resolved_columns, [&](const auto &rc) {
-        if (rc.value == nullptr) {
-          my_jdv_error<ER_JDV_MISSING_VALUE>(
-              binding.bound_object->get_location(),
-              ct_node.quoted_qualified_table_name(), rc.kci->column_name());
-          return true;
-        }
-        return false;
-      })) {
-    return Stmt_state::ERROR;
-  }
-
   const auto &pk_col_info = ct_node.primary_key_column();
   Json_dom *pk_edom = binding.existing_object->get(pk_col_info.key());
   assert(pk_edom != nullptr);
@@ -2195,17 +2238,19 @@ static bool check_etag(const Two_object_binding &binding) {
       return Stmt_state::SKIP;
     }
 
-    // Must generate an update statement for this existing row. However,
-    // comparisons with the existing json object from the binding is
-    // meaningless since the row which will actually be updated is completely
-    // unrelated in this case.
+    // Remapping selects an existing destination row. Any changes made to that
+    // row are updates and must honor its column-level NO UPDATE restrictions.
     const auto &kcis = ct_node.key_column_info_list();
     for (std::size_t i = 0; i < dr->size(); ++i) {
-      if ((*dr)[i]) {
-        append_identifier(&sbuf, kcis[i].column_name());
+      if (dr->at(i)) {
+        if (check_column_update_allowed(ct_node, kcis.at(i),
+                                        resolved_columns.at(i).value)) {
+          return Stmt_state::ERROR;
+        }
+        append_identifier(&sbuf, kcis.at(i).column_name());
         sbuf.append(" = ");
-        if (append_json_dom(&sbuf, resolved_columns[i].value,
-                            col_expects_b64(kcis[i]))) {
+        if (append_json_dom(&sbuf, resolved_columns.at(i).value,
+                            col_expects_b64(kcis.at(i)))) {
           return Stmt_state::ERROR;
         }
         sbuf.append(", ");
@@ -2243,10 +2288,7 @@ static bool check_etag(const Two_object_binding &binding) {
       }
       assert(rc.kci != &ct_node.primary_key_column());
 
-      if (!rc.kci->allows_update()) {
-        my_jdv_error<ER_JDV_MISSING_UPDATE_TAG>(
-            ct_node.quoted_qualified_table_name(), rc.kci->column_name(),
-            updated_val->get_location());
+      if (check_column_update_allowed(ct_node, *rc.kci, updated_val)) {
         return Stmt_state::ERROR;
       }
 

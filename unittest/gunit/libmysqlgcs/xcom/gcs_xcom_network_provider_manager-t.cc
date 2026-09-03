@@ -21,6 +21,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <chrono>
+#include <future>
+
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_provider.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/network_provider_manager.h"
 #include "unittest/gunit/libmysqlgcs/include/gcs_base_test.h"
@@ -102,6 +105,75 @@ class XComNetworkProviderManagerTest : public GcsBaseTest {
 
   void TearDown() override {}
 };
+
+TEST_F(XComNetworkProviderManagerTest,
+       ConcurrentIncomingConnectionDoesNotBlock) {
+  mock_network_provider provider;
+  auto *first_connection = new Network_connection(42);
+  auto *second_connection = new Network_connection(43);
+
+  // Bug#39767762: delay the incoming-connection consumer, then submit another
+  // connection as happens during a reconnect storm.
+  ASSERT_EQ(Network_connection_handoff_status::ACCEPTED,
+            provider.set_new_connection(first_connection));
+
+  std::promise<void> submission_started;
+  std::future<void> submission_started_future = submission_started.get_future();
+  auto second_submission = std::async(std::launch::async, [&]() {
+    submission_started.set_value();
+    return provider.set_new_connection(second_connection);
+  });
+
+  submission_started_future.wait();
+  const auto submission_status =
+      second_submission.wait_for(std::chrono::seconds(1));
+
+  // Drain the occupied slot even when the assertion below fails, so the test
+  // does not leave the asynchronous submission spinning on affected code.
+  Network_connection *retrieved_first = provider.get_new_connection();
+  const auto second_handoff_status = second_submission.get();
+
+  EXPECT_EQ(std::future_status::ready, submission_status)
+      << "A concurrent incoming GR connection blocked on the handoff slot";
+  EXPECT_EQ(Network_connection_handoff_status::BUSY, second_handoff_status);
+  ASSERT_NE(retrieved_first, nullptr);
+  EXPECT_EQ(42, retrieved_first->fd);
+  delete retrieved_first;
+
+  if (second_handoff_status == Network_connection_handoff_status::ACCEPTED) {
+    // Clean up if this test is run against an implementation that queues or
+    // eventually accepts the second connection.
+    Network_connection *retrieved_second = provider.get_new_connection();
+    ASSERT_NE(retrieved_second, nullptr);
+    EXPECT_EQ(43, retrieved_second->fd);
+    delete retrieved_second;
+  } else {
+    // A rejected connection remains owned by the caller and can be retried
+    // after XCom consumes the connection that occupied the handoff slot.
+    ASSERT_EQ(Network_connection_handoff_status::ACCEPTED,
+              provider.set_new_connection(second_connection));
+    Network_connection *retried_connection = provider.get_new_connection();
+    ASSERT_NE(retried_connection, nullptr);
+    EXPECT_EQ(43, retried_connection->fd);
+    delete retried_connection;
+  }
+
+  EXPECT_EQ(nullptr, provider.get_new_connection());
+}
+
+TEST_F(XComNetworkProviderManagerTest, ResetClosesPendingConnection) {
+  mock_network_provider provider;
+  EXPECT_CALL(provider, close_connection(testing::_))
+      .Times(1)
+      .WillOnce(testing::Return(0));
+
+  ASSERT_EQ(Network_connection_handoff_status::ACCEPTED,
+            provider.set_new_connection(new Network_connection(42)));
+
+  provider.reset_new_connection();
+
+  EXPECT_EQ(nullptr, provider.get_new_connection());
+}
 
 TEST_F(XComNetworkProviderManagerTest, BasicManagerTest) {
   std::shared_ptr<mock_network_provider> const mock_provider =
@@ -318,7 +390,8 @@ TEST_F(XComNetworkProviderManagerTest,
   ASSERT_EQ(connection_to->fd, fd_number);
 
   auto *fake_incoming = new Network_connection(fd_number);
-  mock_provider->set_new_connection(fake_incoming);
+  ASSERT_EQ(Network_connection_handoff_status::ACCEPTED,
+            mock_provider->set_new_connection(fake_incoming));
 
   connection_descriptor *incoming_from_manager =
       Network_provider_manager::getInstance().incoming_connection();

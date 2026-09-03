@@ -66,21 +66,21 @@
 /**
   @def PSI_THREAD_VERSION_4
   Performance Schema Thread Interface number for version 4.
-  This version is supported.
+  This version is deprecated.
 */
 #define PSI_THREAD_VERSION_4 4
 
 /**
   @def PSI_THREAD_VERSION_5
   Performance Schema Thread Interface number for version 5.
-  This version is supported.
+  This version is deprecated.
 */
 #define PSI_THREAD_VERSION_5 5
 
 /**
   @def PSI_THREAD_VERSION_6
   Performance Schema Thread Interface number for version 6.
-  This version is supported.
+  This version is deprecated.
 */
 #define PSI_THREAD_VERSION_6 6
 

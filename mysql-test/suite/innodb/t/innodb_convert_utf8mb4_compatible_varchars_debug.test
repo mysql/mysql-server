@@ -1,0 +1,13 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Exercise one- and two-byte VARCHAR length fields with each uncompressed
+# record layout.
+let $row_format = REDUNDANT;
+--source suite/innodb/include/innodb_convert_utf8mb4_online_rebuild.inc
+
+let $row_format = COMPACT;
+--source suite/innodb/include/innodb_convert_utf8mb4_online_rebuild.inc
+
+let $row_format = DYNAMIC;
+--source suite/innodb/include/innodb_convert_utf8mb4_online_rebuild.inc

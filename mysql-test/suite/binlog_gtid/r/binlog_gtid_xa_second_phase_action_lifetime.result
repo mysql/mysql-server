@@ -1,0 +1,56 @@
+CREATE TABLE t1 (a INT);
+#
+# Attached XA COMMIT without a GTID update
+#
+SET SESSION xa_detach_on_prepare=OFF;
+SET SESSION sql_log_bin=0;
+XA START 'old_commit';
+INSERT INTO t1 VALUES (1);
+XA END 'old_commit';
+XA PREPARE 'old_commit';
+XA COMMIT 'old_commit';
+SET SESSION sql_log_bin=1;
+XA START 'after_commit';
+INSERT INTO t1 VALUES (2);
+XA END 'after_commit';
+XA PREPARE 'after_commit';
+include/assert.inc [XA COMMIT action did not affect the next XA transaction]
+XA ROLLBACK 'after_commit';
+#
+# Attached XA ROLLBACK without a GTID update
+#
+SET SESSION sql_log_bin=0;
+XA START 'old_rollback';
+INSERT INTO t1 VALUES (3);
+XA END 'old_rollback';
+XA PREPARE 'old_rollback';
+XA ROLLBACK 'old_rollback';
+SET SESSION sql_log_bin=1;
+XA START 'after_rollback';
+INSERT INTO t1 VALUES (4);
+XA END 'after_rollback';
+XA PREPARE 'after_rollback';
+include/assert.inc [XA ROLLBACK action did not affect the next XA transaction]
+XA ROLLBACK 'after_rollback';
+#
+# Detached XA COMMIT and ROLLBACK without a GTID update
+#
+SET SESSION xa_detach_on_prepare=ON;
+SET SESSION sql_log_bin=0;
+XA START 'detached_commit';
+INSERT INTO t1 VALUES (5);
+XA END 'detached_commit';
+XA PREPARE 'detached_commit';
+XA COMMIT 'detached_commit';
+SET SESSION sql_log_bin=1;
+INSERT INTO t1 VALUES (6);
+SET SESSION sql_log_bin=0;
+XA START 'detached_rollback';
+INSERT INTO t1 VALUES (7);
+XA END 'detached_rollback';
+XA PREPARE 'detached_rollback';
+XA ROLLBACK 'detached_rollback';
+SET SESSION sql_log_bin=1;
+INSERT INTO t1 VALUES (8);
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

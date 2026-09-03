@@ -32,13 +32,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <vector>
 
 #include "include/mysql/components/services/bits/stored_program_bits.h"
+#include "mysql/components/services/bits/mysql_thd_attributes_bits.h"
 #include "mysql/components/services/defs/mysql_string_defs.h"
+#include "mysql/components/services/mysql_thd_attributes.h"
 
 #include "field_types.h"
 #include "mysql.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysqld_error.h"
 #include "scope_guard.h"
 #include "sql/sql_udf.h"
 #include "template_utils.h"
@@ -66,6 +69,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 #if !defined(NDEBUG)
 REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_keyword_service);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_sync_service);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
 #endif
 
 BEGIN_COMPONENT_PROVIDES(test_execute_prepared_statement)
@@ -88,6 +92,7 @@ REQUIRES_SERVICE(mysql_stmt_factory), REQUIRES_SERVICE(mysql_stmt_execute),
 #if !defined(NDEBUG)
     REQUIRES_SERVICE(mysql_debug_keyword_service),
     REQUIRES_SERVICE(mysql_debug_sync_service),
+    REQUIRES_SERVICE(mysql_thd_attributes),
 #endif
     END_COMPONENT_REQUIRES();
 
@@ -346,6 +351,41 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
     SERVICE_PLACEHOLDER(mysql_stmt_bind)
         ->bind_param(statement, param_index, true, MYSQL_SP_ARG_TYPE_VECTOR,
                      false, nullptr, sizeof(double), nullptr, 0);
+  }
+#endif
+
+#if !defined(NDEBUG)
+  if (SERVICE_PLACEHOLDER(mysql_debug_keyword_service)
+          ->lookup_debug_keyword("fail_protocol_local_v2_send_parameters")) {
+    const bool execution_failed =
+        SERVICE_PLACEHOLDER(mysql_stmt_execute)->execute(statement) != 0;
+
+    uint64_t error_number = 0;
+    const bool got_expected_error =
+        execution_failed &&
+        SERVICE_PLACEHOLDER(mysql_stmt_diagnostics)
+                ->error_number(statement, &error_number) == 0 &&
+        error_number == ER_UNKNOWN_ERROR;
+
+    uint16_t da_status = STATUS_DA_EMPTY;
+    if (SERVICE_PLACEHOLDER(mysql_thd_attributes)
+            ->set(nullptr, "da_status", &da_status) != 0)
+      return {};
+
+    *error = 0;
+    if (!execution_failed) {
+      return print_output(result, length,
+                          "Statement execution unexpectedly succeeded.");
+    }
+
+    if (!got_expected_error)
+      return print_output(
+          result, length,
+          "Statement execution returned unexpected diagnostics.");
+
+    return print_output(
+        result, length,
+        "send_parameters failed as expected with ER_UNKNOWN_ERROR");
   }
 #endif
 

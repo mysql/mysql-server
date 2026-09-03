@@ -10319,6 +10319,137 @@ int runSlowCompleteNF(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
+int runTcTakeoverReopenOlderGciBehindNewerGci(NDBT_Context *ctx,
+                                              NDBT_Step *step) {
+  /**
+  Reproducer for Bug#36907359.
+  The test starts a transaction on a non-master TC, lets it reach commit in
+  an old GCI X without completing, and then crashes that TC node. Before the
+  crash is handled, the test starts a real transaction on the master TC in a
+  newer GCI Y and keeps Y open. TC takeover must then roll forward the old
+  transaction in X while the master TC is still tracking newer GCI Y.
+
+    Flow in the test:
+      1. 8129 is set on the victim TC.
+         It delays COMPLETE for the victim transaction in old GCI X, then
+         crashes the victim and leaves that transaction for takeover.
+      2. 8130 is set on the master TC.
+         Before the victim crashes, the test starts a real transaction pinned
+         to TC instance(1) of the the master. That transaction commits in later
+         GCI Y.  The complete010Lab() hook delays its COMPLETE, so GCI Y remains
+         in the master TC GCI list. 8130 also delays GCP_NOMORETRANS during node
+         failure handling, so X is not reopened before takeover.
+      3. During takeover, the master rolls forward the victim's old transaction
+         in GCI X. That goes through completeTransAtTakeOverDoOne() and then
+         commitGciHandling(X).
+  */
+  NdbRestarter restarter;
+
+  if (restarter.waitClusterStarted(30) != 0) {
+    g_err << "Cluster is not started" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.getNumDbNodes() < 2) {
+    g_err << "Need at least two data nodes" << endl;
+    return NDBT_SKIPPED;
+  }
+
+  const int master = restarter.getMasterNodeId();
+  const int victim = restarter.getRandomNotMasterNodeId(rand());
+
+  g_err << "Master TC node " << master << ", victim TC node " << victim << endl;
+
+  // NRT_NoStart_Restart: restart the victim after the 8129 crash, but leave
+  // it in nostart so TC takeover runs while the victim is still down.
+  const int restartOnError[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+  if (restarter.dumpStateOneNode(victim, restartOnError, 2) != 0) {
+    return NDBT_FAILED;
+  }
+
+  // Delay complete010Lab() once for the master transaction in newer GCI Y,
+  // so Y stays in the TC GCI list.
+  if (restarter.insertErrorInNode(master, 8130) != 0) {
+    return NDBT_FAILED;
+  }
+  if (restarter.insertErrorInNode(victim, 8129) != 0) {
+    return NDBT_FAILED;
+  }
+
+  Ndb *ndb = GETNDB(step);
+  HugoOperations victimOps(*ctx->getTab());
+  if (victimOps.startTransaction(ndb, victim, 0) != NDBT_OK) {
+    return NDBT_FAILED;
+  }
+  if (victimOps.pkUpdateRecord(ndb, 1, 1) != NDBT_OK) {
+    return NDBT_FAILED;
+  }
+  if (victimOps.execute_NoCommit(ndb) != NDBT_OK) {
+    return NDBT_FAILED;
+  }
+
+  NdbTransaction *victimTrans = victimOps.getTransaction();
+  victimTrans->executeAsynchPrepare(Commit, callback, nullptr, AbortOnError);
+  ndb->sendPreparedTransactions(1);
+  g_err << "Victim async commit sent" << endl;
+
+  // Victim is now blocked committing in GCI X and will fail in ~6s.
+  // Let the victim reach the 8129-blocked commit path before creating GCI Y.
+  NdbSleep_MilliSleep(2000);
+
+  HugoOperations masterOps(*ctx->getTab());
+  // In multi TC configs, DBTC instance 1 performs takeover. Keep GCI Y open
+  // there.
+  if (masterOps.startTransaction(ndb, master, 1) != NDBT_OK) {
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  if (masterOps.pkUpdateRecord(ndb, 2, 1) != NDBT_OK) {
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  if (masterOps.execute_NoCommit(ndb) != NDBT_OK) {
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  // NDBT created tables are READ_PRIMARY, so the test will not block waiting
+  // for commit ack. READ_BACKUP tables may block here waiting for the ack
+  if (masterOps.execute_Commit(ndb) != 0) {
+    masterOps.closeTransaction(ndb);
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  masterOps.closeTransaction(ndb);
+
+  if (checkOneNodeDead(victim, 30) != 0) {
+    g_err << "Victim did not leave STARTED state" << endl;
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+
+  if (checkOneNodeDead(master, 5) == 0) {
+    g_err << "Master crashed" << endl;
+    abort();
+  }
+
+  g_err << "Master survived takeover; restarting victim" << endl;
+  if (restarter.insertErrorInNode(master, 0) != 0) {
+    return NDBT_FAILED;
+  }
+  if (restarter.waitNodesNoStart(&victim, 1, 30) != 0) {
+    g_err << "Victim did not reach nostart after failure" << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter.startNodes(&victim, 1) != 0 ||
+      restarter.waitNodesStarted(&victim, 1, 120) != 0) {
+    g_err << "Victim did not restart after failure" << endl;
+    return NDBT_FAILED;
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad",
          "Test that one node at a time can be stopped and then restarted "
@@ -11150,7 +11281,12 @@ TESTCASE("PreparedUpdatesNF",
   STEP(runSlowCompleteNF);
   FINALIZER(runClearTable);
 }
-
+TESTCASE("TcTakeoverReopenOlderGciBehindNewerGci",
+         "TC takeover rolls forward old GCI X while newer GCI Y is still "
+         "open on the master TC") {
+  INITIALIZER(runLoadTable);
+  STEP(runTcTakeoverReopenOlderGciBehindNewerGci);
+}
 NDBT_TESTSUITE_END(testNodeRestart)
 
 int main(int argc, const char **argv) {

@@ -1,0 +1,107 @@
+--source include/have_ndb.inc
+
+--echo # Many updates on the same existing row with ordered indexes can make
+--echo # commit or rollback cleanup spend too long in DBTUP/DBTUX.
+--echo # This test verifies that MaxRowVersionsPerTransaction rejects repeated
+--echo # same-row updates before the active-operation list grows too large
+--echo # while read operations above the limit and interleaved delete/insert
+--echo # operations at the limit still succeed.
+
+CREATE TABLE T1 (
+  pk INT PRIMARY KEY,
+  i1 INT,
+  i2 INT,
+  i3 INT,
+  i4 INT,
+  KEY i1_idx(i1),
+  KEY i2_idx(i2),
+  KEY i3_idx(i3),
+  KEY i4_idx(i4)
+) ENGINE=NDBCLUSTER;
+
+INSERT INTO T1 VALUES (1, 1, 1, 1, 1);
+
+--echo # Updating the same row up to MaxRowVersionsPerTransaction succeeds.
+BEGIN;
+
+--disable_query_log
+let $n=1000;
+while ($n)
+{
+  dec $n;
+  UPDATE T1
+    SET i1 = i1 + 1,
+        i2 = i2 + 1,
+        i3 = i3 + 1,
+        i4 = i4 + 1
+    WHERE pk = 1;
+}
+--enable_query_log
+
+ROLLBACK;
+
+SELECT pk, i1, i2, i3, i4 FROM T1;
+
+--echo # Interleaved DELETE and INSERT operations up to the limit succeed.
+BEGIN;
+
+--disable_query_log
+--disable_result_log
+let $n=1000;
+while ($n)
+{
+  dec $n;
+  DELETE FROM T1 WHERE pk = 1;
+  INSERT INTO T1 VALUES (1, 1, 1, 1, 1);
+}
+--enable_result_log
+--enable_query_log
+
+ROLLBACK;
+
+SELECT pk, i1, i2, i3, i4 FROM T1;
+
+--echo # More than MaxRowVersionsPerTransaction read operations succeed.
+BEGIN;
+
+--disable_query_log
+--disable_result_log
+let $n=250;
+while ($n)
+{
+  dec $n;
+  SELECT pk, i1, i2, i3, i4 FROM T1 WHERE pk = 1;
+  SELECT pk, i1, i2, i3, i4 FROM T1 WHERE pk = 1 LOCK IN SHARE MODE;
+  SELECT pk, i1, i2, i3, i4 FROM T1 WHERE pk = 1 FOR UPDATE;
+  SELECT pk, i1, i2, i3, i4 FROM T1 LOCK IN SHARE MODE;
+  SELECT pk, i1, i2, i3, i4 FROM T1 FOR UPDATE;
+}
+--enable_result_log
+
+--echo # Updating the same row up to MaxRowVersionsPerTransaction succeeds
+--echo # even after many read operations in the transaction.
+let $n=1000;
+while ($n)
+{
+  dec $n;
+  UPDATE T1
+    SET i1 = i1 + 1,
+        i2 = i2 + 1,
+        i3 = i3 + 1,
+        i4 = i4 + 1
+    WHERE pk = 1;
+}
+--enable_query_log
+
+--echo # The next same-row update exceeds MaxRowVersionsPerTransaction.
+--error ER_GET_ERRMSG
+UPDATE T1
+  SET i1 = i1 + 1,
+      i2 = i2 + 1,
+      i3 = i3 + 1,
+      i4 = i4 + 1
+  WHERE pk = 1;
+
+SELECT pk, i1, i2, i3, i4 FROM T1;
+
+DROP TABLE T1;

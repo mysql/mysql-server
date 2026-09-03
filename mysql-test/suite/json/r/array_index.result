@@ -2411,6 +2411,8 @@ EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(j as unsigned array))  (cost=2.07 rows=5)
     -> Index range scan (Multi-Range Read) on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`j` AS `j` from `test`.`t` where json_overlaps(json'[2, 3]',cast(`j` as unsigned array))
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 vc	j
 [1,2,3]	[1, 2, 3]
@@ -2421,6 +2423,8 @@ EXPLAIN
 -> Filter: json_contains(cast(j as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
     -> Index range scan (Multi-Range Read) on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`j` AS `j` from `test`.`t` where json_contains(cast(`j` as unsigned array),json'[2, 3]')
 SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 vc	j
 [1,2,3]	[1, 2, 3]
@@ -2430,6 +2434,8 @@ EXPLAIN
 -> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.8 rows=3)
     -> Index lookup on t using j_idx (cast(j as unsigned array) = json'3')  (cost=0.8 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`j` AS `j` from `test`.`t` where json'3' member of (cast(`j` as unsigned array))
 SELECT * FROM t WHERE 3 MEMBER OF (j);
 vc	j
 [1,2,3]	[1, 2, 3]
@@ -2441,6 +2447,8 @@ EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(vc as unsigned array))  (cost=2.07 rows=5)
     -> Index range scan (Multi-Range Read) on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`j` AS `j` from `test`.`t` where json_overlaps(json'[2, 3]',cast(`vc` as unsigned array))
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 vc	j
 [1,2,3]	[1, 2, 3]
@@ -2451,6 +2459,8 @@ EXPLAIN
 -> Filter: json_contains(cast(vc as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
     -> Index range scan (Multi-Range Read) on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`j` AS `j` from `test`.`t` where json_contains(cast(`vc` as unsigned array),json'[2, 3]')
 SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 vc	j
 [1,2,3]	[1, 2, 3]
@@ -2460,6 +2470,8 @@ EXPLAIN
 -> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.8 rows=3)
     -> Index lookup on t using vc_idx (cast(vc as unsigned array) = json'3')  (cost=0.8 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`j` AS `j` from `test`.`t` where json'3' member of (cast(`vc` as unsigned array))
 SELECT * FROM t WHERE 3 MEMBER OF (vc);
 vc	j
 [1,2,3]	[1, 2, 3]
@@ -3274,6 +3286,8 @@ EXPLAIN
 -> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')  (cost=1.1 rows=2)
     -> Index range scan (Multi-Range Read) on t using functional_index over ('xyz' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name'))) OR ('abc' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name')))  (cost=1.1 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`doc` AS `doc` from `test`.`t` where json_overlaps(cast(json_extract(`doc`,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')
 EXPLAIN FORMAT=TREE
 SELECT * FROM t
 WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
@@ -3281,6 +3295,8 @@ EXPLAIN
 -> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')  (cost=1.1 rows=2)
     -> Index range scan (Multi-Range Read) on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.1 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`doc` AS `doc` from `test`.`t` where json_overlaps(cast(json_extract(`doc`,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')
 DROP TABLE t;
 #
 # Bug#35012146 Multivalued index creation results in partial result for
@@ -3399,6 +3415,8 @@ EXPLAIN
 -> Filter: json_contains(cast(json_extract(j,_utf8mb4'$[*]') as signed array),json'[1, 2, 3]')  (rows=6)
     -> Index range scan (Multi-Range Read) on t using functional_index over (3 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) OR (2 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) OR (1 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j` from `test`.`t` where json_contains(cast(json_extract(`j`,_utf8mb4'$[*]') as signed array),json'[1, 2, 3]')
 SELECT * FROM t WHERE JSON_CONTAINS(j->'$[*]', '[1,2,3]');
 j
 [1, 2, 3]
@@ -3428,6 +3446,8 @@ EXPLAIN
 -> Filter: ((t.doc_id >= 3) and (t.doc_id < 4))  (rows=1)
     -> Index range scan on t using mv_doc_id over (3 <= doc_id < 4)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` where ((`test`.`t`.`doc_id` >= 3) and (`test`.`t`.`doc_id` < 4))
 SELECT * FROM t WHERE doc_id >= 3 and doc_id < 4;
 id	doc_id	doc
 6	3	{"val": [1]}

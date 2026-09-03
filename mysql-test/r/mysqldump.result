@@ -5890,7 +5890,7 @@ DELIMITER ;;
 CREATE LIBRARY `sp2`
     COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
-AS $1665038795$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $1665038795$ ;;
+AS $3005184065$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $3005184065$ ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 DROP FUNCTION IF EXISTS `sp1` */;
@@ -5957,7 +5957,7 @@ AS $JAVASCRIPT$ export function f(n) {  return '$$' } $JAVASCRIPT$
 CREATE LIBRARY `sp2`
     COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
-AS $1665038795$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $1665038795$
+AS $3005184065$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $3005184065$
 ]]>
 		</library>
 		<routine Function="sp1" sql_mode="" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci">
@@ -6004,7 +6004,7 @@ Library	sql_mode	Create Library
 sp2		CREATE LIBRARY `sp2`
     COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
-AS $1665038795$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $1665038795$
+AS $3005184065$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $3005184065$
 drop database mysqldump_test_db;
 #
 # WL#16358 Support for Libraries: test orphaned stored programs
@@ -6120,4 +6120,201 @@ drop database mysqldump_test_db;
 CREATE TABLE test.bug38939358_t1(i INT PRIMARY KEY);
 INSERT INTO test.bug38939358_t1 VALUES (1);
 DROP TABLE test.bug38939358_t1;
+# Verify that text in a regular view body cannot make mysqldump treat it
+# as a JSON duality view.
+CREATE DATABASE mysqldump_regular_view;
+CREATE VIEW mysqldump_regular_view.v1 AS
+SELECT ' JSON RELATIONAL DUALITY VIEW ' AS view_text;
+DROP DATABASE mysqldump_regular_view;
+# Verify that a JSON duality view containing version comments can be
+# dumped and restored.
+CREATE DATABASE mysqldump_jdv;
+CREATE TABLE mysqldump_jdv.singleton_t (
+id INT PRIMARY KEY,
+checked_value INT,
+protected_value INT
+);
+CREATE TABLE mysqldump_jdv.root_t (
+id INT PRIMARY KEY,
+singleton_id INT,
+checked_value INT,
+protected_value INT,
+FOREIGN KEY (singleton_id) REFERENCES mysqldump_jdv.singleton_t(id)
+);
+CREATE TABLE mysqldump_jdv.nested_t (
+id INT PRIMARY KEY,
+root_id INT,
+checked_value INT,
+protected_value INT,
+FOREIGN KEY (root_id) REFERENCES mysqldump_jdv.root_t(id)
+);
+INSERT INTO mysqldump_jdv.singleton_t VALUES (10, 100, 200);
+INSERT INTO mysqldump_jdv.root_t VALUES (1, 10, 1000, 2000);
+INSERT INTO mysqldump_jdv.nested_t VALUES (100, 1, 10000, 20000),
+(101, 1, 10001, 20001);
+CREATE ALGORITHM=MERGE
+DEFINER=CURRENT_USER()
+SQL SECURITY DEFINER
+JSON RELATIONAL DUALITY VIEW mysqldump_jdv.dv1 AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE, CHECK)
+'_id' : r.id WITH (NO UPDATE, NO CHECK),
+'checked_value' : r.checked_value WITH (UPDATE, CHECK),
+'protected_value' : r.protected_value WITH (NO UPDATE, NO CHECK),
+'singleton' : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+'id' : s.id WITH (NO UPDATE, NO CHECK),
+'checked_value' : s.checked_value WITH (UPDATE, CHECK),
+'protected_value' : s.protected_value WITH (NO UPDATE, NO CHECK)
+)
+FROM mysqldump_jdv.singleton_t AS s
+WHERE s.id = r.singleton_id
+),
+'nested' : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH (NO INSERT, NO UPDATE, NO DELETE, NO CHECK)
+'id' : n.id WITH (NO UPDATE, CHECK),
+'checked_value' : n.checked_value WITH (UPDATE, CHECK),
+'protected_value' : n.protected_value WITH (NO UPDATE, NO CHECK)
+)
+)
+FROM mysqldump_jdv.nested_t AS n
+WHERE n.root_id = r.id
+)
+)
+FROM mysqldump_jdv.root_t AS r;
+# Dumped JDV definition, including its versioned annotations.
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_jdv` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `mysqldump_jdv`;
+DROP TABLE IF EXISTS `dv1`;
+/*!50001 DROP VIEW IF EXISTS `dv1`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `dv1` AS SELECT
+ 1 AS `data`*/;
+SET character_set_client = @saved_cs_client;
+DROP TABLE IF EXISTS `nested_t`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `nested_t` (
+  `id` int NOT NULL,
+  `root_id` int DEFAULT NULL,
+  `checked_value` int DEFAULT NULL,
+  `protected_value` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `root_id` (`root_id`),
+  CONSTRAINT `nested_t_ibfk_1` FOREIGN KEY (`root_id`) REFERENCES `root_t` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `nested_t` WRITE;
+/*!40000 ALTER TABLE `nested_t` DISABLE KEYS */;
+INSERT INTO `nested_t` VALUES (100,1,10000,20000),(101,1,10001,20001);
+/*!40000 ALTER TABLE `nested_t` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `root_t`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `root_t` (
+  `id` int NOT NULL,
+  `singleton_id` int DEFAULT NULL,
+  `checked_value` int DEFAULT NULL,
+  `protected_value` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `singleton_id` (`singleton_id`),
+  CONSTRAINT `root_t_ibfk_1` FOREIGN KEY (`singleton_id`) REFERENCES `singleton_t` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `root_t` WRITE;
+/*!40000 ALTER TABLE `root_t` DISABLE KEYS */;
+INSERT INTO `root_t` VALUES (1,10,1000,2000);
+/*!40000 ALTER TABLE `root_t` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `singleton_t`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `singleton_t` (
+  `id` int NOT NULL,
+  `checked_value` int DEFAULT NULL,
+  `protected_value` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `singleton_t` WRITE;
+/*!40000 ALTER TABLE `singleton_t` DISABLE KEYS */;
+INSERT INTO `singleton_t` VALUES (10,100,200);
+/*!40000 ALTER TABLE `singleton_t` ENABLE KEYS */;
+UNLOCK TABLES;
+
+USE `mysqldump_jdv`;
+/*!50001 DROP VIEW IF EXISTS `dv1`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `dv1` AS select json_duality_object( WITH (INSERT,UPDATE,DELETE /*!261000 , CHECK */) '_id':`r`.`id` /*!261000 WITH (NO UPDATE,NO CHECK) */,'checked_value':`r`.`checked_value` /*!261000 WITH (UPDATE,CHECK) */,'protected_value':`r`.`protected_value` /*!261000 WITH (NO UPDATE,NO CHECK) */,'singleton':(select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) 'id':`s`.`id` /*!261000 WITH (NO UPDATE,NO CHECK) */,'checked_value':`s`.`checked_value` /*!261000 WITH (UPDATE,CHECK) */,'protected_value':`s`.`protected_value` /*!261000 WITH (NO UPDATE,NO CHECK) */) from `singleton_t` `s` where (`s`.`id` = `r`.`singleton_id`)),'nested':(select json_arrayagg(json_duality_object( WITH (/*!261000 NO CHECK, */ NO INSERT,NO UPDATE,NO DELETE) 'id':`n`.`id` /*!261000 WITH (CHECK,NO UPDATE) */,'checked_value':`n`.`checked_value` /*!261000 WITH (UPDATE,CHECK) */,'protected_value':`n`.`protected_value` /*!261000 WITH (NO UPDATE,NO CHECK) */)) from `nested_t` `n` where (`n`.`root_id` = `r`.`id`))) AS `Name_exp_1` from `root_t` `r`;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP DATABASE mysqldump_jdv;
+SELECT data->>'$._id' AS id,
+data->>'$.checked_value' AS root_value,
+data->>'$.singleton.checked_value' AS singleton_value,
+data->>'$.nested[0].checked_value' AS nested_value
+FROM mysqldump_jdv.dv1;
+id	root_value	singleton_value	nested_value
+1	1000	100	10000
+SELECT REFERENCED_TABLE_NAME, ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE,
+ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = 'mysqldump_jdv' AND TABLE_NAME = 'dv1'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK
+nested_t	0	0	0	0
+root_t	1	1	1	1
+singleton_t	0	1	0	1
+SELECT REFERENCED_TABLE_NAME, JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = 'mysqldump_jdv' AND TABLE_NAME = 'dv1'
+ORDER BY REFERENCED_TABLE_NAME, JSON_KEY_NAME;
+REFERENCED_TABLE_NAME	JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+nested_t	checked_value	1	1
+nested_t	id	0	1
+nested_t	protected_value	0	0
+root_t	_id	0	0
+root_t	checked_value	1	1
+root_t	protected_value	0	0
+singleton_t	checked_value	1	1
+singleton_t	id	0	0
+singleton_t	protected_value	0	0
+DROP DATABASE mysqldump_jdv;
 include/rpl/set_gtid_mode_on.inc

@@ -1429,3 +1429,20 @@ EXECUTE ps USING @seq_id, @c_id;
 c_id	gc
 3	Ronaldo
 DROP TABLE customer, employee;
+#
+# Bug#39280089: Field_time::val_str assert with GROUP_CONCAT ORDER BY
+#
+CREATE TABLE t1 (
+c1 VARCHAR(10),
+c2 TIME,
+c3 MEDIUMBLOB,
+c4 TINYINT,
+PRIMARY KEY (c4) USING BTREE
+);
+INSERT INTO t1(c1, c2, c3, c4)
+VALUES('abc', '377:14:14', 0x66666666666, 0);
+INSERT INTO t1(c4) VALUES(2), (3);
+SELECT GROUP_CONCAT(c2, c1 ORDER BY c3) FROM (TABLE t1) AS t1;
+GROUP_CONCAT(c2, c1 ORDER BY c3)
+377:14:14abc
+DROP TABLE t1;

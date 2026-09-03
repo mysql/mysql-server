@@ -50,6 +50,7 @@ BULK Data Load. Currently treated like DDL */
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/sql_table.h"
+#include "sync0debug.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0undo.h"
@@ -133,16 +134,14 @@ static void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
 
 /** Sets up a dfield_t structure for a generated field based on src_dfield and
 user data in sql_col
-@param[in]  prebuilt      prebuilt structures from innodb table handler
 @param[in]  field         field metadata
 @param[in]  sql_col       sql column with user data
 @param[in]  src_dfield    dfield_t containing the computed gcol value
 @param[out] dst_dfield    target dfield_t
 @return innodb error code.
 */
-static dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
-                            const Column_mysql &sql_col, dfield_t *src_dfield,
-                            dfield_t *dst_dfield);
+static dberr_t setup_dfield(Field *field, const Column_mysql &sql_col,
+                            dfield_t *src_dfield, dfield_t *dst_dfield);
 
 /** Store integer column in Innodb format.
 @param[in]      col       sql column data
@@ -231,6 +230,12 @@ dberr_t Loader::begin(const row_prebuilt_t *prebuilt, size_t data_size,
   m_table = table;
   m_index = prebuilt->index;
 
+#ifdef UNIV_DEBUG
+  DBUG_EXECUTE_IF("bulk_load_find_reused_freed_page",
+                  Sync_point::add(prebuilt->trx->mysql_thd,
+                                  "bulk_load_find_reused_freed_page"););
+#endif /* UNIV_DEBUG */
+
   m_ctxs.resize(m_num_threads);
 
   m_queue_size = 2;
@@ -293,6 +298,62 @@ bool Loader::set_source_table_data(
     const std::vector<Bulk_load::Source_table_data> &source_table_data) {
   m_original_table_name = source_table_data.at(0).table;
   assert(source_table_data.size() == m_num_threads);
+
+  auto n_required_bound_cols =
+      prebuilt->index->is_clustered()
+          ? dict_index_get_n_ordering_defined_by_user(prebuilt->index)
+          : dict_index_get_n_unique_in_tree(prebuilt->index);
+  if (n_required_bound_cols == 0) {
+    /* A generated clustered index is searched using DB_ROW_ID. */
+    n_required_bound_cols = 1;
+  }
+
+  auto validate_bounds = [&](const std::optional<Rows_mysql> &lower_bound,
+                             const std::optional<Rows_mysql> &upper_bound) {
+    /* A bound can contain the full source row, while the search tuple only
+    contains the fields required for the index comparison. */
+    if (lower_bound.has_value() &&
+        lower_bound->get_num_cols() < n_required_bound_cols) {
+      ib::error() << "ddl_bulk source-table lower bound has too few columns: "
+                     "index="
+                  << prebuilt->index->name()
+                  << ", bound_columns=" << lower_bound->get_num_cols()
+                  << ", required_columns=" << n_required_bound_cols;
+      ut_ad(lower_bound->get_num_cols() >= n_required_bound_cols);
+      return false;
+    }
+
+    if (upper_bound.has_value() &&
+        upper_bound->get_num_cols() < n_required_bound_cols) {
+      ib::error() << "ddl_bulk source-table upper bound has too few columns: "
+                     "index="
+                  << prebuilt->index->name()
+                  << ", bound_columns=" << upper_bound->get_num_cols()
+                  << ", required_columns=" << n_required_bound_cols;
+      ut_ad(upper_bound->get_num_cols() >= n_required_bound_cols);
+      return false;
+    }
+
+    if (lower_bound.has_value() && upper_bound.has_value() &&
+        lower_bound->get_num_cols() != upper_bound->get_num_cols()) {
+      ib::error() << "ddl_bulk source-table bounds have different column "
+                     "counts: index="
+                  << prebuilt->index->name()
+                  << ", lower_bound_columns=" << lower_bound->get_num_cols()
+                  << ", upper_bound_columns=" << upper_bound->get_num_cols();
+      ut_ad(lower_bound->get_num_cols() == upper_bound->get_num_cols());
+      return false;
+    }
+
+    return true;
+  };
+
+  for (const auto &data : source_table_data) {
+    if (!validate_bounds(data.range.first, data.range.second)) {
+      return false;
+    }
+  }
+
   for (size_t index = 0; index < m_num_threads; ++index) {
     auto success = m_ctxs[index].set_source_table_data(
         prebuilt, source_table_data.at(index));
@@ -723,6 +784,10 @@ void Loader::Thread_data::free() {
 }
 
 dberr_t Loader::end(bool is_error) {
+#ifdef UNIV_DEBUG
+  Sync_point::erase(m_trx->mysql_thd, "bulk_load_find_reused_freed_page");
+#endif /* UNIV_DEBUG */
+
   dberr_t db_err = DB_SUCCESS;
 
   uint64_t max_rowid{0};
@@ -897,19 +962,13 @@ void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
   }
 }
 
-dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
-                     const Column_mysql &sql_col, dfield_t *src_dfield,
-                     dfield_t *dst_dfield) {
-  const space_id_t space_id = prebuilt->space_id();
+dberr_t setup_dfield(Field *field, const Column_mysql &sql_col,
+                     dfield_t *src_dfield, dfield_t *dst_dfield) {
   auto dtype = dfield_get_type(src_dfield);
   auto data_ptr = (byte *)sql_col.get_data();
   size_t data_len = sql_col.m_data_len;
 
   dst_dfield->type = src_dfield->type;
-
-  if (sql_col.is_ext()) {
-    dfield_set_ext(dst_dfield);
-  }
 
   /* For integer data, the column is passed as integer and not in mysql
   format. We use empty column buffer to store column in innobase format. */
@@ -955,25 +1014,15 @@ dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
     byte *field_data = data_ptr + length_size;
     dfield_set_data(dst_dfield, field_data, data_len);
 
-    if (sql_col.is_ext()) {
-      dfield_set_ext(dst_dfield);
-    }
-
-  } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
-             data_len == lob::ref_t::SIZE) {
-    byte *field_data = data_ptr;
-    dfield_set_data(dst_dfield, field_data, data_len);
-    lob::ref_t ref(field_data);
-    if (ref.space_id() == space_id) {
-      dfield_set_ext(dst_dfield);
-    } else {
-      /* Not an externally stored field. */
-    }
   } else if (dtype->mtype == DATA_SYS) {
     ut_ad(0);
   } else {
     assert(data_len <= dtype->len);
     dfield_set_data(dst_dfield, data_ptr, data_len);
+  }
+
+  if (sql_col.is_ext()) {
+    dfield_set_ext(dst_dfield);
   }
 
   return DB_SUCCESS;
@@ -988,7 +1037,6 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
                                 mem_heap_t *gcol_heap, bool &gcol_blobs_flushed,
                                 bool validate_gcols) {
   ut_ad(prebuilt->mysql_template);
-  const space_id_t space_id = prebuilt->space_id();
   TABLE *mysql_table = prebuilt->m_mysql_table;
   THD *thd = prebuilt->m_thd;
   auto share = mysql_table->s;
@@ -1133,22 +1181,13 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
 
       byte *field_data = data_ptr + length_size;
       dfield_set_data(dfield, field_data, data_len);
+#ifdef UNIV_DEBUG
       if (sql_col.is_ext()) {
         byte *tmp = field_data + data_len - BTR_EXTERN_FIELD_REF_SIZE;
         lob::ref_t ref(tmp);
-        ut_ad(ref.space_id() == space_id);
-        dfield_set_ext(dfield);
+        ut_ad(ref.space_id() == prebuilt->space_id());
       }
-    } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
-               data_len == lob::ref_t::SIZE) {
-      byte *field_data = data_ptr;
-      dfield_set_data(dfield, field_data, data_len);
-      lob::ref_t ref(field_data);
-      if (ref.space_id() == space_id) {
-        dfield_set_ext(dfield);
-      } else {
-        /* Not an externally stored field. */
-      }
+#endif /* UNIV_DEBUG */
     } else if (dtype->mtype == DATA_SYS) {
       ut_ad(!prebuilt->index->is_clustered());
       mach_write_to_6(row_id_data, sql_col.m_int_data);
@@ -1156,6 +1195,10 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
     } else {
       assert(data_len <= dtype->len);
       dfield_set_data(dfield, data_ptr, data_len);
+    }
+
+    if (sql_col.is_ext()) {
+      dfield_set_ext(dfield);
     }
   }
 
@@ -1179,7 +1222,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
 
         auto &sql_col = rows.read_column(row_offset, column_number);
         dfield_t fld2;
-        auto err = setup_dfield(prebuilt, field, sql_col, fld1, &fld2);
+        auto err = setup_dfield(field, sql_col, fld1, &fld2);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -1224,7 +1267,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
 
         auto &sql_col = rows.read_column(row_offset, column_number);
         dfield_t fld2;
-        auto err = setup_dfield(prebuilt, field, sql_col, fld1, &fld2);
+        auto err = setup_dfield(field, sql_col, fld1, &fld2);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -1363,6 +1406,7 @@ bool Loader::Table_reader::init(const std::string &schema,
                                 const std::optional<Rows_mysql> &lower_bound,
                                 const std::optional<Rows_mysql> &upper_bound) {
   assert(!m_initialized);
+
   m_initialized = true;
   m_table_name = table;
   m_prebuilt = prebuilt;
@@ -1432,39 +1476,45 @@ bool Loader::Table_reader::init(const std::string &schema,
   uint64_t last_row_id;
   std::list<Btree_multi::Btree_load *> list_subtrees;
   if (m_lower_bound.has_value()) {
-    ib_tpl_t tuple;
+    /* The lower-bound tuple is needed only to position the cursor. */
+    ib_tpl_t lower_bound_tuple;
     if (!m_prebuilt->index->is_clustered()) {
-      tuple = ib_sec_search_tuple_create(m_read_cursor);
+      lower_bound_tuple = ib_sec_search_tuple_create(m_read_cursor);
     } else {
-      tuple = ib_clust_search_tuple_create(m_read_cursor);
+      lower_bound_tuple = ib_clust_search_tuple_create(m_read_cursor);
     }
-    if (tuple == nullptr) {
+    if (lower_bound_tuple == nullptr) {
       return false;
     }
+    ut_ad(m_lower_bound->get_num_cols() >=
+          dtuple_get_n_fields(ib_tuple_to_dtuple(lower_bound_tuple)));
 
     allocate_buffers(m_lower_bound.value(), lower_bound.value(),
-                     ib_tuple_to_dtuple(tuple), m_lower_bound_data);
+                     ib_tuple_to_dtuple(lower_bound_tuple), m_lower_bound_data);
 
     unsigned char tuple_row_id_data[DATA_ROW_ID_LEN];
     if (prebuilt->index->is_clustered() &&
         prebuilt->clust_index_was_generated) {
-      auto *row_id_field = dtuple_get_nth_field(ib_tuple_to_dtuple(tuple), 0);
+      auto *row_id_field =
+          dtuple_get_nth_field(ib_tuple_to_dtuple(lower_bound_tuple), 0);
       mach_write_to_6(tuple_row_id_data,
                       m_lower_bound->get_column(0, 0).m_int_data);
       dfield_set_data(row_id_field, tuple_row_id_data, DATA_ROW_ID_LEN);
     } else {
-      fill_tuple_up_to_n_cols(ib_tuple_to_dtuple(tuple), prebuilt,
-                              m_lower_bound.value(), 0,
-                              dtuple_get_n_fields(ib_tuple_to_dtuple(tuple)),
-                              last_row_id, tuple_row_id_data, list_subtrees, 0,
-                              false, nullptr, gcols_flushed, false);
+      fill_tuple_up_to_n_cols(
+          ib_tuple_to_dtuple(lower_bound_tuple), prebuilt,
+          m_lower_bound.value(), 0,
+          dtuple_get_n_fields(ib_tuple_to_dtuple(lower_bound_tuple)),
+          last_row_id, tuple_row_id_data, list_subtrees, 0, false, nullptr,
+          gcols_flushed, false);
     }
 
-    ib_cursor_moveto(m_read_cursor, tuple, IB_CUR_GE, 0);
-    ib_tuple_delete(tuple);
+    ib_cursor_moveto(m_read_cursor, lower_bound_tuple, IB_CUR_GE, 0);
+    ib_tuple_delete(lower_bound_tuple);
   }
 
   if (m_upper_bound.has_value()) {
+    /* The upper-bound tuple is retained for every read from the cursor. */
     if (prebuilt->index->is_clustered()) {
       m_cmp_tuple = ib_clust_search_tuple_create(m_read_cursor);
     } else {
@@ -1473,8 +1523,15 @@ bool Loader::Table_reader::init(const std::string &schema,
     if (m_cmp_tuple == nullptr) {
       return false;
     }
+    ut_ad(m_upper_bound->get_num_cols() >=
+          dtuple_get_n_fields(ib_tuple_to_dtuple(m_cmp_tuple)));
     allocate_buffers(m_upper_bound.value(), upper_bound.value(),
                      ib_tuple_to_dtuple(m_cmp_tuple), m_upper_bound_data);
+    /* Keep the upper-bound comparison consistent with ib_cursor_moveto(),
+    which uses every field in the search tuple. */
+    const auto n_bound_fields =
+        dtuple_get_n_fields(ib_tuple_to_dtuple(m_cmp_tuple));
+    dtuple_set_n_fields_cmp(ib_tuple_to_dtuple(m_cmp_tuple), n_bound_fields);
     if (prebuilt->index->is_clustered() &&
         prebuilt->clust_index_was_generated) {
       auto *row_id_field =
@@ -1485,10 +1542,8 @@ bool Loader::Table_reader::init(const std::string &schema,
     } else {
       fill_tuple_up_to_n_cols(
           ib_tuple_to_dtuple(m_cmp_tuple), prebuilt, m_upper_bound.value(), 0,
-          std::min(dtuple_get_n_fields(ib_tuple_to_dtuple(m_cmp_tuple)),
-                   m_upper_bound->get_num_cols()),
-          last_row_id, m_cmp_tuple_row_id_data, list_subtrees, 0, false,
-          nullptr, gcols_flushed, false);
+          n_bound_fields, last_row_id, m_cmp_tuple_row_id_data, list_subtrees,
+          0, false, nullptr, gcols_flushed, false);
     }
   }
 

@@ -40,6 +40,7 @@
 using byte = unsigned char;
 
 static int g_compress = 0;
+static int g_keep_file = 0;
 
 static ndb_password_state opt_decrypt_password_state("decrypt", nullptr);
 static ndb_password_option opt_decrypt_password(opt_decrypt_password_state);
@@ -127,6 +128,7 @@ static struct my_option my_long_options[] =
     { "detailed-info", NDB_OPT_NOSHORT, "Print info about file including file header and trailer",
     &g_detailed_info, nullptr, nullptr, GET_BOOL, NO_ARG,
     0, 0, 0, nullptr, 0, nullptr },
+  { "keep-file", NO_ARG, "Keep output file on error", &g_keep_file, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(TODO_READ_REVERSE)
   { "read-reverse", 'R', "Read file in reverse",
     &g_read_reverse, nullptr, nullptr, GET_BOOL, NO_ARG,
@@ -195,15 +197,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Error: Both encrypt key and encrypt password is set.\n");
     return 2;
   }
-  if ((opt_decrypt_key_state.get_key() != nullptr ||
-       opt_encrypt_key_state.get_key() != nullptr) &&
-      !ndb_openssl_evp::is_aeskw256_supported()) {
-    fprintf(stderr,
-            "Error: decrypt and encrypt key options requires OpenSSL 1.0.2 "
-            "or newer.\n");
-    return 2;
-  }
-
   if (g_detailed_info) {
     for (int argi = 0; argi < argc; argi++) {
       dump_info(argv[argi], true);
@@ -387,6 +380,12 @@ int copy_file(const char src[], const char dst[]) {
   } else {
     r = src_xfrm.close(false);
     if (r != 0) {
+      const ndb_off_t data_pos = src_xfrm.get_data_pos();
+      const ndb_off_t data_size = src_xfrm.get_data_size();
+      if (data_pos != data_size) {
+        fprintf(stderr, "Warning: Data read %jd of %jd bytes.\n",
+                intmax_t{data_pos}, intmax_t{data_size});
+      }
       if (src_xfrm.is_encrypted()) {
         fprintf(stderr, "Error: Can not read file %s, bad password or key?\n",
                 src);
@@ -406,7 +405,10 @@ int copy_file(const char src[], const char dst[]) {
   dst_file.close();
 
   if (r != 0) {
-    dst_file.remove(dst);
+    if (!g_keep_file)
+      dst_file.remove(dst);
+    else
+      fprintf(stderr, "Warning: Keeping possibly erroneous file.\n");
   }
 
   return r;

@@ -26,6 +26,8 @@
 #ifndef MGMAPI_H
 #define MGMAPI_H
 
+#include <time.h>
+
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h>

@@ -22681,7 +22681,7 @@ static void test_wl13075() {
   }
   mysql_close(&lmysql);
 
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   /* MYSQL_OPT_FORCE_PQC must reject client-supplied non-PQC session data. */
   rc = mysql_query(mysql, "SET @mct_tls_kex_saved=@@GLOBAL.tls_kex");
   myquery(rc);
@@ -23206,6 +23206,40 @@ static void test_server_telemetry_traces_prepared() {
 
   mysql_stmt_close(stmt);
   printf("Test 7 successfully completed\n");
+}
+
+static void test_bug39603354() {
+  myheader("test_bug39603354");
+
+  // Server id followed by a truncated multi-byte length-encoded string header.
+  uchar packet[5]{};
+  constexpr uchar prefixes[]{252, 253, 254};
+  for (const uchar prefix : prefixes) {
+    packet[4] = prefix;
+    const int rc =
+        simple_command(mysql, COM_REGISTER_SLAVE, packet, sizeof(packet), 0);
+    DIE_UNLESS(rc != 0);
+    DIE_UNLESS(mysql_errno(mysql) == ER_MALFORMED_PACKET);
+  }
+
+  // The declared host length must not be truncated to its low 32 bits.
+  uchar oversized_length_packet[26]{};
+  uchar *pos = oversized_length_packet;
+  int4store(pos, 1);
+  pos += 4;
+  *pos++ = 254;
+  int8store(pos, (UINT64_C(1) << 32) + 1);
+  pos += 8;
+  *pos++ = 'h';  // Host after truncating the declared length to 1.
+  *pos++ = 0;    // Empty user.
+  *pos++ = 0;    // Empty password.
+  pos += 10;     // Port, recovery rank, and source id.
+  DIE_UNLESS(pos == oversized_length_packet + sizeof(oversized_length_packet));
+
+  const int rc =
+      simple_command(mysql, COM_REGISTER_SLAVE, oversized_length_packet,
+                     sizeof(oversized_length_packet), 0);
+  DIE_UNLESS(rc != 0);
 }
 
 static void test_wl13128() {
@@ -24557,6 +24591,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13075", test_wl13075},
     {"test_bug33535746", test_bug33535746},
     {"test_server_telemetry_traces", test_server_telemetry_traces},
+    {"test_bug39603354", test_bug39603354},
     {"test_wl13128", test_wl13128},
     {"test_bug25584097", test_bug25584097},
     {"test_34556764", test_34556764},

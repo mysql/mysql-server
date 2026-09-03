@@ -1477,10 +1477,6 @@ void Ndbcntr::execREAD_CONFIG_REQ(Signal *signal) {
                             &encrypted_filesystem);
   assert(encrypted_filesystem == 0 || encrypted_filesystem == 1);
   c_encrypted_filesystem = encrypted_filesystem;
-  if (encrypted_filesystem == 1 && !ndb_openssl_evp::is_aeskw256_supported()) {
-    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
-              "EncryptedFileSystem=1 requires OpenSSL 1.0.2 or newer");
-  }
 
   Uint32 dl = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);

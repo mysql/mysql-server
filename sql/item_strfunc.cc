@@ -407,11 +407,7 @@ static void retrieve_kdf_options(uint arg_count, Item **args,
   }
 
   // KDF function name should be valid
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  if (kdf_option == "pbkdf2_hmac") {
-#else
   if (kdf_option == "hkdf" || kdf_option == "pbkdf2_hmac") {
-#endif
     result.push_back(kdf_option);
   } else {
     my_error(ER_AES_INVALID_KDF_NAME, MYF(0), func_name);
@@ -517,19 +513,9 @@ class iv_argument {
   }
 };
 
-void Item_func_aes_encrypt::create_op_context() {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ctx = &stack_ctx;
-#else
-  ctx = EVP_CIPHER_CTX_new();
-#endif
-}
+void Item_func_aes_encrypt::create_op_context() { ctx = EVP_CIPHER_CTX_new(); }
 
-void Item_func_aes_encrypt::destroy_op_context() {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-  EVP_CIPHER_CTX_free(ctx);
-#endif
-}
+void Item_func_aes_encrypt::destroy_op_context() { EVP_CIPHER_CTX_free(ctx); }
 
 bool Item_func_aes_encrypt::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
@@ -586,11 +572,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
       pointer_cast<unsigned char *>(key->ptr()), key->length(), aes_opmode,
       iv_str, true, kdf_options.empty() ? nullptr : &kdf_options);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX_cleanup(ctx);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_reset(ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (length == aes_length) {
     // We got the expected result length
@@ -610,19 +592,9 @@ bool Item_func_aes_encrypt::resolve_type(THD *thd) {
   return false;
 }
 
-void Item_func_aes_decrypt::create_op_context() {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ctx = &stack_ctx;
-#else
-  ctx = EVP_CIPHER_CTX_new();
-#endif
-}
+void Item_func_aes_decrypt::create_op_context() { ctx = EVP_CIPHER_CTX_new(); }
 
-void Item_func_aes_decrypt::destroy_op_context() {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-  EVP_CIPHER_CTX_free(ctx);
-#endif
-}
+void Item_func_aes_decrypt::destroy_op_context() { EVP_CIPHER_CTX_free(ctx); }
 
 bool Item_func_aes_decrypt::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
@@ -671,11 +643,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
       pointer_cast<unsigned char *>(key->ptr()), key->length(), aes_opmode,
       iv_str, true, (kdf_options.size() > 0) ? &kdf_options : nullptr);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX_cleanup(ctx);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_reset(ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (length >= 0)  // if we got correct data data
   {

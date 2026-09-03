@@ -752,6 +752,9 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   */
   const size_t record_size = record_prefix_size(table);
 
+  // A record larger than the maximum buffer cannot fit in a record buffer.
+  if (record_size > MAX_RECORD_BUFFER_SIZE) return false;
+
   if (record_size > 0) {
     const ha_rows min_rows =
         std::ceil(double{MIN_RECORD_BUFFER_SIZE} / record_size);
@@ -3635,7 +3638,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   }
 
   // 3. Put the rowids
-  for (uint i = 0; tab != tab_end; tab++, i++) {
+  for (; tab != tab_end; tab++) {
     handler *h = tab->qep_tab->table()->file;
     if (tab->qep_tab->table()->is_nullable() &&
         tab->qep_tab->table()->has_null_row()) {

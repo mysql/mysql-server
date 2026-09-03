@@ -54,20 +54,14 @@ class SocketServer {
    protected:
     friend class SocketServer;
     friend void *sessionThread_C(void *);
-    Session(const NdbSocket &sock)
-        : m_stop(false),
-          m_refCount(0),
-          m_socket(sock),
-          m_thread_stopped(false) {
+    Session() : m_stop(false), m_refCount(0), m_thread_stopped(false) {
       DBUG_ENTER("SocketServer::Session");
-      DBUG_PRINT("enter", ("NDB_SOCKET: %s", m_socket.to_string().c_str()));
       DBUG_VOID_RETURN;
     }
     bool m_stop;  // Has the session been ordered to stop?
     unsigned m_refCount;
 
    private:
-    const NdbSocket &m_socket;
     bool m_thread_stopped;  // Has the session thread stopped?
   };
 

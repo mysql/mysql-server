@@ -32,6 +32,7 @@
 #include <limits>
 #include <memory>
 #include <new>
+#include <ranges>
 #include <stack>
 #include <string>
 #include <utility>
@@ -216,7 +217,6 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
           DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff", {
             const char act[] =
                 "now SIGNAL signal.rpl_row_jsondiff_binarydiff_created";
-            assert(opt_debug_sync_timeout > 0);
             assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
           };);
           continue;
@@ -2497,13 +2497,20 @@ Item_func_json_duality_object::Item_func_json_duality_object(
 bool Item_func_json_duality_object::resolve_type(THD *thd) {
   if (super::resolve_type(thd)) return true;
 
-  // Set m_inject_object_hash only in the first JDO instance of JSON duality
-  // view.
+  // Only the root query expression is backed by the JDV derived table. Mark its
+  // object for ETAG injection and retain the reference for the content tree.
   Query_expression *master_query_expression =
       thd->lex->current_query_block()->master_query_expression();
   Table_ref *tr = master_query_expression->derived_table;
   if (tr != nullptr && tr->is_view() && tr->is_json_duality_view()) {
+    m_jdv_table_ref = tr;
     m_inject_object_hash = true;
+
+    /*
+      Populate JSON_ARRAYAGG paths for HeatWave's ETAG calculation. The primary
+      engine instead calculates JDV ETAGs from m_jdv_table_ref->jdv_content_tree
+      in inject_etag_metadata() so that CHECK/NO CHECK tags are respected.
+    */
     set_json_arrayagg_keys(thd);
   }
   return false;
@@ -2618,73 +2625,410 @@ bool Item_func_json_duality_object::set_json_arrayagg_keys(THD *thd) {
   return false;
 }
 
-bool Item_func_json_duality_object::val_json(Json_wrapper *wr) {
-  assert(fixed);
+/**
+  Returns whether a content-tree subtree has a projected column with an
+  effective CHECK tag. It is used to exclude child objects that cannot affect
+  the ETAG.
+*/
+static bool jdv_content_tree_has_checked_projection(
+    const jdv::Content_tree_node *node) {
+  for (const auto &column : node->key_column_info_list()) {
+    if (column.is_column_projected() && column.allows_check()) return true;
+  }
 
-  if (super::val_json(wr)) return true;
-
-  if (m_inject_object_hash) {
-    Json_wrapper_xxh_hasher hash_key;
-    std::string root("$");
-    if (calculate_etag_for_json(
-            *wr, hash_key, JsonSerializationDefaultErrorHandler(current_thd),
-            &m_json_arrayagg_keys, &root)) {
-      return error_json();
-    }
-    Json_object *object = down_cast<Json_object *>(wr->to_dom());
-    assert(object != nullptr);
-
-    Json_object *metadata = new (std::nothrow) Json_object();
-    if (metadata == nullptr) {
-      return true;
-    }
-    String etag_hash;
-    XXH128_hash_hex(hash_key.get_digest(), &etag_hash);
-    if (metadata->add_alias("etag", create_dom_ptr<Json_string>(
-                                        etag_hash.ptr(), etag_hash.length()))) {
-      return error_json();
-    }
-    if (object->add_alias("_metadata", metadata)) return error_json();
+  for (const auto *child : node->children()) {
+    if (jdv_content_tree_has_checked_projection(child)) return true;
   }
 
   return false;
 }
 
+/**
+  Adds a complete JSON value to a JDV ETAG hash. It reuses the generic,
+  type-aware JSON hashing for selected column values.
+*/
+static bool add_json_dom_to_jdv_hash(
+    Json_dom *dom, Json_wrapper_hasher &hash_key,
+    const JsonSerializationErrorHandler &error_handler) {
+  if (dom == nullptr) {
+    hash_key.add_character(JSON_KEY_NULL);
+    return false;
+  }
+
+  Json_wrapper wrapper(dom, true);
+  return calculate_etag_for_json(wrapper, hash_key, error_handler);
+}
+
+static bool add_jdv_object_to_hash(
+    const jdv::Content_tree_node *node, Json_object *object,
+    Json_wrapper_hasher &hash_key,
+    const JsonSerializationErrorHandler &error_handler);
+
+/**
+  Adds a singleton child object to a JDV ETAG hash. It exists so a missing or
+  null child contributes JSON null while a present child uses JDV tag filtering.
+*/
+static bool add_jdv_child_to_hash(
+    const jdv::Content_tree_node *node, Json_dom *dom,
+    Json_wrapper_hasher &hash_key,
+    const JsonSerializationErrorHandler &error_handler) {
+  if (dom == nullptr || dom->json_type() == enum_json_type::J_NULL) {
+    hash_key.add_character(JSON_KEY_NULL);
+    return false;
+  }
+
+  if (dom->json_type() != enum_json_type::J_OBJECT) {
+    assert(false);
+    return true;
+  }
+
+  return add_jdv_object_to_hash(node, down_cast<Json_object *>(dom), hash_key,
+                                error_handler);
+}
+
+/**
+  Adds a nested child array to a JDV ETAG hash. Child hashes are combined
+  without row-order dependence because relational query order is unspecified.
+*/
+static bool add_jdv_array_to_hash(
+    const jdv::Content_tree_node *node, Json_dom *dom,
+    Json_wrapper_hasher &hash_key,
+    const JsonSerializationErrorHandler &error_handler) {
+  if (dom == nullptr || dom->json_type() == enum_json_type::J_NULL) {
+    hash_key.add_character(JSON_KEY_NULL);
+    return false;
+  }
+
+  if (dom->json_type() != enum_json_type::J_ARRAY) {
+    assert(false);
+    return true;
+  }
+
+  if (error_handler.CheckStack()) return true;
+
+  auto *array = down_cast<Json_array *>(dom);
+  XXH128_hash_t hash_of_hash;
+  hash_of_hash.low64 = 0;
+  hash_of_hash.high64 = 0;
+
+  hash_key.add_character(JSON_KEY_ARRAY);
+
+  Json_wrapper_xxh_hasher element_hash;
+  for (const auto &element : *array) {
+    element_hash.reset();
+    if (add_jdv_child_to_hash(node, element.get(), element_hash,
+                              error_handler)) {
+      return true;
+    }
+    hash_of_hash = add_xxh128_hash(hash_of_hash, element_hash.get_digest());
+  }
+
+  hash_key.add_integer(hash_of_hash.low64);
+  hash_key.add_integer(hash_of_hash.high64);
+  return false;
+}
+
+/**
+  Adds the CHECK-tagged content of one JDV object to an incremental ETAG hash.
+  It exists because the JSON DOM contains values but not the tags needed to
+  select ETAG content; the content tree supplies those tags.
+
+  @param[in] node           content-tree node describing the object
+  @param[in] object         materialized JSON object corresponding to node
+  @param[in,out] hash_key   hasher to which the selected content is added
+  @param[in] error_handler  handler used to report stack exhaustion
+
+  @retval false success
+  @retval true  error
+*/
+static bool add_jdv_object_to_hash(
+    const jdv::Content_tree_node *node, Json_object *object,
+    Json_wrapper_hasher &hash_key,
+    const JsonSerializationErrorHandler &error_handler) {
+  if (error_handler.CheckStack()) return true;
+
+  /**
+    Describes one object member selected for JDV ETAG calculation. It keeps the
+    DOM value and optional child node together so selected members can be
+    hashed in canonical key order.
+  */
+  struct Jdv_hash_entry {
+    std::string_view key;
+    Json_dom *value{nullptr};
+    const jdv::Content_tree_node *child{nullptr};
+    bool child_is_array{false};
+  };
+
+  std::vector<Jdv_hash_entry> entries;
+  entries.reserve(node->key_column_info_list().size() +
+                  node->children().size());
+
+  for (const auto &column : node->key_column_info_list()) {
+    // Join columns used only by DML must not affect the document ETAG.
+    if (column.is_column_projected() && column.allows_check()) {
+      entries.push_back({.key = column.key(),
+                         .value = object->get(column.key()),
+                         .child = nullptr,
+                         .child_is_array = false});
+    }
+  }
+
+  for (const auto *child : node->children()) {
+    // A child without a projected column with an effective CHECK tag cannot
+    // affect the ETAG.
+    if (jdv_content_tree_has_checked_projection(child)) {
+      entries.push_back({.key = child->name(),
+                         .value = object->get(child->name()),
+                         .child = child,
+                         .child_is_array = child->is_nested_child()});
+    }
+  }
+
+  // Canonical key order keeps the ETAG independent of object insertion order.
+  std::ranges::sort(
+      entries, [](const Jdv_hash_entry &left, const Jdv_hash_entry &right) {
+        return Json_key_comparator{}(left.key, right.key);
+      });
+
+  hash_key.add_character(JSON_KEY_OBJECT);
+  for (const auto &entry : entries) {
+    hash_key.add_string(entry.key.data(), entry.key.size());
+
+    if (entry.child == nullptr) {
+      // Generic JSON hashing preserves the existing type-aware ETAG semantics.
+      if (add_json_dom_to_jdv_hash(entry.value, hash_key, error_handler)) {
+        return true;
+      }
+      continue;
+    }
+
+    // Relational child arrays need order-independent hashing; singleton child
+    // objects do not.
+    if (entry.child_is_array) {
+      if (add_jdv_array_to_hash(entry.child, entry.value, hash_key,
+                                error_handler)) {
+        return true;
+      }
+    } else if (add_jdv_child_to_hash(entry.child, entry.value, hash_key,
+                                     error_handler)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+  Adds `_metadata.etag` to the root JDV object. It exists because the root alone
+  exposes the concurrency token for the complete document.
+
+  @param[in,out] wr root JDV object to which the metadata is added
+
+  @retval false success
+  @retval true  error
+*/
+bool Item_func_json_duality_object::inject_etag_metadata(Json_wrapper *wr) {
+  assert(m_jdv_table_ref != nullptr);
+  const jdv::Content_tree_node *content_tree =
+      m_jdv_table_ref->jdv_content_tree;
+  assert(content_tree != nullptr);
+
+  auto *object = down_cast<Json_object *>(wr->to_dom());
+  assert(object != nullptr);
+
+  Json_wrapper_xxh_hasher hash_key;
+  if (add_jdv_object_to_hash(
+          content_tree, object, hash_key,
+          JsonSerializationDefaultErrorHandler(current_thd))) {
+    return error_json();
+  }
+
+  auto *metadata = new (std::nothrow) Json_object();
+  if (metadata == nullptr) return true;
+
+  String etag_hash;
+  XXH128_hash_hex(hash_key.get_digest(), &etag_hash);
+  if (metadata->add_alias("etag", create_dom_ptr<Json_string>(
+                                      etag_hash.ptr(), etag_hash.length()))) {
+    return error_json();
+  }
+  if (object->add_alias("_metadata", metadata)) return error_json();
+
+  return false;
+}
+
+bool Item_func_json_duality_object::val_json(Json_wrapper *wr) {
+  assert(fixed);
+
+  if (super::val_json(wr)) return true;
+
+  if (m_inject_object_hash) return inject_etag_metadata(wr);
+
+  return false;
+}
+
+/**
+  Appends a tag when its bit is set, adding a comma when it does not begin the
+  list.
+
+  @param[in,out] str   destination SQL string
+  @param[in]     tags  bitmask containing the tag
+  @param[in]     flag  tag bit to test
+  @param[in]     name  SQL spelling of the tag
+  @param[in,out] first whether this tag starts the list
+*/
+static void append_tag_if_set(String *str, int tags, int flag, const char *name,
+                              bool *first) {
+  if ((tags & flag) == 0) return;
+  if (!*first) str->append(',');
+  str->append(name);
+  *first = false;
+}
+
+/**
+  Appends table tags. CHECK and NO CHECK are versioned in 26.10.0; commas that
+  connect those tags to the surrounding list stay inside the version comment
+  so an older server still sees valid SQL after ignoring the comment.
+
+  @param[in,out] str  destination SQL string
+  @param[in]     tags table-tag bitmask to print
+*/
+static void append_versioned_table_tags(String *str, int tags) {
+  /*
+    Scenario 1: There are no versioned tags. Every tag is understood by older
+    servers, so emit a normal WITH (...) list.
+  */
+  if ((tags & (jdv::DVT_CHECK | jdv::DVT_NOCHECK)) == 0) {
+    str->append(STRING_WITH_LEN(" WITH ("));
+    bool first = true;
+    append_tag_if_set(str, tags, jdv::DVT_INSERT, "INSERT", &first);
+    append_tag_if_set(str, tags, jdv::DVT_UPDATE, "UPDATE", &first);
+    append_tag_if_set(str, tags, jdv::DVT_DELETE, "DELETE", &first);
+    append_tag_if_set(str, tags, jdv::DVT_NOINSERT, "NO INSERT", &first);
+    append_tag_if_set(str, tags, jdv::DVT_NOUPDATE, "NO UPDATE", &first);
+    append_tag_if_set(str, tags, jdv::DVT_NODELETE, "NO DELETE", &first);
+    str->append(STRING_WITH_LEN(") "));
+    return;
+  }
+
+  const char *versioned_tag =
+      (tags & jdv::DVT_CHECK) != 0 ? "CHECK" : "NO CHECK";
+
+  /*
+    Scenario 2: CHECK/NO CHECK is the only tag. Hide the entire WITH clause in
+    a versioned comment, leaving no clause for an older server to parse.
+  */
+  if ((tags & (jdv::DVT_INSERT | jdv::DVT_UPDATE | jdv::DVT_DELETE |
+               jdv::DVT_NOINSERT | jdv::DVT_NOUPDATE | jdv::DVT_NODELETE)) ==
+      0) {
+    str->append(STRING_WITH_LEN(" /*!261000 WITH ("));
+    str->append(versioned_tag);
+    str->append(STRING_WITH_LEN(") */ "));
+    return;
+  }
+
+  /*
+    Scenario 3: CHECK/NO CHECK is mixed with older tags. It is placed between
+    permissive and restrictive tags. Its connecting comma(s) are also hidden
+    in the versioned comment, so the remaining list is valid on older servers.
+  */
+  str->append(STRING_WITH_LEN(" WITH ("));
+  bool first = true;
+  append_tag_if_set(str, tags, jdv::DVT_INSERT, "INSERT", &first);
+  append_tag_if_set(str, tags, jdv::DVT_UPDATE, "UPDATE", &first);
+  append_tag_if_set(str, tags, jdv::DVT_DELETE, "DELETE", &first);
+
+  if ((tags & (jdv::DVT_INSERT | jdv::DVT_UPDATE | jdv::DVT_DELETE)) != 0 &&
+      (tags & (jdv::DVT_NOINSERT | jdv::DVT_NOUPDATE | jdv::DVT_NODELETE)) !=
+          0) {
+    str->append(STRING_WITH_LEN(", /*!261000 "));
+    str->append(versioned_tag);
+    str->append(STRING_WITH_LEN(", */ "));
+    first = true;
+  } else if ((tags & (jdv::DVT_INSERT | jdv::DVT_UPDATE | jdv::DVT_DELETE)) !=
+             0) {
+    str->append(STRING_WITH_LEN(" /*!261000 , "));
+    str->append(versioned_tag);
+    str->append(STRING_WITH_LEN(" */"));
+  } else {
+    str->append(STRING_WITH_LEN("/*!261000 "));
+    str->append(versioned_tag);
+    str->append(STRING_WITH_LEN(", */ "));
+  }
+  append_tag_if_set(str, tags, jdv::DVT_NOINSERT, "NO INSERT", &first);
+  append_tag_if_set(str, tags, jdv::DVT_NOUPDATE, "NO UPDATE", &first);
+  append_tag_if_set(str, tags, jdv::DVT_NODELETE, "NO DELETE", &first);
+  str->append(STRING_WITH_LEN(") "));
+}
+
+/**
+  Appends JSON_DUALITY_OBJECT() key/value pairs. Arguments alternate between
+  member names and values; column tags are parallel to those pairs and are
+  emitted after their corresponding values.
+
+  @param[in]     thd         thread context used to print Items
+  @param[in,out] str         destination SQL string
+  @param[in]     query_type  query-printing options
+  @param[in]     args        alternating key/value Item arguments
+  @param[in]     arg_count   number of entries in args
+  @param[in]     col_tags    optional column tags, one per key/value pair
+*/
+static void append_json_duality_object_key_value_pairs(
+    const THD *thd, String *str, enum_query_type query_type, Item **args,
+    uint arg_count, const Mem_root_array<uint> *col_tags) {
+  assert((arg_count % 2) == 0);
+
+  for (uint i = 0; i < arg_count; i += 2) {
+    if (i != 0) str->append(',');
+
+    args[i]->print(thd, str, query_type);
+    str->append(':');
+    args[i + 1]->print(thd, str, query_type);
+
+    const uint pair_index = i / 2;
+    if (col_tags == nullptr || pair_index >= col_tags->size()) continue;
+
+    const uint tags = col_tags->at(pair_index);
+    if (tags == 0) continue;
+
+    /*
+      All column tags are new in 26.10.0, so an older server must ignore the
+      entire WITH clause.
+    */
+    str->append(STRING_WITH_LEN(" /*!261000 WITH ("));
+    bool first = true;
+    append_tag_if_set(str, tags, jdv::DVT_UPDATE, "UPDATE", &first);
+    append_tag_if_set(str, tags, jdv::DVT_CHECK, "CHECK", &first);
+    append_tag_if_set(str, tags, jdv::DVT_NOUPDATE, "NO UPDATE", &first);
+    append_tag_if_set(str, tags, jdv::DVT_NOCHECK, "NO CHECK", &first);
+    str->append(STRING_WITH_LEN(") */"));
+  }
+}
+
 void Item_func_json_duality_object::print(const THD *thd, String *str,
                                           enum_query_type query_type) const {
+  /*
+    Reconstruct JSON_DUALITY_OBJECT() iteratively from its flattened argument
+    list [key0, value0, key1, value1, ...]:
+
+    1. Append the function name and opening parenthesis.
+    2. Append object-level table tags before the first key/value pair.
+    3. Append each key/value pair and its optional column tags. Printing each
+       Item continues the call chain for nested expressions such as subqueries,
+       JSON_ARRAYAGG(), and another JSON_DUALITY_OBJECT().
+    4. Append the closing parenthesis.
+
+    Consequently, nested calls recursively build the complete SQL expression
+    in the same destination string.
+  */
   str->append(func_name());
   str->append('(');
 
-  if (table_tags() != 0) {
-    str->append(" WITH (");
+  if (table_tags() != 0) append_versioned_table_tags(str, table_tags());
 
-    bool first = true;
-    auto add_if_set = [&](int flag, const char *name) {
-      if (table_tags() & flag) {
-        if (!first) str->append(",");
-        str->append(name);
-        first = false;
-      }
-    };
-
-    add_if_set(jdv::DVT_INSERT, "INSERT");
-    add_if_set(jdv::DVT_UPDATE, "UPDATE");
-    add_if_set(jdv::DVT_DELETE, "DELETE");
-    add_if_set(jdv::DVT_NOINSERT, "NO INSERT");
-    add_if_set(jdv::DVT_NOUPDATE, "NO UPDATE");
-    add_if_set(jdv::DVT_NODELETE, "NO DELETE");
-
-    str->append(") ");
-  }
-
-  for (uint i = 0; i < arg_count; i++) {
-    if ((i != 0) && (i % 2) == 0)
-      str->append(',');
-    else if ((i % 2))
-      str->append(':');
-
-    args[i]->print(thd, str, query_type);
-  }
+  const auto *col_tags = col_tags_list();
+  append_json_duality_object_key_value_pairs(thd, str, query_type, args,
+                                             arg_count, col_tags);
 
   str->append(')');
 }
@@ -2693,7 +3037,7 @@ Mem_root_array<LEX_STRING> *Item_func_json_duality_object::name_list() {
   return m_jdv_name_value_list->name_list();
 }
 
-Mem_root_array<uint> *Item_func_json_duality_object::col_tags_list() {
+Mem_root_array<uint> *Item_func_json_duality_object::col_tags_list() const {
   return m_jdv_name_value_list->col_tags_list();
 }
 

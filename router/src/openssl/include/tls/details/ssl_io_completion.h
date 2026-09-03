@@ -286,13 +286,8 @@ class SslIoCompletionToken {
   int bio_read_ex(size_t *out_readbytes) {
     auto bio = tls_layer_.network_bio_.get();
     *out_readbytes = 0;
-#if OPENSSL_VERSION_NUMBER >= NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL
     auto result = BIO_read_ex(bio, output_.data_free(), output_.size_free(),
                               out_readbytes);
-#else
-    auto result = BIO_read(bio, output_.data_free(), output_.size_free());
-    if (result > 0) *out_readbytes = result;
-#endif
 
     return result;
   }
@@ -300,13 +295,8 @@ class SslIoCompletionToken {
   int bio_write_ex(size_t *out_written) {
     auto bio = tls_layer_.network_bio_.get();
     *out_written = 0;
-#if OPENSSL_VERSION_NUMBER >= NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL
     auto result =
         BIO_write_ex(bio, input_.data_used(), input_.size_used(), out_written);
-#else
-    auto result = BIO_write(bio, input_.data_used(), input_.size_used());
-    if (result > 0) *out_written = result;
-#endif
 
     return result;
   }

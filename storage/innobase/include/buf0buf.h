@@ -518,6 +518,12 @@ static inline bool buf_page_peek(const page_id_t &page_id);
 
 #ifdef UNIV_DEBUG
 
+/** Checks whether a page is present in the buffer pool and marked as freed.
+The page is not fetched when it is absent.
+@param[in] page_id page id
+@return true if the page is present and marked as freed */
+bool buf_page_was_freed(const page_id_t &page_id) noexcept;
+
 /** Sets file_page_was_freed true if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
@@ -932,15 +938,12 @@ void buf_page_force_evict(const page_id_t &page_id,
                           const page_size_t &page_size,
                           const bool dirty_is_ok = true) noexcept;
 
-/** Free a stale page. Caller must be holding the hash_lock in S mode if
-hash_lock parameter is not nullptr. The hash lock will be released upon return
-always. Caller must hold the LRU mutex if and only if the hash_lock parameter
-is nullptr. Upon unsuccessful page free the LRU mutex will not be released if
-hash_lock is nullptr.
+/** Free a stale page found under the page hash S latch. The caller must hold
+hash_lock in S mode. This overload never accepts nullptr for hash_lock. The hash
+lock will be released before this function returns.
 @param[in,out]  buf_pool   Buffer pool the page belongs to.
 @param[in,out]  bpage      Page to free.
-@param[in,out]  hash_lock  Hash lock covering the fetch from the hash table if
-latched in S mode. nullptr otherwise.
+@param[in]      hash_lock  Hash lock for bpage->id, held in S mode.
 @return true if page was freed. */
 bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
                          rw_lock_t *hash_lock) noexcept;

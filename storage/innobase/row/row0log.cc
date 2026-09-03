@@ -208,6 +208,10 @@ struct row_log_t {
   /** Mapping of old column numbers to new ones, or NULL if !table */
   const ulint *col_map;
 
+  /** Whether mapped old columns have a charset/collation change whose existing
+  value bytes can be reused, or NULL if !table */
+  const bool *col_has_compatible_charset_change;
+
   /** Error that occurred during online table rebuild */
   dberr_t error;
 
@@ -1454,7 +1458,7 @@ void row_log_table_blob_alloc(
         table. */
         *error = DB_CORRUPTION;
         ut_d(ut_error);
-        ut_o(return (nullptr));
+        ut_o(return nullptr);
       }
     }
 
@@ -1462,8 +1466,28 @@ void row_log_table_blob_alloc(
     const dict_col_t *new_col = log->table->get_col(col_no);
     ut_ad(new_col->mtype == col->mtype);
 
-    /* Assert that prtype matches except for nullability. */
-    ut_ad(!((new_col->prtype ^ col->prtype) & ~DATA_NOT_NULL));
+    const uint32_t prtype_diff = new_col->prtype ^ col->prtype;
+    const uint32_t non_nullability_diff = prtype_diff & ~DATA_NOT_NULL;
+
+    if (non_nullability_diff != 0) {
+      /* A compatible charset change can alter only the charset/collation part
+      of prtype in addition to nullability. The value bytes have already been
+      proved compatible while preparing the ALTER. */
+      constexpr uint32_t charset_coll_mask =
+          static_cast<uint32_t>(CHAR_COLL_MASK) << 16;
+      const uint32_t unexpected_changes =
+          non_nullability_diff & ~charset_coll_mask;
+      const bool expected_change =
+          log->col_has_compatible_charset_change[dict_col_get_no(col)] &&
+          unexpected_changes == 0;
+
+      ut_ad(expected_change);
+      if (!expected_change) {
+        *error = DB_CORRUPTION;
+        return nullptr;
+      }
+    }
+
     ut_ad(!((new_col->prtype ^ dfield_get_type(dfield)->prtype) &
             ~DATA_NOT_NULL));
 
@@ -1474,7 +1498,7 @@ void row_log_table_blob_alloc(
     if ((new_col->prtype & DATA_NOT_NULL) && dfield_is_null(dfield)) {
       /* We got a NULL value for a NOT NULL column. */
       *error = DB_INVALID_NULL;
-      return (nullptr);
+      return nullptr;
     }
 
     /* Adjust the DATA_NOT_NULL flag in the parsed row. */
@@ -3112,6 +3136,7 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
 
 bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
                       const dtuple_t *add_cols, const ulint *col_map,
+                      const bool *col_has_compatible_charset_change,
                       const char *path) {
   row_log_t *log;
   DBUG_TRACE;
@@ -3121,6 +3146,7 @@ bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
   ut_ad(!table || index->table != table);
   ut_ad(same_pk || table);
   ut_ad(!table || col_map);
+  ut_ad(!table || col_has_compatible_charset_change);
   ut_ad(!add_cols || col_map);
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
@@ -3137,6 +3163,7 @@ bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
   log->same_pk = same_pk;
   log->add_cols = add_cols;
   log->col_map = col_map;
+  log->col_has_compatible_charset_change = col_has_compatible_charset_change;
   log->error = DB_SUCCESS;
   log->max_trx = 0;
   log->tail.blocks = log->tail.bytes = 0;

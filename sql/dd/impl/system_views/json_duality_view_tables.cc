@@ -63,6 +63,8 @@ Json_duality_view_tables::Json_duality_view_tables() {
                          "tables.allow_update");
   m_target_def.add_field(FIELD_ALLOW_DELETE, "ALLOW_DELETE",
                          "tables.allow_delete");
+  m_target_def.add_field(FIELD_ALLOW_CHECK, "ALLOW_CHECK",
+                         "tables.allow_check");
   m_target_def.add_field(FIELD_READ_ONLY, "READ_ONLY", "tables.read_only");
   m_target_def.add_field(FIELD_IS_ROOT_TABLE, "IS_ROOT_TABLE",
                          "tables.is_root_table");
@@ -102,6 +104,7 @@ Json_duality_view_tables::Json_duality_view_tables() {
       "    allow_insert TINYINT PATH '$.allow_insert', "
       "    allow_update TINYINT PATH '$.allow_update', "
       "    allow_delete TINYINT PATH '$.allow_delete', "
+      "    allow_check TINYINT PATH '$.allow_check', "
       "    read_only TINYINT PATH '$.read_only' "
       "  ) "
       ") "

@@ -348,7 +348,7 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
     X509_ptr cert(PEM_read_bio_X509_AUX(input.get(), nullptr, nullptr, nullptr),
                   X509_free);
 
-    X509_NAME *subject = X509_get_subject_name(cert.get());
+    const X509_NAME *subject = X509_get_subject_name(cert.get());
     BIO_ptr output_bio(BIO_new(BIO_s_mem()), BIO_free);
     X509_NAME_print_ex(output_bio.get(), subject, 0, 0);
 

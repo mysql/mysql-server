@@ -283,7 +283,7 @@ class CertSubject {
   static size_t timestamp(time_t, char *m, size_t, const char *fmt = "%b %Y");
   size_t timestamp(char *, size_t) const;
   size_t print_name(char *, size_t) const;
-  bool parse_name(struct X509_name_st *);
+  bool parse_name(const struct X509_name_st *);
   bool parse_name(const struct asn1_string_st *);
 
   /* Member variables */

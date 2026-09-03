@@ -593,6 +593,19 @@ class Bulk_extent_allocator {
   @return innodb error code. */
   dberr_t allocate_page(bool is_leaf, Page_range_t &range);
 
+#ifdef UNIV_DEBUG
+  /** Synchronize a query interruption when a newly allocated range reuses a
+  freed page still present in the buffer pool.
+  @param[in] range newly allocated page range */
+  void debug_sync_reused_freed_page(const Page_range_t &range);
+#endif /* UNIV_DEBUG */
+
+  /** Evict any buffer-pool incarnation of a newly allocated page range.
+  MTIB pages bypass the buffer pool until they are flushed, so an older
+  incarnation must not remain visible while the range is privately owned.
+  @param[in] range newly allocated page range */
+  void evict_allocated_range(const Page_range_t &range);
+
   /** @return true if operation is interrupted. */
   bool is_interrupted();
 
@@ -977,6 +990,7 @@ class Btree_load : private ut::Non_copyable {
   void track_page_flush(page_no_t page_no) {
     m_bulk_flusher.m_flushed_page_nos.push_back(page_no);
   }
+
 #endif /* UNIV_DEBUG */
 
   /** Check if the index build operation has been interrupted.

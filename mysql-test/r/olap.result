@@ -833,6 +833,8 @@ EXPLAIN
                         -> Hash
                             -> Table scan on t2  (cost=0.35 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`,`test`.`t2`.`b` with rollup
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 a	b
 1	100
@@ -1590,6 +1592,8 @@ EXPLAIN
                                     -> Stream results  (cost=1.75 rows=15)
                                         -> Table scan on t1  (cost=1.75 rows=15)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j`,(rollup_group_item(`test`.`t1`.`i`,0) + rollup_group_item(`test`.`t1`.`j`,1)) AS `i+j`,avg(`j`) OVER ()  AS `AVG(j) over ()` from `test`.`t1` group by `test`.`t1`.`i`,`test`.`t1`.`j` with rollup having ((rollup_group_item(`test`.`t1`.`i`,0) + rollup_group_item(`test`.`t1`.`j`,1)) is null) order by `i`
 SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
 HAVING i+j is NULL ORDER BY i;
 i	j	i+j	AVG(j) over ()
@@ -2476,6 +2480,8 @@ EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
 EXPLAIN
 -> Zero input rows (no matching row in const table), aggregated into one output row  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(NULL,0) AS `f1` from `test`.`t1` where multiple equal(10, NULL) group by NULL with rollup
 SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
 f1
 NULL
@@ -2483,6 +2489,8 @@ EXPLAIN FORMAT=tree SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY
 EXPLAIN
 -> Zero input rows (no matching row in const table), aggregated into one output row  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(NULL,0) AS `f1`,rollup_sum_switcher(avg(NULL)) AS `AVG(f2)`,rollup_sum_switcher(count(NULL)) AS `COUNT(f2)` from `test`.`t1` where multiple equal(10, NULL) group by NULL with rollup
 SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
 f1	AVG(f2)	COUNT(f2)
 NULL	NULL	0
@@ -2490,6 +2498,8 @@ EXPLAIN FORMAT=tree SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY
 EXPLAIN
 -> Zero rows (Impossible HAVING)  (cost=0..0 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `f1`,rollup_sum_switcher(avg(`test`.`t1`.`f2`)) AS `AVG(f2)`,rollup_sum_switcher(count(`test`.`t1`.`f2`)) AS `COUNT(f2)` from `test`.`t1` where multiple equal(10, `test`.`t1`.`f1`) group by `test`.`t1`.`f1` with rollup having false
 SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1) HAVING FALSE;
 f1	AVG(f2)	COUNT(f2)
 SET @saved_sql_mode = @@sql_mode;
@@ -2503,6 +2513,8 @@ EXPLAIN
         -> Group (no aggregates)  (rows=2)
             -> Constant row from t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = 10) group by `test`.`t1`.`f2` with rollup order by cast(`test`.`t1`.`f1` as signed)
 SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2) ORDER BY CAST(f1 AS SIGNED);
 f1
 NULL
@@ -2512,6 +2524,8 @@ EXPLAIN
     -> Group (no aggregates)  (rows=2)
         -> Constant row from t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = 10) group by `test`.`t1`.`f2` with rollup having (`test`.`t1`.`f1` is not null)
 SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2) HAVING f1 IS NOT NULL;
 f1
 SELECT (SELECT 'a' FROM t1 AS t2 WHERE t2.f1 = CAST(t1.f1 AS SIGNED)) = 'aa' FROM t1 GROUP BY ROLLUP(f1);
@@ -2525,6 +2539,8 @@ EXPLAIN
         -> Filter: (t1.f1 = 10)  (rows=1)
             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = 10) group by `test`.`t1`.`f2` with rollup
 SELECT /*+NO_INDEX(t1) */ f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2);
 f1
 NULL
@@ -2536,6 +2552,8 @@ EXPLAIN
     -> Sort: f2  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` group by `test`.`t1`.`f2` with rollup
 SELECT f1 FROM t1 GROUP BY ROLLUP(f2);
 f1
 NULL
@@ -2545,6 +2563,8 @@ EXPLAIN
     -> Sort: f2  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select any_value(`test`.`t1`.`f1`) AS `ANY_VALUE(f1)` from `test`.`t1` group by `test`.`t1`.`f2` with rollup
 SELECT ANY_VALUE(f1) FROM t1 GROUP BY ROLLUP(f2);;
 ANY_VALUE(f1)
 NULL

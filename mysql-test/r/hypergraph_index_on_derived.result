@@ -40,6 +40,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
+Note	1003	with `cte1` as (/* select#3 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select 1 AS `1` from `test`.`t1` `y1` join `test`.`t1` `y2` where ((`y2`.`c` > (/* select#2 */ select avg(`cte1`.`v1`) from `cte1` where (`y2`.`d` = `cte1`.`v2`))) and (`y1`.`b` = `y2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -81,6 +82,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'd1.v3' of SELECT #4 was resolved in SELECT #2
+Note	1003	with `cte1` as (/* select#3 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2`,max((`x1`.`b` + `x2`.`b`)) AS `v3` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select 1 AS `1` from `test`.`t1` `y1` join `test`.`t1` `y2` where ((`y2`.`c` > (/* select#2 */ select avg(`d1`.`v1`) from `cte1` `d1` where ((`y2`.`d` = `d1`.`v2`) and (`d1`.`v1` > (/* select#4 */ select avg(`d2`.`v2`) from `cte1` `d2` where (`d1`.`v3` = `d2`.`v1`)))))) and (`y1`.`b` = `y2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -112,6 +114,8 @@ EXPLAIN
             -> Table scan on d2  (rows=17)
                 -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
 
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2`,max((`x1`.`b` + `x2`.`b`)) AS `v3` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select 1 AS `1` from `cte1` `d1` where (`d1`.`v1` = 2) union /* select#3 */ select 1 AS `1` from `cte1` `d2` where multiple equal(3, `d2`.`v2`)
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -151,6 +155,8 @@ EXPLAIN
                 -> Table scan on x3  (rows=1.73)
                     -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
 
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select max(`test`.`t1`.`a`) AS `m`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`b`) /* select#1 */ select `x1`.`m` AS `m`,`x1`.`b` AS `b` from `cte1` `x1` join `cte1` `x2` join `cte1` `x3` where (multiple equal(`x1`.`m`, `x3`.`m`, `x2`.`m`) and multiple equal(`x1`.`b`, `x3`.`b`, `x2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -182,6 +188,8 @@ EXPLAIN
                             -> Sort: t1.b  (rows=3)
                                 -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`x1`.`m` AS `m`,`test`.`x1`.`b` AS `b` from `test`.`v1` `x1` join `test`.`v1` `x2` join `test`.`v1` `x3` where (multiple equal(`test`.`x1`.`m`, `test`.`x3`.`m`, `test`.`x2`.`m`) and multiple equal(`test`.`x1`.`b`, `test`.`x3`.`b`, `test`.`x2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -207,6 +215,8 @@ EXPLAIN
         -> Table scan on u2  (rows=6)
             -> Materialize union CTE u if needed (query plan printed elsewhere)  (rows=6)
 
+Warnings:
+Note	1003	with `u` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union all /* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select `u1`.`a` AS `a`,`u1`.`b` AS `b` from `u` `u1` join `u` `u2` where ((`u1`.`a` = `u2`.`a`) and (`u1`.`b` = `u2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -231,6 +241,8 @@ EXPLAIN
                 -> Table scan on x2  (rows=1.73)
                     -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
 
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select max(`test`.`t1`.`a`) AS `m`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`b`) /* select#1 */ select `x1`.`m` AS `m`,`x1`.`b` AS `b`,`x2`.`m` AS `m`,`x2`.`b` AS `b`,`x3`.`m` AS `m`,`x3`.`b` AS `b` from `cte1` `x1` join `cte1` `x2` join `cte1` `x3` where ((`x1`.`m` = `x2`.`m`) and (`x2`.`b` = `x3`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,

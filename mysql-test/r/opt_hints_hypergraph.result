@@ -73,18 +73,24 @@ EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
 -> Covering index range scan on t3 using f2_idx over (30 < f1 < 33)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY key
 # Should use range access by f2_idx key
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
 -> Covering index range scan on t3 using f2_idx over (30 < f1 < 33)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY & f2_idx keys
 # Should use skip scan for f3_idx index
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t4 PRIMARY, f2_idx) */ f1 FROM t4 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
 -> Covering index skip scan on t4 using f3_idx over 30 < f1 < 33  (rows=11.1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t4`@`select#1` `PRIMARY`) NO_RANGE_OPTIMIZATION(`t4`@`select#1` `f2_idx`) */ `test`.`t4`.`f1` AS `f1` from `test`.`t4` where ((`test`.`t4`.`f1` > 30) and (`test`.`t4`.`f1` < 33))
 # Turn off range access for all keys
 # Should use index access
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
@@ -92,12 +98,16 @@ EXPLAIN
 -> Filter: ((t3.f1 > 30) and (t3.f1 < 33))  (rows=6.22)
     -> Covering index scan on t3 using f2_idx  (rows=56)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY & f2_idx keys
 # Should use index access
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t4 PRIMARY) NO_RANGE_OPTIMIZATION(t4 f2_idx) */ f1 FROM t4 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
 -> Covering index skip scan on t4 using f3_idx over 30 < f1 < 33  (rows=11.1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t4`@`select#1` `PRIMARY`) NO_RANGE_OPTIMIZATION(`t4`@`select#1` `f2_idx`) */ `test`.`t4`.`f1` AS `f1` from `test`.`t4` where ((`test`.`t4`.`f1` > 30) and (`test`.`t4`.`f1` < 33))
 # NO_ICP hint testing
 set optimizer_switch='index_condition_pushdown=on';
 EXPLAIN SELECT  f2 FROM
@@ -108,6 +118,8 @@ EXPLAIN
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
     -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27) and multiple equal('poiu', `test`.`t3`.`f3`))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
 (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
@@ -116,6 +128,8 @@ EXPLAIN
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
     -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1` `f3_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27) and multiple equal('poiu', `test`.`t3`.`f3`))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
@@ -124,6 +138,8 @@ EXPLAIN
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
     -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27) and multiple equal('poiu', `test`.`t3`.`f3`))
 # Expected warning for f1_idx key, unresolved name.
 EXPLAIN SELECT f2 FROM
 (SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
@@ -135,6 +151,7 @@ EXPLAIN
 
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f3_idx`) NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27) and multiple equal('poiu', `test`.`t3`.`f3`))
 # ICP should still be used.
 EXPLAIN SELECT f2 FROM
 (SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
@@ -146,6 +163,7 @@ EXPLAIN
 
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27) and multiple equal('poiu', `test`.`t3`.`f3`))
 # BKA & NO_BKA hint testing
 set optimizer_switch=default;
 set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
@@ -193,6 +211,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -201,6 +221,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -209,6 +231,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -217,6 +241,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -225,6 +251,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -233,6 +261,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`QB1`) BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 set optimizer_switch='batched_key_access=off,mrr_cost_based=on';
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -242,6 +272,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -250,6 +282,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -258,6 +292,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -266,6 +302,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -274,6 +312,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`QB1`) BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -283,6 +323,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 set optimizer_switch='mrr=off';
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -292,6 +334,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # MRR switch should not affect BKA.
 # BKA should be used for table t2.
 EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -302,6 +346,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 set optimizer_switch='mrr=on';
 EXPLAIN SELECT /*+ NO_BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -311,6 +357,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ NO_BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -319,6 +367,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ NO_BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -327,6 +377,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t1`@`select#1`) NO_BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN SELECT /*+ QB_NAME(QB1) NO_BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
@@ -335,6 +387,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`QB1`) NO_BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # UPDATE|DELETE|INSERT|REPLACE hint testing
 set optimizer_switch='batched_key_access=off,mrr_cost_based=off,semijoin=off,materialization=off';
 EXPLAIN UPDATE t3
@@ -352,6 +406,8 @@ EXPLAIN
                     -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
                         -> Table scan on t2  (rows=28)
 
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`f3` = 'mnbv' where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select `test`.`t2`.`f1`,`test`.`t2`.`f2`,`test`.`t2`.`f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`)))))
 # Turn off range access for PRIMARY key.
 # Range access should be used for f2_idx key.
 EXPLAIN UPDATE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ t3
@@ -369,6 +425,8 @@ EXPLAIN
                     -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
                         -> Table scan on t2  (rows=28)
 
+Warnings:
+Note	1003	update /*+ BKA(`t2`@`select#2`) NO_BNL(`t1`@`select#2`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) */ `test`.`t3` set `test`.`t3`.`f3` = 'mnbv' where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select `test`.`t2`.`f1`,`test`.`t2`.`f2`,`test`.`t2`.`f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`)))))
 EXPLAIN DELETE FROM t3
 WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -384,6 +442,8 @@ EXPLAIN
                     -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
                         -> Table scan on t2  (rows=28)
 
+Warnings:
+Note	1003	delete from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1`,`test`.`t2`.`f2`,`test`.`t2`.`f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`)))))
 # Turn off range access. Range access should not be used.
 # Turn off BNL. BNL should not be used.
 EXPLAIN DELETE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) NO_BNL(t1@QB1) */ FROM t3
@@ -401,6 +461,8 @@ EXPLAIN
                     -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
                         -> Table scan on t2  (rows=28)
 
+Warnings:
+Note	1003	delete /*+ NO_BNL(`t1`@`qb1`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `f2_idx`) */ from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33) and <in_optimizer>((`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`),<exists>(/* select#2 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1`,`test`.`t2`.`f2`,`test`.`t2`.`f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`)))))
 EXPLAIN INSERT INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
@@ -411,6 +473,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	insert into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Turn off ICP. ICP should not be used.
 EXPLAIN INSERT INTO t3(f1, f2, f3)
 (SELECT /*+ NO_ICP(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -422,6 +486,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	insert /*+ NO_ICP(`t2`@`select#1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Turn off ICP. ICP should not be used.
 EXPLAIN INSERT /*+ NO_ICP(t2@QB1 f1) */ INTO t3(f1, f2, f3)
 (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -433,6 +499,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	insert /*+ NO_ICP(`t2`@`qb1` `f1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 EXPLAIN REPLACE INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
@@ -443,6 +511,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	replace into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Turn off ICP. ICP should not be used.
 EXPLAIN REPLACE INTO t3(f1, f2, f3)
 (SELECT /*+ NO_ICP(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -454,6 +524,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	replace /*+ NO_ICP(`t2`@`select#1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Turn off ICP for nonexistent table. ICP should be used.
 EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
 SELECT /*+ QB_NAME(qb2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -467,6 +539,7 @@ EXPLAIN
 
 Warnings:
 Warning	3127	Query block name `qb1` is not found for NO_ICP hint
+Note	1003	replace into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select /*+ QB_NAME(`qb2`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Turn off ICP. ICP should not be used.
 EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
 SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -478,6 +551,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	replace /*+ NO_ICP(`t2`@`qb1`) */ into `test`.`t3` (`test`.`t3`.`f1`,`test`.`t3`.`f2`,`test`.`t3`.`f3`) /* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Misc tests
 # Should issue warning
 EXPLAIN SELECT /*+ QB_NAME(qb1) QB_NAME(qb1 ) */ * FROM t2;
@@ -486,6 +561,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint QB_NAME(`qb1`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t2`
 # Should issue warning
 EXPLAIN SELECT /*+ BKA(@qb1) QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -497,6 +573,7 @@ EXPLAIN
 
 Warnings:
 Warning	3127	Query block name `qb1` is not found for BKA hint
+Note	1003	/* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Should not crash
 PREPARE stmt1 FROM "SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1";
@@ -522,6 +599,8 @@ EXPLAIN
     -> Hash
         -> Table scan on tbl1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `tbl2`.`f1` AS `f1`,`tbl2`.`f2` AS `f2`,`tbl2`.`f3` AS `f3` from `test`.`t1` `tbl1` join `test`.`t2` `tbl2` where ((`tbl2`.`f2` between `tbl1`.`f1` and `tbl1`.`f2`) and ((`tbl2`.`f2` + 1) >= (`tbl1`.`f1` + 1)) and (`tbl1`.`f1` = `tbl2`.`f1`))
 # Turn on BKA for multiple tables. BKA should be used for tbl2.
 EXPLAIN SELECT /*+ BKA(tbl1, tbl2) */ tbl2.f1, tbl2.f2, tbl2.f3 FROM t1 tbl1,t2 tbl2
 WHERE tbl1.f1=tbl2.f1 AND tbl2.f2 BETWEEN tbl1.f1 and tbl1.f2 and tbl2.f2 + 1 >= tbl1.f1 + 1;
@@ -531,6 +610,8 @@ EXPLAIN
     -> Hash
         -> Table scan on tbl1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`tbl1`@`select#1`) BKA(`tbl2`@`select#1`) */ `tbl2`.`f1` AS `f1`,`tbl2`.`f2` AS `f2`,`tbl2`.`f3` AS `f3` from `test`.`t1` `tbl1` join `test`.`t2` `tbl2` where ((`tbl2`.`f2` between `tbl1`.`f1` and `tbl1`.`f2`) and ((`tbl2`.`f2` + 1) >= (`tbl1`.`f1` + 1)) and (`tbl1`.`f1` = `tbl2`.`f1`))
 # Print warnings for nonexistent names
 EXPLAIN
 SELECT /*+ BKA(t2) NO_BNL(t1) BKA(t3) NO_RANGE_OPTIMIZATION(t3 idx1) NO_RANGE_OPTIMIZATION(t3) */
@@ -546,6 +627,7 @@ Warnings:
 Warning	3128	Unresolved name `t3`@`select#1` for BKA hint
 Warning	3128	Unresolved name `t3`@`select#1` for NO_RANGE_OPTIMIZATION hint
 Warning	3128	Unresolved name `t3`@`select#1` `idx1` for NO_RANGE_OPTIMIZATION hint
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) NO_BNL(`t1`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Check illegal syntax
 EXPLAIN SELECT /*+ BKA(qb1 t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
@@ -558,6 +640,7 @@ EXPLAIN
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 A' at line 1
+Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2) and multiple equal('poiu', `test`.`t3`.`f3`))
 # Bug#37053765 Uniform syntax of join order and table hints
 EXPLAIN SELECT * FROM
 (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
@@ -570,6 +653,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t3 using f2_idx  (rows=56)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`qb1`) BKA(`t2`@`qb1`) BKA(`t3`@`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT * FROM
 (SELECT /*+ QB_NAME(qb1) NO_BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
 EXPLAIN
@@ -581,6 +666,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t3 using f2_idx  (rows=56)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t1`@`qb1`) NO_BKA(`t2`@`qb1`) NO_BKA(`t3`@`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 # Check '@qb_name table_name' syntax. BKA should be used for t2.
 EXPLAIN SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;
@@ -590,6 +677,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
 # Check that original table name is not recognized if alias is used.
 EXPLAIN SELECT * FROM (SELECT /*+ BKA(t2) */ tb2.f1, tb2.f2, tb2.f3 FROM t1 tb1,t2 tb2
 WHERE tb1.f1=tb2.f1 AND tb2.f2 BETWEEN tb1.f1 and tb1.f2 and tb2.f2 + 1 >= tb1.f1 + 1) AS s1;
@@ -601,6 +690,7 @@ EXPLAIN
 
 Warnings:
 Warning	3128	Unresolved name `t2`@`select#2` for BKA hint
+Note	1003	/* select#1 */ select `tb2`.`f1` AS `f1`,`tb2`.`f2` AS `f2`,`tb2`.`f3` AS `f3` from `test`.`t1` `tb1` join `test`.`t2` `tb2` where ((`tb2`.`f2` between `tb1`.`f1` and `tb1`.`f2`) and ((`tb2`.`f2` + 1) >= (`tb1`.`f1` + 1)) and (`tb1`.`f1` = `tb2`.`f1`))
 # Table t2 should use BKA.
 EXPLAIN SELECT * FROM (SELECT /*+ BKA(tb2) */ tb2.f1, tb2.f2, tb2.f3 FROM t1 tb1,t2 tb2
 WHERE tb1.f1=tb2.f1 AND tb2.f2 BETWEEN tb1.f1 and tb1.f2 and tb2.f2 + 1 >= tb1.f1 + 1) AS s1;
@@ -610,6 +700,8 @@ EXPLAIN
     -> Hash
         -> Table scan on tb1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`tb2`@`select#2`) */ `tb2`.`f1` AS `f1`,`tb2`.`f2` AS `f2`,`tb2`.`f3` AS `f3` from `test`.`t1` `tb1` join `test`.`t2` `tb2` where ((`tb2`.`f2` between `tb1`.`f1` and `tb1`.`f2`) and ((`tb2`.`f2` + 1) >= (`tb1`.`f1` + 1)) and (`tb1`.`f1` = `tb2`.`f1`))
 # Check that PS and conventional statements give the same result.
 FLUSH STATUS;
 SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -725,6 +817,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -735,6 +829,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ NO_BNL(t2, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -745,6 +841,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t2`@`select#1`) NO_BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ NO_BNL(t1, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -755,6 +853,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t1`@`select#1`) NO_BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 set optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 EXPLAIN
@@ -766,6 +866,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ BNL() */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -776,6 +878,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ BNL(t2, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -786,6 +890,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ BNL(t1, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -796,6 +902,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t1`@`select#1`) BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 EXPLAIN SELECT /*+ BNL(t2) BNL(t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
@@ -806,6 +914,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 DROP TABLE t1, t2, t3;
 # BNL in subquery
 set optimizer_switch = DEFAULT;
@@ -834,6 +944,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL() */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -847,6 +959,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(@`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t1, t2) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -860,6 +974,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t1`@`q`) NO_BNL(`t2`@`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -873,6 +989,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -886,6 +1004,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t3@subq1,t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -899,6 +1019,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1 t3, t4) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -912,6 +1034,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
@@ -925,6 +1049,8 @@ EXPLAIN
                     -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where multiple equal(`test`.`t2`.`a`, `test`.`t3`.`b`, `t4`.`b`, `test`.`t1`.`b`)
 SET optimizer_prune_level = DEFAULT;
 DROP TABLE t1, t2, t3;
 # MRR & NO_MRR hint testing
@@ -978,72 +1104,96 @@ EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn off MRR. MRR should not be used.
 EXPLAIN SELECT /*+ NO_MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MRR(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn off MRR. MRR should not be used.
 EXPLAIN SELECT /*+ NO_MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MRR(`t1`@`select#1` `idx2`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn off MRR for unused key. MRR should be used.
 EXPLAIN SELECT /*+ NO_MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MRR(`t1`@`select#1` `idx1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 set optimizer_switch='mrr=off,mrr_cost_based=off';
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 IDX2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `IDX2`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `idx1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 set optimizer_switch='mrr=off,mrr_cost_based=on';
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `idx2`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
     -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `IDX1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 DROP TABLE t1;
 #
 # Bug#21205282 CRASH/ASSERTION IN JOIN_CACHE::SET_MATCH_FLAG_IF_NONE WITH NO_BNL HINT
@@ -1064,6 +1214,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(true)) on(true)
 EXPLAIN SELECT /*+ NO_BNL(t1) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1077,6 +1229,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t1`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(true)) on(true)
 EXPLAIN SELECT /*+ NO_BNL(t2) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1090,6 +1244,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t2`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(true)) on(true)
 EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1103,6 +1259,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(true)) on(true)
 EXPLAIN SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1116,6 +1274,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(true) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(true)) on(true)
 EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1129,6 +1289,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) left join `test`.`t` `t4` on(true)) on(true)
 SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 1
 1
@@ -1149,6 +1311,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1162,6 +1326,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t1`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1175,6 +1341,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1188,6 +1356,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1201,6 +1371,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1214,6 +1386,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1227,6 +1401,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: true  (rows=1)
@@ -1240,6 +1416,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(true) join `test`.`t` `t4`) on(true)
 DROP TABLE t;
 CREATE TABLE t(a INT, b INT, KEY k(a));
 INSERT INTO t VALUES (1,1);
@@ -1256,6 +1434,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1269,6 +1449,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1282,6 +1464,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1295,6 +1479,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1308,6 +1494,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1321,6 +1509,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) BKA(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t2, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1334,6 +1524,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 EXPLAIN SELECT /*+ BKA(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
 -> Left hash join (t1.a = t2.a)  (rows=1)
@@ -1347,6 +1539,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) BKA(`t3`@`select#1`) BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`b` AS `b`,`t3`.`b` AS `b`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`a` = `t3`.`a`)) left join `test`.`t` `t4` on((`t2`.`a` = `t4`.`a`))) on((`t1`.`a` = `t2`.`a`))
 SET optimizer_switch='block_nested_loop=on,batched_key_access=on,mrr_cost_based=off';
 EXPLAIN SELECT * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
@@ -1361,6 +1555,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BKA(t1) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1374,6 +1570,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t1`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BKA(t2) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1387,6 +1585,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1400,6 +1600,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BNL(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1413,6 +1615,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1426,6 +1630,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) NO_BNL(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1439,6 +1645,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) NO_BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
 -> Inner hash join (t1.a = t2.a)  (rows=1)
@@ -1452,6 +1660,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) NO_BNL(`t3`@`select#1`) NO_BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t2`.`b` = `t3`.`b`)) left join `test`.`t` `t4` on((`t3`.`b` = `t4`.`b`)) where multiple equal(`t1`.`a`, `t2`.`a`)
 SET optimizer_switch='batched_key_access=off';
 EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1466,6 +1676,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1479,6 +1691,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ NO_BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1492,6 +1706,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t2`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1505,6 +1721,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1518,6 +1736,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1531,6 +1751,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1544,6 +1766,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t3`@`select#1`) BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 SET optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1558,6 +1782,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1571,6 +1797,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1584,6 +1812,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1597,6 +1827,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1610,6 +1842,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1623,6 +1857,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1636,6 +1872,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t3`@`select#1`) BKA(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
 -> Left hash join (t1.b = t3.b)  (rows=1)
@@ -1649,6 +1887,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) BNL(`t4`@`select#1`) */ `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on((multiple equal(`t1`.`b`, `t2`.`b`, `t3`.`b`) and (`t3`.`a` = `t4`.`a`)))
 DROP TABLE t;
 set optimizer_switch=default;
 #
@@ -1804,6 +2044,8 @@ EXPLAIN
         -> Rows fetched before execution  (rows=1)
         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`qb1`) */ 1 AS `1` union /* select#2 */ select /*+ QB_NAME(`qb2`) */ 1 AS `1`
 EXPLAIN (SELECT /*+ QB_NAME(qb1) */ 1) UNION (SELECT /*+ QB_NAME(qb2) */ 1);
 EXPLAIN
 -> Table scan on <union temporary>  (rows=2)
@@ -1811,6 +2053,8 @@ EXPLAIN
         -> Rows fetched before execution  (rows=1)
         -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`qb1`) */ 1 AS `1` union /* select#2 */ select /*+ QB_NAME(`qb2`) */ 1 AS `1`
 UPDATE  /*+ NO_ICP() */ t1 SET i = 10;
 Warnings:
 Warning	1064	Optimizer hint syntax error near ') */ t1 SET i = 10' at line 1
@@ -1851,6 +2095,7 @@ EXPLAIN
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ 1' at line 1
+Note	1003	/* select#1 */ select 1 AS `1`
 EXPLAIN INSERT /*+ test */ INTO t1 VALUES (10, 10);
 EXPLAIN
 -> Insert into t1
@@ -1858,6 +2103,7 @@ EXPLAIN
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ INTO t1 VALUES (10, 10)' at line 1
+Note	1003	insert into `test`.`t1` values (10,10)
 EXPLAIN REPLACE /*+ test */ INTO t1 VALUES (10, 10);
 EXPLAIN
 -> Replace into t1
@@ -1865,6 +2111,7 @@ EXPLAIN
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ INTO t1 VALUES (10, 10)' at line 1
+Note	1003	replace into `test`.`t1` values (10,10)
 EXPLAIN UPDATE /*+ test */ t1 SET i = 10 WHERE j = 10;
 EXPLAIN
 -> Update t1 (immediate)  (rows=1)
@@ -1873,6 +2120,7 @@ EXPLAIN
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ t1 SET i = 10 WHERE j = 10' at line 1
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = 10 where multiple equal(10, `test`.`t1`.`j`)
 EXPLAIN DELETE /*+ test */ FROM t1 WHERE i = 10;
 EXPLAIN
 -> Delete from t1 (immediate)  (rows=1)
@@ -1881,6 +2129,7 @@ EXPLAIN
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 'test */ FROM t1 WHERE i = 10' at line 1
+Note	1003	delete from `test`.`t1` where multiple equal(10, `test`.`t1`.`i`)
 
 # non-alphabetic and non-ASCII identifiers:
 
@@ -1937,19 +2186,28 @@ EXPLAIN SELECT /*+ QB_NAME(`*`) */ 1;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`*`) */ 1 AS `1`
 EXPLAIN SELECT /*+ QB_NAME(`a*`) */ 1;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`a*`) */ 1 AS `1`
 EXPLAIN SELECT /*+ QB_NAME(`*b`) */ 1;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`*b`) */ 1 AS `1`
 EXPLAIN SELECT /*+ QB_NAME(`a
 b`) */ 1;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`a
+b`) */ 1 AS `1`
 # hint syntax error: empty quoted identifier
 EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
 EXPLAIN
@@ -1957,6 +2215,7 @@ EXPLAIN
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near '``) */ 1' at line 1
+Note	1003	/* select#1 */ select 1 AS `1`
 SET NAMES utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1964,6 +2223,8 @@ EXPLAIN SELECT /*+ QB_NAME(`¿``¿`) */ 1;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`¿``¿`) */ 1 AS `1`
 CREATE TABLE tableÐ¢ (i INT);
 SELECT /*+ BKA(tableÐ¢) */ 1 FROM t1;
 1
@@ -2113,6 +2374,8 @@ EXPLAIN SELECT /*+ QB_NAME(1a) BKA(t1@1a) */ 1 FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`1a`) BKA(`t1`@`1a`) */ 1 AS `1` from `test`.`t1`
 DROP TABLE t1;
 #
 # Bug #21148405: OPTIMIZER HINTS: READ OF FREE MEMORY FOR INVALID HINTS
@@ -2135,16 +2398,22 @@ explain select * from (select * from t1) as dt;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
 -> Table scan on dt  (rows=1)
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
 # Also testing that case of letters is irrelevant.
 explain select /*+ no_mERge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
@@ -2152,21 +2421,29 @@ EXPLAIN
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
 create view v1 as (select * from t1);
 explain select * from v1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on v1  (rows=1)
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 # hint is OVERRIDDEN by algorithm=
 create algorithm=merge view v1 as (select * from t1);
@@ -2174,14 +2451,20 @@ explain select * from v1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 drop view v1;
 create algorithm=temptable view v1 as (select * from t1);
 explain select * from v1;
@@ -2190,18 +2473,24 @@ EXPLAIN
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on v1  (rows=1)
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on v1  (rows=1)
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 # hint OVERRIDES optimizer_switch
 set optimizer_switch="derived_merge=off";
@@ -2211,16 +2500,22 @@ EXPLAIN
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
 explain select /*+ merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
 -> Table scan on dt  (rows=1)
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
 create view v1 as (select * from t1);
 explain select * from v1;
 EXPLAIN
@@ -2228,16 +2523,22 @@ EXPLAIN
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
 -> Table scan on v1  (rows=1)
     -> Materialize  (rows=1)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 set optimizer_switch=default;
 # Can apply to certain derived tables
@@ -2253,6 +2554,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) MERGE(`dt2`@`select#1`) */ `dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`
 # Or to all:
 explain select /*+ no_merge() */ *
 from (select * from t1) as dt, (select * from t2) as dt2;
@@ -2266,6 +2569,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#1`) */ `dt`.`a` AS `a`,`dt2`.`a` AS `a`,`dt2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `dt2`
 # And be specified in outer blocks, with naming:
 explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
 (select /*+ qb_name(qb1) */ 3
@@ -2281,6 +2586,8 @@ EXPLAIN
                     -> Materialize  (rows=1)
                         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`qb1`) MERGE(`dt2`@`qb1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select /*+ QB_NAME(`qb1`) */ 3 from (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`))
 # with another syntax:
 explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
 (select /*+ qb_name(qb1) */ 3
@@ -2296,6 +2603,8 @@ EXPLAIN
                     -> Materialize  (rows=1)
                         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`qb1`) MERGE(`dt2`@`qb1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select /*+ QB_NAME(`qb1`) */ 3 from (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`))
 # A hint can list more than one table
 explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
 from (select * from t1) as dt, (select * from t2) as dt2,
@@ -2313,6 +2622,8 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) NO_MERGE(`dt`@`select#1`) NO_MERGE(`dt3`@`select#1`) */ `dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2` join (/* select#4 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `dt3`
 # Merge hint OVERRIDES heuristics, for example the one which
 # materializes when user variables are set.
 explain select * from
@@ -2343,6 +2654,7 @@ EXPLAIN
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Note	1003	/* select#1 */ select `dt2`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from (/* select#4 */ select (@n:=1) AS `@n:=1`) `dt` join `test`.`t2` group by `test`.`t2`.`a`))) `dt2`
 explain select /*+ merge(dt2) */ * from
 (
 select * from t1
@@ -2369,6 +2681,7 @@ EXPLAIN
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from (/* select#4 */ select (@n:=1) AS `@n:=1`) `dt` join `test`.`t2` group by `test`.`t2`.`a`))
 # ALGORITHM clause overrides heuristics too
 create view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
 explain select * from v1;
@@ -2382,6 +2695,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `test`.`v1`.`(select t1.a from t1 where t1.a=t2.a)` AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`v1`
 drop view v1;
 create algorithm=merge view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
 explain select * from v1;
@@ -2393,6 +2707,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`t2`
 drop view v1;
 # Hint for index is useless and should be ignored
 select /*+ no_mrr(dt idx1) */ * from (select 1 from t1 limit 1) dt;
@@ -2418,6 +2733,8 @@ EXPLAIN
             -> Filter: (t1.a <> 0)  (rows=1.8)
                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	update `test`.`t3` join `test`.`t1` set `test`.`t3`.`a` = (`test`.`t1`.`a` + 10) where (((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0) and (`test`.`t1`.`a` <> 0))
 update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2436,6 +2753,8 @@ EXPLAIN
                     -> Filter: (t1.a <> 0)  (rows=1.8)
                         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	update /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` join `test`.`v1` set `test`.`t3`.`a` = (`test`.`v1`.`a` + 10) where ((`test`.`t3`.`a` - `test`.`v1`.`a`) = 0)
 update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2455,6 +2774,8 @@ EXPLAIN
             -> Filter: (t1.a <> 0)  (rows=1.8)
                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	update `test`.`t3` join `test`.`t1` set `test`.`t1`.`a` = (`test`.`t3`.`a` + 10) where (((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0) and (`test`.`t1`.`a` <> 0))
 update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 select * from t1;
 a
@@ -2481,6 +2802,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	update `test`.`t3` join `test`.`t1` set `test`.`t3`.`a` = (`test`.`t1`.`a` + 10) where ((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0)
 update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
 a	b
@@ -2498,6 +2821,8 @@ EXPLAIN
                 -> Materialize  (rows=2)
                     -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	update /*+ NO_MERGE(`dt`@`select#1`) */ `test`.`t3` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` set `test`.`t3`.`a` = (`dt`.`a` + 10) where ((`test`.`t3`.`a` - `dt`.`a`) = 0)
 update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
 a	b
@@ -2524,6 +2849,8 @@ EXPLAIN
                     -> Filter: (t1.a > 1)  (rows=0.667)
                         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`b` = NULL where multiple equal(`test`.`t3`.`a`, `dt`.`a`)
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
@@ -2544,6 +2871,8 @@ EXPLAIN
             -> Filter: (t1.a > 1)  (rows=0.667)
                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	update /*+ MERGE(`dt`@`sub`) */ `test`.`t3` set `test`.`t3`.`b` = NULL where ((`test`.`t1`.`a` > 1) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 update /*+ merge(dt@sub) */ t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
@@ -2568,6 +2897,8 @@ EXPLAIN
                     -> Filter: (t3.b > 1)  (rows=0.667)
                         -> Table scan on t3  (rows=2)
 
+Warnings:
+Note	1003	update `test`.`t3` set `test`.`t3`.`b` = NULL where multiple equal(`test`.`t3`.`a`, `dt`.`a`)
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
@@ -2599,6 +2930,8 @@ EXPLAIN
             -> Filter: (t1.a <> 0)  (rows=1.8)
                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	delete `test`.`t3` from `test`.`t3` join `test`.`t1` where (((`test`.`t3`.`a` - `test`.`t1`.`a`) = 0) and (`test`.`t1`.`a` <> 0))
 delete t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2615,6 +2948,8 @@ EXPLAIN
                     -> Filter: (t1.a <> 0)  (rows=1.8)
                         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	delete /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t3` from `test`.`t3` join `test`.`v1` where ((`test`.`t3`.`a` - `test`.`v1`.`a`) = 0)
 delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
 a	b
@@ -2644,6 +2979,8 @@ EXPLAIN
 -> Limit: 3 row(s)  (rows=3)
     -> Covering index range scan on t using key1 over (10 <= price)  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`price` AS `price`,`test`.`t`.`cid` AS `cid` from `test`.`t` where (`test`.`t`.`price` >= 10) order by `test`.`t`.`price`,`test`.`t`.`cid` limit 3
 SELECT price, cid FROM t WHERE (price >= 10) ORDER BY price, cid LIMIT 3;
 price	cid
 10	1
@@ -2661,6 +2998,8 @@ EXPLAIN
 -> Limit: 3 row(s)  (rows=3)
     -> Covering index range scan on t using key1 over (10 <= price)  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`price` AS `price`,`test`.`t`.`cid` AS `cid` from `test`.`t` FORCE INDEX (`key1`) where (`test`.`t`.`price` >= 10) order by `test`.`t`.`price`,`test`.`t`.`cid` limit 3
 SELECT price, cid FROM t FORCE INDEX (key1) WHERE (price >= 10)
 ORDER BY price, cid LIMIT 3;
 price	cid
@@ -2679,6 +3018,8 @@ EXPLAIN
 -> Limit: 3 row(s)  (rows=3)
     -> Covering index range scan on t using key1 over (10 <= price) (reverse)  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`price` AS `price`,`test`.`t`.`cid` AS `cid` from `test`.`t` FORCE INDEX (`key1`) where (`test`.`t`.`price` >= 10) order by `test`.`t`.`price` desc,`test`.`t`.`cid` desc limit 3
 SELECT price, cid FROM t FORCE INDEX (key1) WHERE (price >= 200)
 ORDER BY price DESC, cid DESC LIMIT 3;
 price	cid
@@ -2734,6 +3075,8 @@ EXPLAIN
             -> Hash
                 -> Covering index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select avg(`test`.`t2`.`f1`) AS `avg(t2.f1)` from `test`.`t1` join `test`.`t2` where multiple equal('SIR', `test`.`t2`.`f2`) group by `test`.`t1`.`f1`
 # SELECT SQL_BUFFER_RESULT should use temporary table
 EXPLAIN FORMAT=TREE SELECT SQL_BUFFER_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
 EXPLAIN
@@ -2747,6 +3090,8 @@ EXPLAIN
                     -> Hash
                         -> Covering index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_buffer_result avg(`test`.`t2`.`f1`) AS `avg(t2.f1)` from `test`.`t1` join `test`.`t2` where multiple equal('SIR', `test`.`t2`.`f2`) group by `test`.`t1`.`f1`
 # SELECT SQL_BIG_RESULT should not use temporary table
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
 EXPLAIN
@@ -2758,6 +3103,8 @@ EXPLAIN
             -> Hash
                 -> Covering index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result avg(`test`.`t2`.`f1`) AS `avg(t2.f1)` from `test`.`t1` join `test`.`t2` where multiple equal('SIR', `test`.`t2`.`f2`) group by `test`.`t1`.`f1`
 DROP TABLE t1, t2;
 #
 # Bug#36536936 Optimizer hint is unresolved when using VIEW
@@ -2803,6 +3150,8 @@ EXPLAIN
         -> Filter: (t3.c1 = 1)  (rows=1)
             -> Index lookup on t3 using c2 (c2 = 9)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t3`@`qb2` `c2`) */ `test`.`t1`.`id` AS `id`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` union all /* select#2 */ select /*+ QB_NAME(`qb2`) */ `test`.`t3`.`id` AS `id`,`test`.`t3`.`c1` AS `c1` from `test`.`t3` where (multiple equal(1, `test`.`t3`.`c1`) and multiple equal(9, `test`.`t3`.`c2`))
 EXPLAIN
 SELECT /*+ INDEX(t3@qb2 c2) QB_NAME(qb1) */ id,c1
 FROM t1
@@ -2820,6 +3169,7 @@ EXPLAIN
 
 Warnings:
 Warning	3127	Query block name `qb2` is not found for INDEX hint
+Note	1003	/* select#1 */ select /*+ QB_NAME(`qb1`) INDEX(`t1`@`qb1` `c1`) */ `test`.`t1`.`id` AS `id`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` union all /* select#2 */ select `test`.`t3`.`id` AS `id`,`test`.`t3`.`c1` AS `c1` from `test`.`t3` where (multiple equal(1, `test`.`t3`.`c1`) and multiple equal(9, `test`.`t3`.`c2`))
 DROP view v1;
 DROP TABLE t1,t3,t4;
 #

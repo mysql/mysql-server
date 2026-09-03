@@ -55,14 +55,6 @@
 #include "mysql/psi/psi_socket.h"
 #include "vio/vio_priv.h"
 
-/*
-  BIO_set_callback_ex was added in openSSL 1.1.1
-  For older openSSL, use the deprecated BIO_set_callback.
-*/
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
-#define HAVE_BIO_SET_CALLBACK_EX
-#endif
-
 /* clang-format off */
 /**
   @page page_protocol_basic_tls TLS
@@ -410,10 +402,6 @@ void vio_ssl_delete(Vio *vio) {
     vio->ssl_arg = nullptr;
   }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
   vio_delete(vio);
 }
 
@@ -570,30 +558,6 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-#ifndef HAVE_BIO_SET_CALLBACK_EX
-/**
-  Forward openSSL old style callback to openSSL 1.1.1 style callback.
-*/
-long pfs_ssl_bio_callback(BIO *b, int oper, const char *argp, int argi,
-                          long argl, long ret) {
-  size_t len = argi;
-  /*
-    For pre events:
-    - irrelevant (not used in pfs_ssl_bio_callback_ex)
-    For post (BIO_CB_RETURN) events,
-    the number of bytes:
-    - actually read, per the return value of recv()
-    - actually written, per the return value of send()
-  */
-  size_t processed = (ret >= 0) ? ret : 0;
-
-  return pfs_ssl_bio_callback_ex(b, oper, argp, len, argi, argl, ret,
-                                 &processed);
-}
-#endif /* HAVE_BIO_SET_CALLBACK_EX */
-#endif /* HAVE_PSI_SOCKET_INTERFACE */
-
-#ifdef HAVE_PSI_SOCKET_INTERFACE
 static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
   BIO *rbio = SSL_get_rbio(ssl);
   assert(rbio != nullptr);
@@ -607,21 +571,11 @@ static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
   assert(cb_arg != nullptr);
 
   BIO_set_callback_arg(rbio, cb_arg);
-
-#ifdef HAVE_BIO_SET_CALLBACK_EX
   BIO_set_callback_ex(rbio, pfs_ssl_bio_callback_ex);
-#else
-  BIO_set_callback(rbio, pfs_ssl_bio_callback);
-#endif
 
   if (rbio != wbio) {
     BIO_set_callback_arg(wbio, cb_arg);
-
-#ifdef HAVE_BIO_SET_CALLBACK_EX
     BIO_set_callback_ex(wbio, pfs_ssl_bio_callback_ex);
-#else
-    BIO_set_callback(wbio, pfs_ssl_bio_callback);
-#endif
   }
 }
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
@@ -730,8 +684,6 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     SSL_set_fd(ssl, sd);
 #if defined(SSL_OP_NO_COMPRESSION)
     SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
-#elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
-    sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
 #if !defined(NDEBUG)
@@ -745,12 +697,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
       else
         for (j = 0; j < n; j++) {
           SSL_COMP *c = sk_SSL_COMP_value(ssl_comp_methods, j);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-          DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
           DBUG_PRINT("info",
                      ("  %d: %s\n", SSL_COMP_get_id(c), SSL_COMP_get0_name(c)));
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
         }
     }
 #endif
@@ -821,9 +769,11 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 
     if ((cert = SSL_get_peer_certificate(ssl))) {
       DBUG_PRINT("info", ("Peer certificate:"));
-      X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
+      X509_NAME_oneline(const_cast<X509_NAME *>(X509_get_subject_name(cert)),
+                        buf, sizeof(buf));
       DBUG_PRINT("info", ("\t subject: '%s'", buf));
-      X509_NAME_oneline(X509_get_issuer_name(cert), buf, sizeof(buf));
+      X509_NAME_oneline(const_cast<X509_NAME *>(X509_get_issuer_name(cert)),
+                        buf, sizeof(buf));
       DBUG_PRINT("info", ("\t issuer: '%s'", buf));
       X509_free(cert);
     } else

@@ -1,0 +1,12 @@
+{
+    "default": true,
+    "MD013":
+    {
+        "code_blocks": false,
+        "tables": false
+    },
+    "MD059":
+    {
+        "prohibited_texts": []
+    }
+}

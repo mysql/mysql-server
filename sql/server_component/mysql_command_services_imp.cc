@@ -90,12 +90,14 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::init, (MYSQL_H * mysql_h)) {
         key_memory_query_service, sizeof(Mysql_handle),
         MYF(MY_WME | MY_ZEROFILL));
     if (mysql_handle == nullptr) return true;
+    mysql_handle->connection_mode = mysql_command_connection_mode::kEmbedded;
     auto mysql = &mysql_handle->mysql;
     *mysql = (mysql_init(nullptr));
     if (*mysql == nullptr) {
       my_free(mysql_handle);
       return true;
     }
+    mysql_handle->client_methods = (*mysql)->methods;
     *mysql_h = reinterpret_cast<MYSQL_H>(mysql_handle);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -125,6 +127,17 @@ DEFINE_METHOD(void, mysql_command_services_imp::end, ()) {
   Srv_session::deinit_thread();
 }
 
+bool mysql_command_services_imp::bind_address_accepts_loopback(
+    const char *bind_address, bool use_ipv4) {
+  if (bind_address == nullptr) return false;
+
+  const char *loopback_address = use_ipv4 ? "127.0.0.1" : "::1";
+  const char *wildcard_address = use_ipv4 ? "0.0.0.0" : "::";
+  return strcmp(bind_address, loopback_address) == 0 ||
+         strcmp(bind_address, "*") == 0 ||
+         strcmp(bind_address, wildcard_address) == 0;
+}
+
 /**
   Calls mysql_real_connect api to connect to a MySQL server.
 
@@ -138,26 +151,169 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::connect, (MYSQL_H mysql_h)) {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle == nullptr) return true;
     auto mysql = &m_handle->mysql;
-    const char *socket = nullptr;
-    int port = -1;
     if (*mysql == nullptr) return true;
-    //  Override the default mysql_method
-    (*mysql)->methods = &cs::mysql_methods;
-    auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(*mysql);
-    if (mcs_ext->mcs_host_name == nullptr)
-      mcs_ext->mcs_host_name = MYSQL_SYS_HOST;
-    if (mcs_ext->mcs_user_name == nullptr)
-      mcs_ext->mcs_user_name = MYSQL_SESSION_USER;
-    if (mcs_ext->mcs_protocol && strcmp(mcs_ext->mcs_protocol, "local"))
-      socket = mcs_ext->mcs_protocol;
-    if (mcs_ext->mcs_tcpip_port != 0) port = mcs_ext->mcs_tcpip_port;
 
-    return mysql_real_connect(m_handle->mysql, mcs_ext->mcs_host_name,
-                              mcs_ext->mcs_user_name, mcs_ext->mcs_password,
-                              mcs_ext->mcs_db, port, socket,
-                              mcs_ext->mcs_client_flag)
-               ? false
-               : true;
+    auto invalid_parameter = [mysql] {
+      set_mysql_error(*mysql, CR_INVALID_PARAMETER_NO, unknown_sqlstate);
+      return true;
+    };
+
+    if (m_handle->connection_mode ==
+        mysql_command_connection_mode::kAuthenticationAttempted) {
+      return invalid_parameter();
+    }
+
+    auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(*mysql);
+    if (mcs_ext == nullptr) return true;
+
+    const char *host = mcs_ext->mcs_host_name;
+    const char *user = mcs_ext->mcs_user_name;
+    const char *password = mcs_ext->mcs_password;
+    const char *protocol = mcs_ext->mcs_protocol;
+    const char *db = mcs_ext->mcs_db;
+    const int configured_port = mcs_ext->mcs_tcpip_port;
+    const uint32_t client_flags = mcs_ext->mcs_client_flag;
+
+    if (m_handle->connection_mode == mysql_command_connection_mode::kEmbedded) {
+      const char *socket = nullptr;
+      int port = -1;
+
+      // Override the default mysql methods with the embedded backend
+      (*mysql)->methods = &cs::mysql_methods;
+      if (host == nullptr) host = MYSQL_SYS_HOST;
+      if (user == nullptr) user = MYSQL_SESSION_USER;
+      if (protocol != nullptr && strcmp(protocol, "local")) socket = protocol;
+      if (configured_port != 0) port = configured_port;
+
+      return mysql_real_connect(*mysql, host, user, nullptr, db, port, socket,
+                                client_flags)
+                 ? false
+                 : true;
+    }
+
+    // Consume authenticated mode before validation or connection can fail
+    m_handle->connection_mode =
+        mysql_command_connection_mode::kAuthenticationAttempted;
+    mcs_ext->mcs_password = nullptr;
+
+    if (m_handle->client_methods == nullptr) return invalid_parameter();
+    (*mysql)->methods = m_handle->client_methods;
+
+    /*
+      Client defaults are loaded inside mysql_real_connect(), after the local
+      endpoint is selected, and can override its protocol, port, or socket.
+    */
+    if (password == nullptr || user == nullptr || configured_port < 0 ||
+        (*mysql)->options.my_cnf_file != nullptr ||
+        (*mysql)->options.my_cnf_group != nullptr ||
+        mcs_ext->session_svc != nullptr ||
+        mcs_ext->command_consumer_services != nullptr ||
+        mcs_ext->no_lock_registry) {
+      return invalid_parameter();
+    }
+
+    if (host == nullptr || host[0] == '\0') host = my_localhost;
+
+    // Only canonical loopback literals may select authenticated TCP,
+    // preventing credentials from being forwarded to an arbitrary endpoint.
+    const bool use_tcp =
+        strcmp(host, "127.0.0.1") == 0 || strcmp(host, "::1") == 0;
+    const bool explicit_socket =
+        protocol != nullptr && strcmp(protocol, "local") != 0;
+
+    if ((!use_tcp && strcmp(host, my_localhost) != 0) ||
+        (use_tcp && explicit_socket) ||
+        (configured_port != 0 &&
+         static_cast<uint>(configured_port) != mysqld_port)) {
+      return invalid_parameter();
+    }
+
+    const char *socket = nullptr;
+    uint port = 0;
+    uint client_protocol = MYSQL_PROTOCOL_DEFAULT;
+
+    if (use_tcp) {
+      if (opt_disable_networking || mysqld_port == 0) {
+        return invalid_parameter();
+      }
+      client_protocol = MYSQL_PROTOCOL_TCP;
+      port = mysqld_port;
+#ifdef _WIN32
+    } else if (explicit_socket) {
+      if (!opt_enable_named_pipe || mysqld_unix_port == nullptr ||
+          strcmp(protocol, mysqld_unix_port) != 0) {
+        return invalid_parameter();
+      }
+      client_protocol = MYSQL_PROTOCOL_PIPE;
+      host = ".";
+      socket = mysqld_unix_port;
+    } else if (opt_enable_shared_memory) {
+      client_protocol = MYSQL_PROTOCOL_MEMORY;
+      if (mysql_options(*mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+                        shared_memory_base_name)) {
+        return true;
+      }
+    } else if (opt_enable_named_pipe) {
+      client_protocol = MYSQL_PROTOCOL_PIPE;
+      host = ".";
+      socket = mysqld_unix_port;
+    } else if (!opt_disable_networking && mysqld_port != 0) {
+      client_protocol = MYSQL_PROTOCOL_TCP;
+      host = "127.0.0.1";
+      port = mysqld_port;
+#else
+    } else if (mysqld_unix_port != nullptr && mysqld_unix_port[0] != '\0') {
+      if (explicit_socket && strcmp(protocol, mysqld_unix_port) != 0) {
+        return invalid_parameter();
+      }
+      client_protocol = MYSQL_PROTOCOL_SOCKET;
+      socket = mysqld_unix_port;
+    } else if (!explicit_socket && !opt_disable_networking &&
+               mysqld_port != 0) {
+      client_protocol = MYSQL_PROTOCOL_TCP;
+      host = "127.0.0.1";
+      port = mysqld_port;
+#endif
+    } else {
+      return invalid_parameter();
+    }
+
+    if (client_protocol == MYSQL_PROTOCOL_TCP) {
+      const bool use_ipv4 = strcmp(host, "127.0.0.1") == 0;
+
+      /*
+        Accept only a single literal bind value. Re-parsing or resolving the
+        configuration here would not prove which sockets were actually opened.
+      */
+      if (!bind_address_accepts_loopback(my_bind_addr_str, use_ipv4))
+        return invalid_parameter();
+    }
+
+    if (mysql_options(*mysql, MYSQL_OPT_PROTOCOL, &client_protocol))
+      return true;
+
+    if (client_protocol == MYSQL_PROTOCOL_TCP) {
+      const bool get_server_public_key = true;
+      if (mysql_options(*mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
+                        &get_server_public_key)) {
+        return true;
+      }
+    }
+
+    if ((*mysql)->options.connect_timeout == 0) {
+      const uint timeout = static_cast<uint>(connect_timeout);
+      if (mysql_options(*mysql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout))
+        return true;
+    }
+
+    if ((*mysql)->options.extension != nullptr &&
+        (*mysql)->options.extension->ssl_mode == 0) {
+      const uint ssl_mode = SSL_MODE_PREFERRED;
+      if (mysql_options(*mysql, MYSQL_OPT_SSL_MODE, &ssl_mode)) return true;
+    }
+
+    return mysql_real_connect(*mysql, host, user, password, db, port, socket,
+                              client_flags) == nullptr;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return true;
@@ -321,6 +477,9 @@ uint32_t      |MYSQL_COMMAND_CLIENT_FLAGS     |Client flags passed to          |
               |                               |by the default capabilities     |
               |                               |consumer.                       |
 --------------+-------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_PASSWORD         |Password used to authenticate   |
+              |                               |against the current server.     |
+--------------+-------------------------------+--------------------------------+
 
   @note For the other mysql client options it calls the mysql_options api from
   this api.
@@ -333,18 +492,37 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
   try {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle == nullptr) return true;
+    /*
+      Replacing the consumer calls its end() method, which may release DOM rows
+      still referenced by a mysql_use_result() result.
+    */
+    if (option == MYSQL_TEXT_CONSUMER_FACTORY &&
+        (m_handle->mysql->status != MYSQL_STATUS_READY ||
+         (m_handle->mysql->server_status & SERVER_MORE_RESULTS_EXISTS))) {
+      set_mysql_error(m_handle->mysql, CR_COMMANDS_OUT_OF_SYNC,
+                      unknown_sqlstate);
+      return true;
+    }
+
+    if (option == MYSQL_COMMAND_PASSWORD &&
+        m_handle->connection_mode ==
+            mysql_command_connection_mode::kAuthenticationAttempted) {
+      set_mysql_error(m_handle->mysql, CR_INVALID_PARAMETER_NO,
+                      unknown_sqlstate);
+      return true;
+    }
+
     auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
     my_h_service consumer_handle;
-    /*
-      These references might be created while calling
-      mysql_command_services_imp::connect api.
-      If not, we will create here.
-    */
-    if (mcs_ext->command_consumer_services == nullptr) {
-      mcs_ext->command_consumer_services = new mysql_command_consumer_refs();
+    mysql_command_consumer_refs *consumer_refs = nullptr;
+    if (option >= MYSQL_TEXT_CONSUMER_FACTORY &&
+        option <= MYSQL_TEXT_CONSUMER_CLIENT_CAPABILITIES) {
+      if (mcs_ext->command_consumer_services == nullptr) {
+        mcs_ext->command_consumer_services = new mysql_command_consumer_refs();
+      }
+      consumer_refs = reinterpret_cast<mysql_command_consumer_refs *>(
+          mcs_ext->command_consumer_services);
     }
-    mysql_command_consumer_refs *consumer_refs =
-        (mysql_command_consumer_refs *)mcs_ext->command_consumer_services;
     switch (option) {
       case MYSQL_TEXT_CONSUMER_FACTORY: {
         const auto *service_name = static_cast<const char *>(arg);
@@ -686,6 +864,12 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
         }
         break;
       }
+      case MYSQL_COMMAND_PASSWORD:
+        mcs_ext->mcs_password = static_cast<const char *>(arg);
+        m_handle->connection_mode =
+            arg == nullptr ? mysql_command_connection_mode::kEmbedded
+                           : mysql_command_connection_mode::kAuthenticated;
+        break;
       case MYSQL_NO_LOCK_REGISTRY:
         mcs_ext->no_lock_registry = static_cast<const bool *>(arg);
         break;
@@ -724,6 +908,8 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::get,
         *(const_cast<uint32_t *>(static_cast<const uint32_t *>(arg))) =
             mcs_ext->mcs_client_flag;
         break;
+      case MYSQL_COMMAND_PASSWORD:
+        return true;
       case MYSQL_NO_LOCK_REGISTRY:
         *(const_cast<bool *>(static_cast<const bool *>(arg))) =
             mcs_ext->no_lock_registry;

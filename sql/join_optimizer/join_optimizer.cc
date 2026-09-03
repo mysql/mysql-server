@@ -1688,6 +1688,17 @@ std::optional<CostingReceiver::ProposeRefsResult> CostingReceiver::ProposeRefs(
 
   TABLE *const table = order_info.table;
   const int key_idx = order_info.key_idx;
+
+  // Index lookups on a multi-valued index bind only leading scalar key parts
+  // and traverse every array entry below that prefix, so they cannot claim any
+  // ordering. BuildInterestingOrders() leaves the ordinary order fields at
+  // zero for such an index, which keeps both forward and reverse REF
+  // unordered here. Assert on the registered orderings rather than the
+  // remapped ones, since an ordering that was pruned for being uninteresting
+  // also remaps to zero.
+  assert(!Overlaps(table->key_info[key_idx].flags, HA_MULTI_VALUED_KEY) ||
+         (order_info.forward_order == 0 && order_info.reverse_order == 0));
+
   const bool covering =
       IsClusteredPrimaryKey(table, key_idx) ||
       (!table->no_keyread && table->covering_keys.is_set(key_idx));
@@ -2674,6 +2685,53 @@ bool CostingReceiver::SetUpRangeScans(
   return false;
 }
 
+/**
+  Check whether a range scan on @p root reads only index entries that have the
+  same value for all key parts up to and including the array key part of a
+  multi-valued index. That is the case when the key parts form a chain of
+  single-point ranges down to the array key part, so that each qualifying row
+  is read exactly once and the key parts after the array key part are read in
+  index order.
+
+  @param root The range tree for the index, ie. SEL_TREE::keys[idx].
+ */
+static bool HasSinglePointMultiValuePrefix(const SEL_ROOT *root) {
+  for (unsigned expected_part = 0;; ++expected_part) {
+    if (root == nullptr || root->type != SEL_ROOT::Type::KEY_RANGE ||
+        root->elements != 1) {
+      return false;
+    }
+    const SEL_ARG *range = root->root->first();
+    if (range == nullptr || range->part != expected_part) {
+      return false;
+    }
+
+    if (!range->field->is_array()) {
+      if (!range->is_singlepoint()) return false;
+      root = range->next_key_part;
+      continue;
+    }
+
+    // SEL_ARG::is_singlepoint() cannot be used on the array key part, since
+    // Field_typed_array::key_cmp() on two key images always reports "not
+    // equal". Compare the two endpoints with the conversion field instead,
+    // which is the field the index entries are built from.
+    if (range->min_flag != 0 || range->max_flag != 0) return false;
+    const uchar *min_value = range->min_value;
+    const uchar *max_value = range->max_value;
+    if (range->maybe_null()) {
+      // The first byte is a NULL value indicator.
+      if (*min_value != *max_value) return false;
+      if (*min_value != 0) return true;  // This is "x IS NULL".
+      ++min_value;
+      ++max_value;
+    }
+    return down_cast<Field_typed_array *>(range->field)
+               ->get_conv_field()
+               ->key_cmp(min_value, max_value) == 0;
+  }
+}
+
 void CostingReceiver::ProposeRangeScans(
     int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
     SEL_TREE *tree, Mem_root_array<PossibleRangeScan> *possible_scans,
@@ -2745,16 +2803,34 @@ void CostingReceiver::ProposeRangeScans(
     }
 
     // Now the ordered scans, if they are interesting.
+    const auto it = find_if(m_active_indexes->begin(), m_active_indexes->end(),
+                            [table, keynr](const ActiveIndexInfo &info) {
+                              return info.table == table &&
+                                     info.key_idx == static_cast<int>(keynr);
+                            });
+    assert(it != m_active_indexes->end());
+
+    // A multi-valued index only delivers the key parts after the array key
+    // part in order, and only for a range that reads a single value for the
+    // key parts up to and including the array key part. Any other range can
+    // read a row more than once, and out of order.
+    IndexOrderingInfo index_ordering;
+    if (!Overlaps(key->flags, HA_MULTI_VALUED_KEY)) {
+      index_ordering = {it->forward_order, it->reverse_order,
+                        it->reverse_order_without_extended_key_parts};
+    } else if (HasSinglePointMultiValuePrefix(tree->keys[scan.idx])) {
+      index_ordering = it->mvi_range_ordering;
+    } else if (TraceStarted(m_thd)) {
+      // Leave index_ordering empty, so that no ordered scan is proposed.
+      Trace(m_thd) << " - ordered range scan on " << key->name
+                   << " not proposed: the multi-valued index prefix through "
+                      "the array key part is not a single point\n";
+    }
+
     for (enum_order order_direction : {ORDER_ASC, ORDER_DESC}) {
-      const auto it =
-          find_if(m_active_indexes->begin(), m_active_indexes->end(),
-                  [table, keynr](const ActiveIndexInfo &info) {
-                    return info.table == table &&
-                           info.key_idx == static_cast<int>(keynr);
-                  });
-      assert(it != m_active_indexes->end());
       const int ordering_idx = m_orderings->RemapOrderingIndex(
-          order_direction == ORDER_ASC ? it->forward_order : it->reverse_order);
+          order_direction == ORDER_ASC ? index_ordering.forward_order
+                                       : index_ordering.reverse_order);
       if (ordering_idx == 0) {
         // Not an interesting order.
         continue;
@@ -2789,7 +2865,7 @@ void CostingReceiver::ProposeRangeScans(
           m_orderings->MoreOrderedThan(
               path.ordering_state,
               m_orderings->SetOrder(m_orderings->RemapOrderingIndex(
-                  it->reverse_order_without_extended_key_parts)),
+                  index_ordering.reverse_order_without_extended_key_parts)),
               /*obsolete_orderings=*/0);
 
       for (bool materialize_subqueries : {false, true}) {
@@ -3967,6 +4043,14 @@ bool CostingReceiver::ProposeTableScan(
 ProposeResult CostingReceiver::ProposeIndexScan(
     TABLE *table, int node_idx, double force_num_output_rows_after_filter,
     unsigned key_idx, bool reverse, int ordering_idx) {
+  // A full scan of a multi-valued index would be incorrect, as it returns one
+  // row per array element and no row at all for rows without an indexable
+  // element. We never get here for such an index: the engine reports it as
+  // neither ordered (HA_READ_ORDER) nor usable for index-only reads
+  // (HA_KEYREAD_ONLY), and index scans are only proposed for indexes that
+  // have an interesting order or are covering.
+  assert(!Overlaps(table->key_info[key_idx].flags, HA_MULTI_VALUED_KEY));
+
   if (table->pos_in_table_list->uses_materialization() ||
       (table->key_info[key_idx].flags & HA_FULLTEXT) != 0) {
     // Not yet implemented.

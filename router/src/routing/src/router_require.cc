@@ -78,8 +78,9 @@ RouterRequire::enforce(Channel &client_channel, Attributes attrs) {
         std::string subject_name;
         subject_name.resize(512);  // reserve a bit of memory.
 
-        X509_NAME_oneline(X509_get_subject_name(client_x509.get()),
-                          subject_name.data(), subject_name.size());
+        X509_NAME_oneline(
+            const_cast<X509_NAME *>(X509_get_subject_name(client_x509.get())),
+            subject_name.data(), subject_name.size());
 
         // resize to what is actually used.
         subject_name.resize(strlen(subject_name.c_str()));

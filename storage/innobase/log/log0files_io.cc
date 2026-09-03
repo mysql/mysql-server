@@ -324,11 +324,11 @@ IORequest Log_file_handle::prepare_io_request(IORequest::Type req_type,
 }
 
 dberr_t Log_file_handle::read(os_offset_t read_offset, os_offset_t read_size,
-                              byte *buf) {
+                              byte *buf, bool can_decrypt) {
   if (!is_open()) return DB_ERROR;
 
-  auto io_request =
-      prepare_io_request(IORequest::Type::READ, read_offset, read_size, true);
+  auto io_request = prepare_io_request(IORequest::Type::READ, read_offset,
+                                       read_size, can_decrypt);
 
   ut_ad(m_access_mode != Log_file_access_mode::WRITE_ONLY);
 
@@ -654,9 +654,9 @@ dberr_t log_data_blocks_write(Log_file_handle &file_handle,
 
 dberr_t log_data_blocks_read(Log_file_handle &file_handle,
                              os_offset_t read_offset, size_t read_size,
-                             byte *buf) {
+                             byte *buf, bool can_decrypt) {
   log_data_blocks_validate(read_offset, read_size);
-  return file_handle.read(read_offset, read_size, buf);
+  return file_handle.read(read_offset, read_size, buf, can_decrypt);
 }
 
 /** @} */
@@ -1088,7 +1088,11 @@ static dberr_t log_check_file(const Log_files_context &ctx, Log_file_id file_id,
     return DB_NOT_FOUND;
   }
 
-  if (!os_file_check_mode(file_path.c_str(), false, read_only)) {
+  if (!os_file_check_mode(
+#ifdef UNIV_PFS_IO
+          innodb_log_file_key,
+#endif /* UNIV_PFS_IO */
+          file_path.c_str(), false, read_only)) {
     /* Error has been emitted in os_file_check_mode */
     return DB_ERROR;
   }

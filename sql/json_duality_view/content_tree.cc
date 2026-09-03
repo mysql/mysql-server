@@ -137,9 +137,14 @@ bool Key_column_info::is_generated_column() const {
     join_column.set_key("");
     join_column.set_field(get_field_for_column(current_node->table_ref(),
                                                side_ident->field_name));
-    if (current_node->table_tags()) {
-      join_column.set_column_tags(DVT_UPDATE);
-    }
+    // Projected join columns are handled above and keep their effective tags.
+    // For an unprojected child column, its value is copied from the parent to
+    // maintain the join, so allow this internal write. Changing an unprojected
+    // parent column remaps the child, so allow it only when the parent table
+    // allows UPDATE.
+    join_column.set_column_tags(!is_parent || current_node->allows_update()
+                                    ? DVT_UPDATE
+                                    : DVT_NOUPDATE);
     join_column.set_column_projected(false);
 
     if (current_node->key_column_info_list()->push_back(join_column)) {
@@ -211,17 +216,91 @@ bool Key_column_info::is_generated_column() const {
 
 static thread_local uint next_id = 0;
 
-[[nodiscard]] static bool prepare_content_tree_node(THD *thd,
-                                                    Content_tree_node *node) {
-  // Increment usage counter, this will also count failures.
-  ++option_tracker_json_duality_view_usage_count;
+/**
+  Builds the dotted JSON path for a projection from its content-tree ancestry.
 
-  DBUG_EXECUTE_IF("simulate_context_prepare_fail", return true;);
+  @param node containing content-tree node
+  @param key  projected JSON key
 
-  Query_block *sl = node->query_expression()->query_term()->query_block();
-  assert(node->query_expression()->is_simple());
+  @returns path in the form Root Node.child.key
+*/
+static std::string get_projection_path(const Content_tree_node *node,
+                                       std::string_view key) {
+  std::string path(key);
+  while (node != nullptr) {
+    path.insert(0, ".");
+    path.insert(0, node->name().data(), node->name().length());
+    node = node->parent();
+  }
+  return path;
+}
 
-  Table_ref *table_ref = sl->m_table_list.first;
+/**
+  Returns the effective table tags. This applies the default CHECK tag so every
+  projected column has a table setting to inherit.
+*/
+static Duality_view_tags resolve_effective_table_tags(
+    Duality_view_tags specified_tags) {
+  Duality_view_tags effective_tags = specified_tags;
+  if ((specified_tags & DVT_CHECK) == 0 &&
+      (specified_tags & DVT_NOCHECK) == 0) {
+    effective_tags = static_cast<Duality_view_tags>(effective_tags | DVT_CHECK);
+  }
+  return effective_tags;
+}
+
+/**
+  Resolves the effective tags for a projected column. This keeps CHECK and
+  UPDATE inheritance, including the primary-key restriction, consistent for
+  all content-tree consumers.
+
+  @param node                  containing content-tree node
+  @param table_tags            effective tags of the containing table
+  @param key                   projected JSON key
+  @param is_primary_key        whether the column is the table primary key
+  @param specified_column_tags tags written on the column projection
+  @param effective_column_tags resolved tags returned to the caller
+
+  @retval false success
+  @retval true  invalid UPDATE tag on a primary key
+*/
+static bool resolve_effective_column_tags(
+    const Content_tree_node *node, Duality_view_tags table_tags,
+    std::string_view key, bool is_primary_key,
+    Duality_view_tags specified_column_tags,
+    Duality_view_tags *effective_column_tags) {
+  if (is_primary_key && (specified_column_tags & DVT_UPDATE) != 0) {
+    const std::string json_path = get_projection_path(node, key);
+    my_error(ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK, MYF(0),
+             json_path.c_str());
+    return true;
+  }
+
+  Duality_view_tags resolved_tags = specified_column_tags;
+  if ((resolved_tags & DVT_UPDATE) == 0 &&
+      (resolved_tags & DVT_NOUPDATE) == 0) {
+    resolved_tags = static_cast<Duality_view_tags>(
+        resolved_tags |
+        (!is_primary_key && (table_tags & DVT_UPDATE) != 0 ? DVT_UPDATE
+                                                           : DVT_NOUPDATE));
+  }
+  if ((resolved_tags & DVT_CHECK) == 0 && (resolved_tags & DVT_NOCHECK) == 0) {
+    resolved_tags = static_cast<Duality_view_tags>(
+        resolved_tags |
+        ((table_tags & DVT_CHECK) != 0 ? DVT_CHECK : DVT_NOCHECK));
+  }
+
+  *effective_column_tags = resolved_tags;
+  return false;
+}
+
+/**
+  Sets the base-table identity stored on a content-tree node. This provides the
+  shared qualified names used by validation, errors, and generated DML.
+*/
+static bool initialize_table_identity(THD *thd, Query_block *query_block,
+                                      Content_tree_node *node) {
+  Table_ref *table_ref = query_block->m_table_list.first;
   if (!table_ref->is_base_table()) {
     my_error(ER_JDV_INVALID_DEFINITION_NON_BASE_TABLE_NOT_SUPPORTED, MYF(0),
              table_ref->get_db_name(), table_ref->get_table_name());
@@ -230,120 +309,162 @@ static thread_local uint next_id = 0;
 
   node->set_table_ref(table_ref);
 
-  // Qualified table name.
-  std::string qname(node->table_ref()->get_db_name());
-  qname.append(".");
-  qname.append(node->table_ref()->get_table_name());
-  char *qn = strmake_root(thd->mem_root, qname.c_str(), qname.length());
-  if (qn == nullptr) return true;
-  node->set_qualified_table_name(qn);
+  std::string qualified_name(table_ref->get_db_name());
+  qualified_name.append(".");
+  qualified_name.append(table_ref->get_table_name());
+  char *qualified_name_root = strmake_root(
+      thd->mem_root, qualified_name.c_str(), qualified_name.length());
+  if (qualified_name_root == nullptr) return true;
+  node->set_qualified_table_name(qualified_name_root);
 
-  // Add a single string containing the quoted qualified table name
-  std::string qtn;
-  append_identifier(&qtn, node->table_ref()->get_db_name());
-  qtn.append(".");
-  append_identifier(&qtn, node->table_ref()->get_table_name());
-  node->set_quoted_qualified_table_name(std::move(qtn));
+  std::string quoted_qualified_name;
+  append_identifier(&quoted_qualified_name, table_ref->get_db_name());
+  quoted_qualified_name.append(".");
+  append_identifier(&quoted_qualified_name, table_ref->get_table_name());
+  node->set_quoted_qualified_table_name(std::move(quoted_qualified_name));
+  return false;
+}
 
-  // Get primary key column name.
-  const char *primary_key_col_name =
-      get_primary_key_column_name(node->table_ref());
+/**
+  Returns the JSON_DUALITY_OBJECT item represented by a visible field and sets
+  the node type. This distinguishes nested arrays from singleton child objects
+  before their projections are prepared.
+*/
+static Item_func_json_duality_object *get_duality_object_item(
+    Item *visible_field, Content_tree_node *node) {
+  auto *function = down_cast<Item_func *>(visible_field);
+  if (function->type() == Item::SUM_FUNC_ITEM) {
+    auto *json_array = down_cast<Item_sum_json_array *>(visible_field);
+    function = down_cast<Item_func *>(json_array->get_arg(0));
+    node->set_type(Content_tree_node::Type::NESTED_CHILD);
+  } else if (node->type() == Content_tree_node::Type::INVALID) {
+    node->set_type(Content_tree_node::Type::SINGLETON_CHILD);
+  }
 
-  for (Item *it : sl->visible_fields()) {
-    Item_func *func_item = down_cast<Item_func *>(it);
+  return down_cast<Item_func_json_duality_object *>(function);
+}
 
-    // Set node type.
-    if (func_item->type() == Item::SUM_FUNC_ITEM) {
-      // Get JSON_DUALITY_OBJECT()'s item.
-      Item_sum_json_array *json_aragg = down_cast<Item_sum_json_array *>(it);
-      func_item = down_cast<Item_func *>(json_aragg->get_arg(0));
+/**
+  Adds a child object projection to the current node. This retains its query
+  expression for recursive preparation and rejects column tags on child
+  objects.
+*/
+static bool add_child_projection(THD *thd, Content_tree_node *node, String *key,
+                                 Item *value,
+                                 Duality_view_tags specified_tags) {
+  if (specified_tags != DVT_INVALID) {
+    const std::string json_path =
+        get_projection_path(node, std::string_view(key->ptr(), key->length()));
+    my_error(ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY, MYF(0),
+             json_path.c_str());
+    return true;
+  }
 
-      node->set_type(Content_tree_node::Type::NESTED_CHILD);
-    } else if (node->type() == Content_tree_node::Type::INVALID) {
-      node->set_type(Content_tree_node::Type::SINGLETON_CHILD);
-    }
+  auto *child = new (thd->mem_root) Content_tree_node(thd->mem_root);
+  if (child == nullptr) return true;
 
-    auto jdv_func_item = down_cast<Item_func_json_duality_object *>(func_item);
-    node->set_table_tags(jdv_func_item->table_tags());
+  child->set_name(key->ptr());
+  child->set_parent(node);
+  auto *subquery = down_cast<Item_subselect *>(value);
+  child->set_query_expression(subquery->query_expr());
+  return node->children()->push_back(child);
+}
 
-    std::unordered_set<std::string> columns_names_seen;
-    for (uint i = 0; i < func_item->argument_count();) {
-      Item *key_arg_item = func_item->get_arg(i);
-      String dummy_str;
-      String *name_str = key_arg_item->val_str(&dummy_str);
-      assert(name_str != nullptr);
+/**
+  Adds a projected base-table column and its effective tags to the current node.
+  This centralizes duplicate checks, primary-key detection, and tag resolution.
+*/
+static bool add_column_projection(
+    Content_tree_node *node, String *key, Item *value,
+    const char *primary_key_column_name,
+    Duality_view_tags specified_column_tags,
+    std::unordered_set<std::string> *column_names_seen) {
+  if (node->key_column_map()->contains(key->ptr())) {
+    my_error(ER_JDV_INVALID_DEFINITION_DUPLICATE_KEYS_NOT_SUPPORTED, MYF(0),
+             node->name().data(), key->ptr());
+    return true;
+  }
 
-      Item *value_arg_item = func_item->get_arg(i + 1);
-      i = i + 2;
+  auto *field_item = down_cast<Item_field *>(value);
+  char lowercase_field_name[NAME_LEN + 1];
+  my_stpcpy(lowercase_field_name, field_item->field_name);
+  my_casedn_str(&my_charset_utf8mb3_tolower_ci, lowercase_field_name);
+  if (!column_names_seen->insert(lowercase_field_name).second) {
+    my_error(ER_JDV_INVALID_DEFINITION_DUPLICATE_COLUMN_NOT_SUPPORTED, MYF(0),
+             node->name().data(), node->qualified_table_name().data(),
+             field_item->field_name);
+    return true;
+  }
 
-      if (value_arg_item->type() == Item::SUBQUERY_ITEM) {
-        Content_tree_node *child_node =
-            new (thd->mem_root) Content_tree_node(thd->mem_root);
+  const bool is_primary_key =
+      primary_key_column_name != nullptr &&
+      my_strcasecmp(system_charset_info, primary_key_column_name,
+                    field_item->field_name) == 0;
 
-        child_node->set_name(name_str->ptr());
-        child_node->set_parent(node);
-        auto *subquery_item = down_cast<Item_subselect *>(value_arg_item);
-        child_node->set_query_expression(subquery_item->query_expr());
+  Duality_view_tags effective_column_tags;
+  if (resolve_effective_column_tags(
+          node, node->table_tags(), std::string_view(key->ptr(), key->length()),
+          is_primary_key, specified_column_tags, &effective_column_tags)) {
+    return true;
+  }
 
-        node->children()->push_back(child_node);
-      } else {
-        if (node->key_column_map()->find(name_str->ptr()) !=
-            node->key_column_map()->end()) {
-          my_error(ER_JDV_INVALID_DEFINITION_DUPLICATE_KEYS_NOT_SUPPORTED,
-                   MYF(0), node->name().data(), name_str->ptr());
-          return true;
-        }
+  Key_column_info column_info;
+  column_info.set_column_name(field_item->field_name);
+  column_info.set_key(key->ptr());
+  column_info.set_field(
+      get_field_for_column(node->table_ref(), field_item->field_name));
+  column_info.set_column_tags(effective_column_tags);
+  if (node->key_column_info_list()->push_back(column_info)) {
+    return true;
+  }
 
-        char lowercase_field_name[NAME_LEN + 1];
-        Item_field *fld_item = down_cast<Item_field *>(value_arg_item);
-        my_stpcpy(lowercase_field_name, fld_item->field_name);
-        my_casedn_str(&my_charset_utf8mb3_tolower_ci, lowercase_field_name);
-        if (!(columns_names_seen.insert(lowercase_field_name)).second) {
-          my_error(ER_JDV_INVALID_DEFINITION_DUPLICATE_COLUMN_NOT_SUPPORTED,
-                   MYF(0), node->name().data(),
-                   node->qualified_table_name().data(), fld_item->field_name);
-          return true;
-        }
+  const auto column_index = node->key_column_info_list()->size() - 1;
+  if (is_primary_key) node->set_primary_key_column_index(column_index);
+  node->key_column_map()->insert(std::make_pair(key->ptr(), column_index));
+  return false;
+}
 
-        Key_column_info key_column_info;
-        key_column_info.set_column_name(fld_item->field_name);
-        key_column_info.set_key(name_str->ptr());
-        key_column_info.set_field(
-            get_field_for_column(node->table_ref(), fld_item->field_name));
+/**
+  Adds the column and child object projections of one JSON_DUALITY_OBJECT to a
+  content-tree node. This keeps projection dispatch in a single pass.
+*/
+static bool add_object_projections(
+    THD *thd, Content_tree_node *node,
+    Item_func_json_duality_object *duality_object,
+    const char *primary_key_column_name) {
+  const auto *specified_column_tags = duality_object->col_tags_list();
+  assert(specified_column_tags->size() == duality_object->argument_count() / 2);
 
-        bool is_pk_column = false;
-        if (primary_key_col_name != nullptr &&
-            (my_strcasecmp(system_charset_info, primary_key_col_name,
-                           fld_item->field_name) == 0)) {
-          is_pk_column = true;
-        }
+  std::unordered_set<std::string> column_names_seen;
+  for (uint argument_index = 0, member_index = 0;
+       argument_index < duality_object->argument_count();
+       argument_index += 2, ++member_index) {
+    Item *key_item = duality_object->get_arg(argument_index);
+    String key_buffer;
+    String *key = key_item->val_str(&key_buffer);
+    assert(key != nullptr);
 
-        auto column_tags = DVT_NOUPDATE;
-        if (!is_pk_column && node->allows_update()) {
-          column_tags = DVT_UPDATE;
-        }
-        key_column_info.set_column_tags(column_tags);
+    Item *value = duality_object->get_arg(argument_index + 1);
+    const auto specified_tags =
+        static_cast<Duality_view_tags>(specified_column_tags->at(member_index));
 
-        if (node->key_column_info_list()->push_back(std::move(key_column_info)))
-          return true;
-
-        auto key_column_info_idx = node->key_column_info_list()->size() - 1;
-
-        if (is_pk_column) {
-          node->set_primary_key_column_index(key_column_info_idx);
-        }
-
-        node->key_column_map()->insert(
-            std::make_pair(name_str->ptr(), key_column_info_idx));
+    if (value->type() == Item::SUBQUERY_ITEM) {
+      if (add_child_projection(thd, node, key, value, specified_tags)) {
+        return true;
       }
-    }
-
-    if ((sl->where_cond() != nullptr) &&
-        prepare_join_condition(thd, sl, node)) {
+    } else if (add_column_projection(node, key, value, primary_key_column_name,
+                                     specified_tags, &column_names_seen)) {
       return true;
     }
   }
+  return false;
+}
 
+/**
+  Sets a node's dependency weight. This preserves parent-child foreign-key order
+  when DML statements are executed.
+*/
+static void set_dependency_weight(Content_tree_node *node) {
   switch (node->type()) {
     case Content_tree_node::Type::ROOT:
       assert(node->dependency_weight() == 0);
@@ -358,8 +479,45 @@ static thread_local uint next_id = 0;
       assert(false);
       break;
   }
+}
 
-  // Prepare each child node.
+/**
+  Prepares one content-tree node and recursively prepares its children. This
+  gives DDL, DML, I_S, and ETAG calculation one shared projection model.
+*/
+[[nodiscard]] static bool prepare_content_tree_node(THD *thd,
+                                                    Content_tree_node *node) {
+  // Failed preparation attempts must also count as feature use.
+  ++option_tracker_json_duality_view_usage_count;
+
+  DBUG_EXECUTE_IF("simulate_context_prepare_fail", return true;);
+
+  Query_block *sl = node->query_expression()->query_term()->query_block();
+  assert(node->query_expression()->is_simple());
+
+  if (initialize_table_identity(thd, sl, node)) return true;
+
+  const char *primary_key_col_name =
+      get_primary_key_column_name(node->table_ref());
+
+  for (Item *visible_field : sl->visible_fields()) {
+    auto *duality_object = get_duality_object_item(visible_field, node);
+    node->set_table_tags(
+        resolve_effective_table_tags(duality_object->table_tags()));
+
+    if (add_object_projections(thd, node, duality_object,
+                               primary_key_col_name)) {
+      return true;
+    }
+
+    if ((sl->where_cond() != nullptr) &&
+        prepare_join_condition(thd, sl, node)) {
+      return true;
+    }
+  }
+
+  set_dependency_weight(node);
+
   node->set_id(next_id);
   ++next_id;
   for (auto *child_node : *node->children()) {

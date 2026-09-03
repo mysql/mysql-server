@@ -1346,6 +1346,11 @@ The following options may be given as the first argument:
  Disallow the creation of foreign keys referencing
  non-unique key or partial key
  (Defaults to on; use --skip-restrict-fk-on-non-standard-key to disable.)
+ --rpl-dump-thread-account-affinity 
+ Require a reconnect matching an existing dump thread's
+ replica identity to use the same authenticated account.
+ Disabled by default to preserve legacy dump-thread
+ replacement behavior.
  --rpl-read-size=#   The size for reads done from the binlog and relay log. It
  must be a multiple of 4kb. Making it larger might help
  with IO stalls while reading these files when they are
@@ -2028,6 +2033,7 @@ report-port 0
 report-user (No default value)
 require-secure-transport FALSE
 restrict-fk-on-non-standard-key TRUE
+rpl-dump-thread-account-affinity FALSE
 rpl-read-size 8192
 rpl-stop-replica-timeout 31536000
 rpl-stop-slave-timeout 31536000

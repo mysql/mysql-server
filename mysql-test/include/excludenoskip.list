@@ -104,7 +104,6 @@ federated_bug_25714.test
 
 # 4.4
 check_openssl_version.inc
-check_openssl.inc
 have_tlsv13.inc
 not_have_tlsv13.inc
 not_tlsv13.inc

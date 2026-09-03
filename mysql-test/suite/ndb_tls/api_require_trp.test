@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb_tls/include/check_openssl.inc
 
 # Check there is no --ndb-tls-search-path option for ndb_desc, will happen when
 # running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf
@@ -21,4 +20,3 @@ SELECT 1;
 --replace_regex /^.*--//
 --error 1
 --exec $NDB_DESC --connect-retries=0
-

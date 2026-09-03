@@ -53,6 +53,7 @@ SET(TESTS
   mem0mem
   os0file
   os0thread-create
+  rem0rec
   srv0conc
   sync0rw
   ut0bitset
@@ -62,6 +63,8 @@ SET(TESTS
   ut0mem
   ut0new
   ut0object_cache
+  ut0per_thread
+  ut0prefix_cache
   ut0rbt
   ut0rnd
 )

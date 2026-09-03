@@ -213,21 +213,6 @@ int vio_getnameinfo(const struct sockaddr *sa, char *hostname,
                     size_t hostname_size, char *port, size_t port_size,
                     int flags);
 
-extern "C" {
-#include <openssl/opensslv.h>
-}
-#if OPENSSL_VERSION_NUMBER < 0x0090700f
-#define DES_cblock des_cblock
-#define DES_key_schedule des_key_schedule
-#define DES_set_key_unchecked(k, ks) des_set_key_unchecked((k), *(ks))
-#define DES_ede3_cbc_encrypt(i, o, l, k1, k2, k3, iv, e) \
-  des_ede3_cbc_encrypt((i), (o), (l), *(k1), *(k2), *(k3), (iv), (e))
-#endif
-
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define HAVE_OPENSSL11 1
-#endif  // OPENSSL_VERSION_NUMBER
-
 #define HEADER_DES_LOCL_H dummy_something
 
 #include <openssl/err.h>

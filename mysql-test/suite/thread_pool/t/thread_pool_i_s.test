@@ -167,3 +167,19 @@ SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM information_schema.TP_THREAD_
 SELECT VARIABLE_VALUE - @saved_deprecated_i_s_usage_count AS EXPECT_14
 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_pool_i_s_usage_count';
 
+--echo #
+--echo # Bug#39694379: thread_pool plugin reports PLUGIN_LICENSE = PROPRIETARYr
+--echo # in Community Server 26.7
+--echo #
+--echo # Show output from I_S.plugins for TP.
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY, PLUGIN_LICENSE, PLUGIN_AUTHOR
+       FROM INFORMATION_SCHEMA.PLUGINS
+       WHERE PLUGIN_LIBRARY='thread_pool.so';
+
+SELECT COUNT(*) AS EXPECT_0 FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_LIBRARY='thread_pool.so' AND  PLUGIN_LICENSE = 'PROPRIETARY';
+
+SELECT COUNT(*) AS EXPECT_4 FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_LIBRARY='thread_pool.so' AND  PLUGIN_LICENSE = 'GPL';
+

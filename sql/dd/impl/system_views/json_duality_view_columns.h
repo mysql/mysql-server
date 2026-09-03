@@ -51,6 +51,7 @@ class Json_duality_view_columns
     FIELD_ALLOW_INSERT,
     FIELD_ALLOW_UPDATE,
     FIELD_ALLOW_DELETE,
+    FIELD_ALLOW_CHECK,
     FIELD_READ_ONLY
   };
 

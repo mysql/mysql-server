@@ -905,8 +905,9 @@ INSERT INTO t1 VALUES (3,15),(6,8),(20,6),(15,6),(18,5),(17,5),
 
 ANALYZE TABLE t1;
 
-let $query=SELECT * FROM t1 WHERE pk IN (6,2)
-                               OR (col_int_key >= 7 AND col_int_key < 13);
+let $query=SELECT /*+ INDEX_MERGE(t1 PRIMARY,col_int_key) */ *
+           FROM t1 WHERE pk IN (6,2)
+                         OR (col_int_key >= 7 AND col_int_key < 13);
 eval EXPLAIN $query;
 --sorted_result
 eval $query;
@@ -916,10 +917,11 @@ ALTER TABLE t1 ADD INDEX key2 (col_int_key);
 
 ANALYZE TABLE t1;
 
-let $query=SELECT * FROM t1 FORCE INDEX (key1,key2) WHERE pk IN (6,2)
+let $query=SELECT /*+ INDEX_MERGE(t1 key1,key2) */ *
+                 FROM t1 WHERE pk IN (6,2)
                                OR (col_int_key >= 7 AND col_int_key < 13);
 eval EXPLAIN $query;
---sorted_result  # The hypergraph optimizer doesn't support FORCE INDEX.
+--sorted_result
 eval $query;
 
 DROP TABLE t1;

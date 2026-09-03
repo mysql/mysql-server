@@ -1983,6 +1983,9 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   assert(thd);
   assert(action_str);
 
+  // A zero value disables debug sync facility
+  if (!opt_debug_sync_timeout) return false;
+
   value = strmake_root(thd->mem_root, action_str, len);
   rc = debug_sync_eval_action(thd, value);
   return rc;

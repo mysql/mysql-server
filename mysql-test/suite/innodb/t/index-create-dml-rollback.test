@@ -5,6 +5,13 @@
 
 --source include/have_debug_sync.inc
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 --echo #
 --echo # Bug#37235041 - Duplicate Detection Flaw for NULL Values in UK During
 --echo # DDL Rollback Operations
@@ -87,3 +94,6 @@ SELECT * FROM t1;
 DROP TABLE t1;
 disconnect con1;
 disconnect con2;
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

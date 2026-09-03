@@ -704,7 +704,7 @@ int create_CA(TlsSearchPath *CA_path) {
   return ClusterCredentialFiles::create(key_dir, cert_dir);
 }
 
-int find_cert_in_stack(X509 *cert, STACK_OF(X509) * stack) {
+int find_cert_in_stack(const X509 *cert, STACK_OF(X509) * stack) {
   if (stack)
     for (int i = 0; i < sk_X509_num(stack); i++)
       if (X509_cmp(cert, sk_X509_value(stack, i)) == 0) return i;
@@ -928,34 +928,39 @@ int trust_add_cert(const TlsSearchPath *search_path, const char *dir,
 int trust_remove_cert(const TlsSearchPath *path, const Arguments &args) {
   if (!args.supplied(0)) return TlsKeyError::trust_store_bad_indicator;
 
-  STACK_OF(X509) *trusted = sk_X509_new_null();
-  int idx = -1;
-  int r = TrustStore::load(trusted, path);
-  if (r > 0) idx = trust_select_cert_index(trusted, args);
-  if (idx < 0) {
-    sk_X509_free(trusted);
-    return (r < 1) ? TlsKeyError::trust_store_fs_error
-                   : TlsKeyError::trust_store_bad_indicator;
+  STACK_OF(X509) *trusted = sk_X509_new_null();  // the trust store
+  const X509 *cert = nullptr;  // the certificate to be removed
+  {
+    int idx = -1;
+    int r = TrustStore::load(trusted, path);
+    if (r > 0) idx = trust_select_cert_index(trusted, args);
+    if (idx < 0) {
+      sk_X509_free(trusted);
+      return (r < 1) ? TlsKeyError::trust_store_fs_error
+                     : TlsKeyError::trust_store_bad_indicator;
+    }
+    cert = sk_X509_value(trusted, idx);
   }
-  X509 *cert = sk_X509_value(trusted, idx);
 
   /* We know which certificate to delete, but we don't yet know
      where to find it. */
-  const char *dir = nullptr;
-  STACK_OF(X509) *contents = sk_X509_new_null();
   int c = -1;
+  const char *dir = nullptr;
+  STACK_OF(X509) *contents = nullptr;
 
-  FILE *fp;
   for (size_t i = 0; i < path->size(); i++) {
     dir = path->dir(i);
-    if ((fp = TrustStore::open(dir, "r")) != nullptr) {
-      if (TrustStore::read_all(contents, fp) > 0) {
-        c = find_cert_in_stack(cert, contents);
-        if (c >= 0) break;
-      }
-      TrustStore::close(fp);
-    }
+    contents = sk_X509_new_null();
+    FILE *fp = TrustStore::open(dir, "r");
+    if (fp == nullptr) continue;
+    if (TrustStore::read_all(contents, fp) > 0)
+      c = find_cert_in_stack(cert, contents);
+    TrustStore::close(fp);
+    if (c >= 0) break;
+    sk_X509_pop_free(contents, X509_free);
   }
+  sk_X509_pop_free(trusted, X509_free);
+  cert = nullptr;
 
   assert(c >= 0);
   if (c < 0) {
@@ -980,14 +985,14 @@ int trust_remove_cert(const TlsSearchPath *path, const Arguments &args) {
 
   /* Rewrite the file */
   int rs = 0;
-  fp = TrustStore::open(dir, "w");
+  FILE *fp = TrustStore::open(dir, "w");
   if (fp == nullptr)
     perror("TrustStore::open()");
   else {
     rs = TrustStore::write_all(fp, contents);
     if (rs == 0) perror("TrustStore::write()");
-    TrustStore::close(fp);
   }
+  TrustStore::close(fp);
 
   sk_X509_pop_free(contents, X509_free);
   if (rs == 0) return TlsKeyError::trust_store_cannot_write;

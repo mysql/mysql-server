@@ -70,6 +70,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "log0chkp.h"
+#include "log0encryption.h"
 #include "log0handler.h"
 #include "log0helpers.h"
 #include "log0recv.h"
@@ -1836,6 +1837,17 @@ dberr_t srv_start(bool create_new_db) {
       if (start_result != ib::redo::Status::SUCCESS) {
         ut_ad(start_result == ib::redo::Status::WRITE_ERROR);
         return srv_init_abort(DB_ERROR);
+      }
+
+      if (!srv_read_only_mode &&
+          srv_recovered_redo_block_was_encrypted != srv_redo_log_encrypt) {
+        /* Seal the recovered partial block using its physical encryption mode
+        before dictionary startup can generate new redo. */
+        const bool configured_encryption = srv_redo_log_encrypt;
+
+        srv_redo_log_encrypt = srv_recovered_redo_block_was_encrypted;
+        log_encryption_write_dummy_barrier();
+        srv_redo_log_encrypt = configured_encryption;
       }
 
       /* Validate a few system page types that were left uninitialized

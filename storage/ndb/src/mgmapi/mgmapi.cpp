@@ -72,10 +72,7 @@
         ParserRow<ParserDummy>::IgnoreMinMax, 0, 0, nullptr, nullptr, nullptr \
   }
 
-class ParserDummy : private SocketServer::Session {
- public:
-  ParserDummy(const NdbSocket &sock) : SocketServer::Session(sock) {}
-};
+class ParserDummy : private SocketServer::Session {};
 
 typedef Parser<ParserDummy> Parser_t;
 
@@ -402,7 +399,7 @@ static const Properties *handle_authorization_failure(NdbMgmHandle handle,
       MGM_ARG("Error", String, Mandatory, "Error message"), MGM_END()};
 
   Parser_t::Context ctx;
-  ParserDummy session(handle->socket);
+  ParserDummy session;
   Parser_t parser(details, in);
   const Properties *reply = parser.parse(ctx, session);
 
@@ -530,7 +527,7 @@ static const Properties *ndb_mgm_call(
   CHECK_TIMEDOUT_RET(handle, in, out, nullptr, cmd);
 
   Parser_t::Context ctx;
-  ParserDummy session(handle->socket);
+  ParserDummy session;
   Parser_t parser(command_reply, in);
 
   const Properties *p = parser.parse(ctx, session);

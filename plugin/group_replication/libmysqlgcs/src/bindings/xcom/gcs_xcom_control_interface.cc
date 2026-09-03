@@ -31,7 +31,10 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_scope_guard.h"
 
 using std::map;
 using std::set;
@@ -310,30 +313,154 @@ enum_gcs_error Gcs_xcom_control::do_join(bool retry) {
   return ret;
 }
 
-static bool skip_own_peer_address(
-    std::map<std::string, int> const &my_own_addresses, int my_own_port,
-    std::string &peer_address, int peer_port) {
-  std::vector<std::string> peer_rep_ip;
+/**
+  Check whether a peer endpoint should be skipped because it identifies this
+  node itself.
 
+  This helper delegates the self-classification decision to xcom_mynode_match()
+  using the peer host/IP and port.
+
+  @param[in] peer_address The peer host or IP address to classify.
+  @param[in] peer_port The peer XCom port to classify.
+
+  @retval true The peer endpoint was classified as this node itself and should
+               be skipped.
+  @retval false The peer endpoint was not classified as this node itself and
+                should not be skipped.
+*/
+static bool skip_own_peer_address(std::string const &peer_address,
+                                  int peer_port) {
+  return xcom_mynode_match(peer_address.c_str(), peer_port) != 0;
+}
+
+/**
+  Check whether an explicit XCom identity is currently configured.
+
+  @retval true XCom identity is configured and contains an address.
+  @retval false XCom identity is not configured or does not contain an
+                address.
+*/
+static inline bool has_configured_xcom_identity() {
+  node_address *identity = cfg_app_xcom_get_identity();
+  return identity != nullptr && identity->address != nullptr;
+}
+
+/**
+  Prepare this node's cached self-addresses once for the join path.
+
+  This helper follows the configured-identity branch used by the patch:
+  - when an explicit XCom identity exists, only that endpoint is parsed and
+    prepared, and local interfaces are not inspected;
+  - otherwise, local interface addresses are collected once through the
+    existing networking helper.
+
+  The work is performed after switching to the configured network namespace,
+  if any.
+
+  When the configured identity cannot be parsed, or its configured port does
+  not match @p local_port, the helper returns with @p self_addresses still
+  empty. When parsing succeeds but hostname resolution fails, the helper keeps
+  the configured textual host/IP in @p self_addresses and simply omits any
+  additional resolved aliases.
+
+  @param[in] sock_probe_interface Interface used to enumerate local addresses
+                                  when no XCom identity is configured.
+  @param[in] local_port Local XCom port for this join attempt.
+  @param[out] self_addresses Cached textual self-addresses for join-time
+                             own-peer filtering.
+
+  @retval false Self-address preparation completed.
+  @retval true Local-interface enumeration failed in the no-identity branch.
+*/
+static bool get_self_addresses(Gcs_sock_probe_interface &sock_probe_interface,
+                               int local_port,
+                               std::set<std::string> &self_addresses) {
+  self_addresses.clear();
+
+  std::string net_namespace;
+  Network_namespace_manager *ns_mgr = cfg_app_get_network_namespace_manager();
+  if (ns_mgr != nullptr) ns_mgr->channel_get_network_namespace(net_namespace);
+  if (!net_namespace.empty()) {
+    ns_mgr->set_network_namespace(net_namespace);
+  }
+  Xcom_scope_guard cleanup_guard([&]() {
+    if (!net_namespace.empty()) {
+      ns_mgr->restore_original_network_namespace();
+    }
+  });
+
+  if (has_configured_xcom_identity()) {
+    node_address *identity = cfg_app_xcom_get_identity();
+    char configured_host_or_ip[IP_MAX_SIZE];
+    xcom_port configured_port = 0;
+
+    if (get_ip_and_port(identity->address, configured_host_or_ip,
+                        &configured_port) ||
+        configured_port != local_port) {
+      return false;
+    }
+
+    self_addresses.insert(configured_host_or_ip);
+
+    std::vector<std::string> identity_aliases;
+    if (!resolve_ip_addr_from_hostname(configured_host_or_ip,
+                                       identity_aliases)) {
+      self_addresses.insert(identity_aliases.begin(), identity_aliases.end());
+    }
+
+    return false;
+  }
+
+  std::map<std::string, int> local_addr_to_cidr_mask;
+  if (get_local_addresses(sock_probe_interface, local_addr_to_cidr_mask)) {
+    return true;
+  }
+
+  for (auto const &entry : local_addr_to_cidr_mask) {
+    self_addresses.insert(entry.first);
+  }
+
+  return false;
+}
+
+/**
+  Check whether a peer endpoint should be skipped during join.
+
+  This preserves the pre-patch join behavior:
+  - if the peer address cannot be resolved, emit a warning and skip it;
+  - otherwise, classify the peer as self only when its port matches the local
+    port and one of its resolved aliases matches the cached self-address set.
+
+  @param[in] self_addresses Cached textual self-addresses for the current join
+                            attempt.
+  @param[in] local_port Local XCom port for this join attempt.
+  @param[in] peer_address Peer host/IP text to classify.
+  @param[in] peer_port Peer XCom port to classify.
+
+  @retval true The peer should be skipped either because it could not be
+               resolved or because it matches this node itself.
+  @retval false The peer should not be skipped.
+*/
+static bool skip_own_peer_address(std::set<std::string> const &self_addresses,
+                                  int local_port,
+                                  std::string const &peer_address,
+                                  int peer_port) {
+  std::vector<std::string> peer_aliases;
   bool const resolve_error =
-      resolve_ip_addr_from_hostname(peer_address, peer_rep_ip);
+      resolve_ip_addr_from_hostname(peer_address, peer_aliases);
   if (resolve_error) {
     MYSQL_GCS_LOG_WARN("Unable to resolve peer address " << peer_address.c_str()
                                                          << ". Skipping...")
     return true;
   }
 
-  for (const auto &local_node_info_str_ip_entry : my_own_addresses) {
-    for (auto &peer_rep_ip_entry : peer_rep_ip) {
-      if (peer_rep_ip_entry == local_node_info_str_ip_entry.first &&
-          peer_port == my_own_port) {
-        // Skip own address if configured in the peer list
-        return true;
-      }
-    }
-  }
+  if (peer_port != local_port) return false;
 
-  return false;
+  return std::any_of(peer_aliases.begin(), peer_aliases.end(),
+                     [&self_addresses](std::string const &peer_alias) {
+                       return self_addresses.find(peer_alias) !=
+                              self_addresses.end();
+                     });
 }
 
 static constexpr const char *get_signaling_error() {
@@ -460,21 +587,16 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
   } else {
     assert(!m_initial_peers.empty());
     MYSQL_GCS_LOG_TRACE("::join():: I am NOT the boot node.")
+    std::set<std::string> self_addresses;
 
-    bool add_node_accepted = false;
-
-    std::map<std::string, int> local_node_info_str_ips;
-    bool interface_retrieve_error = false;
-    interface_retrieve_error = get_local_addresses(
-        *this->m_sock_probe_interface, local_node_info_str_ips);
-
-    if (interface_retrieve_error) {
-      MYSQL_GCS_LOG_ERROR("Error retrieving local interface addresses: "
-                          << m_local_node_address->get_member_ip().c_str())
+    if (get_self_addresses(*m_sock_probe_interface, local_port,
+                           self_addresses)) {
+      MYSQL_GCS_LOG_ERROR(
+          "Error retrieving local interface addresses for join.")
       goto err;
     }
 
-    add_node_accepted = send_add_node_request(local_node_info_str_ips);
+    bool add_node_accepted = send_add_node_request(self_addresses);
     if (!add_node_accepted) {
       MYSQL_GCS_LOG_ERROR(
           "Error connecting to all peers. Member join failed. Local port: "
@@ -533,21 +655,21 @@ err:
 }
 
 bool Gcs_xcom_control::send_add_node_request(
-    std::map<std::string, int> const &my_addresses) {
+    std::set<std::string> const &self_addresses) {
   bool add_node_accepted = false;
 
   // Go through the seed list S_CONNECTION_ATTEMPTS times.
   for (int attempt_nr = 0;
        !add_node_accepted && attempt_nr < CONNECTION_ATTEMPTS; attempt_nr++) {
     if (m_view_control->is_finalized()) break;
-    add_node_accepted = try_send_add_node_request_to_seeds(my_addresses);
+    add_node_accepted = try_send_add_node_request_to_seeds(self_addresses);
   }
 
   return add_node_accepted;
 }
 
 bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
-    std::map<std::string, int> const &my_addresses) {
+    std::set<std::string> const &self_addresses) {
   bool add_node_accepted = false;
 
   // Until the add_node is successfully sent, for each peer...
@@ -560,7 +682,7 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
 
     bool connected = false;
     connection_descriptor *con = nullptr;
-    std::tie(connected, con) = connect_to_peer(peer, my_addresses);
+    std::tie(connected, con) = connect_to_peer(self_addresses, peer);
 
     if (bool const finalized = m_view_control->is_finalized();
         !finalized && connected) {
@@ -602,16 +724,15 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
 }
 
 std::pair<bool, connection_descriptor *> Gcs_xcom_control::connect_to_peer(
-    Gcs_xcom_node_address &peer,
-    std::map<std::string, int> const &my_addresses) {
+    std::set<std::string> const &self_addresses, Gcs_xcom_node_address &peer) {
   bool connected = false;
   auto port = peer.get_member_port();
   auto &addr = peer.get_member_ip();
+  int const local_port = m_local_node_address->get_member_port();
   connection_descriptor *con = nullptr;
 
   // Skip own address if configured in the peer list.
-  if (skip_own_peer_address(
-          my_addresses, m_local_node_address->get_member_port(), addr, port)) {
+  if (skip_own_peer_address(self_addresses, local_port, addr, port)) {
     MYSQL_GCS_LOG_TRACE("::join():: Skipping own address.")
     goto end;
   }
@@ -765,25 +886,11 @@ connection_descriptor *Gcs_xcom_control::get_connection_to_node(
   connection_descriptor *con = nullptr;
   std::vector<Gcs_xcom_node_address *>::iterator it;
 
-  std::map<std::string, int> local_node_info_str_ips;
-  bool interface_retrieve_error = false;
-  interface_retrieve_error = get_local_addresses(*this->m_sock_probe_interface,
-                                                 local_node_info_str_ips);
-
-  if (interface_retrieve_error) {
-    MYSQL_GCS_LOG_ERROR("Error retrieving local interface addresses: "
-                        << m_local_node_address->get_member_ip().c_str())
-    return con;
-  }
-
   for (it = peers_list->begin(); (con == nullptr) && it != peers_list->end();
        it++) {
     Gcs_xcom_node_address *peer = *(it);
-    std::string const peer_rep_ip;
 
-    if (skip_own_peer_address(local_node_info_str_ips,
-                              m_local_node_address->get_member_port(),
-                              peer->get_member_ip(), peer->get_member_port())) {
+    if (skip_own_peer_address(peer->get_member_ip(), peer->get_member_port())) {
       // Skip own address if configured in the peer list
       continue;
     }
@@ -837,7 +944,6 @@ void Gcs_xcom_control::do_remove_node_from_group() {
 
     for (it = current_view->get_members().begin();
          !con && it != current_view->get_members().end(); it++) {
-      std::string const peer_rep_ip;
       auto *peer = new Gcs_xcom_node_address(it->get_member_id());
 
       view_members.push_back(peer);

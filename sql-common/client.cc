@@ -214,11 +214,6 @@ void init_client_psi_keys(void) {
 
 #endif /* HAVE_PSI_INTERFACE */
 
-/* SSL_SESSION_is_resumable is openssl 1.1.1+ */
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-#define SSL_SESSION_is_resumable(x) true
-#endif
-
 uint mysql_port = 0;
 char *mysql_unix_port = nullptr;
 const char *unknown_sqlstate = "HY000";
@@ -3902,14 +3897,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   X509 *server_cert = nullptr;
   int ret_validation = 1;
 
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
-  char *cn = nullptr;
-  ASN1_STRING *cn_asn1 = nullptr;
-  X509_NAME_ENTRY *cn_entry = nullptr;
-  X509_NAME *subject = nullptr;
-#endif
-
   DBUG_TRACE;
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
 
@@ -3938,56 +3925,11 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     are what we expect.
   */
 
-  /* Use OpenSSL certificate matching functions instead of our own if we
-     have OpenSSL. The X509_check_* functions return 1 on success.
-  */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
   /*
-    For OpenSSL 1.0.2 and up we already set certificate verification
-    parameters in the new_VioSSLFd() to perform automatic checks.
+    Certificate verification parameters were already set in new_VioSSLFd()
+    to perform automatic checks.
   */
   ret_validation = 0;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
-  }
-
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == nullptr) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
-
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == nullptr) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
-
-  cn = (char *)ASN1_STRING_data(cn_asn1);
-
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
-    *errptr = "NULL embedded in the certificate CN";
-    goto error;
-  }
-
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname)) {
-    /* Success */
-    ret_validation = 0;
-  }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
   *errptr = "SSL certificate validation success";
 

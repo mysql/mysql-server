@@ -51,6 +51,37 @@
 // defined in mysqlbackup component definition
 extern char *mysqlbackup_backup_id;
 
+/**
+  Validate that a UDF argument list contains the expected number of
+  integer-valued arguments and that each argument has a non-null value
+  pointer.
+
+  This guards UDFs against typed SQL NULL inputs such as
+  `CAST(NULL AS SIGNED)`, which may report `INT_RESULT` in
+  `args->arg_type[]` while still providing a null entry in `args->args[]`.
+
+  @param args       UDF argument descriptor supplied by the server.
+  @param arg_count  Expected number of integer arguments.
+
+  @retval true   The argument list is invalid.
+  @retval false  The argument list is valid.
+*/
+static bool has_invalid_udf_int_args(UDF_ARGS *args, unsigned int arg_count) {
+  if (args->arg_count != arg_count) return true;
+
+  for (unsigned int index = 0; index < arg_count; ++index) {
+    /*
+      Typed SQL NULL values can have INT_RESULT type while args->args[index] is
+      null. Validate the value pointer before any UDF argument dereference.
+    */
+    if (args->arg_type[index] != INT_RESULT || args->args[index] == nullptr) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Page track system variables
 bool Backup_page_tracker::m_receive_changed_page_data = false;
 char *Backup_page_tracker::m_changed_pages_file = nullptr;
@@ -227,7 +258,7 @@ long long Backup_page_tracker::set_page_tracking(UDF_INIT *, UDF_ARGS *args,
     return (-1);
   }
 
-  if (args->arg_count != 1 || args->arg_type[0] != INT_RESULT) {
+  if (has_invalid_udf_int_args(args, 1)) {
     return (-1);
   }
 
@@ -323,8 +354,7 @@ long long Backup_page_tracker::page_track_get_changed_page_count(
     return (-1);
   }
 
-  if (args->arg_count != 2 || args->arg_type[0] != INT_RESULT ||
-      args->arg_type[1] != INT_RESULT) {
+  if (has_invalid_udf_int_args(args, 2)) {
     return (-1);
   }
   uint64_t changed_page_count = 0;
@@ -379,8 +409,7 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
     return (-1);
   }
 
-  if (args->arg_count != 2 || args->arg_type[0] != INT_RESULT ||
-      args->arg_type[1] != INT_RESULT) {
+  if (has_invalid_udf_int_args(args, 2)) {
     return (-1);
   }
 
@@ -490,6 +519,10 @@ long long Backup_page_tracker::page_track_purge_up_to(UDF_INIT *,
   if (mysql_service_mysql_current_thread_reader->get(&thd)) {
     mysql_error_service_printf(ER_MYSQLBACKUP_CLIENT_MSG, MYF(0),
                                "Cannot get current thread handle");
+    return -1;
+  }
+
+  if (has_invalid_udf_int_args(args, 1)) {
     return -1;
   }
 

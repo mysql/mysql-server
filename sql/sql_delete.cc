@@ -488,8 +488,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (*conds != nullptr) table->update_const_key_parts(*conds);
     order = simple_remove_const(order, *conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY, /*const_optimized=*/true);
-    usable_index = get_index_for_order(&order_src, table, limit, range_scan,
-                                       &need_sort, &reverse);
+    usable_index = get_index_for_order(thd, &order_src, table, limit,
+                                       range_scan, &need_sort, &reverse);
     if (range_scan != nullptr) {
       // May have been changed by get_index_for_order().
       type = calc_join_type(range_scan);
@@ -976,16 +976,14 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b) {
 
 DeleteRowsIterator::DeleteRowsIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
-    table_map tables_to_delete_from, table_map immediate_tables)
+    table_map tables_to_delete_from, table_map immediate_tables,
+    table_map tables_to_get_rowid_for)
     : RowIterator(thd),
       m_source(std::move(source)),
       m_join(join),
       m_tables_to_delete_from(tables_to_delete_from),
       m_immediate_tables(immediate_tables),
-      // The old optimizer does not use hash join in DELETE statements.
-      m_hash_join_tables(thd->lex->using_hypergraph_optimizer()
-                             ? GetHashJoinTables(join->root_access_path())
-                             : 0),
+      m_tables_to_get_rowid_for(tables_to_get_rowid_for),
       m_tempfiles(thd->mem_root),
       m_delayed_tables(thd->mem_root) {
   for (const Table_ref *tr = join->query_block->leaf_tables; tr != nullptr;
@@ -1137,10 +1135,7 @@ bool DeleteRowsIterator::DoImmediateDeletesAndBufferRowIds() {
     // Check if using outer join and no row found, or row is already deleted
     if (table->has_null_row() || table->has_deleted_row()) continue;
 
-    // Hash joins have already copied the row ID from the join buffer into
-    // table->file->ref. Nested loop joins have not, so we call position() to
-    // get the row ID from the handler.
-    if (!Overlaps(map, m_hash_join_tables)) {
+    if (Overlaps(map, m_tables_to_get_rowid_for)) {
       table->file->position(table->record[0]);
     }
 

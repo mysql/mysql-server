@@ -1120,7 +1120,7 @@ mysql_declare_plugin(thread_pool){
     PLUGIN_AUTHOR_ORACLE,
     "Threads pool implementation to handle multiple connections for each "
     "thread",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     thread_pool_plugin_init,        /* plugin init */
     thread_pool_plugin_check,       /* plugin check uninstall */
     thread_pool_plugin_deinit,      /* plugin deinit */
@@ -1136,7 +1136,7 @@ mysql_declare_plugin(thread_pool){
         "TP_THREAD_STATE",
         PLUGIN_AUTHOR_ORACLE,
         "I_S table describing state of threads in thread_pool",
-        PLUGIN_LICENSE_PROPRIETARY,
+        PLUGIN_LICENSE_GPL,
         thread_pool_plugin_thread_state_table_init,
         nullptr,
         nullptr,
@@ -1152,7 +1152,7 @@ mysql_declare_plugin(thread_pool){
         "TP_THREAD_GROUP_STATE",
         PLUGIN_AUTHOR_ORACLE,
         "I_S table describing state of thread groups in thread_pool",
-        PLUGIN_LICENSE_PROPRIETARY,
+        PLUGIN_LICENSE_GPL,
         thread_pool_plugin_thread_group_state_table_init,
         nullptr,
         nullptr,
@@ -1168,7 +1168,7 @@ mysql_declare_plugin(thread_pool){
         "TP_THREAD_GROUP_STATS",
         PLUGIN_AUTHOR_ORACLE,
         "I_S table with thread group statistics in thread_pool",
-        PLUGIN_LICENSE_PROPRIETARY,
+        PLUGIN_LICENSE_GPL,
         thread_pool_plugin_thread_group_stats_table_init,
         nullptr,
         nullptr,

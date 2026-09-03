@@ -1048,7 +1048,7 @@ int runRollbackNothing(NDBT_Context *ctx, NDBT_Step *step) {
 
 int runMassiveRollback(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
-  const int records = 4 * restarter.getNumDbNodes();
+  const int records = 16 * restarter.getNumDbNodes();
 
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0) {
@@ -1059,8 +1059,8 @@ int runMassiveRollback(NDBT_Context *ctx, NDBT_Step *step) {
   HugoOperations hugoOps(*ctx->getTab());
   Ndb *pNdb = GETNDB(step);
 
-  const Uint32 OPS_PER_TRANS = 256;
-  const Uint32 OPS_TOTAL = 4096;
+  const Uint32 OPS_PER_TRANS = 250;
+  const Uint32 OPS_TOTAL = 1000;  // MaxRowVersionsPerTransaction default value
 
   for (int row = 0; row < records; row++) {
     int res;
@@ -1095,6 +1095,7 @@ int runMassiveRollback(NDBT_Context *ctx, NDBT_Step *step) {
 
 int runMassiveRollback2(NDBT_Context *ctx, NDBT_Step *step) {
   HugoTransactions hugoTrans(*ctx->getTab());
+  // Insert one row with key 0
   if (hugoTrans.loadTable(GETNDB(step), 1) != 0) {
     return NDBT_FAILED;
   }
@@ -1110,12 +1111,15 @@ int runMassiveRollback2(NDBT_Context *ctx, NDBT_Step *step) {
     CHECK(hugoOps.startTransaction(pNdb) == 0);
     for (Uint32 i = 0; i < OPS_TOTAL - 1; i++) {
       if ((i & 1) == 0) {
+        // First 1000 ops will be ok, the following will fail with error 927
         CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, loop) == 0);
       } else {
+        // No row, each op will fail with error 626
         CHECK(hugoOps.pkUpdateRecord(pNdb, 1, 1, loop) == 0);
       }
     }
-    CHECK(hugoOps.execute_Commit(pNdb) == 626);
+    int error = hugoOps.execute_Commit(pNdb);
+    CHECK(error == 626 || error == 927);
     CHECK(hugoOps.execute_Rollback(pNdb) == 0);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
   }

@@ -105,6 +105,33 @@ SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_
 
 SET SESSION DEBUG = '-d,attribute_get';
 
+--echo ###################################### Stored procedure output parameter test ######################################
+
+DELIMITER |;
+CREATE PROCEDURE output_parameter_only(OUT output_value INT)
+BEGIN
+  SET output_value = 42;
+END|
+
+CREATE PROCEDURE output_parameter_with_result_set(OUT output_value INT)
+BEGIN
+  SELECT 7 AS procedure_result;
+  SET output_value = 42;
+END|
+DELIMITER ;|
+
+SELECT test_execute_prepared_statement("CALL output_parameter_only(?)", 0);
+
+SET SESSION DEBUG = '+d,fail_protocol_local_v2_send_parameters';
+SELECT test_execute_prepared_statement("CALL output_parameter_only(?)", 0);
+SET SESSION DEBUG = '-d,fail_protocol_local_v2_send_parameters';
+
+SELECT test_execute_prepared_statement(
+  "CALL output_parameter_with_result_set(?)", 0);
+
+DROP PROCEDURE output_parameter_only;
+DROP PROCEDURE output_parameter_with_result_set;
+
 SET SESSION DEBUG = '+d,code_coverage';
 --error ER_DATA_OUT_OF_RANGE
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);

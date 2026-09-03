@@ -19,60 +19,70 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint JOIN_INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b, i_c) INDEX(t1 i_d) */ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1`  `i_d`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_b`, `i_c`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a) JOIN_INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint JOIN_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) JOIN_INDEX(`t1`@`select#1` `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint GROUP_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) GROUP_INDEX(`t1`@`select#1` `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1) */ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint GROUP_INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) ORDER_INDEX(`t1`@`select#1` `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1) */ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) INDEX(t1 i_c)*/ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1`  `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_c`) ORDER_INDEX(`t1`@`select#1` `i_a`, `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) INDEX(t1)*/ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t1`@`select#1` `i_b`) ORDER_INDEX(`t1`@`select#1` `i_a`, `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+  ORDER_INDEX(t1) GROUP_INDEX(t1) INDEX(t1)*/ a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t1`@`select#1`) ORDER_INDEX(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.c = 3) and (t1.b = 2) and (t1.a = 1))  (rows=0.05)
@@ -80,81 +90,111 @@ EXPLAIN
         -> Index range scan on t1 using i_a over (a = 1)  (rows=32)
         -> Index range scan on t1 using i_b over (b = 2)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_ab) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: (t1.c = 3)  (rows=0.05)
     -> Index lookup on t1 using i_ab (a = 1, b = 2)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_ab`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_c) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.b = 2) and (t1.a = 1))  (rows=0.05)
     -> Index lookup on t1 using i_c (c = 3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_b`) JOIN_INDEX(`t1`@`select#1` `i_c`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 EXPLAIN SELECT /*+ NO_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
         -> Index lookup on t1 using i_b (b = 2)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (`test`.`t1`.`b` = 2) group by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
         -> Index lookup on t1 using i_b (b = 2)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_JOIN_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (`test`.`t1`.`b` = 2) group by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=8)
     -> Covering index scan on t1 using i_ab  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ NO_GROUP_INDEX(t1 i_a) */ a, COUNT(*) FROM t1 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
         -> Covering index scan on t1 using i_a  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_GROUP_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a`,count(0) AS `COUNT(*)` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>  (rows=9)
     -> Temporary table with deduplication  (rows=9)
         -> Covering index skip scan for grouping on t1 using i_ab  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_ab) */ a FROM t1
 ORDER BY a;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ORDER_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
 -> Sort: t1.a  (rows=256)
     -> Covering index scan on t1 using i_a  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_ab) */ a FROM t1
 ORDER BY a;
 EXPLAIN
 -> Covering index scan on t1 using i_ab  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
 -> Covering index scan on t1 using i_a  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ * FROM t1
 ORDER BY a;
 EXPLAIN
 -> Index scan on t1 using i_a  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` order by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1 WHERE a = 100;
 EXPLAIN
 -> Filter: (t1.a = 100)  (rows=32)
     -> Covering index scan on t1 using i_a  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 100)
 EXPLAIN SELECT /*+ NO_INDEX(t1) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.c = 3) and (t1.b = 2) and (t1.a = 1))  (rows=1)
     -> Table scan on t1  (rows=256)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 IGNORE INDEX (i_a)
 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
@@ -163,14 +203,20 @@ EXPLAIN
         -> Index range scan on t1 using i_ab over (a = 1 AND b = 2)  (rows=1)
         -> Index range scan on t1 using i_c over (c = 3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` IGNORE INDEX (`i_a`) where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 EXPLAIN UPDATE /*+ INDEX(t1 i_a) */ t1 SET d = 1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> <not executable by iterator executor>
 
+Warnings:
+Note	1003	update /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1` set `test`.`t1`.`d` = 1 where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 EXPLAIN DELETE /*+ INDEX(t1 i_a) */ FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> <not executable by iterator executor>
 
+Warnings:
+Note	1003	delete /*+ INDEX(`t1`@`select#1` `i_a`) */ from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 CREATE VIEW v1 AS SELECT /*+ NO_INDEX(t1 i_a,i_b) */ a FROM t1 WHERE
 b IN (SELECT /*+ NO_INDEX(t1 i_ab,i_b) */ a FROM t1 WHERE a > 3)
 ORDER BY a;
@@ -188,6 +234,8 @@ EXPLAIN
                     -> Filter: (t1.a > 3)  (rows=8)
                         -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 3)) order by `test`.`t1`.`a`
 EXPLAIN SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
@@ -201,6 +249,8 @@ EXPLAIN
                     -> Filter: (t1.a > 3)  (rows=8)
                         -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`ta`@`select#1` `i_a`) */ `ta`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) join `test`.`t1` `ta` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`ta`.`a` > 3) and (`test`.`t1`.`a` > 3))
 CREATE VIEW v2 AS SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
@@ -218,6 +268,8 @@ EXPLAIN
                     -> Filter: (t1.a > 3)  (rows=8)
                         -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `ta`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) join `test`.`t1` `ta` /*+ INDEX(`ta`@`select#1` `i_a`) */  where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`ta`.`a` > 3) and (`test`.`t1`.`a` > 3))
 EXPLAIN SELECT /*+ INDEX(tb i_a) */ tb.a FROM v2, t1 tb WHERE tb.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=6.55e+6)
@@ -235,12 +287,16 @@ EXPLAIN
                             -> Filter: (t1.a > 3)  (rows=8)
                                 -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`tb`@`select#1` `i_a`) */ `tb`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) join `test`.`t1` `ta` /*+ INDEX(`ta`@`select#1` `i_a`) */  join `test`.`t1` `tb` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`tb`.`a` > 3) and (`ta`.`a` > 3) and (`test`.`t1`.`a` > 3))
 EXPLAIN SELECT /*+ INDEX(t1 i_a) */ * FROM t1 IGNORE INDEX(i_a)
 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.c = 3) and (t1.b = 2))  (rows=0.125)
     -> Index lookup on t1 using i_a (a = 1)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` IGNORE INDEX (`i_a`) where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
 CREATE VIEW v3 AS SELECT /*+ INDEX_MERGE(t1) */a FROM t1
 WHERE a = 1 AND b = 2 AND c = 3;
 DROP VIEW v1, v2, v3;
@@ -261,6 +317,8 @@ EXPLAIN
 -> Filter: (match t.x against ('abc'))  (rows=1)
     -> Full-text covering index search on t using x (x = 'abc')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ORDER_INDEX(`t`@`select#1` `x`) */ `test`.`t`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t`.`x` against ('abc')) AS `m` from `test`.`t` where (match `test`.`t`.`x` against ('abc')) order by (match `test`.`t`.`x` against ('abc')) desc
 EXPLAIN SELECT /*+ ORDER_INDEX(t x) */
 FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
 WHERE MATCH (x) AGAINST ('abc')
@@ -270,16 +328,22 @@ EXPLAIN
     -> Filter: (match t.x against ('abc'))  (rows=4)
         -> Table scan on t  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t`@`select#1` `x`) */ `test`.`t`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t`.`x` against ('abc')) AS `m` from `test`.`t` where (match `test`.`t`.`x` against ('abc')) order by (match `test`.`t`.`x` against ('abc')) desc
 EXPLAIN SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
 -> Filter: (match t.x against ('abc'))  (rows=1)
     -> Full-text index search on t using x (x = 'abc')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_INDEX(`t`@`select#1` `x`) */ `test`.`t`.`FTS_DOC_ID` AS `FTS_DOC_ID`,`test`.`t`.`x` AS `x` from `test`.`t` where (match `test`.`t`.`x` against ('abc'))
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
 -> Filter: (match t.x against ('abc'))  (rows=1)
     -> Table scan on t  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_JOIN_INDEX(`t`@`select#1` `x`) */ `test`.`t`.`FTS_DOC_ID` AS `FTS_DOC_ID`,`test`.`t`.`x` AS `x` from `test`.`t` where (match `test`.`t`.`x` against ('abc'))
 DROP TABLE t;
 CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
 EXPLAIN SELECT /*+ NO_JOIN_INDEX (t1) */ f1 FROM t1 WHERE f1 = 578;
@@ -287,4 +351,6 @@ EXPLAIN
 -> Filter: (t1.f1 = 578)  (cost=0.35 rows=1)
     -> Covering index scan on t1 using PRIMARY  (cost=0.35 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_JOIN_INDEX(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = 578)
 DROP TABLE t1;
