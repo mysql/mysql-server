@@ -37,7 +37,13 @@ using System_Process_Stats_Buffer =
 using System_Memory_Stats_Buffer =
     std::shared_ptr<Stat_Buffer<System_Memory_Stats>>;
 
-// System Collector
+/**
+  System Collector
+
+  The System Collector collects and publishes CPU, disk I/O, memory, and process
+  statistics. It does not issue resource warnings or take corrective action
+  based on these values.
+*/
 class System_Collector : public Collector {
  public:
   System_Collector();

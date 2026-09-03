@@ -215,7 +215,7 @@ class Recovery_State {
   int m_time_2{0};       // system variable 'disk_recovery_time_2', seconds before setting SUPER_READ_ONLY = OFF
   int m_max_cycles{0};   // system variable 'disk_recovery_max_cycles', maximum allowed recovery cycles
   int m_increment{0};    // system variable 'disk_recovery_increment', seconds to increase recovery timer each cycle
-  uint64_t m_window{0};    // system variable 'disk_recovery_window', lifetime of the recovery cycle count
+  uint64_t m_window{0};  // system variable 'disk_recovery_window', lifetime of the recovery cycle count
   // Recovery state
   uint64_t m_level_mb{0};           // min MiB above reserve level to restore normal operating mode
   bool m_in_progress{false};        // true if either recovery timer is running
@@ -227,6 +227,20 @@ class Recovery_State {
 
 /**
   Disk Collector
+
+  The Disk Collector monitors space on the filesystem path specified by 
+  `health_monitor.disk_monitored`. It collects filesystem usage, detects
+  filesystem and capacity changes, publishes samples and supplies disk metrics
+  to the Disk Forecaster.
+
+  The collector classifies available space as normal, warning, low or critical.
+  When fencing is enabled, low and critical states can cause the collector to
+  set OFFLINE_MODE and SUPER_READ_ONLY. The collector records which modes it
+  set so that when disk space recovers, the Health Monitor clears only changes
+  that it made.
+
+  If the monitored path or filesystem is unavailable, then the Disk Collector
+  suspends sample collection and retries on subsequent collection cycles.
 */
 class Disk_Collector : public Collector {
  public:

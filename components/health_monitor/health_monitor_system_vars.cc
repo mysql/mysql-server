@@ -162,8 +162,41 @@ sv_bool&  System_vars::system_process_stats_history()   { return vars().system_p
 // System variable registration
 //------------------------------------------------------------------------------
 namespace {
-int register_system_var(Sysvar_base &sysvar, void *args);
-int unregister_system_var(Sysvar_base &sysvar);
+
+/**
+  Register one system variable.
+
+  The PERSIST_AS_READ_ONLY flag ensures that persisted or otherwise
+  pre-configured system variables are loaded during component initialization,
+  before the Health Monitor can react to its environment.
+*/
+int register_system_var(Sysvar_base &sysvar, void *args) {
+  if (sysvar_register_srv->register_variable(
+          sysvar_prefix, sysvar.name,
+          (sysvar.type | PLUGIN_VAR_PERSIST_AS_READ_ONLY), sysvar.desc,
+          sysvar.check_func, sysvar.update_func, args, sysvar.val_ptr) != 0) {
+    log_error("Health Monitor: Failed to register system variable '%s'",
+              sysvar.name);
+    return 1;
+  }
+  sysvar.registered = true;
+  return 0;
+}
+
+/** Unregister one system variable. */
+int unregister_system_var(Sysvar_base &sysvar) {
+  if (!sysvar.registered) return 0;
+
+  if (sysvar_unregister_srv->unregister_variable(sysvar_prefix, sysvar.name) !=
+      0) {
+    log_error("Health Monitor: Failed to unregister system variable '%s'",
+              sysvar.name);
+    return 1;
+  }
+  sysvar.registered = false;
+  return 0;
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -833,46 +866,8 @@ int System_vars::unregister_all() {
   return 0;
 }
 
-//------------------------------------------------------------------------------
-// Individual registration helpers
-//------------------------------------------------------------------------------
-
 namespace {
 // NOLINTBEGIN(readability-named-parameter)
-
-/**
-  Register one system variable.
-
-  The PERSIST_AS_READ_ONLY flag ensures that persisted or otherwise
-  pre-configured system variables are loaded during component initialization,
-  before the Health Monitor can react to its environment.
-*/
-int register_system_var(Sysvar_base &sysvar, void *args) {
-  if (sysvar_register_srv->register_variable(
-          sysvar_prefix, sysvar.name,
-          (sysvar.type | PLUGIN_VAR_PERSIST_AS_READ_ONLY), sysvar.desc,
-          sysvar.check_func, sysvar.update_func, args, sysvar.val_ptr) != 0) {
-    log_error("Health Monitor: Failed to register system variable '%s'",
-              sysvar.name);
-    return 1;
-  }
-  sysvar.registered = true;
-  return 0;
-}
-
-/** Unregister one system variable. */
-int unregister_system_var(Sysvar_base &sysvar) {
-  if (!sysvar.registered) return 0;
-
-  if (sysvar_unregister_srv->unregister_variable(sysvar_prefix, sysvar.name) !=
-      0) {
-    log_error("Health Monitor: Failed to unregister system variable '%s'",
-              sysvar.name);
-    return 1;
-  }
-  sysvar.registered = false;
-  return 0;
-}
 
 //------------------------------------------------------------------------------
 // Check functions for system variables

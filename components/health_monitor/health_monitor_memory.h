@@ -99,7 +99,14 @@ void publish_memory_records(Memory_Info &memory_info, time_t timestamp,
   std::forward<System_writer>(write_system)(memory_info.sys);
 }
 
-// Memory Collector
+/**
+  Memory Collector
+
+  The Memory Collector monitors server memory usage, publishes memory
+  statistics, and emits warnings when available memory falls below the
+  configured thresholds. Unlike the Disk Collector, the Memory Collector
+  does not take corrective action when memory is low.
+*/
 class Memory_Collector : public Collector {
  public:
   Memory_Collector();
