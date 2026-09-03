@@ -50,6 +50,11 @@ namespace mysql::csa {
 /// * ap_queue_size - asynchronous provider queue size
 /// * applied_events_cnt - the overall, and ever-increasing, number of applied
 /// events
+/// * imr_mem_trx_cnt / imr_mem_trx_len - in-memory relay log: transactions
+///   completed from the memory path, and the sum of their trx_length
+/// * imr_spl_trx_cnt / imr_spl_trx_len - the same for the spill path
+///   (the four IMR names are at most 15 characters, so building the lookup
+///   string never allocates)
 class Statistics_map {
  public:
   static constexpr auto active_job_cnt = "active_job_cnt";
@@ -62,9 +67,33 @@ class Statistics_map {
   static constexpr auto trx_scheduled_cnt = "trx_scheduled_cnt";
   static constexpr auto ap_queue_size = "ap_queue_size";
   static constexpr auto applied_events_cnt = "applied_events_cnt";
+  static constexpr auto imr_mem_trx_cnt = "imr_mem_trx_cnt";
+  static constexpr auto imr_mem_trx_len = "imr_mem_trx_len";
+  static constexpr auto imr_spl_trx_cnt = "imr_spl_trx_cnt";
+  static constexpr auto imr_spl_trx_len = "imr_spl_trx_len";
+
+  /// @brief Registers the CSA statistics of a channel for one applier run.
+  /// @param instance_id Channel instance id
+  /// @param num_threads Number of applier workers
+  /// @param enable_extended_statistics Whether to enable the extended
+  ///        statistics
+  /// @param enable_imr_statistics Whether to enable the in-memory relay log
+  ///        counters; the channel's applier metric collection status, so they
+  ///        follow the other applier metrics
+  /// @return False on success, true on failure
   [[nodiscard]] static bool init_statistics(std::size_t instance_id,
                                             std::size_t num_threads,
-                                            bool enable_extended_statistics);
+                                            bool enable_extended_statistics,
+                                            bool enable_imr_statistics = false);
+
+  /// @brief Counts one in-memory relay log transaction completed by the
+  /// applier (no-op if the counters are not registered). Adds on the atomic
+  /// shard 0, since the IMR commit hook has no worker id.
+  /// @param instance_id Channel instance id
+  /// @param spill_path True for a spill-path transaction, false for memory
+  /// @param trx_length The transaction's declared size
+  static void count_imr_completed(std::size_t instance_id, bool spill_path,
+                                  std::size_t trx_length);
 };
 
 }  // namespace mysql::csa

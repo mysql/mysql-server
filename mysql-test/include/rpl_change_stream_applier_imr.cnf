@@ -1,0 +1,14 @@
+# ==== Purpose ====
+# Changes replication applier version to change stream applier, with the
+# in-memory relay log (IMR)
+
+[ENV]
+# By default, CHANGE REPLICATION SOURCE is executed without specifying the
+# `APPLIER_VERSION` parameter. This variable causes CHANGE REPLICATION SOURCE
+# TO to specify APPLIER_VERSION=2. We use the default number of workers.
+RPL_CHANGE_STREAM_APPLIER=2
+# RPL_IN_MEMORY_RELAYLOG is left out on purpose: the topology helper then adds
+# no IN_MEMORY_RELAYLOG_ENABLED option, and the server default applies (IMR is
+# ON unless set OFF). The CSA pass without
+# IMR uses rpl_change_stream_applier.cnf. Tests that do not support IMR source
+# include/not_csa_imr.inc.

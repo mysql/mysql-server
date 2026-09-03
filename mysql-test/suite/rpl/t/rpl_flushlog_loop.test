@@ -4,6 +4,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --let $rpl_topology= 1->2->1
+# IMR does not rotate the relay log on FLUSH LOGS or a source Rotate.
+--source include/not_csa_imr.inc
 --source include/rpl/init.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;

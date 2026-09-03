@@ -1,0 +1,199 @@
+# ==== Purpose ====
+#
+# Test that a crash in the middle of the purge of an in-memory relay log
+# (IMR) channel's stale relay-log files leaves the channel usable.
+#
+# The purge runs when the channel starts with both threads stopped, at START
+# REPLICA and at server startup, and uses the crash-safe
+# MYSQL_BIN_LOG::purge_logs(). It writes the purge-index file, updates the
+# relay-log index, then deletes the files; the next server start replays the
+# purge-index file.
+#
+# ==== Requirements ====
+#
+# R1. A crash in the purge at START REPLICA, after the relay-log index is
+#     updated, leaves no relay-log file behind after the restart, and the
+#     channel initializes and replicates.
+# R2. A crash in the purge at server startup, before the relay-log index is
+#     updated, leaves one relay-log file after the next restart, and the
+#     channel initializes and replicates.
+#
+# ==== Implementation ====
+#
+#   0. Load the keyring on the replica, enable binlog_encryption and IMR.
+#   1. R1: two key rotations, STOP, then START REPLICA with
+#      imr_relay_log_purge_crash_after_index; the server dies. Restart.
+#   2. R2: two key rotations, STOP, restart with
+#      imr_relay_log_purge_crash_before_index; the server dies during
+#      startup. Restart without it.
+#      After each restart: no MY-010606, one relay-log file in the index and
+#      on disk, START, replicate, diff.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
+
+--echo
+--echo # 0. Load the keyring on the replica, enable binlog_encryption and IMR.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+
+--let $rlf_mode= count
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= starting as process
+--let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--let _RDP_BASENAME= `SELECT @@GLOBAL.relay_log_basename`
+--let _RDP_INDEX_FILE= `SELECT @@GLOBAL.relay_log_index`
+
+--let $case= 1
+while ($case <= 2)
+{
+  if ($case == 1)
+  {
+    --echo
+    --echo # 1. Crash in the purge at START REPLICA (R1).
+    --echo
+  }
+  if ($case == 2)
+  {
+    --echo
+    --echo # 2. Crash in the purge at server startup (R2).
+    --echo
+  }
+
+  ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+  ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+  --source include/rpl/stop_replica.inc
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $assert_text= The relay-log index has stale files before the crash
+  --let $assert_cond= $rlf_count >= 3
+  --source include/assert.inc
+
+  if ($case == 1)
+  {
+    SET SESSION debug = '+d,imr_relay_log_purge_crash_after_index';
+    --source include/expect_crash.inc
+    --error CR_SERVER_LOST
+    START REPLICA;
+    --source include/wait_until_disconnected.inc
+  }
+  if ($case == 2)
+  {
+    # mtr starts the server with the crash point and waits after it dies.
+    --source include/rpl/stop_server.inc
+    --exec echo "restart_abort: $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --debug=+d,imr_relay_log_purge_crash_before_index" > $expect_file
+  }
+
+  # The crash point kills the server with DBUG_SUICIDE(), which logs
+  # "SIGKILL myself".
+  --let $grep_file= $assert_file
+  --let $grep_pattern= SIGKILL myself
+  --let $skip_first_x_occurences= $case
+  --dec $skip_first_x_occurences
+  --let $saved_wait_timeout= $wait_timeout
+  --let $wait_timeout= 120
+  --source include/wait_for_pattern_in_file.inc
+  --let $wait_timeout= $saved_wait_timeout
+
+  # The state the crash left: after the index update (case 1) the purged
+  # files are still on disk, before it (case 2) the index is unchanged.
+  perl;
+    my $base= $ENV{'_RDP_BASENAME'};
+    my $index_file= $ENV{'_RDP_INDEX_FILE'};
+    my @disk= grep { /\.\d+$/ } glob("$base.*");
+    open FILE, "< $index_file" or die "Error $? opening $index_file: $!";
+    my $count= grep { /\S/ } <FILE>;
+    close FILE or die "Error $? closing $index_file: $!";
+    print "# After the crash the index has ",
+          ($count == 1 ? "one file" : "several files"), ", and ",
+          (scalar(@disk) > $count ? "purged files are still on disk"
+                                  : "every file on disk is in the index"),
+          ".\n";
+EOF
+
+  --echo # Restart after the crash.
+  --source include/rpl/start_server.inc
+  --source include/rpl/connection_replica.inc
+
+  --let $assert_text= The replica initialized the channel's relay log after crash $case
+  --let $assert_select= MY-010606
+  --let $assert_count= 0
+  --source include/assert_grep.inc
+
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $assert_text= One relay-log file is in the index after crash $case
+  --let $assert_cond= $rlf_count = 1
+  --source include/assert.inc
+
+  # Count the relay-log files on disk: a file removed from the index must be
+  # deleted too.
+  --let _RDP_OUTPUT_FILE= $MYSQLTEST_VARDIR/tmp/rdp_disk_count.txt
+  perl;
+    my $base= $ENV{'_RDP_BASENAME'};
+    my @files= grep { /\.\d+$/ } glob("$base.*");
+    my $output_file= $ENV{'_RDP_OUTPUT_FILE'};
+    open FILE, "> $output_file" or die "Error $? opening $output_file: $!";
+    print FILE scalar(@files) or die "Error $? writing to $output_file: $!";
+    close FILE or die "Error $? closing $output_file: $!";
+EOF
+  --let $disk_count= `SELECT LOAD_FILE('$_RDP_OUTPUT_FILE')`
+  --remove_file $_RDP_OUTPUT_FILE
+  --let $assert_text= One relay-log file is on disk after crash $case
+  --let $assert_cond= $disk_count = 1
+  --source include/assert.inc
+
+  --source include/rpl/start_replica.inc
+  --source include/rpl/connection_source.inc
+  --eval INSERT INTO t1 VALUES ($case + 1)
+  --source include/rpl/sync_to_replica.inc
+  --let $diff_tables= master:test.t1, slave:test.t1
+  --source include/diff_tables.inc
+
+  --let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+  --let $assert_text= The applier runs without error after crash $case
+  --let $assert_cond= $sql_errno = 0
+  --source include/assert.inc
+
+  --inc $case
+}
+
+# Cleanup.
+--let $assert_only_after=
+--let $skip_first_x_occurences=
+--let _RDP_BASENAME=
+--let _RDP_INDEX_FILE=
+--let _RDP_OUTPUT_FILE=
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

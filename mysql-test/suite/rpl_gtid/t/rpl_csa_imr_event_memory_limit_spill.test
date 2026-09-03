@@ -1,0 +1,208 @@
+# ==== Purpose ====
+#
+# Verify that APPLIER_EVENT_MEMORY_LIMIT is effective on a CSA (Change Stream
+# Applier) channel with the in-memory relay log (IMR) enabled, on the spill
+# path: workers reading spilled transactions reserve event memory per event,
+# as on the disk path.
+#
+# ==== Requirements ====
+#
+# R1. With a 1.5 MiB limit, one worker holding a ~1 MiB event of a spilled
+#     transaction makes a second worker wait; after it releases, all rows
+#     apply. (AC-3)
+# R2. With a 512 KiB limit, every ~1 MiB event is larger than the limit; the
+#     events still apply after waiting. (AC-4)
+#
+# ==== Implementation ====
+#
+#   1. Set up an IMR channel with the minimum 8 MiB spill threshold.
+#   2. replica_max_allowed_packet = APPLIER_EVENT_MEMORY_LIMIT = 1.5 MiB. Two
+#      ~9 MiB transactions spill; one worker is paused at
+#      pause_csa_before_releasing_event_memory, the other waits (R1).
+#   3. Restart only the applier and set the limit to 512 KiB, with
+#      replica_max_allowed_packet lowered for the CHANGE REPLICATION SOURCE
+#      TO and raised again after it. The receiver keeps its 1.5 MiB
+#      connection from step 2; the raise is for later receiver connects
+#      (the cleanup START). Repeat (R2).
+#   4. Restore the packet size and the limit, so a later server restart can
+#      load the channel's metadata.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+# A compressed transaction reserves only its compressed payload length, and
+# would stay below the spill threshold.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 1. Set up an IMR channel with the minimum 8 MiB spill threshold.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $saved_packet= `SELECT @@GLOBAL.replica_max_allowed_packet`
+--let $saved_mem_limit= `SELECT APPLIER_EVENT_MEMORY_LIMIT FROM performance_schema.replication_applier_configuration`
+
+CALL mtr.add_suppression("Replica SQL thread .* killed");
+CALL mtr.add_suppression("Worker .* stopped");
+
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+--let $assert_text= The channel uses the in-memory relay log
+--let $assert_cond= "[SELECT IN_MEMORY_RELAYLOG_ENABLED FROM performance_schema.replication_applier_configuration]" = "YES"
+--source include/assert.inc
+
+# Derive the spill directory from the channel's relay-log path:
+#   <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+--echo
+--echo # 2. A 1.5 MiB limit: one worker holds a ~1 MiB event, a second waits.
+--echo
+
+SET @@GLOBAL.replica_max_allowed_packet = 1572864;
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1572864;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--let $debug_point= pause_csa_before_releasing_event_memory
+--source include/add_debug_point.inc
+
+# Two independent transactions of 9 rows x 1 MiB (~9 MiB each, above the
+# 8 MiB spill threshold).
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $id_start= 1
+while ($id_start <= 11)
+{
+  BEGIN;
+  --let $i= $id_start
+  --let $id_end= `SELECT $id_start + 8`
+  while ($i <= $id_end)
+  {
+    --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+    --inc $i
+  }
+  COMMIT;
+  --let $id_start= `SELECT $id_start + 10`
+}
+--enable_query_log
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE STATE = 'Waiting for Replica Workers to free pending events'
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+--echo # Both uncommitted transactions took the spill path:
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $spill_dir imr_sp_*
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 3. A 512 KiB limit: every ~1 MiB event is larger than the limit.
+--echo
+
+SET DEBUG_SYNC= 'RESET';
+# Only the applier restarts: the new limit takes effect at the next applier
+# start, and the receiver keeps its connection and its received GTID set,
+# which sync_to_replica_received.inc below reads.
+--source include/rpl/stop_applier.inc
+# The clamp to replica_max_allowed_packet runs only in CHANGE REPLICATION
+# SOURCE TO. The receiver keeps its 1.5 MiB connection from step 2; the
+# raise restores the packet size for later receiver connects (the cleanup
+# START).
+SET @@GLOBAL.replica_max_allowed_packet = 524288;
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 524288;
+SET @@GLOBAL.replica_max_allowed_packet = 1572864;
+--source include/rpl/start_applier.inc
+
+--let $assert_text= The event memory limit stays at 512 KiB
+--let $assert_cond= [SELECT APPLIER_EVENT_MEMORY_LIMIT FROM performance_schema.replication_applier_configuration] = 524288
+--source include/assert.inc
+
+--source include/add_debug_point.inc
+
+# The holder is granted its above-limit request only because nothing else is
+# reserved; while it holds it, the waiter waits even for its small events.
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $id_start= 21
+while ($id_start <= 31)
+{
+  BEGIN;
+  --let $i= $id_start
+  --let $id_end= `SELECT $id_start + 8`
+  while ($i <= $id_end)
+  {
+    --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+    --inc $i
+  }
+  COMMIT;
+  --let $id_start= `SELECT $id_start + 10`
+}
+--enable_query_log
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE STATE = 'Waiting for Replica Workers to free pending events'
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+--echo # Both uncommitted transactions took the spill path:
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $spill_dir imr_sp_*
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+SET DEBUG_SYNC= 'RESET';
+
+--echo
+--echo # 4. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+# A stored limit below the 1 GiB default fails to load at server start.
+--disable_query_log
+--eval SET @@GLOBAL.replica_max_allowed_packet = $saved_packet
+--eval CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = $saved_mem_limit
+--enable_query_log
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

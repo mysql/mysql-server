@@ -1,0 +1,285 @@
+# ==== Purpose ====
+#
+# The in-memory relay log (IMR) soft-bounds a channel's spill files by
+# relay_log_space_limit, through the channel's resource monitor:
+# each spill-path transaction reserves its declared size until its file is
+# deleted. "Soft" means a spill-path admission waits only while that usage is
+# ALREADY at or above the limit -- it never depends on the incoming
+# transaction's own size. So:
+#   - a transaction larger than the limit is still admitted whenever usage is
+#     below it (no deadlock on an oversized transaction), and
+#   - once usage is over the limit the receiver blocks (back-pressure), until the
+#     applier drains committed spill files below the limit.
+#
+# relay_log_space_limit is a read-only startup variable, so the replica is
+# restarted with a small value. The SPILL_BYTES_USED / SPILL_FILE_COUNT columns
+# of performance_schema.replication_applier_metrics are used to observe the
+# on-disk usage and the back-pressure.
+#
+# ==== Requirements ====
+#
+# R1. With relay_log_space_limit smaller than a single spilled transaction, that
+#     (oversized) transaction is still admitted: SPILL_FILE_COUNT >= 1 and
+#     SPILL_BYTES_USED exceeds the limit.
+# R2. While usage is over the limit the receiver blocks, so with the applier
+#     paused not all of a multi-transaction workload is queued
+#     (SPILL_FILE_COUNT < the number sent) -- back-pressure.
+# R3. Resuming the applier drains the queue below the limit and unblocks the
+#     receiver; all transactions eventually apply (forward progress), and the
+#     live spill gauges return to 0.
+# R4. The receiver does not hold the relay log's LOCK_log while it waits for
+#     spill disk space: SET GLOBAL max_relay_log_size, which takes the
+#     channel_map write lock and then LOCK_log, returns while the receiver
+#     waits.
+# R5. While it waits, the IO thread's stage is 'Waiting for the replica SQL
+#     thread to free relay log space'.
+# R6. STOP REPLICA IO_THREAD while the receiver waits for spill disk space
+#     stops it with no IO error (Last_IO_Errno = 0) and logs one INFORMATION
+#     line, no relay log write failure.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# relay_log_space_limit restart pattern mirrors
+# rpl_relay_log_space_limit_half_logged_transaction.test.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# Spill routing keys off the transaction's on-the-wire size; compression off so
+# the payload actually exceeds the spill threshold and the disk limit.
+--source include/not_binlog_transaction_compression_on.inc
+# Requires that the metrics component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR with an 8 MiB spill threshold, then restart the replica
+--echo #    with a 5 MiB relay_log_space_limit (read-only startup variable). On
+--echo #    restart the channel reconciles and its queue captures the 5 MiB soft
+--echo #    spill disk bound.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay_log_space_limit=5242880
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--let $from_ch= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Pause the applier and send 5 x ~10 MiB transactions. Each is above
+--echo #    the 8 MiB spill threshold (so it spills) and above the 5 MiB disk
+--echo #    limit (so it is "oversized"). The first is admitted even though it
+--echo #    alone exceeds the limit (soft bound, no deadlock); usage then sits
+--echo #    over the limit and the receiver blocks, so fewer than 5 are queued.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 5
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('s', 10 * 1024 * 1024))
+  --inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+
+# Wait until the on-disk spill usage exceeds the limit -- this proves the first
+# (oversized) transaction was admitted despite being larger than the limit.
+# (Numeric compare: unquoted operands.)
+--let $limit= 5242880
+--let $sbu= 0
+--let $iter= 0
+while (`SELECT $sbu <= $limit`)
+{
+  --sleep 0.2
+  --let $sbu= query_get_value(SELECT SPILL_BYTES_USED FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', SPILL_BYTES_USED, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for spill disk usage to exceed relay_log_space_limit
+  }
+}
+
+# The oversized transaction is on disk (>= 1 file), and back-pressure kept the
+# receiver from queuing the whole workload while the applier is paused.
+--let $sfc= `SELECT SPILL_FILE_COUNT $from_ch`
+--let $assert_text= An oversized spill transaction is admitted (SPILL_FILE_COUNT >= 1) but back-pressure blocks the rest (< $trx_count)
+--let $assert_cond= $sfc >= 1 AND $sfc < $trx_count
+--source include/assert.inc
+
+# R4: wait until the first transaction is fully on disk, so the receiver has
+# moved on to the next one, then until it waits for spill disk space.
+--let $iter= 0
+while (`SELECT $sbu < 10 * 1024 * 1024`)
+{
+  --sleep 0.2
+  --let $sbu= query_get_value(SELECT SPILL_BYTES_USED FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', SPILL_BYTES_USED, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the first spill transaction to be written
+  }
+}
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not reach the spill disk wait before R4
+}
+
+# SET GLOBAL max_relay_log_size takes the channel_map write lock and then the
+# relay log's LOCK_log; it must not wait for the receiver.
+--let $saved_max_relay_log_size= `SELECT @@GLOBAL.max_relay_log_size`
+--source include/rpl/connection_replica1.inc
+--send SET GLOBAL max_relay_log_size = 8192
+--source include/rpl/connection_replica.inc
+--let $imr_statement_pattern= SET GLOBAL max_relay_log_size%
+--let $imr_statement_timeout= 30
+--source suite/rpl_gtid/t/rpl_csa_imr_wait_statement_done.inc
+--source include/rpl/connection_replica1.inc
+--reap
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET GLOBAL max_relay_log_size = $saved_max_relay_log_size
+--enable_query_log
+
+# R5: the waiting receiver shows the classic relay-log-space stage.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver waiting for spill disk space did not show the relay-log-space stage
+}
+
+--echo
+--echo # 3. Resume the applier: it drains committed spill files below the limit,
+--echo #    the receiver unblocks, and all transactions apply (forward progress).
+--echo #    The live spill gauges return to 0.
+--echo
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $row_count= `SELECT COUNT(*) FROM t1`
+--let $assert_text= All 5 transactions applied on the replica (forward progress past the soft limit)
+--let $assert_cond= $row_count = 5
+--source include/assert.inc
+
+# Once every committed spill file is unlinked the live gauges fall back to 0.
+--let $sfc= 1
+--let $iter= 0
+while (`SELECT $sfc <> 0`)
+{
+  --sleep 0.2
+  --let $sfc= query_get_value(SELECT SPILL_FILE_COUNT FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', SPILL_FILE_COUNT, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the spill files to be unlinked
+  }
+}
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_BYTES_USED returns to 0 once the queue drains
+--let $assert_cond= $sbu = 0
+--source include/assert.inc
+
+--echo
+--echo # 4. Stop the applier, fill the spill disk limit, STOP the receiver while
+--echo #    it waits (R6), restart and sync.
+--echo
+
+--source include/rpl/stop_applier.inc
+
+# The first transaction is admitted; the second waits on the 5 MiB limit.
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $i= 1
+while ($i <= 2)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('s', 10 * 1024 * 1024))
+  --inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--let $wait_timeout= 60
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not wait for spill disk space before the stop
+}
+
+# Mark the error log, so the checks below see only this stop.
+--let IMR_ERR_LOG= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--perl
+  open(my $fh, '>>', $ENV{'IMR_ERR_LOG'}) or die "open: $!";
+  print $fh "IMR_STOP_IN_ADMISSION_MARKER\n";
+  close($fh);
+EOF
+
+--source include/rpl/stop_receiver.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= A stop in admission reports no IO error (Last_IO_Errno = 0)
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= IMR_STOP_IN_ADMISSION_MARKER
+--let $assert_select= Relay log write failure
+--let $assert_count= 0
+--let $assert_text= A stop in admission logs no relay log write failure
+--source include/assert_grep.inc
+--let $assert_select= \[In-memory relay log\] receiver stopped while waiting for queue admission
+--let $assert_count= 1
+--let $assert_text= A stop in admission logs one INFORMATION line
+--source include/assert_grep.inc
+--let $assert_only_after=
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/deinit.inc

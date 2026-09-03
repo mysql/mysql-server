@@ -1,0 +1,224 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 0. Load the keyring on the replica, enable binlog_encryption and IMR.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP");
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+
+# 1. STOP, key rotation, restart, three times (R1).
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log at restart 1]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [One relay-log file is left after restart 1]
+include/assert.inc [Relay_Log_File is the active file after restart 1]
+include/assert.inc [Relay_Log_Space is the size of the active file after restart 1]
+include/assert.inc [mysql.slave_relay_log_info names the active file after restart 1]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (1 + 1);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The applier runs without error after restart 1]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after restart 1]
+include/assert.inc [The last relay-log file uses the newest master key after restart 1]
+include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log at restart 2]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [One relay-log file is left after restart 2]
+include/assert.inc [Relay_Log_File is the active file after restart 2]
+include/assert.inc [Relay_Log_Space is the size of the active file after restart 2]
+include/assert.inc [mysql.slave_relay_log_info names the active file after restart 2]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (2 + 1);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The applier runs without error after restart 2]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after restart 2]
+include/assert.inc [The last relay-log file uses the newest master key after restart 2]
+include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log at restart 3]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [One relay-log file is left after restart 3]
+include/assert.inc [Relay_Log_File is the active file after restart 3]
+include/assert.inc [Relay_Log_Space is the size of the active file after restart 3]
+include/assert.inc [mysql.slave_relay_log_info names the active file after restart 3]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (3 + 1);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The applier runs without error after restart 3]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after restart 3]
+include/assert.inc [The last relay-log file uses the newest master key after restart 3]
+include/rpl/stop_replica.inc
+
+# 2. START with both threads stopped purges (R2).
+
+include/rpl/start_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [Two key rotations while replicating add two relay-log files]
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA with both threads stopped leaves one file]
+[connection master]
+INSERT INTO t1 VALUES (10);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/start_applier.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA SQL_THREAD with the receiver stopped leaves one file]
+include/rpl/start_receiver.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA IO_THREAD with the applier running keeps one file]
+[connection master]
+INSERT INTO t1 VALUES (11);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The applier runs without error after the purges at START]
+
+# 3. No purge while the other thread runs (R3).
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA SQL_THREAD with the receiver running keeps the files]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA IO_THREAD with the applier running keeps the files]
+[connection master]
+INSERT INTO t1 VALUES (12);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 4. relay_log_purge = OFF and the backup lock (R4).
+
+include/rpl/stop_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [A restart with relay_log_purge = OFF keeps the files]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/start_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA with relay_log_purge = OFF keeps the files]
+include/rpl/stop_replica.inc
+SET GLOBAL relay_log_purge = ON;
+include/rpl/start_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA with relay_log_purge = ON leaves one file]
+include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+[connection slave1]
+LOCK INSTANCE FOR BACKUP;
+[connection slave]
+include/rpl/start_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA under another session's backup lock keeps the files]
+include/assert_grep.inc [START REPLICA under the backup lock logged that it skipped the purge]
+[connection slave1]
+UNLOCK INSTANCE;
+[connection slave]
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA after UNLOCK INSTANCE leaves one file]
+[connection master]
+INSERT INTO t1 VALUES (13);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 5. MTA channels and CSA channels without IMR keep their files (R5).
+
+include/rpl/stop_replica.inc
+# MTA channel.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
+include/assert.inc [The channel uses APPLIER_VERSION 1 with IMR off]
+include/include/rpl/save_relay_log_file_position.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [Two restarts keep the relay-log files (variant 1)]
+include/rpl/start_receiver.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA IO_THREAD keeps the relay-log files (variant 1)]
+include/rpl/stop_receiver.inc
+# CSA channel without IMR.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/assert.inc [The channel uses APPLIER_VERSION 2 with IMR off]
+include/include/rpl/save_relay_log_file_position.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [Two restarts keep the relay-log files (variant 2)]
+include/rpl/start_receiver.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [START REPLICA IO_THREAD keeps the relay-log files (variant 2)]
+include/rpl/stop_receiver.inc
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (14);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -32,6 +32,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
   `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
   `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
+  `In_memory_relaylog` tinyint(1) NOT NULL DEFAULT '1' COMMENT 'IN_MEMORY_RELAYLOG_ENABLED setting of the channel; it takes effect only while the channel uses the change stream applier.',
+  `In_memory_relaylog_limit` bigint unsigned NOT NULL DEFAULT '134217728' COMMENT 'The hard memory bound (in bytes) of the in-memory relay-log queue for the channel.',
+  `In_memory_relaylog_spill_threshold` bigint unsigned NOT NULL DEFAULT '16777216' COMMENT 'The transaction size (in bytes) above which the in-memory relay log spills the transaction instead of keeping it in memory.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
@@ -75,6 +78,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
   `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
   `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
+  `In_memory_relaylog` tinyint(1) NOT NULL DEFAULT '1' COMMENT 'IN_MEMORY_RELAYLOG_ENABLED setting of the channel; it takes effect only while the channel uses the change stream applier.',
+  `In_memory_relaylog_limit` bigint unsigned NOT NULL DEFAULT '134217728' COMMENT 'The hard memory bound (in bytes) of the in-memory relay-log queue for the channel.',
+  `In_memory_relaylog_spill_threshold` bigint unsigned NOT NULL DEFAULT '16777216' COMMENT 'The transaction size (in bytes) above which the in-memory relay log spills the transaction instead of keeping it in memory.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;

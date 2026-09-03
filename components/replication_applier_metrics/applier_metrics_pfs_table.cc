@@ -35,8 +35,9 @@ namespace applier_metrics {
 /// Implementation of the replication_applier_metrics table.
 class Applier_metrics_table_with_cursor {
  public:
+  // 32 is the table's column count, not applier_metric_type_end.
   using Type_info_t = Row_proxy_type_info<Enum_applier_metric_type,
-                                          applier_metric_type_end, 24>;
+                                          applier_metric_type_end, 32>;
 
   /// Return the table name.
   static constexpr const char *get_table_name() {
@@ -130,7 +131,53 @@ class Applier_metrics_table_with_cursor {
            "transaction to commit before committing the current transaction.',"
            "TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME BIGINT NOT NULL "
            "COMMENT 'Time spent (ns) by the replication applier on "
-           "reading events from relay log.'";
+           "reading events from relay log.',"
+           "IN_MEMORY_BYTES_USED BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: current memory (bytes) reserved for "
+           "the channel''s queued memory-path transactions, counted by the "
+           "size declared in their GTID events. 0 for a channel that does not "
+           "use the in-memory relay log.',"
+           "IN_MEMORY_QUEUE_LENGTH BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: current number of transaction "
+           "envelopes held in the channel queue. 0 for a channel that does not "
+           "use the in-memory relay log.',"
+           "IN_MEMORY_TRANSACTIONS_COUNT BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: number of transactions the applier "
+           "completed from the memory path in its current run, including "
+           "transactions skipped because their GTID was already executed. "
+           "Reset when the applier restarts; 0 while the applier is stopped "
+           "or if applier metric collection was off when it started. 0 for a "
+           "channel that does not use the in-memory relay log.',"
+           "IN_MEMORY_TRANSACTIONS_BYTES BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: sum of the sizes declared in the "
+           "GTID events of the transactions counted in "
+           "IN_MEMORY_TRANSACTIONS_COUNT. For compressed transactions, this "
+           "counts the compressed size. Reset like "
+           "IN_MEMORY_TRANSACTIONS_COUNT. 0 for a channel that does not use "
+           "the in-memory relay log.',"
+           "SPILL_TRANSACTIONS_COUNT BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: number of transactions the applier "
+           "completed from the spill (on-disk) path in its current run, "
+           "including transactions skipped because their GTID was already "
+           "executed. Reset like IN_MEMORY_TRANSACTIONS_COUNT. 0 for a channel "
+           "that does not use the in-memory relay log.',"
+           "SPILL_TRANSACTIONS_BYTES BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: sum of the sizes declared in the "
+           "GTID events of the transactions counted in "
+           "SPILL_TRANSACTIONS_COUNT. For compressed transactions, this counts "
+           "the compressed size. Reset like IN_MEMORY_TRANSACTIONS_COUNT. 0 "
+           "for a channel that does not use the in-memory relay log.',"
+           "SPILL_FILE_COUNT BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: current number of the channel''s "
+           "spill temp files on disk. A live gauge that rises as files are "
+           "created and falls as they are unlinked. 0 for a channel that does "
+           "not use the in-memory relay log.',"
+           "SPILL_BYTES_USED BIGINT NOT NULL "
+           "COMMENT 'In-memory relay log: current total on-disk size (bytes) "
+           "of "
+           "the channel''s spill temp files, including the relay-log prefix of "
+           "each file. A live gauge. 0 for a channel that does not use the "
+           "in-memory relay log.'";
   }
 
   /// Return a const reference to the Row_view_definition_t which defines how
@@ -180,7 +227,15 @@ class Applier_metrics_table_with_cursor {
         {waits_due_to_commit_order_sum_time_t,
          longlong_type},  // WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME
         {time_to_read_from_relay_log_t,
-         longlong_type}  // TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME
+         longlong_type},                          // TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME
+        {imr_memory_bytes_used_t, longlong_type},  // IN_MEMORY_BYTES_USED
+        {imr_queue_length_t, longlong_type},        // IN_MEMORY_QUEUE_LENGTH
+        {imr_memory_trx_count_t, longlong_type},  // IN_MEMORY_TRANSACTIONS_COUNT
+        {imr_memory_trx_bytes_t, longlong_type},  // IN_MEMORY_TRANSACTIONS_BYTES
+        {imr_spill_trx_count_t, longlong_type},   // SPILL_TRANSACTIONS_COUNT
+        {imr_spill_trx_bytes_t, longlong_type},   // SPILL_TRANSACTIONS_BYTES
+        {imr_spill_file_count_t, longlong_type},  // SPILL_FILE_COUNT
+        {imr_spill_bytes_used_t, longlong_type}   // SPILL_BYTES_USED
     }};
     return definition;
   }

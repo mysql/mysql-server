@@ -51,7 +51,8 @@ class Rpl_channel_filters;
 
 namespace mysql::csa {
 class Csa_service;
-}
+class Imr_service;
+}  // namespace mysql::csa
 
 const long mts_online_stat_period = 60 * 2;
 
@@ -93,7 +94,7 @@ typedef enum {
 
 #define MAX_SLAVE_ERROR 14000
 
-#define MTS_WORKER_UNDEF ((ulong)-1)
+#define MTS_WORKER_UNDEF ((ulong) - 1)
 #define MTS_MAX_WORKERS 1024
 #define MAX_SLAVE_RETRY_PAUSE 5
 
@@ -372,6 +373,10 @@ extern const char *relay_log_basename;
 /// Global CSA object handle initialized in init_replica
 extern std::unique_ptr<mysql::csa::Csa_service> csa_service;
 
+/// Global in-memory relay-log service handle, initialized in init_replica.
+/// Owns the per-channel IMR runtimes.
+extern std::unique_ptr<mysql::csa::Imr_service> imr_service;
+
 /// @brief Helper class used to initialize the replica (includes init_replica())
 /// @details init_replica is called once during the mysqld start-up
 class ReplicaInitializer {
@@ -451,11 +456,16 @@ bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
 /**
   Re-encrypt previous relay logs with current master key for all slave channels.
+  On an in-memory relay log channel it first rotates the relay log, which
+  FLUSH RELAY LOGS does not do there, so the last file uses the current key.
 
   @retval false Success.
   @retval true Error.
 */
 bool reencrypt_relay_logs();
+/** Re-encrypts live IMR spill file headers after reencrypt_relay_logs(); see
+    sql/changestreams/apply/storage/in_memory/spill_encryption.h. */
+bool imr_reencrypt_spill_files();
 int flush_relay_logs(Master_info *mi, THD *thd);
 int reset_slave(THD *thd, Master_info *mi, bool reset_all);
 int reset_slave(THD *thd);

@@ -22,6 +22,8 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/not_crashrep.inc
+# Uses on-disk relay-log files, which IMR does not write.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 #default storage engine is MyIsam for this test.
 --source include/force_myisam_default.inc

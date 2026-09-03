@@ -20,6 +20,8 @@
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
+# Skipped with IMR: an IMR channel does not rotate its relay log.
+--source include/not_csa_imr.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3

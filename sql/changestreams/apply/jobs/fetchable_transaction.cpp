@@ -55,8 +55,13 @@ void Fetchable_transaction::reset_fetching(bool all) {
     batch->reset(all);
   }
   m_is_done = false;
-  m_is_truncated.store(false, std::memory_order_release);
-  m_status = Return_status::ok;
+  m_is_aborted.store(false, std::memory_order_release);
+  // Truncation is receiver state and survives a consumer reset (new job or
+  // retry); erasing it would leave the worker waiting on a stream that never
+  // completes. A truncated transaction rewinds but fails its reads at once.
+  m_status = m_is_truncated.load(std::memory_order_acquire)
+                 ? Return_status::error
+                 : Return_status::ok;
   m_error_message.assign("");
 }
 
@@ -134,6 +139,11 @@ bool Fetchable_transaction::wait_next() {
         m_error_message = event_batch->get_error_str();
         return false;
       }
+      if (!event_batch->is_done()) {
+        // Batch returned nothing, not done, no error: applier stop requested.
+        m_is_aborted.store(true, std::memory_order_release);
+        return false;
+      }
       if (advance_finished_batch_unsafe(event_batch)) {
         return false;
       }
@@ -154,6 +164,10 @@ bool Fetchable_transaction::is_fetching_done() const {
 
 bool Fetchable_transaction::is_truncated() const {
   return m_is_truncated.load(std::memory_order_acquire);
+}
+
+bool Fetchable_transaction::is_aborted() const {
+  return m_is_aborted.load(std::memory_order_acquire);
 }
 
 std::size_t Fetchable_transaction::get_max_event_length() const {

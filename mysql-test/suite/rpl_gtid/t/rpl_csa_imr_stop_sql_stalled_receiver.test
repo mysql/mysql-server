@@ -1,0 +1,337 @@
+# ==== Purpose ====
+#
+# Verify that STOP REPLICA [SQL_THREAD] and an UNTIL stop end promptly on a CSA
+# (Change Stream Applier) channel with the in-memory relay log (IMR) while the
+# receiver (IO thread) is stalled in the middle of a transaction.
+#
+# On IMR the receiver feeds the worker's batch directly. A worker that has
+# applied every event received so far waits in the batch for more. Before the
+# fix that wait had no stop condition, so the SQL thread waited for the worker
+# until rpl_stop_replica_timeout and the STOP failed. Now an applier stop sets
+# a queue flag that the batch wait polls every 100 ms: the worker rolls the
+# transaction back without an error, the queue keeps it, and the next START
+# applies it once the receiver delivers the rest.
+#
+# ==== Requirements ====
+#
+# R1. STOP REPLICA SQL_THREAD with the receiver stalled mid-transaction ends
+#     without an error and rolls the transaction back; the queue keeps it and
+#     the next START applies it (memory path).
+# R2. R1 holds on the spill path.
+# R3. A full STOP REPLICA in the same state ends without an error; the
+#     receiver's exit resets the queue, and the next START fetches the
+#     transaction from the source again.
+# R4. START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS stops promptly when the
+#     target is executed by another session while a post-target transaction
+#     is still streaming; that transaction is rolled back and applied after
+#     the next START.
+#
+# ==== Implementation ====
+#
+#   0. Set up a CSA channel with IMR enabled and an 8 MiB spill threshold, and
+#      lower rpl_stop_replica_timeout to 10 seconds.
+#   1. Memory path: pause the receiver after the first WRITE_ROWS of a small
+#      transaction, wait until the worker holds its lock on t1, then STOP
+#      REPLICA SQL_THREAD and wait for the applier to stop (R1).
+#   2. Spill path: the same with a transaction of about 12 MiB (R2).
+#   3. Full STOP REPLICA in the same state (R3).
+#   4. UNTIL SQL_AFTER_GTIDS with the target executed by a client session
+#      while the post-target transaction is stalled (R4).
+#   5. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# With binlog transaction compression there is no BEGIN event to pause after,
+# and a compressed 12 MiB payload of repeated bytes would not spill.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 0. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_extra_connections_per_server= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+# Bound the stop wait: the default is a year, so a regression would hang
+# until the mtr testcase timeout.
+SET @saved_stop_timeout = @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout = 10;
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+# diff_tables.inc orders by the LONGBLOB column and runs out of sort memory
+# on the 1 MiB rows, so compare the rows by id, length and checksum.
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len, CRC32(data) AS crc FROM t1 ORDER BY id
+
+--echo
+--echo # 1. Memory path: STOP REPLICA SQL_THREAD while the receiver is stalled
+--echo #    after the first WRITE_ROWS of a 2-row transaction (R1).
+--echo
+
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('x', 10));
+INSERT INTO t1 VALUES (2, REPEAT('x', 10));
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+# Let GTID, BEGIN and TABLE_MAP through; stop after the first WRITE_ROWS.
+--let $n= 1
+while ($n <= 3)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+  --inc $n
+}
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+# The worker applied the first row and waits in the batch for more.
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'test' AND OBJECT_NAME = 't1'
+--source include/wait_condition.inc
+
+--send STOP REPLICA SQL_THREAD
+
+--connection server_2_1
+--let $wait_condition= SELECT SERVICE_STATE = 'OFF' FROM performance_schema.replication_applier_status WHERE CHANNEL_NAME = ''
+--source include/wait_condition.inc
+
+--source include/rpl/connection_replica.inc
+--reap
+
+--let $assert_text= 1: the stop raises no applier error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 1: the queue keeps the stalled transaction
+--let $assert_cond= [SHOW REPLICA STATUS, In_Memory_Queue_Length, 1] >= 1
+--source include/assert.inc
+--let $assert_text= 1: the stalled transaction holds no lock on t1
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = "test" AND OBJECT_NAME = "t1"] = 0
+--source include/assert.inc
+--let $assert_text= 1: the stalled transaction was rolled back
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 1 AND 2] = 0
+--source include/assert.inc
+
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/diff.inc
+
+--echo
+--echo # 2. Spill path: the same with a transaction of about 12 MiB (R2).
+--echo
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 100
+while ($i <= 111)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $n= 1
+while ($n <= 3)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+  --inc $n
+}
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'test' AND OBJECT_NAME = 't1'
+--source include/wait_condition.inc
+
+--send STOP REPLICA SQL_THREAD
+
+--connection server_2_1
+--let $wait_condition= SELECT SERVICE_STATE = 'OFF' FROM performance_schema.replication_applier_status WHERE CHANNEL_NAME = ''
+--source include/wait_condition.inc
+
+--source include/rpl/connection_replica.inc
+--reap
+
+--let $assert_text= 2: the stop raises no applier error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 2: the queue keeps the stalled transaction
+--let $assert_cond= [SHOW REPLICA STATUS, In_Memory_Queue_Length, 1] >= 1
+--source include/assert.inc
+--let $assert_text= 2: the stalled transaction holds no lock on t1
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = "test" AND OBJECT_NAME = "t1"] = 0
+--source include/assert.inc
+--let $assert_text= 2: the stalled transaction was rolled back
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 100 AND 111] = 0
+--source include/assert.inc
+
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/diff.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 3. Full STOP REPLICA while the receiver is stalled after the first
+--echo #    WRITE_ROWS (R3).
+--echo
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (200, REPEAT('x', 10));
+INSERT INTO t1 VALUES (201, REPEAT('x', 10));
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $n= 1
+while ($n <= 3)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+  --inc $n
+}
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'test' AND OBJECT_NAME = 't1'
+--source include/wait_condition.inc
+
+--send STOP REPLICA
+
+--connection server_2_1
+--let $wait_condition= SELECT SERVICE_STATE = 'OFF' FROM performance_schema.replication_applier_status WHERE CHANNEL_NAME = ''
+--source include/wait_condition.inc
+# The SQL thread stopped first; release the receiver so it can stop too.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+
+--source include/rpl/connection_replica.inc
+--reap
+SET DEBUG_SYNC = 'RESET';
+
+--let $assert_text= 3: the stop raises no applier error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 3: the stop raises no receiver error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_IO_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 3: the receiver exit reset the queue
+--let $assert_cond= [SHOW REPLICA STATUS, In_Memory_Queue_Length, 1] = 0
+--source include/assert.inc
+--let $assert_text= 3: the stalled transaction holds no lock on t1
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = "test" AND OBJECT_NAME = "t1"] = 0
+--source include/assert.inc
+--let $assert_text= 3: the stalled transaction was rolled back
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 200 AND 201] = 0
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/diff.inc
+
+--echo
+--echo # 4. UNTIL SQL_AFTER_GTIDS: a client session executes the target while
+--echo #    the post-target transaction is stalled after its first WRITE_ROWS
+--echo #    (R4).
+--echo
+
+# A UUID the source never uses: the target is not known to the receiver, so
+# the applier dispatches the source transaction that follows.
+--let $until_uuid= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+--eval START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS = '$until_uuid:1'
+--source include/rpl/wait_for_applier_to_start.inc
+
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (300, REPEAT('x', 10));
+INSERT INTO t1 VALUES (301, REPEAT('x', 10));
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $n= 1
+while ($n <= 3)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+  --inc $n
+}
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'test' AND OBJECT_NAME = 't1'
+--source include/wait_condition.inc
+
+# Execute the UNTIL target in a client session on the replica. The empty-queue
+# check then stops the applier.
+--connection server_2_1
+--eval SET GTID_NEXT = '$until_uuid:1'
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+
+--let $wait_condition= SELECT SERVICE_STATE = 'OFF' FROM performance_schema.replication_applier_status WHERE CHANNEL_NAME = ''
+--source include/wait_condition.inc
+
+--source include/rpl/connection_replica.inc
+--let $assert_text= 4: the UNTIL stop raises no applier error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 4: the queue keeps the stalled transaction
+--let $assert_cond= [SHOW REPLICA STATUS, In_Memory_Queue_Length, 1] >= 1
+--source include/assert.inc
+--let $assert_text= 4: the stalled transaction holds no lock on t1
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = "test" AND OBJECT_NAME = "t1"] = 0
+--source include/assert.inc
+--let $assert_text= 4: the stalled transaction was rolled back
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 300 AND 301] = 0
+--source include/assert.inc
+
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/diff.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL rpl_stop_replica_timeout = @saved_stop_timeout;
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

@@ -29,6 +29,8 @@
 # WL#3549: binlog compression
 #
 
+# Uses on-disk relay-log files, which IMR does not write.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 

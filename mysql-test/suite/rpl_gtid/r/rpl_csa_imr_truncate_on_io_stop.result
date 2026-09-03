@@ -1,0 +1,147 @@
+
+# 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold). The
+#    applier stays running for the whole test; only the receiver is
+#    stopped mid-transaction.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Replica I/O thread killed");
+CALL mtr.add_suppression("Replica I/O thread .* killed while");
+CALL mtr.add_suppression("Replica I/O for channel '': Relay log write failure");
+CALL mtr.add_suppression("Relay log write failure: could not queue event from source");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 2. MEMORY PATH: stop the receiver after the first WRITE_ROWS of a small
+#    multi-row transaction (below the spill threshold). The open group is
+#    truncated: the applier rolls it back silently and no row is applied.
+
+# Adding debug point 'stop_io_after_reading_write_rows_log_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (10, 'mem-a');
+INSERT INTO t1 VALUES (11, 'mem-b');
+COMMIT;
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/assert.inc [The SQL thread keeps running after the receiver was stopped mid-transaction]
+include/assert.inc [Truncation is a silent rollback: no SQL error is raised]
+include/assert.inc [The half-received memory-path transaction was truncated, not applied (no rows visible)]
+[connection master]
+[connection slave]
+include/assert.inc [The truncated transaction's GTID is absent from the replica gtid_executed (source is ahead)]
+# Removing debug point 'stop_io_after_reading_write_rows_log_event' from @@GLOBAL.debug
+
+# 2b. START REPLICA IO_THREAD: the transaction is re-fetched and applied.
+
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [After re-fetch the memory-path transaction is applied in full]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 3. SPILL PATH: same scenario with a >8 MiB transaction. It is routed to
+#    a spill file; stopping the receiver mid-transaction truncates it, the
+#    spill file is reclaimed, and nothing is applied.
+
+[connection slave]
+# Adding debug point 'stop_io_after_reading_write_rows_log_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/assert.inc [The SQL thread keeps running after the spill-path receiver stop]
+include/assert.inc [Spill-path truncation is a silent rollback: no SQL error]
+include/assert.inc [The half-received spill-path transaction was truncated, not applied (no rows visible)]
+# Removing debug point 'stop_io_after_reading_write_rows_log_event' from @@GLOBAL.debug
+
+# 3b. START REPLICA IO_THREAD: the spill-path transaction is re-fetched
+#     and applied; no spill file is left behind.
+
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [After re-fetch the spill-path transaction is applied in full]
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 4. Repeat the memory- and spill-path truncation + re-fetch with
+#    replica_preserve_commit_order = OFF (R5). This is the configuration
+#    that crashed the applier before the Job_binlog::run() fix: under
+#    RPCO=OFF the single-phase commit path called commit_register() on the
+#    truncated (already-`done`) job. The applier must instead roll the
+#    transaction back and re-apply it on START REPLICA IO_THREAD, on both
+#    storage paths.
+
+[connection slave]
+include/rpl/stop_applier.inc
+SET @saved_rpco = @@GLOBAL.replica_preserve_commit_order;
+SET GLOBAL replica_preserve_commit_order = OFF;
+include/rpl/start_applier.inc
+
+# 4a. MEMORY PATH (RPCO=OFF): stop the receiver after the first WRITE_ROWS
+#     of a small transaction; the open group is truncated and rolled back.
+
+# Adding debug point 'stop_io_after_reading_write_rows_log_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (60, 'mem-off-a');
+INSERT INTO t1 VALUES (61, 'mem-off-b');
+COMMIT;
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/assert.inc [RPCO=OFF memory: the SQL thread keeps running after the mid-transaction receiver stop]
+include/assert.inc [RPCO=OFF memory: truncation is a silent rollback (no SQL error)]
+include/assert.inc [RPCO=OFF memory: the half-received transaction was truncated, not applied]
+# Removing debug point 'stop_io_after_reading_write_rows_log_event' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [RPCO=OFF memory: after re-fetch the transaction is applied in full]
+
+# 4b. SPILL PATH (RPCO=OFF): same scenario with a >8 MiB transaction.
+
+# Adding debug point 'stop_io_after_reading_write_rows_log_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/assert.inc [RPCO=OFF spill: the SQL thread keeps running after the mid-transaction receiver stop]
+include/assert.inc [RPCO=OFF spill: truncation is a silent rollback (no SQL error)]
+include/assert.inc [RPCO=OFF spill: the half-received transaction was truncated, not applied]
+# Removing debug point 'stop_io_after_reading_write_rows_log_event' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [RPCO=OFF spill: after re-fetch the transaction is applied in full]
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 4c. Restore replica_preserve_commit_order.
+
+include/rpl/stop_applier.inc
+SET GLOBAL replica_preserve_commit_order = @saved_rpco;
+include/rpl/start_applier.inc
+
+# 5. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

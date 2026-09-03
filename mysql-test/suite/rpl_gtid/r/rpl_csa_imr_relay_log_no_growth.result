@@ -1,0 +1,151 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Set up a CSA channel with IMR enabled and save a snapshot.
+
+[connection slave]
+CALL mtr.add_suppression("Replica I/O for channel '': .*Lost connection to MySQL server during query.*");
+CALL mtr.add_suppression("Replica I/O for channel '': .*error reconnecting to source.*");
+CALL mtr.add_suppression("Replica I/O for channel '': .*Error reading packet from server.*");
+SET GLOBAL max_relay_log_size = 4096;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608, SOURCE_CONNECT_RETRY = 1;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+CREATE TABLE t2 (id INT PRIMARY KEY, data LONGBLOB);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+
+# 2. Source binary log rotations (R1, R5).
+
+[connection master]
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (2);
+include/rpl/sync_to_replica.inc
+[connection master]
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (3);
+include/rpl/sync_to_replica.inc
+[connection master]
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (4);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has the same number of files after source binary log rotations]
+include/assert.inc [The last relay-log file is the same file after source binary log rotations]
+include/assert.inc [The last relay-log file has the same size after source binary log rotations]
+include/assert.inc [Relay_Log_Space is unchanged after source binary log rotations]
+
+# 3. Receiver restart (R2).
+
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
+[connection master]
+INSERT INTO t1 VALUES (5);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has the same number of files after a receiver restart]
+include/assert.inc [The last relay-log file is the same file after a receiver restart]
+include/assert.inc [The last relay-log file has the same size after a receiver restart]
+include/assert.inc [Relay_Log_Space is unchanged after a receiver restart]
+
+# 4. Reconnect inside the same receiver thread (R3).
+
+[connection master]
+KILL DUMP_ID;
+INSERT INTO t1 VALUES (6);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has the same number of files after a reconnect]
+include/assert.inc [The last relay-log file is the same file after a reconnect]
+include/assert.inc [The last relay-log file has the same size after a reconnect]
+include/assert.inc [Relay_Log_Space is unchanged after a reconnect]
+
+# 5. A heartbeat that advances the source position (R4).
+
+[connection master]
+# The replica commits the transaction the source commits next, with the
+# same GTID.
+[connection slave]
+SET GTID_NEXT = '11111111-1111-1111-1111-111111111111:1';
+INSERT INTO t1 VALUES (7);
+SET GTID_NEXT = AUTOMATIC;
+# Reconnect, so that the dump thread excludes that GTID.
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
+# The dump thread skips the first transaction and sends a heartbeat
+# before the second.
+[connection master]
+SET GTID_NEXT = '11111111-1111-1111-1111-111111111111:1';
+INSERT INTO t1 VALUES (7);
+SET GTID_NEXT = AUTOMATIC;
+INSERT INTO t1 VALUES (8);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has the same number of files after a heartbeat that advances the source position]
+include/assert.inc [The last relay-log file is the same file after a heartbeat that advances the source position]
+include/assert.inc [The last relay-log file has the same size after a heartbeat that advances the source position]
+include/assert.inc [Relay_Log_Space is unchanged after a heartbeat that advances the source position]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 6. Source checksum change and replica restarts (R6).
+
+[connection master]
+SET GLOBAL binlog_checksum = NONE;
+INSERT INTO t1 VALUES (9);
+include/rpl/sync_to_replica.inc
+# The relay log is not rotated, and every relay-log file verifies.
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [mysqlbinlog --verify-binlog-checksum reads every relay-log file after the source checksum change]
+include/assert.inc [The source checksum change created no relay-log file]
+# A transaction received after the change carries the source's new
+# Format_description event: its spill file starts with it.
+include/rpl/stop_applier.inc
+[connection master]
+[connection slave]
+include/assert.inc [The spill file's Format_description event has checksum OFF]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log]
+include/assert_grep.inc [The replica read its relay log at startup without warnings]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (10);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [mysqlbinlog --verify-binlog-checksum reads every relay-log file after restart 1]
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log]
+include/assert_grep.inc [The replica read its relay log at startup without warnings]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (11);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [mysqlbinlog --verify-binlog-checksum reads every relay-log file after restart 2]
+[connection master]
+SET GLOBAL binlog_checksum = CRC32;
+INSERT INTO t1 VALUES (12);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+[connection master]
+DROP TABLE t1, t2;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_replica.inc
+SET GLOBAL max_relay_log_size = 0;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF, SOURCE_CONNECT_RETRY = SAVED_CONNECT_RETRY;
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

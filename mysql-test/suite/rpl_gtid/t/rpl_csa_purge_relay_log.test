@@ -41,6 +41,8 @@
 --let $rpl_applier_version=2:2
 --let $rpl_applier_worker_count=2:8
 --source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/csa_disable_in_memory_relaylog.inc
 
 --echo
 --echo #  2. Run queries including rotations of the relay log

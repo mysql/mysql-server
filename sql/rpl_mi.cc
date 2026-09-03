@@ -261,7 +261,6 @@ Master_info::~Master_info() {
 
   delete m_channel_lock;
   delete ignore_server_ids;
-  delete mi_description_event;
   delete gtid_monitoring_info;
 }
 

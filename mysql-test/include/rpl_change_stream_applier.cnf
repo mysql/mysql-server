@@ -6,4 +6,8 @@
 # `APPLIER_VERSION` parameter. This variable causes CHANGE REPLICATION SOURCE
 # TO to specifiy APPLIER_VERSION=2. We use the default number of workers.
 RPL_CHANGE_STREAM_APPLIER=2
+# The CSA pass runs without the in-memory relay log (IMR): the topology
+# helper adds IN_MEMORY_RELAYLOG_ENABLED = OFF to its CHANGE REPLICATION
+# SOURCE. A CSA-with-IMR pass uses rpl_change_stream_applier_imr.cnf.
+RPL_IN_MEMORY_RELAYLOG=OFF
 

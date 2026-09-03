@@ -29,6 +29,8 @@
 
 --source include/have_binlog_format_row.inc
 
+# IMR does not support semisync.
+--source include/not_csa_imr.inc
 --echo # 1. Set-up semi sync replication environment
 
 --echo # a) Setup a 2 layered topology with the given topology 1->2

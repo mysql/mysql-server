@@ -1,0 +1,123 @@
+# ==== Purpose ====
+#
+# Verify that the in-memory relay log (IMR) applier queue's structural fail-safe
+# fails LOUDLY and CLEANLY. When the coordinator's sweep detects a deque/cursor
+# desynchronization -- a "can't happen" corruption, simulated here via the debug
+# point imr_force_applier_queue_desync -- the queue logs the inconsistency, the
+# reader surfaces it as Last_SQL_Error (ER_REPLICA_RELAY_LOG_READ_FAILURE), and
+# the SQL (applier) thread stops cleanly. The receiver (IO thread) keeps running.
+# Once the (simulated) fault is cleared, START REPLICA SQL_THREAD restarts the
+# applier and it catches up.
+#
+# Regression test for the previously-silent release-build behavior: the
+# fail-safe used to set only the applier stop flag, which does not satisfy
+# is_stopped() (that requires BOTH roles), so the coordinator spun at 100% CPU
+# with no error and Replica_SQL_Running = Yes.
+#
+# ==== Requirements ====
+#
+# R1. On the (injected) desync the SQL thread stops with a non-zero
+#     Last_SQL_Errno (ER_REPLICA_RELAY_LOG_READ_FAILURE) and Last_SQL_Error
+#     naming the structural inconsistency -- not a silent busy-spin.
+# R2. The inconsistency (queue detail) and the read-failure reason are written
+#     to the replica error log.
+# R3. The receiver (IO thread) keeps running (this is an applier-scoped stop).
+# R4. After the fault is cleared, START REPLICA SQL_THREAD restarts the applier,
+#     it catches up, and the replica data matches the source.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled; the applier stays running.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+# The applier stops through the queue read-failure path; suppress the two
+# expected error-log messages (the queue's structural-inconsistency detail and
+# the read failure surfaced to Last_SQL_Error).
+CALL mtr.add_suppression("\\[In-memory relay log\\] applier queue structural inconsistency");
+CALL mtr.add_suppression("Relay log read failure: in-memory relay log queue structural inconsistency");
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Inject an applier queue desync, then drive one transaction so the
+--echo #    coordinator's next sweep trips the fail-safe.
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $debug_point= imr_force_applier_queue_desync
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl/connection_replica.inc
+# R1: the applier stops CLEANLY with the read-failure error (not a silent spin).
+--let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
+--source include/rpl/wait_for_applier_error.inc
+
+# R3: the receiver keeps running -- the fail-safe stops only the applier.
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= The receiver (IO thread) keeps running after the applier-side fail-safe
+--let $assert_cond= "$io_running" = "Yes"
+--source include/assert.inc
+
+# R2: the queue's structural-inconsistency detail is written to the error log.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_applier_queue_desync
+--let $assert_select= \[In-memory relay log\] applier queue structural inconsistency
+--let $assert_count_condition= >= 1
+--let $assert_text= The applier queue structural inconsistency is logged to the replica error log
+--source include/assert_grep.inc
+
+# R2: the read-failure reason surfaced to Last_SQL_Error is also logged.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_applier_queue_desync
+--let $assert_select= Relay log read failure: in-memory relay log queue structural inconsistency
+--let $assert_count_condition= >= 1
+--let $assert_text= The read-failure reason (Last_SQL_Error) is logged to the replica error log
+--source include/assert_grep.inc
+
+--echo
+--echo # 3. Clear the (simulated) fault and restart the applier: it catches up.
+--echo
+
+--source include/remove_debug_point.inc
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--echo
+--echo # 4. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

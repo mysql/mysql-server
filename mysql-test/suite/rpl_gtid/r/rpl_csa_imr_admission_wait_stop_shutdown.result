@@ -1,0 +1,56 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Fill the in-memory queue with the applier stopped; the receiver
+#    waits for queue memory and shows the relay-log-space stage (R1).
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
+[connection master]
+[connection slave]
+include/assert.inc [The receiver waits with fewer than the whole workload queued]
+
+# 2. STOP REPLICA IO_THREAD while the receiver waits (R2).
+
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 30;
+STOP REPLICA IO_THREAD;
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+include/assert.inc [STOP REPLICA IO_THREAD stopped the waiting receiver]
+include/assert.inc [The stopped receiver reports no IO error (Last_IO_Errno = 0)]
+
+# 3. The receiver fills the queue and waits again; KILL the IO thread
+#    while it waits (R1, R4).
+
+call mtr.add_suppression("Replica I/O thread aborted while waiting for relay log space");
+include/rpl/start_receiver.inc
+include/assert.inc [The killed receiver reports no IO error (Last_IO_Errno = 0)]
+include/assert_grep.inc [A KILL in admission logs the classic relay-log-space error]
+include/assert_grep.inc [A KILL in admission does not log the stop line]
+
+# 4. The receiver fills the queue and waits again; shut down the replica
+#    while it waits (R1, R3).
+
+include/rpl/start_receiver.inc
+include/rpl/restart_server.inc [server_number=2]
+include/assert.inc [The replica shut down cleanly while the receiver waited for queue memory]
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+include/assert.inc [All 40 transactions were applied after the restart]
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -1,0 +1,49 @@
+
+# 0. Set up a 1->2->1 topology; server_2 uses the CSA with IMR.
+
+include/rpl/init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server_2]
+include/assert.inc [server_2's channel uses the in-memory relay log]
+[connection server_1]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+include/rpl/sync.inc
+
+# 1. A transaction from server_2 comes back from server_1 and is ignored
+#    by server_2's receiver.
+
+[connection server_2]
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/rpl/save_server_position.inc
+[connection server_2]
+include/rpl/sync_received_with_saved.inc
+
+# 2. Stop server_2's receiver after the first WRITE_ROWS of the next
+#    transaction (R1).
+
+# Adding debug point 'stop_io_after_reading_write_rows_log_event' to @@GLOBAL.debug
+[connection server_1]
+INSERT INTO t1 VALUES (2);
+[connection server_2]
+include/rpl/wait_for_receiver_to_stop.inc
+
+# 3. Start the receiver again and replicate the transaction (R2).
+
+# Removing debug point 'stop_io_after_reading_write_rows_log_event' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection server_1]
+include/rpl/sync_to_replica.inc
+include/assert.inc [server_2 has both rows]
+
+# 4. Cleanup.
+
+[connection server_1]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

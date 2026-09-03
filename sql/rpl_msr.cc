@@ -189,6 +189,10 @@ bool Multisource_info::delete_mi(const char *channel_name) {
         auto restored_id = mi->rli->get_channel_instance_id();
         m_restored_channels_ids.push_back(restored_id);
       }
+      // Deleting rli also removes the channel's in-memory relay log runtime
+      // from the service (~Relay_log_info()), still under the channel_map write
+      // lock, so a channel re-created with the recycled channel_instance_id
+      // starts clean.
       delete mi->rli;
     }
     delete mi;

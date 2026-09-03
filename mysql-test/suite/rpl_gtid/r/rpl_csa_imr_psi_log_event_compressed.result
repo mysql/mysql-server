@@ -1,0 +1,42 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Enable the in-memory relay log on the CSA channel and start.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/assert.inc [The channel reports the in-memory relay log as enabled]
+include/rpl/start_replica.inc
+
+# 2. Replicate compressed DML transactions.
+
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+SET SESSION binlog_transaction_compression = ON;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (9);
+UPDATE t1 SET c1 = c1 + 100;
+DELETE FROM t1;
+SET SESSION binlog_transaction_compression = OFF;
+include/assert.inc [The source compressed the 12 DML transactions]
+include/rpl/sync_to_replica.inc
+
+# 3. The per-thread sum of memory/sql/Log_event bytes equals the global
+#    value.
+
+include/assert.inc [Per-thread Log_event bytes match the global value]
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

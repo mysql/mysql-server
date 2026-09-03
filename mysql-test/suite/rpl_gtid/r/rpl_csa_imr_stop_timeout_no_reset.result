@@ -1,0 +1,64 @@
+
+# 1. Set up a CSA channel with the in-memory relay log enabled and seed a
+#    baseline so the Retrieved_Gtid_Set is non-empty.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+CALL mtr.add_suppression("STOP REPLICA command execution is incomplete");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+[connection slave]
+include/assert.inc [Baseline received something: Retrieved_Gtid_Set is non-empty before the stop]
+
+# 2. Park the IO thread mid-queuing so it cannot join a stop.
+
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (4);
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR reached_queuing_event';
+
+# 3. Full STOP REPLICA with a short timeout: the SQL thread stops and
+#    detaches, the IO thread times out and keeps its role, so the
+#    volatile state is NOT reset.
+
+include/assert.inc [The received set is non-empty while the IO thread is parked]
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 2;
+STOP REPLICA;
+ERROR HY000: STOP REPLICA command execution is incomplete: Replica IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete.
+include/assert.inc [The SQL thread stopped during the timed-out full STOP REPLICA]
+include/assert.inc [A timed-out full STOP (IO thread unjoined) leaves the received set unchanged (a normal full stop would clear it): no reset ran]
+
+# 4. Release the receiver and let it exit: it is the last role out and
+#    resets the queue. Then resume and verify data equality.
+
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+include/assert.inc [The released receiver exits with no IO error (Last_IO_Errno = 0)]
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+SET DEBUG_SYNC= 'RESET';
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/rpl/wait_for_replica_status.inc [Retrieved_Gtid_Set]
+include/assert.inc [The IO thread's late exit reset the queue and the Retrieved_Gtid_Set]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (5), (6), (7);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 5. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

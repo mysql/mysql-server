@@ -1,0 +1,233 @@
+# ==== Purpose ====
+#
+# On a CSA channel with the in-memory relay log (IMR), the receiver (IO
+# thread) waits for queue memory when the queue is full. It waits before it
+# queues the GTID event, with no lock held. This test checks how that wait
+# looks and how it ends:
+#   - while it waits, the IO thread shows the classic relay-log-space stage;
+#   - STOP REPLICA IO_THREAD ends the wait promptly and reports no IO error
+#     (Last_IO_Errno = 0);
+#   - KILL of the IO thread ends the wait and the thread, as it ends the
+#     classic relay-log-space wait: no IO error, and the classic error log
+#     line instead of the stop's information line;
+#   - a server shutdown ends the wait too (the stop flag set by the shutdown
+#     is enough), the shutdown completes in bounded time, and the server
+#     restarts and replicates correctly.
+#
+# ==== Requirements ====
+#
+# R1. While the receiver waits for queue memory, PROCESSLIST_STATE of
+#     thread/sql/replica_io is 'Waiting for the replica SQL thread to free
+#     relay log space'.
+# R2. STOP REPLICA IO_THREAD while the receiver waits returns without a stop
+#     timeout, and Last_IO_Errno is 0 (a clean stop).
+# R3. A replica shutdown while the receiver waits completes cleanly within the
+#     shutdown timeout ("Shutdown complete" is logged, the server is not
+#     killed), the server restarts, and the channel replicates every
+#     transaction (diff).
+# R4. KILL of the IO thread while the receiver waits stops the receiver
+#     (SERVICE_STATE = 'OFF' within 10 s), Last_IO_Errno is 0, and the error
+#     log has one "Replica I/O thread aborted while waiting for relay log
+#     space" line and no "[In-memory relay log] receiver stopped while waiting
+#     for queue admission" line for it.
+#
+# ==== Implementation ====
+#
+#   1. Enable IMR with a 32 MiB limit and an 8 MiB spill threshold, stop the
+#      applier and send 40 x ~1 MiB transactions; wait for the stage (R1).
+#   2. STOP REPLICA IO_THREAD with a 30 s stop timeout (R2).
+#   3. Start the receiver; it fills the queue and waits again (R1). KILL the
+#      IO thread, wait for the receiver to stop, check Last_IO_Errno and the
+#      error log (R4).
+#   4. Start the receiver; it fills the queue and waits again (R1). Restart
+#      the replica with a 60 s shutdown timeout; check the error log, START
+#      REPLICA, sync and diff (R3).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# Memory accounting uses the on-the-wire transaction size; with compression the
+# test payload would not fill the limit.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Fill the in-memory queue with the applier stopped; the receiver
+--echo #    waits for queue memory and shows the relay-log-space stage (R1).
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 40
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+--let $io_stage_wait_condition= SELECT PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space' FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'
+--let $wait_condition= $io_stage_wait_condition
+--let $wait_timeout= 60
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not show the relay-log-space stage while the queue was full
+}
+
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The receiver waits with fewer than the whole workload queued
+--let $assert_cond= $qlen < $trx_count
+--source include/assert.inc
+
+--echo
+--echo # 2. STOP REPLICA IO_THREAD while the receiver waits (R2).
+--echo
+
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 30;
+# A stop that does not end the wait fails here with
+# ER_STOP_REPLICA_IO_THREAD_TIMEOUT.
+STOP REPLICA IO_THREAD;
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= STOP REPLICA IO_THREAD stopped the waiting receiver
+--let $assert_cond= "$io_running" = "No"
+--source include/assert.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= The stopped receiver reports no IO error (Last_IO_Errno = 0)
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+--echo
+--echo # 3. The receiver fills the queue and waits again; KILL the IO thread
+--echo #    while it waits (R1, R4).
+--echo
+
+call mtr.add_suppression("Replica I/O thread aborted while waiting for relay log space");
+
+# Both threads are stopped, so the queue was reset and the receiver fetches
+# the 40 transactions again.
+--source include/rpl/start_receiver.inc
+
+--let $wait_condition= $io_stage_wait_condition
+--let $wait_timeout= 60
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The restarted receiver did not show the relay-log-space stage before the KILL
+}
+
+# Mark the error log, so the checks below see only this KILL.
+--let IMR_ERR_LOG= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--perl
+  open(my $fh, '>>', $ENV{'IMR_ERR_LOG'}) or die "open: $!";
+  print $fh "IMR_KILL_IN_ADMISSION_MARKER\n";
+  close($fh);
+EOF
+
+--let $io_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
+--disable_query_log
+--eval KILL $io_id
+--enable_query_log
+
+# The KILL ends the wait within one 1 ms poll; 10 s leaves room for a slow
+# host. A KILL that does not end the wait leaves the receiver running.
+--let $wait_condition= SELECT SERVICE_STATE = 'OFF' FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = ''
+--let $wait_timeout= 10
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die KILL of the IO thread did not end the admission wait
+}
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= The killed receiver reports no IO error (Last_IO_Errno = 0)
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= IMR_KILL_IN_ADMISSION_MARKER
+--let $assert_select= Replica I/O thread aborted while waiting for relay log space
+--let $assert_count= 1
+--let $assert_text= A KILL in admission logs the classic relay-log-space error
+--source include/assert_grep.inc
+--let $assert_select= \[In-memory relay log\] receiver stopped while waiting for queue admission
+--let $assert_count= 0
+--let $assert_text= A KILL in admission does not log the stop line
+--source include/assert_grep.inc
+--let $assert_only_after=
+
+--echo
+--echo # 4. The receiver fills the queue and waits again; shut down the replica
+--echo #    while it waits (R1, R3).
+--echo
+
+# The KILL left both threads stopped, so the queue was reset again.
+--source include/rpl/start_receiver.inc
+
+--let $wait_condition= $io_stage_wait_condition
+--let $wait_timeout= 60
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The restarted receiver did not show the relay-log-space stage while the queue was full
+}
+
+# Count the clean shutdowns logged so far; a shutdown that does not finish
+# within $shutdown_server_timeout is killed and logs none.
+--let SHUTDOWN_COUNT_LOG= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--source suite/rpl_gtid/t/rpl_csa_imr_count_shutdowns.inc
+--let $shutdowns_before= $shutdown_count
+
+--let $shutdown_server_timeout= 60
+--let $rpl_server_number= 2
+--source include/rpl/restart_server.inc
+--let $shutdown_server_timeout=
+
+--source suite/rpl_gtid/t/rpl_csa_imr_count_shutdowns.inc
+--let $assert_text= The replica shut down cleanly while the receiver waited for queue memory
+--let $assert_cond= $shutdown_count = $shutdowns_before + 1
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--let $count= `SELECT COUNT(*) FROM t1`
+--let $assert_text= All 40 transactions were applied after the restart
+--let $assert_cond= $count = 40
+--source include/assert.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

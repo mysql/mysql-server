@@ -296,8 +296,16 @@
      - new column APPLIER_VERSION
      - new column APPLIER_WORKER_COUNT
      - new column APPLIER_EVENT_MEMORY_LIMIT
+
+  261000:
+
+   - In-memory relay log for the change stream applier
+     Modified 'replication_applier_configuration' performance schema table:
+     - new column IN_MEMORY_RELAYLOG_ENABLED
+     - new column IN_MEMORY_RELAYLOG_LIMIT
+     - new column IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
 */
 
-static const uint PFS_DD_VERSION = 260700;
+static const uint PFS_DD_VERSION = 261000;
 
 #endif /* PFS_DD_VERSION_H */

@@ -4,7 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1, IN_MEMORY_RELAYLOG_ENABLED = OFF;
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
 include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE test.t1 (id INT PRIMARY KEY, payload VARCHAR(32)) ENGINE=InnoDB;

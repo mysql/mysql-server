@@ -28,8 +28,11 @@
 #include "mysql/psi/mysql_file.h"  // mysql_file_close
 #include "sql/changestreams/apply/resource/statistics_map.h"
 #include "sql/changestreams/apply/service/csa_service.h"
+#include "sql/changestreams/apply/storage/in_memory/imr_runtime.h"  // Imr_runtime
+#include "sql/changestreams/apply/storage/in_memory/queued_transaction_reader.h"  // Queued_transaction_reader
 #include "sql/mysqld.h"  // slave_trans_retries
-#include "sql/rpl_mi.h"  // Master_info
+#include "sql/rpl_mi.h"   // Master_info
+#include "sql/rpl_rli.h"  // Relay_log_info
 
 using namespace mysql::binlog::event;
 
@@ -41,6 +44,14 @@ Sync_transaction_provider::Sync_transaction_provider(
     : m_rli(rli),
       m_reader(new Transaction_provider::Common_reader_type(
           instance_id, rli, max_read_event_bytes, max_read_payload_bytes)),
+      m_stat_monitor(scheduler::Statistics_monitor::get(instance_id)) {}
+
+// In-memory relay-log overload; see the header.
+Sync_transaction_provider::Sync_transaction_provider(int instance_id,
+                                                     Relay_log_info *rli)
+    : m_rli(rli),
+      m_reader(std::make_shared<Queued_transaction_reader>(
+          instance_id, rli, rli->imr()->queue())),
       m_stat_monitor(scheduler::Statistics_monitor::get(instance_id)) {}
 
 void Sync_transaction_provider::start() {}

@@ -1,0 +1,200 @@
+# ==== Purpose ====
+#
+# When the spill directory of the in-memory relay log is not usable at server
+# start, the server logs it and refuses to start channels that use the
+# in-memory relay log, until it is restarted with the path fixed.
+# Other channels are not affected.
+#
+# ==== Requirements ====
+#
+# R1. A regular file at the spill directory path is logged at startup as an
+#     error naming the path and the cause, followed by a summary error. The
+#     server itself starts.
+# R2. The startup start of an in-memory relay log channel (no client session)
+#     is refused: both replication threads stay stopped.
+# R3. START REPLICA, START REPLICA IO_THREAD and START REPLICA SQL_THREAD on
+#     the channel fail with ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE.
+# R4. With the in-memory relay log disabled, the same channel starts and
+#     replicates. Enabling it again is refused again until a restart.
+# R5. A symbolic link at the spill directory path, even to a directory, is
+#     refused the same way.
+# R6. After a restart with the path removed, the server creates the directory,
+#     logs no error, and the channel starts with the in-memory relay log and
+#     replicates.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with the in-memory relay log and replicate a table.
+#   2. Stop the replica server, replace the spill directory with a regular
+#      file, and start it with replica start enabled. Check R1 and R2.
+#   3. Check R3.
+#   4. Disable the in-memory relay log, replicate, re-enable it, and check that
+#      START is refused again (R4).
+#   5. Restart with a symbolic link to a directory at the path (R5).
+#   6. Restart with the path removed, then start and replicate (R6).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# The symbolic link is created with ln -s.
+--source include/not_windows.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. A CSA channel with the in-memory relay log replicates a table.
+--echo
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("\\[In-memory relay log\\] the spill file directory '.*' cannot be used");
+CALL mtr.add_suppression("\\[In-memory relay log\\] the spill file directory is not usable");
+CALL mtr.add_suppression("Failed to start replica threads for channel");
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+# <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--let $link_target= $MYSQLTEST_VARDIR/tmp/imr_spill_dir_target
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Replace the spill directory with a regular file and restart with
+--echo #    replica start enabled.
+--echo
+
+--source include/rpl/stop_replica.inc
+--let $rpl_server_number= 2
+--source include/rpl/stop_server.inc
+--rmdir $spill_dir
+--write_file $spill_dir
+not a directory
+EOF
+--let $rpl_server_parameters= --skip-replica-start=0
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_dir_unusable
+--let $assert_select= \[In-memory relay log\] the spill file directory '.*#in_memory_relaylog_temp_files' cannot be used: it exists but is not a directory
+--let $assert_count= 1
+--let $assert_text= The regular file is logged with its path and cause (R1)
+--source include/assert_grep.inc
+
+--let $assert_select= \[In-memory relay log\] the spill file directory is not usable
+--let $assert_text= The summary error is logged (R1)
+--source include/assert_grep.inc
+
+--echo # The regular file is still in place (R1).
+--file_exists $spill_dir
+
+--let $assert_select= Failed to start replica threads for channel ''
+--let $assert_text= The startup start of the channel is refused (R2)
+--source include/assert_grep.inc
+
+--let $assert_text= Both replication threads are stopped after the restart (R2)
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_Running, 1]" = "No" AND "[SHOW REPLICA STATUS, Replica_SQL_Running, 1]" = "No"
+--source include/assert.inc
+
+--echo
+--echo # 3. Every START form is refused (R3).
+--echo
+
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE
+START REPLICA;
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE
+START REPLICA IO_THREAD;
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE
+START REPLICA SQL_THREAD;
+
+--let $assert_text= Both replication threads are still stopped
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_Running, 1]" = "No" AND "[SHOW REPLICA STATUS, Replica_SQL_Running, 1]" = "No"
+--source include/assert.inc
+
+--echo
+--echo # 4. Without the in-memory relay log the channel replicates. Enabling it
+--echo #    again is refused again (R4).
+--echo
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2);
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE
+START REPLICA;
+
+--echo
+--echo # 5. A symbolic link to a directory at the path is refused too (R5).
+--echo
+
+--source include/rpl/stop_server.inc
+--remove_file $spill_dir
+--mkdir $link_target
+--write_file $link_target/imr_sp_victim
+victim
+EOF
+--exec ln -s $link_target $spill_dir
+--let $rpl_server_parameters=
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+
+# The startup purge does not delete through the symbolic link.
+--file_exists $link_target/imr_sp_victim
+
+--let $assert_select= \[In-memory relay log\] the spill file directory '.*#in_memory_relaylog_temp_files' cannot be used: it is a symbolic link, not a directory
+--let $assert_count= 1
+--let $assert_text= The symbolic link is logged with its path and cause (R5)
+--source include/assert_grep.inc
+
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE
+START REPLICA;
+
+--echo
+--echo # 6. After a restart with the path removed, the channel starts with the
+--echo #    in-memory relay log and replicates (R6).
+--echo
+
+--source include/rpl/stop_server.inc
+--remove_file $spill_dir
+--remove_file $link_target/imr_sp_victim
+--rmdir $link_target
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+
+--let $assert_select= \[In-memory relay log\] the spill file directory is not usable
+--let $assert_count= 2
+--let $assert_text= No new error is logged for the restored path (R6)
+--source include/assert_grep.inc
+
+--echo # The spill directory is created again (R6).
+--file_exists $spill_dir
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (3);
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY a
+--source include/rpl/diff.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

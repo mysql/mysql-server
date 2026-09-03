@@ -1,0 +1,170 @@
+# ==== Purpose ====
+#
+# A transaction that the receiver drops because it carries the replica's own
+# server id (replicate_same_server_id = 0) leaves nothing behind on a channel
+# that uses the in-memory relay log (IMR): no queued transaction, no reserved
+# memory, no spill file. The filter is the single gate for the disk and the
+# in-memory path, so the test has the same result with the Multi-Threaded
+# Applier, the Change Stream Applier (CSA) and the CSA with IMR.
+#
+# ==== Requirements ====
+#
+# R1. After the receiver has read a small and a large (spill-sized) transaction
+#     that it drops by server id, In_Memory_Queue_Length and
+#     In_Memory_Relay_Log_Space are 0 and no spill file exists.
+# R2. The dropped transactions are not applied, and both replication threads
+#     run without an error.
+# R3. A later transaction from the source is applied.
+# R4. After a reconnection the replica fetches the dropped transactions, which
+#     are not in its received or executed set, and converges with the source.
+#
+# ==== Implementation ====
+#
+#   1. Replicate a table; wait until the IMR queue is empty.
+#   2. With the receiver connected, set the replica's server_id to the
+#      source's. The equal-server-id check runs only at connect, so the
+#      receiver goes on reading and drops every later source event by server
+#      id.
+#   3. Commit a small transaction on the source and wait until the receiver has
+#      read it (by source position: its GTID is not received). Check R1, R2.
+#   4. The same with a transaction larger than the default 16 MiB
+#      IN_MEMORY_RELAYLOG_SPILL_THRESHOLD.
+#   5. Restore server_id, commit one more transaction and check that it is
+#      applied (R3).
+#   6. Restart the replica threads, sync and compare the data (R4).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Replicate a table; the IMR queue drains.
+--echo
+
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+# <relay-log dir>/#in_memory_relaylog_temp_files, created at server start.
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--let $spill_ls_file= $MYSQL_TMP_DIR/imr_own_server_id_ls.txt
+
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+--echo
+--echo # 2. The replica takes the source's server_id while its receiver is
+--echo #    connected.
+--echo
+
+--source include/rpl/connection_source.inc
+--let $source_server_id= `SELECT @@GLOBAL.server_id`
+--source include/rpl/connection_replica.inc
+--let $replica_server_id= `SELECT @@GLOBAL.server_id`
+--replace_result $source_server_id SOURCE_SERVER_ID
+--eval SET GLOBAL server_id = $source_server_id
+
+--let $i= 1
+while ($i <= 2)
+{
+  --echo
+  if ($i == 1)
+  {
+    --echo # 3. A small transaction is dropped by server id and leaves nothing.
+  }
+  if ($i == 2)
+  {
+    --echo # 4. A spill-sized transaction is dropped by server id and leaves
+    --echo #    nothing.
+  }
+  --echo
+
+  --source include/rpl/connection_source.inc
+  if ($i == 1)
+  {
+    INSERT INTO t1 VALUES (1, 'small');
+  }
+  if ($i == 2)
+  {
+    # 20 rows x 1 MiB, above the default 16 MiB spill threshold.
+    BEGIN;
+    --disable_query_log
+    --let $row= 100
+    while ($row < 120)
+    {
+      --eval INSERT INTO t1 VALUES ($row, REPEAT('x', 1048576))
+      --inc $row
+    }
+    --enable_query_log
+    COMMIT;
+  }
+
+  --source include/rpl/save_server_position.inc
+  --source include/rpl/connection_replica.inc
+  --let $ignore_gtids_on_sync= 1
+  --source include/rpl/sync_received_with_saved.inc
+  --let $ignore_gtids_on_sync=
+
+  --let $assert_text= In_Memory_Queue_Length and In_Memory_Relay_Log_Space are 0 (R1)
+  --let $assert_cond= [SHOW REPLICA STATUS, In_Memory_Queue_Length, 1] = 0 AND [SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1] = 0
+  --source include/assert.inc
+
+  --list_files_write_file $spill_ls_file $spill_dir imr_sp_*
+  --let $read_from_file= $spill_ls_file
+  --source include/read_file_to_var.inc
+  --remove_file $spill_ls_file
+  --let $assert_text= No spill file exists (R1)
+  --let $assert_cond= "$result" = ""
+  --source include/assert.inc
+
+  --let $assert_text= The dropped transactions are not applied (R2)
+  --let $assert_cond= [SELECT COUNT(*) FROM t1] = 0
+  --source include/assert.inc
+
+  --let $assert_text= Both threads run without an error (R2)
+  --let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_Running, 1]" = "Yes" AND "[SHOW REPLICA STATUS, Replica_SQL_Running, 1]" = "Yes" AND [SHOW REPLICA STATUS, Last_IO_Errno, 1] = 0 AND [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+  --source include/assert.inc
+
+  --inc $i
+}
+
+--echo
+--echo # 5. With server_id restored, the next transaction is applied (R3).
+--echo
+
+--replace_result $replica_server_id REPLICA_SERVER_ID
+--eval SET GLOBAL server_id = $replica_server_id
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (200, 'after');
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t1 WHERE id = 200
+--source include/wait_condition.inc
+--let $assert_text= Only the last transaction is applied (R3)
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1
+--source include/assert.inc
+
+--echo
+--echo # 6. After a reconnection the dropped transactions are fetched and the
+--echo #    replica converges (R4).
+--echo
+
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

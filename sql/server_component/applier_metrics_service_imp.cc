@@ -26,9 +26,12 @@
 #include <cassert>                                                  // assert
 #include "my_dbug.h"                   // DBUG_EVALUATE_IF
 #include "mysql/abi_helpers/packet.h"  // Packet_builder
-#include "sql/psi_memory_key.h"        // key_memory_applier_metric_service
+#include "sql/changestreams/apply/service/csa_service.h"  // Csa_service
+#include "sql/changestreams/apply/storage/in_memory/imr_runtime.h"  // Imr_runtime
+#include "sql/psi_memory_key.h"  // key_memory_applier_metric_service
 #include "sql/rpl_mi.h"
-#include "sql/rpl_msr.h"  // channel_map
+#include "sql/rpl_msr.h"      // channel_map
+#include "sql/rpl_replica.h"  // get_csa_service
 #include "sql/rpl_rli_pdb.h"
 
 // This holds now; in case we remove metrics in the future, we may have
@@ -232,6 +235,24 @@ DEFINE_BOOL_METHOD(Applier_metrics_service_handler::get_applier_metrics,
     builder.push_int(
         time_to_read_from_relay_log_t,
         coord_metrics.get_time_to_read_from_relay_log_metric().get_time());
+
+    // In-memory relay log metrics, all 0 on a non-IMR channel. Gauges come from
+    // the runtime; counters come from CSA statistics and read 0 while the
+    // applier is stopped or when metric collection was off at its start.
+    auto *imr = mi->rli->imr();
+    builder.push_int(imr_memory_bytes_used_t, imr ? imr->bytes_used() : 0);
+    builder.push_int(imr_queue_length_t, imr ? imr->queue_length() : 0);
+    const mysql::csa::Imr_applier_stats imr_stats =
+        imr ? get_csa_service().get_imr_applier_stats(mi->get_channel())
+            : mysql::csa::Imr_applier_stats{};
+    builder.push_int(imr_memory_trx_count_t, imr_stats.memory_trx_count);
+    builder.push_int(imr_memory_trx_bytes_t, imr_stats.memory_trx_bytes);
+    builder.push_int(imr_spill_trx_count_t, imr_stats.spill_trx_count);
+    builder.push_int(imr_spill_trx_bytes_t, imr_stats.spill_trx_bytes);
+    builder.push_int(imr_spill_file_count_t,
+                     imr ? imr->spill_file_count() : 0);
+    builder.push_int(imr_spill_bytes_used_t,
+                     imr ? imr->spill_bytes_used() : 0);
 
     assert(builder.get_position() == number_of_applier_metrics);
     assert(builder.get_position() == row.size());

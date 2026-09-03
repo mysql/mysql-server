@@ -26,6 +26,8 @@
 --let $rpl_gtid_utils= 1
 --source include/have_binlog_format_row.inc
 --source include/not_rpl_gtid_only.inc
+# Retrieved_Gtid_Set is cleared on a full stop with IMR.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 --echo # Using MyISAM storage engine

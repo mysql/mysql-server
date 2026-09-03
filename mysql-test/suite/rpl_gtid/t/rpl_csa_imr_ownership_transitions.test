@@ -1,0 +1,195 @@
+# ==== Purpose ====
+#
+# Exercise the in-memory relay log (IMR) runtime-ownership transitions now that
+# the runtime is owned by the server-lifetime Imr_service (keyed by
+# channel_instance_id) and reached through a non-owning pointer cached on the
+# channel's Relay_log_info. The test drives, on a CSA channel, every reconcile
+# transition and the channel-teardown removal, and asserts replication stays
+# correct across each one:
+#
+#   - create  : IMR OFF -> ON (a runtime is created; cache set)
+#   - rebuild : change IN_MEMORY_RELAYLOG_LIMIT / SPILL_THRESHOLD (runtime rebuilt)
+#   - destroy : IMR ON -> OFF (runtime destroyed; cache cleared, IMR columns 0)
+#   - create  : IMR OFF -> ON again (a fresh runtime is created)
+#   - teardown + recreate : RESET REPLICA ALL removes the channel (and its
+#                runtime from the service), then the channel is recreated with
+#                IMR ON and replicates again -- proving the teardown removal ran
+#                and a channel reusing the recycled channel_instance_id starts
+#                clean.
+#
+# ==== Requirements ====
+#
+# R1 (6.1). rli->imr() is non-null exactly when a runtime is wanted (IMR ON on a
+#     CSA channel): after each create/rebuild the channel replicates through the
+#     in-memory path; after a destroy the IMR SHOW REPLICA STATUS columns read 0.
+# R2 (6.1). A bounds change rebuilds the runtime to the new persisted bounds
+#     while replication stays correct.
+# R3 (6.3). RESET REPLICA ALL removes the channel's runtime from the service
+#     before the rli is deleted; a recreated channel (reusing the recycled
+#     channel_instance_id) reconciles a fresh runtime and replicates correctly.
+# R4. With IMR OFF on a CSA channel, replication uses the classic relay log
+#     (Relay_Log_Space > 0) and the IMR SHOW REPLICA STATUS columns stay 0
+#     after a workload.
+#
+# ==== References ====
+#
+# In-memory relay log runtime ownership in Imr_service.
+
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Create: enable IMR ON with explicit bounds. A runtime is created and
+--echo #    cached on the channel's rli; replication proceeds correctly.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON, IN_MEMORY_RELAYLOG_LIMIT = 134217728, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 16777216;
+--source include/rpl/start_replica.inc
+
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR is ON after the create transition
+--let $assert_cond= "$imr_enabled" = "YES"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'create-a'), (2, 'create-b');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 2. Rebuild: change the memory bounds. The runtime is rebuilt to the new
+--echo #    bounds; replication stays correct.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 268435456, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+--source include/rpl/start_replica.inc
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog = 1 AND In_memory_relaylog_limit = 268435456 AND In_memory_relaylog_spill_threshold = 33554432`
+--let $assert_text= The rebuilt runtime carries the new persisted bounds
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (3, 'rebuild-a'), (4, 'rebuild-b');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 3. Destroy: disable IMR. The runtime is destroyed and the cached pointer
+--echo #    cleared; the IMR SHOW REPLICA STATUS columns read 0.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--let $imr_space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= In_Memory_Relay_Log_Space is 0 after the destroy transition
+--let $assert_cond= $imr_space = 0
+--source include/assert.inc
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length is 0 after the destroy transition
+--let $assert_cond= $imr_qlen = 0
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (5, 'destroy-a'), (6, 'destroy-b');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+# R4: the OFF channel used the classic relay log, not IMR.
+--source include/rpl/connection_replica.inc
+--let $relay_space= query_get_value(SHOW REPLICA STATUS, Relay_Log_Space, 1)
+--let $assert_text= Relay_Log_Space is greater than 0 while IMR is OFF
+--let $assert_cond= $relay_space > 0
+--source include/assert.inc
+
+--let $imr_space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= In_Memory_Relay_Log_Space is 0 after a workload with IMR OFF
+--let $assert_cond= $imr_space = 0
+--source include/assert.inc
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length is 0 after a workload with IMR OFF
+--let $assert_cond= $imr_qlen = 0
+--source include/assert.inc
+
+--echo
+--echo # 4. Create again: re-enable IMR. A fresh runtime is created.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR is ON again after the second create transition
+--let $assert_cond= "$imr_enabled" = "YES"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (7, 'create2-a'), (8, 'create2-b');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 5. Teardown + recreate: RESET REPLICA ALL removes the channel and its
+--echo #    runtime from the service. Recreate the channel with IMR ON (it reuses
+--echo #    the recycled channel_instance_id) and confirm it reconciles a fresh
+--echo #    runtime and replicates correctly.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+RESET REPLICA ALL;
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`
+--let $assert_text= RESET REPLICA ALL cleared the channel row
+--let $assert_cond= $count = 0
+--source include/assert.inc
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_AUTO_POSITION=1, REQUIRE_ROW_FORMAT=1, GTID_ONLY=1, APPLIER_VERSION=2, IN_MEMORY_RELAYLOG_ENABLED=ON
+--source include/rpl/start_replica.inc
+
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR is ON on the recreated channel
+--let $assert_cond= "$imr_enabled" = "YES"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (9, 'recreate-a'), (10, 'recreate-b');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

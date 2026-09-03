@@ -128,6 +128,11 @@ bool Job_binlog::run(Thread_id thread_id) {
            m_phase == Transaction_phase::retry_commit);
     // execute in one phase
     if (this->prepare(thread_id)) return true;
+    // prepare() may finish the job without a terminal event (e.g. a truncated
+    // transaction rolls back to `done`). Only a job that reached its terminal
+    // event may enter the commit phases, which assert on the phase, so this
+    // single-phase path (replica_preserve_commit_order = OFF) must check.
+    if (m_phase == Transaction_phase::done) return false;
     if (this->commit_register(thread_id)) return true;
     if (this->commit(thread_id)) return true;
   }

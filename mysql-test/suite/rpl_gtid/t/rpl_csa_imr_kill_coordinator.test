@@ -1,0 +1,157 @@
+# ==== Purpose ====
+#
+# Verify that KILL of the SQL (coordinator) thread stops a CSA (Change Stream
+# Applier) channel with the in-memory relay log (IMR), as it does for the
+# classic multi-threaded applier and for the CSA reading the relay log on disk.
+#
+# KILL sets the killed flag on the coordinator THD but not abort_slave. Before
+# the fix the IMR reader checked only abort_slave and its own stop flags, so
+# the coordinator kept polling the queue and never exited.
+#
+# ==== Requirements ====
+#
+# R1. KILL on an idle IMR channel stops the applier without an error; the IO
+#     thread keeps running, and transactions received while the applier is
+#     stopped are applied after the next START.
+# R2. KILL while a worker waits for the rest of a transaction that is still
+#     being received stops the applier promptly without an error; the
+#     transaction is rolled back, the queue keeps it, and the next START
+#     applies it.
+#
+# ==== Implementation ====
+#
+#   0. Set up a CSA channel with IMR enabled.
+#   1. Idle channel: KILL the coordinator and wait for the applier to stop.
+#      Replicate two transactions while it is stopped, then start it (R1).
+#   2. Pause the receiver after the first WRITE_ROWS of a 2-row transaction,
+#      wait until the worker holds its lock on t1, KILL the coordinator and
+#      wait for the applier to stop. Release the receiver and start the
+#      applier (R2).
+#   3. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# With binlog transaction compression there is no BEGIN event to pause after.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 0. Set up a CSA channel with IMR enabled.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(16));
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY id
+
+# Bound the waits for the applier to stop: a regression fails here instead of
+# waiting for the default timeout.
+--let $slave_timeout= 30
+
+--echo
+--echo # 1. KILL the coordinator on an idle channel (R1).
+--echo
+
+--let $sql_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_sql'`
+--replace_result $sql_id SQL_THREAD
+--eval KILL $sql_id
+--source include/rpl/wait_for_applier_to_stop.inc
+
+--let $assert_text= 1: the KILL raises no applier error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 1: the IO thread keeps running
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_Running, 1]" = "Yes"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+--source include/rpl/sync_to_replica_received.inc
+--let $assert_text= 1: the stopped applier applied nothing
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= 1: the transactions are applied after START
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (1, 2)] = 2
+--source include/assert.inc
+
+--echo
+--echo # 2. KILL the coordinator while a worker waits for the rest of a
+--echo #    transaction that is still being received (R2).
+--echo
+
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (10, 'x');
+INSERT INTO t1 VALUES (11, 'y');
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+# Let GTID, BEGIN and TABLE_MAP through; stop after the first WRITE_ROWS.
+--let $n= 1
+while ($n <= 3)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+  --inc $n
+}
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+# The worker applied the first row and waits in the batch for more.
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'test' AND OBJECT_NAME = 't1'
+--source include/wait_condition.inc
+
+--let $sql_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_sql'`
+--replace_result $sql_id SQL_THREAD
+--eval KILL $sql_id
+--source include/rpl/wait_for_applier_to_stop.inc
+
+--let $assert_text= 2: the KILL raises no applier error
+--let $assert_cond= [SHOW REPLICA STATUS, Last_SQL_Errno, 1] = 0
+--source include/assert.inc
+--let $assert_text= 2: the queue keeps the stalled transaction
+--let $assert_cond= [SHOW REPLICA STATUS, In_Memory_Queue_Length, 1] >= 1
+--source include/assert.inc
+--let $assert_text= 2: the stalled transaction holds no lock on t1
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = "test" AND OBJECT_NAME = "t1"] = 0
+--source include/assert.inc
+--let $assert_text= 2: the stalled transaction was rolled back
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (10, 11)] = 0
+--source include/assert.inc
+
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/diff.inc
+
+--echo
+--echo # 3. Cleanup.
+--echo
+
+--let $slave_timeout=
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

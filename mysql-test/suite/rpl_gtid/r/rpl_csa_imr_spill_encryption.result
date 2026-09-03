@@ -1,0 +1,106 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 1. Load the keyring on the replica, enable binlog_encryption and IMR.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+[connection master]
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. binlog_encryption = ON: the spill file is encrypted (R1, R3).
+
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [Exactly one spill file exists]
+include/assert.inc [The spill file starts with the encryption magic]
+include/assert.inc [The spill file names master key _1]
+include/assert.inc [The spill file names the key of the replica binary log]
+include/assert.inc [The spill file holds no plaintext row data]
+include/assert.inc [SPILL_BYTES_USED equals the encrypted file size]
+
+# 3. binlog_encryption = OFF: the next spill file is plain (R2, R3).
+
+SET GLOBAL binlog_encryption = OFF;
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [Two spill files exist]
+include/assert.inc [The first spill file is still encrypted]
+include/assert.inc [The second spill file starts with the plain binary log magic]
+include/assert.inc [The second spill file holds the plaintext row data]
+include/assert.inc [The encrypted spill file is exactly 512 bytes larger than the plain one]
+include/assert.inc [SPILL_BYTES_USED equals the sum of both file sizes]
+
+# 4. Both transactions apply; the files are deleted (R4).
+
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/assert.inc [SPILL_FILE_COUNT and SPILL_BYTES_USED are 0 once the files are gone]
+
+# 5. binlog_encryption = ON again: a new spill file is encrypted with
+#    the recovered key _1 and applies (R5).
+
+SET GLOBAL binlog_encryption = ON;
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [Exactly one spill file exists]
+include/assert.inc [The third spill file is encrypted with master key _1]
+include/assert.inc [The third spill file holds no plaintext row data]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
