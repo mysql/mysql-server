@@ -26,7 +26,7 @@ jobs:
       matrix:
         include:
           - shard: replication
-            suites: binlog,binlog_gtid,binlog_nogtid,clone,federated,rpl,rpl_gtid,rpl_nogtid
+            suites: binlog,binlog_gtid,binlog_nogtid,clone,federated,group_replication,rpl,rpl_gtid,rpl_nogtid
             run_unit_tests: false
           - shard: storage
             suites: encryption,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,parts
