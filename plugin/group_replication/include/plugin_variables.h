@@ -47,6 +47,7 @@ struct plugin_local_variables {
   Checkable_rwlock *plugin_running_lock;
   Checkable_rwlock *plugin_stop_lock;
   std::atomic<bool> plugin_is_stopping;
+  std::atomic<bool> plugin_is_being_uninstalled;
   std::atomic<bool> group_replication_running;
   std::atomic<bool> group_replication_cloning;
 
@@ -56,7 +57,6 @@ struct plugin_local_variables {
   bool group_member_mgr_configured;
   bool plugin_is_auto_starting_on_boot;
   bool plugin_is_auto_starting_on_install;
-  bool plugin_is_being_uninstalled;
   bool plugin_is_setting_read_mode;
   bool plugin_is_waiting_to_set_server_read_mode;
   bool server_shutdown_status;

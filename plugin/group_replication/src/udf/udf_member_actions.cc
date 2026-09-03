@@ -33,7 +33,33 @@
 static bool group_replication_enable_member_action_init(UDF_INIT *init_id,
                                                         UDF_ARGS *args,
                                                         char *message) {
+  /*
+    Prevents a member-action UDF from starting while Group
+    Replication is being uninstalled.
+    The first check is a fast path that rejects the UDF before
+    registering it as active when uninstallation has already
+    started.
+    UDF_counter then registers the UDF initialization as an
+    outstanding operation. The second check closes the race where
+    uninstallation starts between the first check and construction
+    of UDF_counter.
+    If the second check detects uninstallation, initialization fails
+    and the UDF_counter destructor automatically removes the
+    outstanding-operation count.
+    If uninstallation starts after the second check, the UDF is
+    considered active and plugin uninstallation waits until its UDF
+    reference is released.
+  */
+  if (get_plugin_is_being_uninstalled()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
+
+  if (get_plugin_is_being_uninstalled()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
 
   if (args->arg_count != 2) {
     my_stpcpy(message, "UDF takes 2 arguments.");
@@ -161,7 +187,33 @@ udf_descriptor enable_member_action_udf() {
 static bool group_replication_disable_member_action_init(UDF_INIT *init_id,
                                                          UDF_ARGS *args,
                                                          char *message) {
+  /*
+    Prevents a member-action UDF from starting while Group
+    Replication is being uninstalled.
+    The first check is a fast path that rejects the UDF before
+    registering it as active when uninstallation has already
+    started.
+    UDF_counter then registers the UDF initialization as an
+    outstanding operation. The second check closes the race where
+    uninstallation starts between the first check and construction
+    of UDF_counter.
+    If the second check detects uninstallation, initialization fails
+    and the UDF_counter destructor automatically removes the
+    outstanding-operation count.
+    If uninstallation starts after the second check, the UDF is
+    considered active and plugin uninstallation waits until its UDF
+    reference is released.
+  */
+  if (get_plugin_is_being_uninstalled()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
+
+  if (get_plugin_is_being_uninstalled()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
 
   if (args->arg_count != 2) {
     my_stpcpy(message, "UDF takes 2 arguments.");
@@ -289,7 +341,33 @@ udf_descriptor disable_member_action_udf() {
 static bool group_replication_reset_member_actions_init(UDF_INIT *init_id,
                                                         UDF_ARGS *args,
                                                         char *message) {
+  /*
+    Prevents a member-action UDF from starting while Group
+    Replication is being uninstalled.
+    The first check is a fast path that rejects the UDF before
+    registering it as active when uninstallation has already
+    started.
+    UDF_counter then registers the UDF initialization as an
+    outstanding operation. The second check closes the race where
+    uninstallation starts between the first check and construction
+    of UDF_counter.
+    If the second check detects uninstallation, initialization fails
+    and the UDF_counter destructor automatically removes the
+    outstanding-operation count.
+    If uninstallation starts after the second check, the UDF is
+    considered active and plugin uninstallation waits until its UDF
+    reference is released.
+  */
+  if (get_plugin_is_being_uninstalled()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
+
+  if (get_plugin_is_being_uninstalled()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
 
   if (args->arg_count != 0) {
     my_stpcpy(message, "UDF takes 0 arguments.");
