@@ -199,6 +199,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rseg.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "trx0undo.h"
 #include "trx0xa.h"
 #include "ut0mem.h"
 #include "ut0test.h"
@@ -1567,6 +1568,13 @@ static xa_status_code innobase_rollback_by_xid(
     handlerton *hton, /*!< in: InnoDB handlerton */
     XID *xid);        /*!< in: X/Open XA transaction
                       identification */
+/** In binlog recovery, persistently mark that a transaction will be rolled
+back.
+@param[in]     hton InnoDB handlerton
+@param[in]     xid  Internal MySQL XID identifier
+ @return 0 or error number */
+static xa_status_code innobase_recover_rollback_by_xid(handlerton *hton,
+                                                       XID *xid);
 /** This function is used to write mark an X/Open XA distributed transaction
 as been prepared in the server transaction coordinator
 @param[in]     hton InnoDB handlerton
@@ -5467,6 +5475,7 @@ static int innodb_init(void *p) {
   innobase_hton->recover_prepared_in_tc = innobase_xa_recover_prepared_in_tc;
   innobase_hton->commit_by_xid = innobase_commit_by_xid;
   innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
+  innobase_hton->recover_rollback_by_xid = innobase_recover_rollback_by_xid;
   innobase_hton->set_prepared_in_tc = innobase_set_prepared_in_tc;
   innobase_hton->set_prepared_in_tc_by_xid = innobase_set_prepared_in_tc_by_xid;
   innobase_hton->create = innobase_create_handler;
@@ -20458,6 +20467,24 @@ static xa_status_code innobase_commit_by_xid(
   }
 }
 
+/** Roll back and release a prepared transaction.
+@param[in,out] trx transaction selected for rollback
+@return XA_OK or XAER_RMERR */
+static xa_status_code innobase_rollback_prepared_trx(trx_t *trx) {
+  int ret;
+  {
+    TrxInInnoDB trx_in_innodb(trx);
+
+    ret = innobase_rollback_trx(trx);
+  }
+
+  trx_deregister_from_2pc(trx);
+  ut_ad(!trx->will_lock);
+  trx_free_for_background(trx);
+
+  return (ret != 0 ? XAER_RMERR : XA_OK);
+}
+
 /** This function is used to rollback one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -20470,22 +20497,97 @@ static xa_status_code innobase_rollback_by_xid(
 
   trx_t *trx = trx_get_trx_by_xid(xid);
 
-  if (trx != nullptr) {
-    int ret;
-    {
-      TrxInInnoDB trx_in_innodb(trx);
+  return trx == nullptr ? XAER_NOTA : innobase_rollback_prepared_trx(trx);
+}
 
-      ret = innobase_rollback_trx(trx);
-    }
+static xa_status_code innobase_recover_rollback_by_xid(
+    handlerton *hton, /*!< in: InnoDB handlerton */
+    XID *xid)         /*!< in: X/Open XA transaction identification */
+{
+  assert(hton == innodb_hton_ptr);
 
-    trx_deregister_from_2pc(trx);
-    ut_ad(!trx->will_lock);
-    trx_free_for_background(trx);
+  /*
+    trx_get_trx_by_xid() sets trx's xid to null. Thus only one call for any
+    given XID can find the transaction. Subsequent calls by other threads
+    would return nullptr. That is what guarantees that no other thread can be
+    modifying the state of the transaction at this point.
+  */
+  trx_t *trx = trx_get_trx_by_xid(xid);
 
-    return (ret != 0 ? XAER_RMERR : XA_OK);
-  } else {
-    return (XAER_NOTA);
+  if (trx == nullptr) {
+    return XAER_NOTA;
   }
+
+  if (trx->ddl_operation) {
+    return innobase_rollback_prepared_trx(trx);
+  }
+
+  /* A recovered prepared transaction necessarily has redo undo logs. */
+  ut_ad(trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx));
+
+  DBUG_EXECUTE_IF("crash_before_recover_rollback_undo_state_change",
+                  DBUG_SUICIDE(););
+
+  trx_undo_ptr_t *undo_ptr = &trx->rsegs.m_redo;
+  mtr_t mtr;
+
+  mtr.start();
+
+  trx->rsegs.m_redo.rseg->latch();
+
+  if (undo_ptr->insert_undo != nullptr) {
+    trx_undo_set_state_at_prepare(trx, undo_ptr->insert_undo, true, &mtr);
+  }
+
+  if (undo_ptr->update_undo != nullptr) {
+    /* A binlog-internal prepared transaction never carries a GTID in undo:
+    TRX_UNDO_FLAG_GTID is written only at commit
+    (trx_write_serialisation_history()), and check_gtid_prepare() returns
+    false for trx_is_mysql_xa(), so trx_prepare_low() does not set
+    TRX_UNDO_FLAG_XA_PREPARE_GTID either. */
+    ut_ad((undo_ptr->update_undo->flag &
+           (TRX_UNDO_FLAG_GTID | TRX_UNDO_FLAG_XA_PREPARE_GTID)) == 0);
+    trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
+  }
+
+  trx->rsegs.m_redo.rseg->unlatch();
+
+  mtr.commit();
+
+  const lsn_t commit_lsn = mtr.commit_lsn();
+  ut_ad(commit_lsn > 0 || !mtr_t::s_logging.is_enabled());
+  if (commit_lsn > 0) {
+    /* This flush must happen before MYSQL_BIN_LOG::open_binlog() clears
+    LOG_EVENT_BINLOG_IN_USE_F. Otherwise, after a crash, the next startup
+    could reject recovery because no usable binlog recovery information
+    remains for this prepared transaction. */
+    log_write_up_to(*log_sys, commit_lsn, true);
+  }
+
+  ut_ad(!trx->mod_tables.empty());
+
+  /*
+    trx_resurrect_locks() does not add the modified tables of a recovered
+    prepared transaction to to_rollback_trx_tables. This transaction is about
+    to become ACTIVE and be rolled back in the background, so add its modified
+    tables now for the recovery rollback thread to acquire MDL.
+  */
+  for (const auto table : trx->mod_tables) {
+    to_rollback_trx_tables.emplace_back(trx->id, table->id);
+  }
+
+  /*
+    The above undo state changes are durable before the transaction state is
+    changed from PREPARED to ACTIVE. The recovery rollback thread will then
+    roll back this transaction.
+  */
+  trx_sys_mutex_enter();
+  ut_a(trx_sys->n_prepared_trx > 0);
+  trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
+  --trx_sys->n_prepared_trx;
+  trx_sys_mutex_exit();
+
+  return XA_OK;
 }
 
 static int innobase_set_prepared_in_tc(handlerton *hton, THD *thd) {
