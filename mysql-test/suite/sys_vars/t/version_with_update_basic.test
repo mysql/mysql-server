@@ -1,0 +1,83 @@
+# WL#17318: Four-part version update support.
+#
+# Covers the version_with_update system variable and
+# VERSION_WITH_UPDATE() SQL interface added by WL#17318. Each scenario
+# below identifies its corresponding functional requirement.
+
+--source include/have_log_bin.inc
+
+--echo # FR-4.1: VERSION() keeps the compatibility three-part version form.
+SELECT VERSION() REGEXP '^[0-9]+[.][0-9]+[.][0-9]+(-|$)';
+
+--echo # FR-4.2: @@version remains the three-part compatibility runtime string.
+SELECT @@version = VERSION();
+
+--echo # FR-4.3: The full version is exposed as a readable global system variable.
+SELECT COUNT(@@GLOBAL.version_with_update);
+
+--echo # FR-4.3: Performance Schema global_variables exposes the same value.
+--disable_warnings
+SELECT @@GLOBAL.version_with_update = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='version_with_update';
+--enable_warnings
+
+--echo # FR-4.3: A bare identifier is not a system-variable reference.
+--error ER_BAD_FIELD_ERROR
+SELECT version_with_update;
+
+--echo # FR-4.4: The unqualified variable reference is shorthand for GLOBAL scope.
+SELECT @@version_with_update = @@GLOBAL.version_with_update;
+
+--echo # FR-4.4: The shorthand reference is readable.
+SELECT COUNT(@@version_with_update);
+
+--echo # FR-4.5: LOCAL scope is invalid because the variable is global only.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.version_with_update);
+
+--echo # FR-4.5: SESSION scope is invalid because the variable is global only.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.version_with_update);
+
+--echo # FR-4.6: An explicit global SET must be rejected for the read-only variable.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.version_with_update='x';
+
+--echo # FR-4.6: The unqualified SET form must also be rejected.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET version_with_update='x';
+
+--echo # FR-4.6: SET GLOBAL syntax must also be rejected.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL version_with_update='x';
+
+--echo # FR-4.6: Failed writes must not change the reported full version.
+SELECT COUNT(@@GLOBAL.version_with_update);
+
+--echo # FR-4.7: SET PERSIST must be rejected because the variable is non-persistable.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST version_with_update='x';
+
+--echo # FR-4.7: SET PERSIST_ONLY must be rejected because the variable is non-persistable.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY version_with_update='x';
+
+--echo # FR-4.9: VERSION_WITH_UPDATE() uses the four-part full-version form.
+SELECT VERSION_WITH_UPDATE() REGEXP '^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-|$)';
+
+--echo # FR-4.9: The variable and full-version SQL function agree.
+SELECT @@version_with_update = VERSION_WITH_UPDATE();
+
+--echo # FR-4.10: VERSION_WITH_UPDATE() is unsafe in statement-based binary logging.
+CREATE TABLE t1 (version CHAR(40));
+--disable_warnings
+SET SESSION binlog_format = STATEMENT;
+--enable_warnings
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+INSERT INTO t1 VALUES (VERSION_WITH_UPDATE());
+SHOW WARNINGS;
+
+# Cleanup
+SET SESSION binlog_format = default;
+DROP TABLE t1;

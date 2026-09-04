@@ -47,10 +47,12 @@ SET(CLIENT_API_FUNCTIONS
   mysql_field_tell
   mysql_free_result
   mysql_get_client_info
+  mysql_get_client_info_with_version_update
   mysql_get_client_version
   mysql_get_host_info
   mysql_get_proto_info
   mysql_get_server_info
+  mysql_get_server_info_with_version_update
   mysql_get_ssl_cipher
   mysql_hex_string
   mysql_info

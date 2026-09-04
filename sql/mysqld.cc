@@ -1509,6 +1509,7 @@ char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char *opt_protocol_compression_algorithms;
 char server_version[SERVER_VERSION_LENGTH];
+char server_version_with_update[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
@@ -13080,37 +13081,41 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end [[maybe_unused]] = strxmov(server_version, MYSQL_SERVER_VERSION,
-                                       MYSQL_SERVER_SUFFIX_STR, NullS);
+  auto append_runtime_version_suffixes = [](char *buf,
+                                            const char *base_version) {
+    char *end [[maybe_unused]] =
+        strxmov(buf, base_version, MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef NDEBUG
-  if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
-    end = my_stpcpy(end, "-debug");
+    if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
+      end = my_stpcpy(end, "-debug");
 #endif
 #ifdef HAVE_VALGRIND
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-valgrind")))
-    end = my_stpcpy(end, "-valgrind");
+    if (SERVER_VERSION_LENGTH - (end - buf) >
+        static_cast<int>(sizeof("-valgrind")))
+      end = my_stpcpy(end, "-valgrind");
 #endif
 #ifdef HAVE_ASAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-asan")))
-    end = my_stpcpy(end, "-asan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-asan")))
+      end = my_stpcpy(end, "-asan");
 #endif
 #ifdef HAVE_LSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-lsan")))
-    end = my_stpcpy(end, "-lsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-lsan")))
+      end = my_stpcpy(end, "-lsan");
 #endif
 #ifdef HAVE_UBSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-ubsan")))
-    end = my_stpcpy(end, "-ubsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) >
+        static_cast<int>(sizeof("-ubsan")))
+      end = my_stpcpy(end, "-ubsan");
 #endif
 #ifdef HAVE_TSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-tsan")))
-    end = my_stpcpy(end, "-tsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-tsan")))
+      end = my_stpcpy(end, "-tsan");
 #endif
+  };
+
+  append_runtime_version_suffixes(server_version, MYSQL_SERVER_VERSION);
+  append_runtime_version_suffixes(server_version_with_update,
+                                  MYSQL_SERVER_VERSION_WITH_UPDATE);
 }
 
 static const char *get_relative_path(const char *path) {

@@ -12773,7 +12773,7 @@ ER_IB_LONG_ROLLBACK
   eng "Still rolling back transaction %llu; %llu undo records rolled back out of %llu total (%lu%% complete)."
 
 ER_INVALID_FILE_FORMAT
-  eng "Invalid format of file '%s'."
+  eng "Invalid format of file '%s'. The file will be recreated."
 
 ER_LOG_SANITIZATION
   eng "Relay log sanitization: %s"

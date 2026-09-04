@@ -898,6 +898,67 @@ const char *STDCALL mysql_get_server_info(MYSQL *mysql) {
   return ((char *)mysql->server_version);
 }
 
+/**
+  Return the full version of the connected server, including the update
+  component.
+
+  On the first call for a command-ready connection, this function issues
+  SELECT VERSION_WITH_UPDATE() and caches the result. Later calls return
+  the cached value without issuing another query. The legacy handshake
+  and mysql_get_server_info() continue to expose the three-part version.
+
+  The full version is kept separately because the handshake must preserve
+  the three-part server_version for compatibility with older clients. The
+  cache is cleared after a successful connection handshake so reconnects
+  refresh the value.
+
+  @param mysql  Connected MYSQL handle in the command-ready state.
+
+  @return A pointer to the cached full version string, or nullptr if the
+          handle is not command-ready, the server does not support
+          VERSION_WITH_UPDATE(), or the value cannot be obtained. The
+          returned pointer remains valid until the handle reconnects or
+          is closed.
+*/
+const char *STDCALL mysql_get_server_info_with_version_update(MYSQL *mysql) {
+  static constexpr char version_with_update_query[] =
+      "SELECT VERSION_WITH_UPDATE()";
+
+  if (mysql == nullptr || mysql->extension == nullptr ||
+      mysql->status != MYSQL_STATUS_READY) {
+    return nullptr;
+  }
+
+  MYSQL_EXTENSION *extension = static_cast<MYSQL_EXTENSION *>(mysql->extension);
+  if (extension->server_version_with_update != nullptr)
+    return extension->server_version_with_update;
+
+  if (mysql_real_query(mysql, version_with_update_query,
+                       sizeof(version_with_update_query) - 1)) {
+    return nullptr;
+  }
+
+  MYSQL_RES *result = mysql_store_result(mysql);
+  if (result == nullptr) return nullptr;
+
+  extension = static_cast<MYSQL_EXTENSION *>(mysql->extension);
+  if (extension == nullptr) {
+    mysql_free_result(result);
+    return nullptr;
+  }
+  MYSQL_ROW row = mysql_fetch_row(result);
+  unsigned long *lengths = mysql_fetch_lengths(result);
+  if (row != nullptr && row[0] != nullptr && lengths != nullptr) {
+    my_free(extension->server_version_with_update);
+    extension->server_version_with_update =
+        my_strndup(key_memory_MYSQL, row[0], lengths[0], MYF(0));
+    if (extension->server_version_with_update == nullptr)
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+  }
+  mysql_free_result(result);
+  return extension->server_version_with_update;
+}
+
 const char *STDCALL mysql_get_host_info(MYSQL *mysql) {
   return (mysql->host_info);
 }
@@ -907,6 +968,10 @@ uint STDCALL mysql_get_proto_info(MYSQL *mysql) {
 }
 
 const char *STDCALL mysql_get_client_info(void) { return MYSQL_SERVER_VERSION; }
+
+const char *STDCALL mysql_get_client_info_with_version_update(void) {
+  return MYSQL_SERVER_VERSION_WITH_UPDATE;
+}
 
 ulong STDCALL mysql_get_client_version(void) { return MYSQL_VERSION_ID; }
 
