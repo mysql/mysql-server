@@ -1,0 +1,76 @@
+# FR-4.1: VERSION() keeps the compatibility three-part version form.
+SELECT VERSION() REGEXP '^[0-9]+[.][0-9]+[.][0-9]+(-|$)';
+VERSION() REGEXP '^[0-9]+[.][0-9]+[.][0-9]+(-|$)'
+1
+# FR-4.2: @@version remains the three-part compatibility runtime string.
+SELECT @@version = VERSION();
+@@version = VERSION()
+1
+# FR-4.3: The full version is exposed as a readable global system variable.
+SELECT COUNT(@@GLOBAL.version_with_update);
+COUNT(@@GLOBAL.version_with_update)
+1
+# FR-4.3: Performance Schema global_variables exposes the same value.
+SELECT @@GLOBAL.version_with_update = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='version_with_update';
+@@GLOBAL.version_with_update = VARIABLE_VALUE
+1
+# FR-4.3: A bare identifier is not a system-variable reference.
+SELECT version_with_update;
+ERROR 42S22: Unknown column 'version_with_update' in 'field list'
+# FR-4.4: The unqualified variable reference is shorthand for GLOBAL scope.
+SELECT @@version_with_update = @@GLOBAL.version_with_update;
+@@version_with_update = @@GLOBAL.version_with_update
+1
+# FR-4.4: The shorthand reference is readable.
+SELECT COUNT(@@version_with_update);
+COUNT(@@version_with_update)
+1
+# FR-4.5: LOCAL scope is invalid because the variable is global only.
+SELECT COUNT(@@local.version_with_update);
+ERROR HY000: Variable 'version_with_update' is a GLOBAL variable
+# FR-4.5: SESSION scope is invalid because the variable is global only.
+SELECT COUNT(@@SESSION.version_with_update);
+ERROR HY000: Variable 'version_with_update' is a GLOBAL variable
+# FR-4.6: An explicit global SET must be rejected for the read-only variable.
+SET @@GLOBAL.version_with_update='x';
+ERROR HY000: Variable 'version_with_update' is a read only variable
+# FR-4.6: The unqualified SET form must also be rejected.
+SET version_with_update='x';
+ERROR HY000: Variable 'version_with_update' is a read only variable
+# FR-4.6: SET GLOBAL syntax must also be rejected.
+SET GLOBAL version_with_update='x';
+ERROR HY000: Variable 'version_with_update' is a read only variable
+# FR-4.6: Failed writes must not change the reported full version.
+SELECT COUNT(@@GLOBAL.version_with_update);
+COUNT(@@GLOBAL.version_with_update)
+1
+# FR-4.7: SET PERSIST must be rejected because the variable is non-persistable.
+SET PERSIST version_with_update='x';
+ERROR HY000: Variable 'version_with_update' is a read only variable
+# FR-4.7: SET PERSIST_ONLY must be rejected because the variable is non-persistable.
+SET PERSIST_ONLY version_with_update='x';
+ERROR HY000: Variable 'version_with_update' is a non persistent read only variable
+# FR-4.9: VERSION_WITH_UPDATE() uses the four-part full-version form.
+SELECT VERSION_WITH_UPDATE() REGEXP '^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-|$)';
+VERSION_WITH_UPDATE() REGEXP '^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-|$)'
+1
+# FR-4.9: The variable and full-version SQL function agree.
+SELECT @@version_with_update = VERSION_WITH_UPDATE();
+@@version_with_update = VERSION_WITH_UPDATE()
+1
+# FR-4.10: VERSION_WITH_UPDATE() is unsafe in statement-based binary logging.
+CREATE TABLE t1 (version CHAR(40));
+SET SESSION binlog_format = STATEMENT;
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+INSERT INTO t1 VALUES (VERSION_WITH_UPDATE());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+SHOW WARNINGS;
+Level	Code	Message
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+SET SESSION binlog_format = default;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+DROP TABLE t1;

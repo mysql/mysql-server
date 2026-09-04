@@ -1670,6 +1670,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"VALIDATE_PASSWORD_STRENGTH",
      SQL_FN(Item_func_validate_password_strength, 1)},
     {"VERSION", SQL_FN(Item_func_version, 0)},
+    {"VERSION_WITH_UPDATE", SQL_FN(Item_func_version_with_update, 0)},
     {"WEEKDAY", SQL_FACTORY(Weekday_instantiator)},
     {"WEEKOFYEAR", SQL_FACTORY(Weekofyear_instantiator)},
     {"YEARWEEK", SQL_FACTORY(Yearweek_instantiator)},

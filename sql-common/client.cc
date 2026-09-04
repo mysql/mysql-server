@@ -3620,6 +3620,7 @@ static void mysql_command_service_extn_free(MYSQL_EXTENSION *ext) {
 void mysql_extension_free(MYSQL_EXTENSION *ext) {
   if (!ext) return;
   if (ext->trace_data) my_free(ext->trace_data);
+  if (ext->server_version_with_update) my_free(ext->server_version_with_update);
   if (ext->mysql_async_context) {
     if (ext->mysql_async_context->connect_context) {
       if (ext->mysql_async_context->connect_context
@@ -7161,6 +7162,7 @@ static mysql_state_machine_status csm_parse_handshake(
     mysql_async_connect *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
+  MYSQL_EXTENSION *extension = MYSQL_EXTENSION_PTR(mysql);
   NET *net = &mysql->net;
   const int pkt_length = ctx->pkt_length;
   int pkt_scramble_len = 0;
@@ -7225,6 +7227,8 @@ static mysql_state_machine_status csm_parse_handshake(
     my_stpcpy(mysql->unix_socket, ctx->unix_socket);
   else
     mysql->unix_socket = nullptr;
+  my_free(extension->server_version_with_update);
+  extension->server_version_with_update = nullptr;
   my_stpcpy(mysql->server_version, (char *)net->read_pos + 1);
   mysql->port = ctx->port;
 
