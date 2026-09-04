@@ -1,0 +1,8 @@
+--exec echo # WL#17318: Support for 4-Part MySQL Version
+
+# This test verifies that the following C APIs work as expected
+# 1. mysql_get_server_info()
+# 2. mysql_get_server_info_with_version_update()
+# 3. mysql_get_client_info()
+# 4. mysql_get_client_info_with_version_update()
+--exec $MYSQL_CLIENT_TEST -s -u root test_version_with_update_client_api > $MYSQLTEST_VARDIR/log/version_with_update_client_api.log 2>&1

@@ -9032,6 +9032,13 @@ bool Item_func_version::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
+bool Item_func_version_with_update::do_itemize(Parse_context *pc, Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::do_itemize(pc, res)) return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  return false;
+}
+
 /**
   Check if schema and table are hidden by NDB engine.
 
@@ -10280,6 +10287,12 @@ Item_func_version::Item_func_version(const POS &pos)
     : Item_static_string_func(pos, NAME_STRING("version()"), server_version,
                               strlen(server_version), system_charset_info,
                               DERIVATION_SYSCONST) {}
+
+Item_func_version_with_update::Item_func_version_with_update(const POS &pos)
+    : Item_static_string_func(pos, NAME_STRING("version_with_update()"),
+                              server_version_with_update,
+                              strlen(server_version_with_update),
+                              system_charset_info, DERIVATION_SYSCONST) {}
 
 /*
     Syntax:
