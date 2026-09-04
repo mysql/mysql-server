@@ -35,46 +35,39 @@ namespace xcom_stale_reservation_unittest {
 class XcomStaleReservation : public GcsBaseTest {
  protected:
   void SetUp() override {
-    m_addr = new std::string("127.0.0.1:12345");
-    char const *names[]{m_addr->c_str()};
-    m_na = new_node_address(1, names);
-
     /* The view in force when the synode is reserved: this member is node 1. */
-    m_before = new_site_def();
-    init_site_def(1, m_na, m_before);
-    m_before->start = m_synode_before;
-    m_before->nodeno = 1;
-    push_site_def(m_before);
+    char const *names[]{"127.0.0.1:12341", "127.0.0.1:12342",
+                        "127.0.0.1:12343"};
+    node_address *na = new_node_address(3, names);
 
-    /* The view installed while the reservation is held: the member is now
-       node 0. */
-    m_after = new_site_def();
-    init_site_def(1, m_na, m_after);
-    m_after->start = m_synode_after;
-    m_after->nodeno = 0;
-    push_site_def(m_after);
+    site_def *before = new_site_def();
+    init_site_def(3, na, before);
+    before->start = synode_no{1, 10, 0};
+    before->nodeno = 1;
+    push_site_def(before);
+    delete_node_address(3, na);
   }
 
-  void TearDown() override {
-    push_site_def(nullptr);
-    free_site_defs();
-    delete_node_address(1, m_na);
-    delete m_addr;
+  /* The view installed while the reservation is held: the first member is
+     gone, so this one is now node 0. */
+  void install_new_view() {
+    char const *names[]{"127.0.0.1:12342", "127.0.0.1:12343"};
+    node_address *na = new_node_address(2, names);
+
+    site_def *after = new_site_def();
+    init_site_def(2, na, after);
+    after->start = synode_no{1, 20, 0};
+    after->nodeno = 0;
+    push_site_def(after);
+    delete_node_address(2, na);
   }
 
-  std::string *m_addr{nullptr};
-  node_address *m_na{nullptr};
-  site_def *m_before{nullptr};
-  site_def *m_after{nullptr};
-
-  /* A view is active from its start synode on, so a slot below 20 falls under
-     the old view and one at or above it under the new one. */
-  synode_no const m_synode_before{1, 10, 0};
-  synode_no const m_synode_after{1, 20, 0};
+  void TearDown() override { free_site_defs(); }
 };
 
 /* Under the view it was taken in, the reservation is ours. */
 TEST_F(XcomStaleReservation, reservation_under_the_current_index_is_fresh) {
+  install_new_view();
   synode_no const reserved{1, 15, 1};
   ASSERT_FALSE(reservation_is_stale(reserved));
 }
@@ -82,18 +75,21 @@ TEST_F(XcomStaleReservation, reservation_under_the_current_index_is_fresh) {
 /* After the renumbering, the same index belongs to another node. */
 TEST_F(XcomStaleReservation, reservation_outliving_a_renumbering_is_stale) {
   synode_no const reserved{1, 25, 1};
+  ASSERT_FALSE(reservation_is_stale(reserved));
+  install_new_view();
   ASSERT_TRUE(reservation_is_stale(reserved));
 }
 
 /* A slot that carries the index this member holds now is usable. */
 TEST_F(XcomStaleReservation, slot_matching_the_new_index_is_fresh) {
+  install_new_view();
   synode_no const reserved{1, 25, 0};
   ASSERT_FALSE(reservation_is_stale(reserved));
 }
 
 /* Without a site there is nothing to compare against. */
 TEST_F(XcomStaleReservation, unknown_site_is_not_reported_stale) {
-  synode_no const other_group{99, 25, 1};
+  synode_no const other_group{99, 25, 0};
   ASSERT_FALSE(reservation_is_stale(other_group));
 }
 
