@@ -1,0 +1,52 @@
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+--disable_query_log
+--disable_result_log
+CREATE TABLE test.long_blob_types(
+  id INTEGER PRIMARY KEY,
+  long_text LONGTEXT CHARACTER SET utf8mb4,
+  long_blob LONGBLOB);
+
+INSERT INTO test.long_blob_types VALUES (1, 'long text', 0x0102);
+
+DROP PROCEDURE IF EXISTS test.proc_long_blob_types;
+DELIMITER //;
+CREATE PROCEDURE test.proc_long_blob_types()
+BEGIN
+  SELECT long_text, long_blob FROM test.long_blob_types;
+END;//
+DELIMITER ;//
+--enable_query_log
+--enable_result_log
+
+--source ../include/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=test
+--let $mrs_add_schema_path=/test
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_long_blob_types
+--let $mrs_add_db_object_path=/long_blob_types
+--source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
+
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+--exec $MRS_CLIENT_ARGS --path /svc/test/long_blob_types --wait-until-status 60
+
+--disable_query_log
+--disable_result_log
+DROP PROCEDURE test.proc_long_blob_types;
+DROP TABLE test.long_blob_types;
+--enable_query_log
+--enable_result_log
+--source ../include/mrs/cleanup.inc

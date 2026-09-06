@@ -44,6 +44,7 @@ ADD_TEST_FILE(test_plugin.cc
     ./test_mrs_authentication_rate_control.cc
     ./test_mrs_entities_manager.cc
     ./test_mrs_database_converters.cc
+    ./test_helper_mysql_column_types.cc
     ./test_mrs_database_rest_table.cc
     ./test_mrs_database_rest_table_get.cc
     ./test_mrs_database_rest_table_get_one.cc
