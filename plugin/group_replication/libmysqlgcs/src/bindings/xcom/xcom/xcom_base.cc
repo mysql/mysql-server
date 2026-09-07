@@ -2529,13 +2529,6 @@ static int proposer_task(task_arg arg) {
 
     brand_client_msg(ep->client_msg->p, ep->msgno);
 
-    /* Only a locally allocated synode carries our own node index; a remote or
-       global allocation carries the allocating leader's, by design. */
-    if (ep->synode_allocation == synode_allocation_type::local &&
-        reservation_is_stale(ep->msgno)) {
-      GOTO(retry_new);
-    }
-
     for (;;) { /* Loop until the client message has been learned */
       /* Get a Paxos instance to send the client message */
 
@@ -2546,8 +2539,8 @@ static int proposer_task(task_arg arg) {
         goto retry_new;
       }
 
-      /* Checked again after wait_for_cache: that call can suspend, and a view
-         change during the wait leaves the reservation stale. */
+      /* wait_for_cache can suspend, and a view change during the wait leaves
+         the reservation stale. */
       if (ep->synode_allocation == synode_allocation_type::local &&
           reservation_is_stale(ep->msgno)) {
         GOTO(retry_new);
