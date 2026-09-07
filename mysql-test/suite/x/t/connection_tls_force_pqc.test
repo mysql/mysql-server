@@ -31,6 +31,27 @@ FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'Mysqlx_force_pqc';
 
 --exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.3 --file=$xtest_file 2>&1
+
+--let $xtest_pqc_status_file= $MYSQL_TMP_DIR/connection_mysqlx_pqc_status.xpl
+--write_file $xtest_pqc_status_file
+-->quiet
+-->sql
+SHOW STATUS LIKE 'Tls_key_exchange_algorithm';
+SHOW STATUS LIKE 'Tls_sign_algorithm';
+-->endsql
+Mysqlx.Session.Reset {
+  keep_open:false
+}
+-->recvok
+-->login x_root
+-->sql
+SHOW STATUS LIKE 'Tls_key_exchange_algorithm';
+SHOW STATUS LIKE 'Tls_sign_algorithm';
+-->endsql
+EOF
+# Accept any MLKEM-based PQC key-exchange group selected by the TLS provider.
+--replace_regex /Tls_key_exchange_algorithm[[:blank:]]+[^[:space:]]*MLKEM[^[:space:]]*/Tls_key_exchange_algorithm TLS_KEY_EXCHANGE/ /Tls_sign_algorithm[[:blank:]]+[^[:space:]]+/Tls_sign_algorithm TLS_SIGN_ALGORITHM/
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.3 --file=$xtest_pqc_status_file 2>&1
 --replace_regex /error:[0-9A-F]+:SSL routines:[^:]*:tlsv1 alert protocol version/TLS version is invalid/ /error:[0-9A-F]+:SSL routines::tlsv1 alert protocol version/TLS version is invalid/
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --sql "SELECT 1" 2>&1
 

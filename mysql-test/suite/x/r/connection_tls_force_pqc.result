@@ -18,6 +18,24 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+Variable_name	Value
+Tls_key_exchange_algorithm TLS_KEY_EXCHANGE
+0 rows affected
+Variable_name	Value
+Tls_sign_algorithm TLS_SIGN_ALGORITHM
+0 rows affected
+RUN recvok
+Login OK
+Variable_name	Value
+Tls_key_exchange_algorithm TLS_KEY_EXCHANGE
+0 rows affected
+Variable_name	Value
+Tls_sign_algorithm TLS_SIGN_ALGORITHM
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
 include/save_error_log_position.inc

@@ -46,6 +46,7 @@
 #include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
+#include "sql/sql_class.h"
 
 // #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 // #include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
@@ -363,7 +364,10 @@ ngs::Error_code Session::init() {
   const unsigned short port = m_client->client_port();
   const Connection_type type = m_client->connection().get_type();
 
-  return m_sql.init(port, type);
+  const auto error = m_sql.init(port, type);
+  if (!error && type == Connection_tls) set_tls_handle();
+
+  return error;
 }
 
 void Session::on_kill() {
@@ -388,6 +392,14 @@ void Session::on_reset() {
 
 void Session::mark_as_tls_session() {
   data_context().set_connection_type(Connection_tls);
+  set_tls_handle();
+}
+
+void Session::set_tls_handle() {
+  // The SQL session is backed by the X Protocol connection, rather than its
+  // own Vio. Keep its TLS handle in sync so that the server TLS status
+  // variables report the negotiated connection properties.
+  m_sql.get_thd()->set_ssl(m_client->connection().get_vio());
 }
 
 /** Checks whether things owned by the given user are visible to this session.
