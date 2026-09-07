@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Just start and right away stop MRS component, where
 # valid metadata schema already exists on the disk.
 # Allow the component to generate user-account and keyring.

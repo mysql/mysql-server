@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify the component command-service identities and fixed-account isolation.
 
 --source include/not_solaris.inc

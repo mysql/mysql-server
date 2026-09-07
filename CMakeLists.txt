@@ -2530,6 +2530,8 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 IF(NOT WITHOUT_SERVER)
   IF(WITH_ROUTER)
     ADD_SUBDIRECTORY(router)
+  ELSEIF(NOT TARGET harness_net_ts)
+    ADD_SUBDIRECTORY(router/src/harness/include)
   ENDIF()
 ELSE()
   # Define harness_net_ts target and public include directories.

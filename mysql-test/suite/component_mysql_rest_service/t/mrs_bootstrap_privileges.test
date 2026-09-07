@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that install-time MRS bootstrap uses privileges held directly or
 # through default roles, but never session-active non-default roles, and that
 # retry reuses committed accounts without privilege drift.

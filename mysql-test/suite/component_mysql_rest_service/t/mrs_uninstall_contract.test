@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify the MRS component uninstall and retained-state contract.
 
 --echo

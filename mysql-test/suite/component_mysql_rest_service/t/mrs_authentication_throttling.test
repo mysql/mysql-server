@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify authentication throttling in the component-hosted MRS runtime.
 
 --source include/not_solaris.inc

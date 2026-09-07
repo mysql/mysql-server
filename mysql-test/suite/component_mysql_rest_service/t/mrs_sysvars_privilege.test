@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that MRS system variables use normal Server privileges independently
 # of MYSQL_REST_SERVICE_ADMIN.
 

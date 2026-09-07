@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that component MRS authenticates MySQL accounts through
 # mysql_command_services.
 

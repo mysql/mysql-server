@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that the MRS component cancels a timed-out database request.
 
 --source include/not_solaris.inc

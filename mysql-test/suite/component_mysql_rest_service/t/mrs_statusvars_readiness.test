@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that active listener values are published only after MRS is ready.
 
 --source include/have_debug.inc

@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that system-variable updates racing with backend readiness are not
 # lost and do not publish a mixed active-runtime snapshot.
 

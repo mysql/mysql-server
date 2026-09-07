@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that the MRS TLS context is independent from the Server TLS contexts.
 
 --source include/not_solaris.inc

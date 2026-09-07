@@ -1,3 +1,5 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that a failed backend shutdown remains retryable.
 
 --source include/have_debug.inc
