@@ -26,21 +26,15 @@
 #ifndef ROUTER_SRC_OPENSSL_INCLUDE_TLS_TLS_KEYLOG_DUMPER_H_
 #define ROUTER_SRC_OPENSSL_INCLUDE_TLS_TLS_KEYLOG_DUMPER_H_
 
-#include <openssl/opensslv.h>
 #include <openssl/ssl.h>
+#include <cstdlib>
 #include <fstream>
-
-#include "openssl_version.h"
 
 namespace tls {
 
 class TlsKeylogDumper {
  public:
-  explicit TlsKeylogDumper([[maybe_unused]] SSL_CTX *ctx) {
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
-  }
-};
-#else
+  explicit TlsKeylogDumper(SSL_CTX *ctx) {
     auto env_logfile = getenv("SSLKEYLOGFILE");
     auto &stream = get_stream();
 
@@ -79,8 +73,6 @@ class TlsKeylogDumper {
 
   bool release_{false};
 };
-
-#endif  // OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
 
 }  // namespace tls
 

@@ -144,11 +144,9 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl/connection_source.inc
 --source include/rpl/sync_to_replica.inc
 
-# Wait for replica to catch up post-restart, verifying XA PREPARE
-# replication by polling for 1 prepared transaction
---let $slave_timeout=2
---let $xa_prepared_count = 1
---source include/wait_for_xa_prepared_count.inc
+# Verify that the replica catches up post-restart and applies XA PREPARE.
+--let $expected_prepared_xa_count = 1
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 8. Commit the transaction on the source.
 #

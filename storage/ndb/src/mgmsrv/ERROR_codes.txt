@@ -1,11 +1,13 @@
+Copyright (c) 2007, 2026, Oracle and/or its affiliates.
+
 Next Session 10
 Next Global  10001
 
 
 #define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
-Errors < 10000 are per-session only - in MgmApiSession.
-
-Others are for the whole mgm server.
+For errors inserted using mgm api:
+  Errors < 10000 are per-session only - in MgmApiSession.
+  Others are for the whole mgm server.
 
 Error 0 is no error
 
@@ -27,3 +29,16 @@ num	where		type		testing
 9	node status	sleep		end of status printing
 
 10000	events PING	no ping		don't send pings to event listeners
+
+
+OTHERS
+------
+100     ConfigManager           Exit in execCONFIG_CHECK_REQ()
+
+901     alloc_node_id           skip node id checks
+904     ConfigInfo              Allow mixing of "localhost" and real host names
+
+10006   MgmtSrvr                testNodeRestart -n StartDuringNodeRestart
+10007   MgmtSrvr                testNodeRestart -n StartDuringNodeRestart
+
+17000 - 17255 alloc_node_id     Simulate DNS lookup failure for node n

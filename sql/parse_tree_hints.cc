@@ -599,9 +599,15 @@ bool PT_hint_resource_group::do_contextualize(Parse_context *pc) {
     return false;
   }
 
-  memcpy(pc->thd->resource_group_ctx()->m_switch_resource_group_str,
-         m_resource_group_name.str, m_resource_group_name.length);
-  pc->thd->resource_group_ctx()
-      ->m_switch_resource_group_str[m_resource_group_name.length] = '\0';
+  /*
+    In case of duplicate hints the last one takes precedence.
+    Extra safety - treat empty group name as no hint.
+  */
+  pc->thd->lex->switch_resource_group =
+      m_resource_group_name.length
+          ? pc->thd->strmake(m_resource_group_name.str,
+                             m_resource_group_name.length)
+          : nullptr;
+
   return false;
 }

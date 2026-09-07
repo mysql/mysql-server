@@ -43,6 +43,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "log0sys.h"               /* log_t::m_encryption_metadata */
 #include "log0types.h"             /* LOG_HEADER_ENCRYPTION_INFO_OFFSET */
 #include "log0write.h"             /* log_writer_mutex_own */
+#include "mtr0log.h"               /* mlog_open, mlog_close */
+#include "mtr0mtr.h"               /* mtr_t */
 #include "os0enc.h"                /* Encryption::* */
 #include "srv0srv.h"               /* srv_force_recovery */
 #include "ut0mutex.h"              /* IB_mutex_guard */
@@ -171,6 +173,43 @@ dberr_t log_encryption_update_and_write_header(log_t &log,
   ut_a(file_handle.is_open());
 
   return log_encryption_header_write(file_handle, log.m_encryption_buf);
+}
+
+void log_encryption_write_dummy_barrier() {
+  ut_ad(!srv_read_only_mode);
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  /* We force MTR_LOG_ALL even if global redo logging is disabled because
+  creating padding after data written with the current encryption mode is
+  crucial before changing that mode. Writing to the redo log in this state is
+  unusual but supported: InnoDB does not wait for already started MTRs to
+  finish before acknowledging that global redo logging has been disabled.
+  Such MTRs can therefore append redo after disablement. An MTR started while
+  global redo logging is disabled uses MTR_LOG_NO_REDO, and a direct transition
+  from MTR_LOG_NO_REDO to MTR_LOG_ALL is ignored. MTR_LOG_NONE is therefore
+  used as an intermediate state. */
+  mtr.set_log_mode(mtr_log_t::MTR_LOG_NONE);
+  mtr.set_log_mode(mtr_log_t::MTR_LOG_ALL);
+
+  byte *buf;
+  const bool allocated = mlog_open(&mtr, OS_FILE_LOG_BLOCK_SIZE, buf);
+  ut_a(allocated);
+
+  for (size_t i = 0; i < OS_FILE_LOG_BLOCK_SIZE; ++i) {
+    *buf++ = MLOG_DUMMY_RECORD;
+    mtr.added_rec();
+  }
+
+  mlog_close(&mtr, buf);
+  mtr_commit(&mtr);
+
+  /* The encryption mode is selected when the block is written, not when the
+  MTR commits. Waiting for the write is sufficient; an fsync is unnecessary. */
+  const lsn_t barrier_lsn = mtr.commit_lsn();
+  ut_a(barrier_lsn > 0);
+  log_write_up_to(*log_sys, barrier_lsn, false);
 }
 
 dberr_t log_encryption_generate_metadata() {

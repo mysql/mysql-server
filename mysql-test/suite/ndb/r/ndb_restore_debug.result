@@ -64,48 +64,61 @@ create table test.t1 (a int, b int, c int, primary key (a,b)) engine=ndb partiti
 Cause backup stall while log open
 Starting backup
 Backup started
-insert into t1 values(999,1000,999);
+insert into t1 values (999,1000,999), (999,1001,998), (999,1002,997);
+update t1 set c=1001 where a=999 and b >= 1000;
+update t1 set c=1002 where a=999 and b >= 1000;
+update t1 set c=1003 where a=999 and b >= 1000;
+delete from t1 where a=999 and b >= 1000;
 Waiting for backup to complete
 Backup completed
 truncate test.t1;
 alter table test.t1 add unique(c);
 Test restore failure handling for log apply failure
-Expect 1 error type message
+Expect 3 error type messages
 select count(*) into @msgcount from ndb_restore_output where a like "%Permanent% duplicate value in unique index%";
 select @msgcount as 'Count of error message 1';
 Count of error message 1
-1
-select * from ndb_restore_output where @msgcount != 1;
+3
+select * from ndb_restore_output where @msgcount != 3;
 a
-Expect 1 error location message
+Expect 3 error location messages
 select count(*) into @msgcount from ndb_restore_output where a like "%Failed restoring LOG entry type INSERT to table%";
 select @msgcount as 'Count of error message 2';
 Count of error message 2
-1
-select * from ndb_restore_output where @msgcount != 1;
+3
+select * from ndb_restore_output where @msgcount != 3;
 a
-Expect 1 error detail message
+Expect 3 error detail messages
 select count(*) into @msgcount from ndb_restore_output where a like "%Failing log entry :%";
 select @msgcount as 'Count of error message 3';
 Count of error message 3
-1
-select * from ndb_restore_output where @msgcount != 1;
+3
+select * from ndb_restore_output where @msgcount != 3;
 a
 drop table test.t1;
 Test that a temporary error applying
 log eventually results in failure
-create table test.t1 (a int primary key, b int) engine=ndb;
+Create table partitioned so that we can
+ensure multiple rows are in the same
+restore log part and log event scheduler.
+create table test.t1 (a int, b int, c int, primary key(a,b)) engine=ndb partition by key(a);
 Cause backup stall while log open
 Starting backup
 Backup started
-insert into t1 values(1,1);
+insert into t1 values (1,1,1), (1,2,2), (1,3,3);
+update t1 set c=100;
+delete from t1;
+insert into t1 values (1,1,1000), (1,2,2000), (1,3,3000);
+update t1 set c=100000;
 Waiting for backup to complete
 Backup completed
 Take a row lock to block restore
 begin;
-select * from test.t1 where a=1 for update;
-a	b
-1	1
+select * from test.t1 for update;
+a	b	c
+1	1	100000
+1	2	100000
+1	3	100000
 Test restore failure handling for log apply failure
 after retries
 Expect error message

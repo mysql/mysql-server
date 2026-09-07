@@ -175,56 +175,9 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname
   }
 
   /*
-    For OpenSSL 1.0.2 and up we already set certificate verification
-    parameters in the new_VioSSLFd() to perform automatic checks.
+    Certificate verification parameters were already set in new_VioSSLFd()
+    to perform automatic checks.
   */
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-
-  X509_NAME *subject = X509_get_subject_name(server_cert);
-  int cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-
-  if (cn_loc < 0) {
-    return XError{CR_SSL_CONNECTION_ERROR,
-                  "Failed to get CN location in the certificate subject", true};
-  }
-
-  // Get the CN entry for given location
-  X509_NAME_ENTRY *cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (nullptr == cn_entry) {
-    return XError{CR_SSL_CONNECTION_ERROR,
-                  "Failed to get CN entry using CN location", true};
-  }
-
-  // Get CN from common name entry
-  ASN1_STRING *cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (nullptr == cn_asn1) {
-    return XError{CR_SSL_CONNECTION_ERROR, "Failed to get CN from CN entry",
-                  true};
-  }
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  const auto cn = reinterpret_cast<char *>(ASN1_STRING_data(cn_asn1));
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  const auto cn =
-      reinterpret_cast<const char *>(ASN1_STRING_get0_data(cn_asn1));
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  const auto cn_len = static_cast<size_t>(ASN1_STRING_length(cn_asn1));
-
-  // There should not be any NULL embedded in the CN
-  if (cn_len != strlen(cn)) {
-    return XError{CR_SSL_CONNECTION_ERROR,
-                  "NULL embedded in the certificate CN", true};
-  }
-
-  if (server_hostname != cn) {
-    return XError{CR_SSL_CONNECTION_ERROR, "SSL certificate validation failure",
-                  true};
-  }
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
   return {};
 }

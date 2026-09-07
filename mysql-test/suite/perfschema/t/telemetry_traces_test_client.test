@@ -48,5 +48,54 @@ UNINSTALL COMPONENT 'file://component_query_attributes';
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 --echo Component logs:
-cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
-remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+let TELEMETRY_TRACES_LOG= $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+let TELEMETRY_TRACES_NORMALIZED_LOG= $MYSQLTEST_VARDIR/tmp/test_server_telemetry_traces_component_normalized.log;
+# This test sends intentionally malformed zero-payload COM_* packets over a
+# short-lived SSL connection. Depending on OpenSSL EOF/close-notify behavior
+# (OpenSSL 4.0 generated slightly different lines compared to older versions),
+# the server can record one or two identical empty statement callbacks for the
+# same connection close path. Keep the test focused on whether each command was
+# seen by telemetry by collapsing only consecutive duplicate empty statement
+# start/query-attribute pairs.
+perl;
+  use strict;
+  use warnings;
+
+  my $input_file = $ENV{'TELEMETRY_TRACES_LOG'};
+  my $output_file = $ENV{'TELEMETRY_TRACES_NORMALIZED_LOG'};
+
+  open(my $in, '<', $input_file)
+    or die("Unable to open '$input_file': $!\n");
+  my @lines = <$in>;
+  close($in);
+
+  open(my $out, '>', $output_file)
+    or die("Unable to open '$output_file': $!\n");
+  sub is_empty_statement_pair {
+    my ($start, $notify) = @_;
+    return $start =~ /^> tm_stmt_start: proceed further .*query=''\)$/ &&
+           $notify =~ /^ > tm_stmt_notify_qa: skip tracing, no qa .*query=''\)$/;
+  }
+
+  for (my $i = 0; $i < @lines; $i++) {
+    if ($i + 1 < @lines &&
+        is_empty_statement_pair($lines[$i], $lines[$i + 1])) {
+      my $start_line = $lines[$i];
+      my $notify_line = $lines[$i + 1];
+      print $out $start_line, $notify_line;
+      $i += 2;
+      while ($i + 1 < @lines &&
+             $lines[$i] eq $start_line &&
+             $lines[$i + 1] eq $notify_line) {
+        $i += 2;
+      }
+      $i--;
+      next;
+    }
+    print $out $lines[$i];
+  }
+  close($out);
+EOF
+cat_file $TELEMETRY_TRACES_NORMALIZED_LOG;
+remove_file $TELEMETRY_TRACES_NORMALIZED_LOG;
+remove_file $TELEMETRY_TRACES_LOG;

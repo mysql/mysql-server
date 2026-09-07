@@ -35,8 +35,55 @@ typedef struct sock_probe sock_probe;
 #define INVALID_SOCKET -1
 #endif
 
+/**
+  Find the index of the local node within a node_list.
+
+  This function scans the supplied XCom node list and identifies the first
+  entry that matches the local node. It first applies the globally configured
+  port matcher. If an explicit XCom identity is configured, matching is based
+  on that configured endpoint; otherwise, the function falls back to matching
+  the candidate addresses against the local interfaces visible to the current
+  process.
+
+  The function evaluates global XCom state, namely the installed port matcher,
+  the configured XCom identity, and the configured network namespace manager.
+  The caller does not need to switch to the configured network namespace before
+  invoking this function; if a namespace is configured, the function enters and
+  restores it internally before probing interfaces.
+
+  @param[in] nodes The node list to scan.
+
+  @return The index of the first entry classified as the local node, or
+          VOID_NODE_NO if no entry matches, if no port matcher is installed, if
+          the socket probe cannot be initialized, or if every candidate is
+          rejected by parsing, port mismatch, configured-identity mismatch, or
+          local-interface validation.
+*/
 node_no xcom_find_node_index(node_list *nodes);
-node_no xcom_mynode_match(char *name, xcom_port port);
+
+/**
+  Check whether a candidate endpoint identifies this local node.
+
+  This function first applies the globally configured port matcher to the
+  candidate port. If an explicit XCom identity is configured, matching is based
+  on that configured endpoint; otherwise, the function falls back to resolving
+  the candidate host/IP and comparing it against the local interfaces visible
+  to the current process.
+
+  The function evaluates global XCom state, namely the installed port matcher,
+  the configured XCom identity, and the configured network namespace manager.
+  The caller does not need to switch to the configured network namespace before
+  invoking this function; if a namespace is configured, the function enters and
+  restores it internally before probing interfaces.
+
+  @param[in] name The candidate host or IP to classify.
+  @param[in] port The candidate XCom port to classify.
+
+  @retval 1 The candidate endpoint was classified as this local node.
+  @retval 0 The candidate endpoint was not classified as this local node, or
+            the local probe state could not be initialized.
+*/
+node_no xcom_mynode_match(const char *name, xcom_port port);
 
 typedef int (*port_matcher)(xcom_port if_port);
 void set_port_matcher(port_matcher x);

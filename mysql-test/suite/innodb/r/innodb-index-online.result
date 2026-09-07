@@ -1,3 +1,6 @@
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = on;
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT)
@@ -319,3 +322,5 @@ SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
 SET GLOBAL innodb_monitor_reset = default;
 SET GLOBAL innodb_monitor_enable = default;
 SET GLOBAL innodb_monitor_disable = default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

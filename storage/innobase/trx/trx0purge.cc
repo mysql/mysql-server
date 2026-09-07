@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include <sys/types.h>
+#include <algorithm>
+#include <atomic>
 #include <new>
 #include <unordered_map>
 
@@ -74,6 +76,12 @@ ulong srv_max_purge_lag = 0;
 
 /** Max DML user threads delay in micro-seconds. */
 ulong srv_max_purge_lag_delay = 0;
+
+/** Whether the purge history length is above innodb_max_purge_lag. */
+static std::atomic_bool srv_max_purge_lag_exceeded{false};
+
+/** Whether DML statements are being delayed due to purge lag. */
+static std::atomic_bool srv_dml_purge_delay_active{false};
 
 /** The global data structure coordinating a purge */
 trx_purge_t *purge_sys = nullptr;
@@ -1791,15 +1799,38 @@ static ulint trx_purge_dml_delay(void) {
   thread. */
   ulint delay = 0; /* in microseconds; default: no delay */
 
+  const ulong max_purge_lag = srv_max_purge_lag;
+  const ulong max_purge_lag_delay = srv_max_purge_lag_delay;
+  const ulong purge_threads = srv_n_purge_threads;
+  const ulong purge_batch_size = srv_purge_batch_size;
+  const auto rseg_history_len = trx_sys->rseg_history_len.load();
+  const auto purge_lag_rearm_threshold =
+      static_cast<ulint>(static_cast<ulonglong>(max_purge_lag) * 9 / 10);
+  const auto dml_delay_activation_threshold = std::max(
+      ulonglong{max_purge_lag}, ulonglong{purge_threads} * purge_batch_size);
+  const auto dml_delay_rearm_threshold =
+      static_cast<ulint>(dml_delay_activation_threshold * 9 / 10);
+
+  if (max_purge_lag > 0 && rseg_history_len > max_purge_lag) {
+    if (!srv_max_purge_lag_exceeded.exchange(true, std::memory_order_relaxed)) {
+      ib::warn(ER_IB_MSG_MAX_PURGE_LAG_EXCEEDED, ulonglong{rseg_history_len},
+               max_purge_lag);
+    }
+  } else if (max_purge_lag == 0 ||
+             rseg_history_len <= purge_lag_rearm_threshold) {
+    /* Re-arm after the purge lag has recovered by 10%, avoiding warning
+    churn when the history length hovers around the configured limit. */
+    srv_max_purge_lag_exceeded.store(false, std::memory_order_relaxed);
+  }
+
   /* If purge lag is set (ie. > 0) then calculate the new DML delay.
   Note: we do a dirty read of the trx_sys_t data structure here,
   without holding trx_sys->mutex. */
 
-  if (srv_max_purge_lag > 0 && trx_sys->rseg_history_len.load() >
-                                   srv_n_purge_threads * srv_purge_batch_size) {
+  if (max_purge_lag > 0 && rseg_history_len > dml_delay_activation_threshold) {
     float ratio;
 
-    ratio = float(trx_sys->rseg_history_len.load()) / srv_max_purge_lag;
+    ratio = float(rseg_history_len) / max_purge_lag;
 
     if (ratio > 1.0) {
       /* If the history list length exceeds the srv_max_purge_lag, the data
@@ -1807,11 +1838,23 @@ static ulint trx_purge_dml_delay(void) {
       delay = (ulint)((ratio - 0.9995) * 10000);
     }
 
-    if (delay > srv_max_purge_lag_delay) {
-      delay = srv_max_purge_lag_delay;
+    if (delay > max_purge_lag_delay) {
+      delay = max_purge_lag_delay;
     }
+  }
 
-    MONITOR_SET(MONITOR_DML_PURGE_DELAY, delay);
+  MONITOR_SET(MONITOR_DML_PURGE_DELAY, delay);
+
+  if (delay > 0) {
+    if (!srv_dml_purge_delay_active.exchange(true, std::memory_order_relaxed)) {
+      ib::warn(ER_IB_MSG_DML_PURGE_DELAY_STARTED, static_cast<ulong>(delay),
+               ulonglong{rseg_history_len}, max_purge_lag, max_purge_lag_delay);
+    }
+  } else if (max_purge_lag == 0 || max_purge_lag_delay == 0 ||
+             rseg_history_len <= dml_delay_rearm_threshold) {
+    /* Re-arm after the DML delay activation threshold has recovered by 10%,
+    avoiding warning churn when the history length hovers around that limit. */
+    srv_dml_purge_delay_active.store(false, std::memory_order_relaxed);
   }
 
   return (delay);

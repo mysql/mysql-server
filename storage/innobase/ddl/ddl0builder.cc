@@ -207,6 +207,11 @@ struct File_cursor : public Load_cursor {
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
   [[nodiscard]] dberr_t next() noexcept override;
 
+  /** @return the underlying index for the file reader. */
+  [[nodiscard]] const dict_index_t *index() const noexcept {
+    return m_reader.m_index;
+  }
+
  private:
   /** Prepare to fetch the current row.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
@@ -1184,14 +1189,22 @@ void Builder::batch_insert_deep_copy_tuples(size_t thread_id) noexcept {
 dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
   auto key_buffer = m_thread_ctxs[thread_id]->m_key_buffer;
 
-  if (key_buffer->is_unique()) {
+  if (key_buffer->is_duplicate_check_required()) {
     auto index = key_buffer->m_index;
     Dup dup = {index, m_ctx.m_table, m_ctx.m_col_map, 0};
 
     key_buffer->sort(&dup);
 
     if (dup.m_n_dup > 0) {
-      if (set_error(DB_DUPLICATE_KEY)) {
+      /* A non-unique secondary index includes the clustered-key columns in
+      its internal records. Therefore, a complete duplicate secondary record
+      identifies a duplicate primary key, which must be reported as PRIMARY. */
+      const auto duplicate_primary_key =
+          !index->is_clustered() && !dict_index_is_unique(index);
+
+      if (duplicate_primary_key
+              ? m_ctx.set_error(DB_DUPLICATE_KEY, SERVER_CLUSTER_INDEX_ID)
+              : set_error(DB_DUPLICATE_KEY)) {
         dup.report();
       }
       return get_error();

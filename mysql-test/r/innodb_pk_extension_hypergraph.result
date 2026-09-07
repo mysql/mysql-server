@@ -59,6 +59,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=2)
         -> Index lookup on t1 using PRIMARY (pk_1 = 3)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 count(*)
@@ -77,6 +79,8 @@ EXPLAIN
 -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=2)
     -> Index lookup on t1 using PRIMARY (pk_1 = 3)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 pk_2
@@ -100,6 +104,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 count(*)
@@ -118,6 +124,8 @@ EXPLAIN
 -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
     -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 pk_1	pk_2
@@ -145,6 +153,8 @@ EXPLAIN
 -> Aggregate: min(t1.pk_1)  (rows=1)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=432)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MIN(pk_1)
@@ -164,6 +174,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MIN(pk_1)
@@ -182,6 +194,8 @@ EXPLAIN
 -> Aggregate: max(t1.pk_1)  (rows=1)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=432)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MAX(pk_1)
@@ -201,6 +215,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MAX(pk_1)
@@ -222,6 +238,8 @@ EXPLAIN
 -> Group aggregate: min(t1.pk_1)  (rows=45)
     -> Covering index range scan on t1 using k2 over (13 <= f2 <= 14)  (rows=96)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f2` between 13 and 14) group by `test`.`t1`.`f2`
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
 MIN(pk_1)
@@ -241,6 +259,8 @@ EXPLAIN
 -> Group aggregate: min(t1.pk_1)  (rows=45)
     -> Covering index range scan on t1 using k2 over (f2 = 1) OR (f2 = 2)  (rows=224)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f2` in (1,2)) group by `test`.`t1`.`f2`
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 IN (1, 2) GROUP BY f2;
 MIN(pk_1)
@@ -267,6 +287,8 @@ EXPLAIN
         -> Hash
             -> Index range scan on t1 using PRIMARY over (pk_1 < 3)  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`pk_1` < 3) and (`t2`.`pk_1` = `test`.`t1`.`f2`) and (`t2`.`f1` = TIMESTAMP'2000-01-03 00:00:00'))
 FLUSH STATUS;
 SELECT count(*) FROM t1 AS t1, t1 AS t2
 WHERE t2.pk_1 = t1.f2 AND t2.f1 = '2000-01-03' AND t1.pk_1 < 3;
@@ -292,6 +314,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=2)
         -> Index lookup on t1 using PRIMARY (pk_1 = 3) (reverse)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)) order by `test`.`t1`.`pk_2` desc limit 5
 EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 EXPLAIN
@@ -299,6 +323,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')
         -> Index lookup on t1 using PRIMARY (pk_1 = 3) (reverse)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -321,6 +347,8 @@ EXPLAIN
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -359,6 +387,8 @@ EXPLAIN
 -> Filter: ((t1.f1 = 0) and (t1.f2 = 0) and (t1.f3 = 0) and (t1.f4 = 0) and (t1.f5 = 0) and (t1.f6 = 0) and (t1.f7 = 0) and (t1.f8 = 0) and (t1.f9 = 0) and (t1.f10 = 0))  (rows=1)
     -> Index lookup on t1 using k1 (f11 = 0, f12 = 0, f13 = 0, f14 = 0, f15 = 0, f16 = 0, f17 = 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal(0, `test`.`t1`.`f1`) and multiple equal(0, `test`.`t1`.`f2`) and multiple equal(0, `test`.`t1`.`f3`) and multiple equal(0, `test`.`t1`.`f4`) and multiple equal(0, `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`) and multiple equal(0, `test`.`t1`.`f7`) and multiple equal(0, `test`.`t1`.`f8`) and multiple equal(0, `test`.`t1`.`f9`) and multiple equal(0, `test`.`t1`.`f10`) and multiple equal(0, `test`.`t1`.`f11`) and multiple equal(0, `test`.`t1`.`f12`) and multiple equal(0, `test`.`t1`.`f13`) and multiple equal(0, `test`.`t1`.`f14`) and multiple equal(0, `test`.`t1`.`f15`) and multiple equal(0, `test`.`t1`.`f16`) and multiple equal(0, `test`.`t1`.`f17`))
 EXPLAIN SELECT /*+ NO_SKIP_SCAN(t1) */ f17 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 0 AND f2 = 0 AND f3 = 0 AND f4 = 0 AND f5 = 0 AND
 f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND
@@ -368,6 +398,8 @@ EXPLAIN
 -> Filter: ((t1.f1 = 0) and (t1.f2 = 0) and (t1.f3 = 0) and (t1.f4 = 0) and (t1.f5 = 0) and (t1.f6 = 0) and (t1.f7 = 0) and (t1.f8 = 0) and (t1.f9 = 0))  (rows=1)
     -> Covering index lookup on t1 using k1 (f11 = 0, f12 = 0, f13 = 0, f14 = 0, f15 = 0, f16 = 0, f17 = 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal(0, `test`.`t1`.`f1`) and multiple equal(0, `test`.`t1`.`f2`) and multiple equal(0, `test`.`t1`.`f3`) and multiple equal(0, `test`.`t1`.`f4`) and multiple equal(0, `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`) and multiple equal(0, `test`.`t1`.`f7`) and multiple equal(0, `test`.`t1`.`f8`) and multiple equal(0, `test`.`t1`.`f9`) and multiple equal(0, `test`.`t1`.`f11`) and multiple equal(0, `test`.`t1`.`f12`) and multiple equal(0, `test`.`t1`.`f13`) and multiple equal(0, `test`.`t1`.`f14`) and multiple equal(0, `test`.`t1`.`f15`) and multiple equal(0, `test`.`t1`.`f16`) and multiple equal(0, `test`.`t1`.`f17`))
 DROP TABLE t1;
 #
 # Max key length limitation
@@ -387,6 +419,8 @@ EXPLAIN
 -> Filter: ((t1.f1 = 'a') and (t1.f2 = 'a') and (t1.f3 = 'a') and (t1.f4 = 'a'))  (rows=1)
     -> Index lookup on t1 using k1 (f5 = 'a', f6 = 'a', f7 = 'a')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal('a', `test`.`t1`.`f1`) and multiple equal('a', `test`.`t1`.`f2`) and multiple equal('a', `test`.`t1`.`f3`) and multiple equal('a', `test`.`t1`.`f4`) and multiple equal('a', `test`.`t1`.`f5`) and multiple equal('a', `test`.`t1`.`f6`) and multiple equal('a', `test`.`t1`.`f7`))
 EXPLAIN SELECT /*+ NO_SKIP_SCAN(t1) */ f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
@@ -394,6 +428,8 @@ EXPLAIN
 -> Filter: ((t1.f1 = 'a') and (t1.f2 = 'a') and (t1.f3 = 'a'))  (rows=1)
     -> Covering index lookup on t1 using k1 (f5 = 'a', f6 = 'a', f7 = 'a')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal('a', `test`.`t1`.`f1`) and multiple equal('a', `test`.`t1`.`f2`) and multiple equal('a', `test`.`t1`.`f3`) and multiple equal('a', `test`.`t1`.`f5`) and multiple equal('a', `test`.`t1`.`f6`) and multiple equal('a', `test`.`t1`.`f7`))
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
@@ -401,6 +437,8 @@ EXPLAIN
 -> Filter: ((t1.f1 = 'a') and (t1.f2 = 'a') and (t1.f4 = 'a'))  (rows=1)
     -> Index lookup on t1 using k1 (f5 = 'a', f6 = 'a', f7 = 'a')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal('a', `test`.`t1`.`f1`) and multiple equal('a', `test`.`t1`.`f2`) and multiple equal('a', `test`.`t1`.`f4`) and multiple equal('a', `test`.`t1`.`f5`) and multiple equal('a', `test`.`t1`.`f6`) and multiple equal('a', `test`.`t1`.`f7`))
 DROP TABLE t1;
 #
 # Unique extended key
@@ -431,6 +469,8 @@ EXPLAIN
     -> Filter: (t2.f1 = t1.pk)  (rows=0.125)
         -> Covering index lookup on t1 using f1 (f1 = t2.f2)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1` from `test`.`t2` join `test`.`t1` IGNORE INDEX (PRIMARY) where ((`test`.`t2`.`f1` = `test`.`t1`.`pk`) and (`test`.`t2`.`f2` = `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT t2.f1 FROM t2 JOIN t1 IGNORE INDEX(primary) ON t2.f1 = t1.pk and t2.f2 = t1.f1;
 f1
@@ -477,6 +517,8 @@ EXPLAIN
     -> Filter: (t.a like '%aaa12345678%')  (rows=0.556)
         -> Index scan on t using i  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`i` AS `i` from `test`.`t` FORCE INDEX (`i`) where (`test`.`t`.`a` like '%aaa12345678%')
 SELECT DISTINCT(i) FROM t FORCE INDEX(i) WHERE a LIKE '%aaa12345678%';
 i
 aaa
@@ -537,6 +579,8 @@ EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 count(*)
@@ -554,6 +598,8 @@ EXPLAIN SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 EXPLAIN
 -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 pk_2
@@ -576,6 +622,8 @@ EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 count(*)
@@ -593,6 +641,8 @@ EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-0
 EXPLAIN
 -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 pk_1	pk_2
@@ -620,6 +670,8 @@ EXPLAIN
 -> Aggregate: min(t1.pk_1)  (rows=1)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=432)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MIN(pk_1)
@@ -638,6 +690,8 @@ EXPLAIN
 -> Aggregate: min(t1.pk_1)  (rows=1)
     -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MIN(pk_1)
@@ -656,6 +710,8 @@ EXPLAIN
 -> Aggregate: max(t1.pk_1)  (rows=1)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=432)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MAX(pk_1)
@@ -674,6 +730,8 @@ EXPLAIN
 -> Aggregate: max(t1.pk_1)  (rows=1)
     -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MAX(pk_1)
@@ -695,6 +753,8 @@ EXPLAIN
 -> Filter: (t1.f2 between 13 and 14)  (rows=1)
     -> Covering index skip scan for grouping on t1 using k2 over (13 <= f2 <= 14)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f2` between 13 and 14) group by `test`.`t1`.`f2`
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
 MIN(pk_1)
@@ -714,6 +774,8 @@ EXPLAIN
 -> Filter: (t1.f2 in (1,2))  (rows=2)
     -> Covering index skip scan for grouping on t1 using k2 over (f2 = 1) OR (f2 = 2)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f2` in (1,2)) group by `test`.`t1`.`f2`
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 IN (1, 2) GROUP BY f2;
 MIN(pk_1)
@@ -739,6 +801,8 @@ EXPLAIN
         -> Index range scan on t1 using PRIMARY over (pk_1 < 3)  (rows=20)
         -> Covering index lookup on t2 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = t1.f2)  (rows=9.6)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`pk_1` < 3) and (`t2`.`pk_1` = `test`.`t1`.`f2`) and (`t2`.`f1` = TIMESTAMP'2000-01-03 00:00:00'))
 FLUSH STATUS;
 SELECT count(*) FROM t1 AS t1, t1 AS t2
 WHERE t2.pk_1 = t1.f2 AND t2.f1 = '2000-01-03' AND t1.pk_1 < 3;
@@ -763,12 +827,16 @@ EXPLAIN
 -> Limit: 5 row(s)  (rows=2)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3) (reverse)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)) order by `test`.`t1`.`pk_2` desc limit 5
 EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 EXPLAIN
 -> Limit: 5 row(s)
     -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3) (reverse)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where (multiple equal(3, `test`.`t1`.`pk_1`) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -790,6 +858,8 @@ EXPLAIN
 -> Sort: t1.pk_2 DESC, limit input to 5 row(s) per chunk  (rows=5)
     -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal(TIMESTAMP'2000-01-03 00:00:00', `test`.`t1`.`f1`)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -828,6 +898,8 @@ EXPLAIN
 -> Filter: (t1.f10 = 0)  (rows=1)
     -> Index lookup on t1 using k1 (f11 = 0, f12 = 0, f13 = 0, f14 = 0, f15 = 0, f16 = 0, f17 = 0, f1 = 0, f2 = 0, f3 = 0, f4 = 0, f5 = 0, f6 = 0, f7 = 0, f8 = 0, f9 = 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal(0, `test`.`t1`.`f1`) and multiple equal(0, `test`.`t1`.`f2`) and multiple equal(0, `test`.`t1`.`f3`) and multiple equal(0, `test`.`t1`.`f4`) and multiple equal(0, `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`) and multiple equal(0, `test`.`t1`.`f7`) and multiple equal(0, `test`.`t1`.`f8`) and multiple equal(0, `test`.`t1`.`f9`) and multiple equal(0, `test`.`t1`.`f10`) and multiple equal(0, `test`.`t1`.`f11`) and multiple equal(0, `test`.`t1`.`f12`) and multiple equal(0, `test`.`t1`.`f13`) and multiple equal(0, `test`.`t1`.`f14`) and multiple equal(0, `test`.`t1`.`f15`) and multiple equal(0, `test`.`t1`.`f16`) and multiple equal(0, `test`.`t1`.`f17`))
 EXPLAIN SELECT /*+ NO_SKIP_SCAN(t1) */ f17 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 0 AND f2 = 0 AND f3 = 0 AND f4 = 0 AND f5 = 0 AND
 f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND
@@ -836,6 +908,8 @@ f15 = 0 AND f16 = 0 AND f17 = 0;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (f11 = 0, f12 = 0, f13 = 0, f14 = 0, f15 = 0, f16 = 0, f17 = 0, f1 = 0, f2 = 0, f3 = 0, f4 = 0, f5 = 0, f6 = 0, f7 = 0, f8 = 0, f9 = 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal(0, `test`.`t1`.`f1`) and multiple equal(0, `test`.`t1`.`f2`) and multiple equal(0, `test`.`t1`.`f3`) and multiple equal(0, `test`.`t1`.`f4`) and multiple equal(0, `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`) and multiple equal(0, `test`.`t1`.`f7`) and multiple equal(0, `test`.`t1`.`f8`) and multiple equal(0, `test`.`t1`.`f9`) and multiple equal(0, `test`.`t1`.`f11`) and multiple equal(0, `test`.`t1`.`f12`) and multiple equal(0, `test`.`t1`.`f13`) and multiple equal(0, `test`.`t1`.`f14`) and multiple equal(0, `test`.`t1`.`f15`) and multiple equal(0, `test`.`t1`.`f16`) and multiple equal(0, `test`.`t1`.`f17`))
 DROP TABLE t1;
 #
 # Max key length limitation
@@ -855,12 +929,16 @@ EXPLAIN
 -> Filter: (t1.f4 = 'a')  (rows=1)
     -> Index lookup on t1 using k1 (f5 = 'a', f6 = 'a', f7 = 'a', f1 = 'a', f2 = 'a', f3 = 'a')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal('a', `test`.`t1`.`f1`) and multiple equal('a', `test`.`t1`.`f2`) and multiple equal('a', `test`.`t1`.`f3`) and multiple equal('a', `test`.`t1`.`f4`) and multiple equal('a', `test`.`t1`.`f5`) and multiple equal('a', `test`.`t1`.`f6`) and multiple equal('a', `test`.`t1`.`f7`))
 EXPLAIN SELECT /*+ NO_SKIP_SCAN(t1) */ f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
 EXPLAIN
 -> Covering index lookup on t1 using k1 (f5 = 'a', f6 = 'a', f7 = 'a', f1 = 'a', f2 = 'a', f3 = 'a')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal('a', `test`.`t1`.`f1`) and multiple equal('a', `test`.`t1`.`f2`) and multiple equal('a', `test`.`t1`.`f3`) and multiple equal('a', `test`.`t1`.`f5`) and multiple equal('a', `test`.`t1`.`f6`) and multiple equal('a', `test`.`t1`.`f7`))
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
@@ -868,6 +946,8 @@ EXPLAIN
 -> Filter: (t1.f4 = 'a')  (rows=1)
     -> Index lookup on t1 using k1 (f5 = 'a', f6 = 'a', f7 = 'a', f1 = 'a', f2 = 'a')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where (multiple equal('a', `test`.`t1`.`f1`) and multiple equal('a', `test`.`t1`.`f2`) and multiple equal('a', `test`.`t1`.`f4`) and multiple equal('a', `test`.`t1`.`f5`) and multiple equal('a', `test`.`t1`.`f6`) and multiple equal('a', `test`.`t1`.`f7`))
 DROP TABLE t1;
 #
 # Unique extended key
@@ -897,6 +977,8 @@ EXPLAIN
     -> Table scan on t2  (rows=2)
     -> Single-row covering index lookup on t1 using f1 (f1 = t2.f2, pk = t2.f1)  (rows=0.125)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1` from `test`.`t2` join `test`.`t1` IGNORE INDEX (PRIMARY) where ((`test`.`t2`.`f1` = `test`.`t1`.`pk`) and (`test`.`t2`.`f2` = `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT t2.f1 FROM t2 JOIN t1 IGNORE INDEX(primary) ON t2.f1 = t1.pk and t2.f2 = t1.f1;
 f1
@@ -943,6 +1025,8 @@ EXPLAIN
     -> Filter: (t.a like '%aaa12345678%')  (rows=0.556)
         -> Index scan on t using i  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`i` AS `i` from `test`.`t` FORCE INDEX (`i`) where (`test`.`t`.`a` like '%aaa12345678%')
 SELECT DISTINCT(i) FROM t FORCE INDEX(i) WHERE a LIKE '%aaa12345678%';
 i
 aaa

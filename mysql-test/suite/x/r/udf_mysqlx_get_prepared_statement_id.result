@@ -1,5 +1,16 @@
 include/assert.inc [Validation of MYSQLX_GET_PREPARED_STATEMENT_ID(1)]
 include/assert.inc [Validation of MYSQLX_GET_PREPARED_STATEMENT_ID(2)]
+SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(CAST(NULL AS SIGNED));
+ERROR HY000: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expects only one numeric argument
+CREATE TEMPORARY TABLE get_prepared_statement_id_argument (
+client_stmt_id INT NOT NULL
+);
+INSERT INTO get_prepared_statement_id_argument VALUES (1);
+SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(client_stmt_id)
+FROM get_prepared_statement_id_argument;
+MYSQLX_GET_PREPARED_STATEMENT_ID(client_stmt_id)
+NULL
+DROP TEMPORARY TABLE get_prepared_statement_id_argument;
 RUN recvok
 RUN recvok
 RUN recvok
@@ -14,10 +25,11 @@ Got expected error: No database selected (code 1046)
 
 0 rows affected
 Got expected error: PROCEDURE test.MYSQLX_GET_PREPARED_STATEMENT_ID does not exist (code 1305)
-Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expect only one numeric argument (code 1123)
-Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expect only one numeric argument (code 1123)
-Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expect only one numeric argument (code 1123)
-Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expect only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expects only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expects only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expects only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expects only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_get_prepared_statement_id'; Function expects only one numeric argument (code 1123)
 
 0 rows affected
 begin

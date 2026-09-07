@@ -1123,6 +1123,11 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 }
 
 dberr_t Encryption::decrypt_log_block(byte *const buf) const noexcept {
+  /* An encrypted redo block requires encryption metadata. */
+  if (m_type == NONE) {
+    return DB_IO_DECRYPT_FAIL;
+  }
+
   /* This is the data we have to decrypt */
   byte *const data = buf + LOG_BLOCK_HDR_SIZE;
   /* This is data size to decrypt. */

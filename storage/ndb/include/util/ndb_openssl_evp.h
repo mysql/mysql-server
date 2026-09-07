@@ -132,8 +132,6 @@ class ndb_openssl_evp {
                                   const byte *wrapping_key,
                                   size_t wrapping_key_size);
 
-  static bool is_aeskw256_supported();
-
  private:
   const EVP_CIPHER *m_evp_cipher;
   bool m_padding;  // used by cbc, should be false for xts

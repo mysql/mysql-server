@@ -44,6 +44,7 @@
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
+class Field;
 class FOREIGN_KEY;
 class KEY;
 class THD;
@@ -476,6 +477,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                        Alter_info *alter_info);
 bool mysql_compare_tables(THD *thd, TABLE *table, Alter_info *alter_info,
                           HA_CREATE_INFO *create_info, bool *metadata_equal);
+void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
+bool verify_data_with_check_constraints(TABLE *table, TABLE *check_table);
 bool mysql_recreate_table(THD *thd, Table_ref *table_list, bool table_copy);
 bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
                              HA_CREATE_INFO *create_info, uint open_flags = 0,

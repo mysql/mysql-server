@@ -380,6 +380,15 @@ static inline ulint page_rec_get_heap_no(
 @return pointer to next record */
 static inline const rec_t *page_rec_get_next_low(const rec_t *rec, ulint comp);
 
+/** Gets the offset of the next record on the page after validating that it is
+safe for page-level record access.
+@param[in]      rec     pointer to record
+@param[in]      comp    true iff compact page layout is used
+@return the page offset of the next chained record, or unexpected offset in case
+the encoded next field is invalid. */
+[[nodiscard]] static inline ut::Expected<uint16_t, uint16_t>
+page_rec_try_get_next_offs(const rec_t *rec, bool comp);
+
 /** Gets the pointer to the next record on the page.
  @return pointer to next record */
 static inline rec_t *page_rec_get_next(

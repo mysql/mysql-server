@@ -137,5 +137,7 @@ EXPLAIN
                             -> Sort: t2.b, limit input to 2 row(s) per chunk  (rows=3)
                                 -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0> where (`x`.`b` > 1))))
 DROP TABLE t1,t2;
 SET @@optimizer_switch= @save_optimizer_switch;

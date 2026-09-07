@@ -31,9 +31,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 03/11/2014 Shaohua Wang
  *******************************************************/
 
-#include "btr0load.h"
+#include <iostream>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0load.h"
 #include "btr0pcur.h"
 #include "buf0stats.h"
 #include "ibuf0ibuf.h"
@@ -434,11 +436,10 @@ dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
     auto old_offsets = rec_get_offsets(
         old_rec, m_index, nullptr, ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
-    ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                      page_is_spatial_non_leaf(old_rec, m_index)) > 0 ||
-          (m_index->is_multi_value() &&
-           cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                       page_is_spatial_non_leaf(old_rec, m_index)) >= 0));
+    const auto cmp = cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
+                                 page_is_spatial_non_leaf(old_rec, m_index));
+
+    ut_ad(m_index->is_multi_value() ? cmp >= 0 : cmp > 0);
   }
 
   m_total_data += rec_size;

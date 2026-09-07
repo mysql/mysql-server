@@ -20,6 +20,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`) order by `test`.`t1`.`col1`
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 col1	col1
 1	1
@@ -44,6 +46,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (cast(`test`.`t1`.`col1` as double) = cast(`test`.`t2`.`col1` as double)) order by `test`.`t1`.`col1`
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 col1	col1
 1	1
@@ -74,6 +78,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 col1	col1
 2018-01-01 00:00:00.000000	2018-01-01 00:00:00.000000
@@ -86,6 +92,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` <=> `test`.`t2`.`col1`)
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1 ORDER BY t1.col1;
 col1	col1
 2018-01-01 00:00:00.000000	2018-01-01 00:00:00.000000
@@ -115,6 +123,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = cast(`test`.`t2`.`b` as datetime(6)))
 SELECT * FROM t1, t2 WHERE a=b;
 a	b
 2001-01-01 00:00:00	2001#01#01
@@ -127,6 +137,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` <=> cast(`test`.`t2`.`b` as datetime(6)))
 SELECT * FROM t1, t2 WHERE a<=>b;
 a	b
 2001-01-01 00:00:00	2001#01#01
@@ -152,6 +164,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 col1	col1
 0	0
@@ -165,6 +179,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` <=> `test`.`t2`.`col1`)
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 col1	col1
 0	0
@@ -189,6 +205,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 col1	col1
 0.00	0.00
@@ -203,6 +221,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` <=> `test`.`t2`.`col1`)
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 col1	col1
 0.00	0.00
@@ -230,6 +250,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` = `test`.`t2`.`col1`)
 SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
 col1	col1
 0	0.000000000000000000000000000000
@@ -241,6 +263,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` <=> `test`.`t2`.`col1`)
 SELECT * FROM t1,t2 WHERE t1.col1 <=> t2.col1;
 col1	col1
 0	0.000000000000000000000000000000
@@ -262,6 +286,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` = `test`.`t2`.`col1`)
 SELECT * FROM t1,t2 where t1.col1=t2.col1;
 col1	col1
 1	1
@@ -272,6 +298,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` <=> `test`.`t2`.`col1`)
 SELECT * FROM t1,t2 where t1.col1<=>t2.col1;
 col1	col1
 1	1
@@ -293,6 +321,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b2` AS `b2` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`id2` = `test`.`t1`.`id1`)
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
 id1	HEX(b1)	id2	HEX(b2)
 2	0	2	1
@@ -304,6 +334,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b2` AS `b2` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`id1` <=> `test`.`t2`.`id2`)
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 <=> id2;
 id1	HEX(b1)	id2	HEX(b2)
 2	0	2	1
@@ -325,6 +357,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b2` AS `b2` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`id2` = `test`.`t1`.`id1`)
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
 id1	HEX(b1)	id2	HEX(b2)
 2	0	2	2
@@ -336,6 +370,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b2` AS `b2` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`id1` <=> `test`.`t2`.`id2`)
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 <=> id2;
 id1	HEX(b1)	id2	HEX(b2)
 2	0	2	2
@@ -359,6 +395,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
 col1	col1
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 <=> t2.col1;
@@ -369,6 +407,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` <=> `test`.`t2`.`col1`)
 SELECT * FROM t1, t2 WHERE t1.col1 <=> t2.col1;
 col1	col1
 NULL	NULL
@@ -405,6 +445,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t2`.`col1`) AS `SUM(t2.col1)` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
@@ -516,6 +558,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=129)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,sum(length(`test`.`t1`.`text_col`)) AS `SUM(LENGTH(t1.text_col))`,sum(`t2`.`bigint_col`) AS `SUM(t2.bigint_col)` from `test`.`t1` join `test`.`t1` `t2` where (`t2`.`int_col` = `test`.`t1`.`int_col`)
 SELECT
 COUNT(*),
 SUM(LENGTH(t1.text_col)),
@@ -547,6 +591,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=129)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,sum(length(`test`.`t1`.`text_col`)) AS `SUM(LENGTH(t1.text_col))`,sum(`t2`.`bigint_col`) AS `SUM(t2.bigint_col)` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t1`.`int_col` <=> `t2`.`int_col`)
 SELECT
 COUNT(*),
 SUM(LENGTH(t1.text_col)),
@@ -585,6 +631,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t1`.`i` = `test`.`t2`.`i`)
 SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 i
 2
@@ -624,6 +672,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=1536)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t1`.`i` = `test`.`t2`.`i`)
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
@@ -658,6 +708,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c`,`t1`.`d` AS `d`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c`,`t2`.`d` AS `d` from `test`.`t` `t1` join `test`.`t` `t2` where ((`t2`.`c` = `t1`.`c`) and (`t2`.`a` = `t1`.`a`) and (`t1`.`b` <=> `t2`.`b`) and (`t1`.`d` <=> `t2`.`d`))
 SELECT * FROM t t1, t t2
 WHERE t1.a = t2.a AND t1.b <=> t2.b AND t1.c = t2.c AND t1.d <=> t2.d;
 a	b	c	d	a	b	c	d
@@ -697,6 +749,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t1`.`col1` = floor(((rand() / 2) + 2))))
 SELECT
 t1.col1,
 t2.col1
@@ -729,6 +783,8 @@ EXPLAIN
     -> Hash
         -> Table scan on c  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`c`.`col1` AS `col1`,`test`.`c`.`col1` AS `col1` from `test`.`c` join `test`.`c` where (`test`.`c`.`col1` = `test`.`c`.`col1`)
 SELECT *
 FROM
 (SELECT * FROM c) AS table1
@@ -779,6 +835,8 @@ EXPLAIN
                         -> Hash
                             -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `<subquery2>`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 DROP TABLE t1,t2,t3;
@@ -800,6 +858,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`b` = (`test`.`t1`.`a` + 9)))
 SELECT * FROM t1, t3 WHERE t3.b = t1.a + 9 AND t3.a = t1.a;
 a	b	a	b
 1	NULL	1	10
@@ -822,6 +882,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true
 DROP TABLE t1, t2;
 # See that we can replace a BNL with hash join, even if we have extra
 # join conditions that are not equi-join conditions. The result should be
@@ -844,6 +906,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t2`.`col1` AS `col1`,`test`.`t2`.`col2` AS `col2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t1`.`col2` < `test`.`t2`.`col2`))
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
 col1	col2	col1	col2
 2	2	2	4
@@ -877,6 +941,8 @@ EXPLAIN
                                         -> Hash
                                             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6`
 SELECT SUM(t1.col1) FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 SUM(t1.col1)
 1000000
@@ -918,6 +984,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t1  (rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1`,`test`.`t3`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`col1` = `test`.`t2`.`col1`) and ((`test`.`t1`.`col1` + 999) = `test`.`t2`.`col1`))
 # The test doesn't specify what we expect here, rendering it meaningless and unmaintainable.
 SELECT SUM(variable_value) AS Total_handler_reads
 FROM performance_schema.session_status
@@ -970,6 +1038,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sql_small_result `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on(((`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`))) where true group by `field1`
 SELECT
 SQL_SMALL_RESULT # Fix one plan between streaming and temp-table-aggregate
 t1.col_varchar_key AS field1
@@ -1013,6 +1082,8 @@ EXPLAIN
         -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=2)
             -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array) = json'"1"')  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `field1`,`test`.`t2`.`col_int` AS `field2` from `test`.`t2` join `test`.`t1` where json'"1"' member of (cast(json_extract(`col_json`,_utf8mb4'$[*]') as char(40) array))
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
 DROP TABLE t1,t2;
@@ -1064,6 +1135,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`b` `table1` join `test`.`a` `table2` anti join (`test`.`b` `alias3` straight_join `test`.`a` `alias4`) on(((`alias4`.`col_varchar` = `alias3`.`col_varchar_key`) and (`alias3`.`pk` >= `table1`.`pk`))) where ((`table1`.`pk` = `table2`.`pk`) or (`table1`.`col_varchar` < 'D'))
 SELECT 1 FROM (b AS table1
 INNER JOIN a AS table2 ON table2.pk = table1.pk OR table1.col_varchar < 'D')
 WHERE (NOT EXISTS
@@ -1089,6 +1161,8 @@ EXPLAIN
         -> Hash
             -> Table scan on a  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `a`.`col1` AS `col1` from `test`.`t1` `a` join `test`.`t1` `b` where (`b`.`col1` = `a`.`col1`)
 SET join_buffer_size = 128;
 SELECT a.col1 FROM t1 AS a, t1 AS b WHERE a.col1 = b.col1;
 DROP TABLE t1;
@@ -1123,6 +1197,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t1  (rows=512)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 SET join_buffer_size = 1024;
 SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 DROP TABLE t1, t2;
@@ -1166,6 +1242,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` = `test`.`t2`.`col1`)
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 col1	col1
 0.00	0
@@ -1195,6 +1273,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` = `test`.`t2`.`col1`)
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 col1	col1
 foo 	foo                                     
@@ -1332,6 +1412,8 @@ EXPLAIN
                         -> Covering index lookup on ta3 using f2 (f2 = t2.f2)  (rows=1.2)
                     -> Single-row covering index lookup on ta4 using PRIMARY (f1 = t4.f1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t2`@`qb2`,`t4`@`qb1`,`ta3`,`ta4`) */ count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` `ta3` join `test`.`t2` `ta4` semi join (`test`.`t4`) semi join (`test`.`t2`) where ((`ta3`.`f2` = `test`.`t2`.`f2`) and (`ta4`.`f1` = `test`.`t4`.`f1`))
 SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
 COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
 WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
@@ -1451,6 +1533,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.alias2.pk' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `alias1`.`col_varchar_key` AS `col_varchar_key`,`alias2`.`pk` AS `pk`,`alias2`.`col_int_key` AS `col_int_key`,`alias2`.`col_varchar` AS `col_varchar`,`alias2`.`col_varchar_key` AS `col_varchar_key`,`alias3`.`pk` AS `pk`,`alias3`.`col_int_key` AS `col_int_key`,`alias3`.`col_varchar` AS `col_varchar`,`alias3`.`col_varchar_key` AS `col_varchar_key` from `test`.`cc` `alias1` join `test`.`bb` `alias2` join (/* select#2 */ select distinct `sq1_alias1`.`pk` AS `pk`,`sq1_alias1`.`col_int_key` AS `col_int_key`,`sq1_alias1`.`col_varchar` AS `col_varchar`,`sq1_alias1`.`col_varchar_key` AS `col_varchar_key` from `test`.`bb` `sq1_alias1`) `alias3` semi join (`test`.`c` `sq2_alias1`) where ((`alias3`.`col_int_key` = `alias2`.`col_int_key`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias1`.`col_varchar_key` = `sq2_alias1`.`col_varchar`) and (`sq2_alias1`.`col_varchar_key` <> `alias2`.`col_varchar`) and (`sq2_alias1`.`col_int` > `alias2`.`pk`))
 # We only want to see that the query does not hit an assertion, so ignore
 # the results.
 SELECT *
@@ -1743,6 +1826,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
 Warning	1292	Truncated incorrect DOUBLE value: 'pg'
+Note	1003	/* select#1 */ select `alias1`.`pk` AS `field1` from (/* select#2 */ select `sq1_alias2`.`col_date` AS `col_date`,`sq1_alias2`.`col_int` AS `col_int`,`sq1_alias2`.`col_int_key` AS `col_int_key`,`sq1_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq1_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq1_alias2`.`col_datetime` AS `col_datetime`,`sq1_alias2`.`pk` AS `pk`,`sq1_alias2`.`col_varchar` AS `col_varchar`,`sq1_alias2`.`col_time_key` AS `col_time_key`,`sq1_alias2`.`col_time` AS `col_time`,`sq1_alias2`.`col_date_key` AS `col_date_key` from `test`.`cc` `sq1_alias2` left join `test`.`cc` `sq1_alias1` on((`sq1_alias1`.`col_varchar_key` = `sq1_alias2`.`col_varchar_key`)) where true limit 100) `alias1` semi join (`test`.`cc` `sq2_alias1` join `test`.`c` `sq2_alias2`) where ((`alias1`.`col_varchar_key` = `sq2_alias1`.`col_varchar_key`) and (`sq2_alias1`.`col_varchar_key` <> `alias1`.`col_varchar`)) group by `field1` having (`field1` <> 0) order by `alias1`.`col_int_key` desc,`field1` limit 2,2
 SELECT
 alias1.pk AS field1
 FROM
@@ -1862,6 +1946,8 @@ EXPLAIN
         -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (rows=1)
             -> Covering index scan on subquery3_t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `subquery1_t1`.`col_varchar` AS `col_varchar` from `test`.`b` `subquery1_t1` join `test`.`cc` `subquery1_t2` left join ((/* select#3 */ select `subquery2_t1`.`col_varchar` AS `col_varchar` from `test`.`cc` `subquery2_t1` group by `subquery2_t1`.`col_varchar`) `table2` semi join (`test`.`b` `subquery3_t1`)) on(((`table2`.`col_varchar` = `subquery1_t1`.`col_varchar`) and (`subquery1_t1`.`col_varchar` = lower(`subquery3_t1`.`pk`)))) where (`subquery1_t2`.`col_varchar` = `subquery1_t1`.`col_varchar`)
 SELECT
 table1.col_varchar
 FROM
@@ -1992,6 +2078,8 @@ EXPLAIN
                     -> Index range scan on t2 using idx_a over (0 < col2)  (rows=1)
                     -> Index range scan on t2 using idx_b over (0 < col3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t1`) INDEX_MERGE(`t2`@`select#1`) */ `test`.`t1`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col1` = `test`.`t2`.`col1`) and ((`test`.`t2`.`col2` > 0) or (`test`.`t2`.`col3` > 0))) limit 10
 SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
 FROM t1
 JOIN t2 ON t1.col1 = t2.col1
@@ -2029,6 +2117,8 @@ EXPLAIN
 -> Limit: 50 row(s)  (rows=1)
     -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `table1`,`t2`) */ '1' AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t2` limit 50
 SELECT /*+ JOIN_ORDER(table1, t2) */
 *
 FROM
@@ -2080,6 +2170,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`c`)
 SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
 c	c
 foo	foo 
@@ -2120,6 +2212,8 @@ EXPLAIN
             -> Filter: (t1.i > t2.i)  (rows=21.3)
                 -> Table scan on t2  (rows=64)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`t2`,`t3`) NO_BNL(`t2`@`select#1`) */ `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` > `test`.`t2`.`i`))
 SELECT /*+ NO_BNL(t2) JOIN_ORDER(t1, t2, t3) */ * FROM t1
 JOIN t2 ON t1.i > t2.i
 JOIN t3 ON t2.i = t3.i;
@@ -2188,6 +2282,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `const_table`,`t2`,`t1`,`t1_2`) */ 1 AS `1` from (values row(4),row(5)) `const_table` join `test`.`t2` anti join (`test`.`t1` join `test`.`t1` `t1_2`) on(((`t1_2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t1`.`col1` <> `test`.`t2`.`col1`))) where (`test`.`t2`.`col1` < 49)
 SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
 RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
 WHERE NOT EXISTS (
@@ -2273,6 +2368,13 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`pk` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = 9)) join `test`.`t3` `t4` where (`t4`.`pk` = 9)) AS `(
+SELECT t1.pk
+FROM t2
+LEFT JOIN t3 USING (pk)
+JOIN t3 AS t4 USING (pk)
+WHERE t2.pk = 9
+)` from `test`.`t1`
 SELECT (
 SELECT t1.pk
 FROM t2
@@ -2305,6 +2407,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` < `test`.`t2`.`col1`)
 DROP TABLE t1, t2;
 # Semijoin.
 CREATE TABLE t1 (i INTEGER);
@@ -2322,6 +2426,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 i
 1
@@ -2344,6 +2450,8 @@ EXPLAIN
         -> Filter: (t2.col2 < 3)  (rows=1)
             -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t2`.`col2` < 3))
 DROP TABLE t1, t2;
 # Test a query where the optimizer will create a semijoin condition that
 # is not an equi-join condition. These kind of conditions must be
@@ -2366,6 +2474,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` semi join (`test`.`t2`) where (1 = (`test`.`t1`.`col1` = `test`.`t2`.`col1`))
 SELECT * FROM t1 WHERE 1 IN (SELECT t1.col1 = t2.col1 FROM t2);
 col1
 3
@@ -2395,6 +2504,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 WHERE (t1.a,t2.a) IN (SELECT a, a FROM t3);
 a	a
@@ -2441,6 +2552,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t1`.`col2`) AS `SUM(t1.col2)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`col1` = `test`.`t1`.`col1`)
 SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
 (SELECT t2.col1 FROM t2);
 SUM(t1.col1)	SUM(t1.col2)
@@ -2456,6 +2569,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t1`.`col2`) AS `SUM(t1.col2)` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t1`.`col2` <> `test`.`t2`.`col2`))
 SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
 (SELECT t2.col1 FROM t2 WHERE t1.col2 <> t2.col2);
 SUM(t1.col1)	SUM(t1.col2)
@@ -2501,6 +2615,8 @@ EXPLAIN
         -> Hash
             -> Table scan on build  (rows=768)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`probe` semi join (`test`.`build`) where (`test`.`build`.`col1` = `test`.`probe`.`col1`)
 SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
 COUNT(*)
 256
@@ -2538,6 +2654,8 @@ EXPLAIN
     -> Hash
         -> Table scan on build  (rows=512)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`probe`.`col1` AS `col1` from `test`.`probe` semi join (`test`.`build`) where (`test`.`build`.`col1` = `test`.`probe`.`col1`)
 SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
 col1
 1
@@ -3089,6 +3207,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t1  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1` = `test`.`t2`.`col1`) limit 1000
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2;
@@ -3109,6 +3229,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = `test`.`t1`.`f1`)) where (`test`.`t2`.`f1` is null)
 SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 f1
 DROP TABLE t1,t2;
@@ -3136,6 +3258,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.bid' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`aid` AS `aid`,`test`.`t1`.`bid` AS `bid` from `test`.`t1` anti join (`test`.`t2`) on(((`test`.`t2`.`bid` = `test`.`t1`.`bid`) and (`test`.`t2`.`aid` = `test`.`t1`.`aid`))) where true
 SELECT * FROM t1
 WHERE t1.aid NOT IN (SELECT aid FROM t2 WHERE bid = t1.bid);
 aid	bid
@@ -3160,6 +3283,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` anti join (`test`.`t2`) on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true
 SELECT * FROM t1
 WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
 col1
@@ -3205,6 +3329,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t1`.`col2`) AS `SUM(t1.col2)` from `test`.`t1` anti join (`test`.`t2`) on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true
 SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
 (SELECT t2.col1 FROM t2);
 SUM(t1.col1)	SUM(t1.col2)
@@ -3220,6 +3346,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t1`.`col2`) AS `SUM(t1.col2)` from `test`.`t1` anti join (`test`.`t2`) on(((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t1`.`col2` < `test`.`t2`.`col2`))) where true
 SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
 (SELECT t2.col1 FROM t2 WHERE t1.col2 < t2.col2);
 SUM(t1.col1)	SUM(t1.col2)
@@ -3262,6 +3389,8 @@ EXPLAIN
     -> Hash
         -> Table scan on build  (rows=766)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`probe`.`col1` AS `col1` from `test`.`probe` anti join (`test`.`build`) on((`test`.`build`.`col1` = `test`.`probe`.`col1`)) where true
 SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
 col1
 254
@@ -3284,6 +3413,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 col1	col1
 1	1
@@ -3316,6 +3447,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1`,`test`.`t3`.`col1` AS `col1` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`col1` = `test`.`t2`.`col1`))) on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true order by `test`.`t1`.`col1`,`test`.`t2`.`col1`,`test`.`t3`.`col1`
 SELECT t1.col1, t2.col1, t3.col1 FROM t1
 LEFT JOIN (
 t2 LEFT JOIN t3 ON t2.col1 = t3.col1)
@@ -3362,6 +3495,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t4  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`))) on(((`test`.`t2`.`i` = `test`.`t3`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`)))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where true
 SELECT * FROM
 t1 LEFT JOIN
 ( t2 LEFT JOIN
@@ -3397,6 +3532,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1`,`test`.`t3`.`col1` AS `col1` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t3`.`col1` = `test`.`t1`.`col1`))) where true
 DROP TABLE t1, t2, t3;
 # Set up a case where the join condition in a left join does not refer
 # to any of the tables (degenerate join predicate). It will be attached
@@ -3416,6 +3553,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` left join `test`.`t2` on((rand() < <cache>(-(1)))) where true
 SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
 col1	col1
 1	NULL
@@ -3465,6 +3604,8 @@ EXPLAIN
     -> Hash
         -> Zero rows (Impossible filter)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 'crash1' AS `t` from `test`.`t1` left join `test`.`t1` on(((`test`.`t1`.`f2` = `test`.`t1`.`f2`) and ('crash1' = 'crash2'))) where true
 SELECT
 tt.t
 FROM
@@ -3497,6 +3638,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (rand() < rand()))) where true
 DROP TABLE t1, t2;
 # See that outer join with spill to disk works.
 CREATE TABLE t1 (col1 BIGINT NOT NULL, col2 BIGINT NOT NULL);
@@ -3536,6 +3679,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t1`.`col2`) AS `SUM(t1.col2)` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true
 SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 SUM(t1.col1)	SUM(t1.col2)
 524800	525312
@@ -3548,6 +3693,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`col1`) AS `SUM(t1.col1)`,sum(`test`.`t1`.`col2`) AS `SUM(t1.col2)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`col1` = `test`.`t1`.`col1`) and (`test`.`t1`.`col2` < `test`.`t2`.`col2`))) where true
 SELECT SUM(t1.col1), SUM(t1.col2) FROM t1
 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
 SUM(t1.col1)	SUM(t1.col2)
@@ -3576,6 +3723,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((abs(`test`.`t2`.`i`) = `test`.`t3`.`i`))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where true
 DROP TABLE t1, t2, t3;
 # See that we do not attach conditions that are always 'true' to the hash
 # join iterator.
@@ -3592,6 +3741,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i` from `test`.`t1` left join `test`.`t2` on(true) where true
 DROP TABLE t1, t2;
 # Set up a query where the join condition is an equi-join condition,
 # but it refers to only one side of the hash join (degenerate join
@@ -3617,6 +3768,8 @@ EXPLAIN
                 -> Hash
                     -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`i` = `test`.`t2`.`i`))) where true
 DROP TABLE t1, t2, t3;
 # Execute a query that causes the hash join to do everything in memory
 # with multiple refills of the hash table. This can be triggered when the
@@ -3645,6 +3798,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=128)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`col1` = `test`.`t2`.`col1`)) where true limit 1000
 SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2;
@@ -3671,6 +3826,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `alias1`.`pk` AS `pk`,`alias2`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` `alias2` anti join (`test`.`t1`) on(((`alias1`.`pk` <> 20)))) on(true) where true
 SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 pk	pk
@@ -3737,6 +3893,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `alias1`.`f1` AS `f1`,`alias2`.`f1` AS `f1` from `test`.`t1` `alias1` left join (`test`.`t1` `alias2` anti join (`test`.`t1` `alias3`) on(((`alias1`.`f1` <= 1)))) on(((`alias2`.`f1` = `alias1`.`f1`) and true)) where true
 SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
 AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
 f1	f1
@@ -3772,6 +3929,8 @@ EXPLAIN
             -> Table scan on table1  (rows=1)
         -> Multi-range index lookup on table2 using idx_N_col_int_key (col_int_key = table3.pk)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `table3`.`pk` AS `pk`,`table3`.`col_datetime` AS `col_datetime`,`table1`.`pk` AS `pk`,`table1`.`col_datetime` AS `col_datetime`,`table2`.`col_int_key` AS `col_int_key`,`table2`.`col_datetime` AS `col_datetime` from `test`.`t1` `table3` left join (`test`.`t1` `table1` join `test`.`t2` `table2`) on((`table2`.`col_int_key` = `table3`.`pk`)) where true
 SELECT * FROM
 t1 AS table3 LEFT JOIN (t1 AS table1, t2 AS table2) ON table2.col_int_key=table3.pk;
 pk	col_datetime	pk	col_datetime	col_int_key	col_datetime
@@ -3822,6 +3981,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'table2.pk' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.table1.f1' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table1`.`f1` AS `f1`,`inner_t3`.`pk` AS `pk`,`inner_t3`.`f1` AS `f1` from `test`.`t1` `table1` left join (`test`.`t1` `inner_t1` join `test`.`t1` `inner_t2` join `test`.`t1` `inner_t3` anti join (`test`.`t1`) on((((`inner_t3`.`pk` >= 1) or (`table1`.`f1` = 'G'))))) on(((`inner_t2`.`pk` = `inner_t1`.`pk`) and (`inner_t2`.`f1` = `inner_t1`.`f1`))) where true
 SELECT *
 FROM t1 AS table1
 LEFT JOIN (
@@ -3853,6 +4013,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
 EXPLAIN
 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(false) where true
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 > 3;
 EXPLAIN
 -> Left hash join (no condition)  (rows=25)
@@ -3861,6 +4023,8 @@ EXPLAIN
         -> Filter: (t2.f1 > 3)  (rows=5)
             -> Table scan on t2  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` > 3)) where true
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 > 3;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (t1.f1 > 3)  (rows=25)
@@ -3868,6 +4032,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`f1` > 3)) where true
 DROP TABLE t1, t2;
 #
 # Bug #30664671: HASH JOINS : CRASH WITH COMPARING DIFFERENT CHARSET
@@ -3888,6 +4054,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` join `test`.`t1` `t2` where (`t2`.`a` = `test`.`t1`.`a`)
 SELECT 1 FROM t1 JOIN t1 AS t2 ON t1.a=t2.a;
 1
 1
@@ -3933,6 +4101,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`t2`.`a` = `test`.`t1`.`a`)) where true
 SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON t1.a=t2.a;
 1
 1
@@ -4018,6 +4188,8 @@ EXPLAIN
                                 -> Hash
                                     -> Covering index scan on c1_1 using idx  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`str_col` = `test`.`t2`.`str_col`)) where <in_optimizer>((`test`.`t1`.`str_col`,`test`.`t1`.`str_col`),<exists>(/* select#2 */ select `c1_1`.`str_col`,min(`c1_2`.`str_col`) from `test`.`t2` `c1_1` join `test`.`t2` `c1_2` straight_join `test`.`t3` where (`test`.`t3`.`i` = `c1_2`.`i`) having (<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`str_col`) = `c1_1`.`str_col`) or (`c1_1`.`str_col` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`str_col`) = min(`c1_2`.`str_col`)) or (min(`c1_2`.`str_col`) is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`c1_1`.`str_col`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(min(`c1_2`.`str_col`)), true))) is false)
 SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
 WHERE (t1.str_col, t1.str_col) NOT IN (
 SELECT c1_1.str_col, MIN(c1_2.str_col)
@@ -4057,6 +4229,8 @@ EXPLAIN
                             -> Hash
                                 -> Table scan on a  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`c` AS `c` from `test`.`t` left join (`test`.`t` `d` left join (`test`.`t` `c` left join (`test`.`t` `b` left join `test`.`t` `a` on(true)) on(true)) on(true)) on((`test`.`t`.`c` = 1)) where true
 DROP TABLE t;
 #
 # Bug#30741679 ASSERTION `FALSE' IN EXTRACT_VALUE_FOR_HASH_JOIN
@@ -4089,6 +4263,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `table1`.`a` AS `a`,`table1`.`b` AS `b` from `test`.`t1` `table1` semi join (`test`.`t1`) where ((/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where (`table1`.`a` <> 6)) = (`test`.`t1`.`a`,`test`.`t1`.`b`))
 SELECT * FROM t1 as table1
 WHERE (SELECT a, b FROM t2 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
 a	b
@@ -4110,6 +4285,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `table1`.`a` AS `a`,`table1`.`b` AS `b` from `test`.`t1` `table1` semi join (`test`.`t1`) where ((/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`table1`.`a` <> 6)) = (`test`.`t1`.`a`))
 SELECT * FROM t1 as table1
 WHERE (SELECT a FROM t2 WHERE table1.a <> 6) IN (SELECT a FROM t1);
 a	b
@@ -4137,6 +4313,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`i` AS `i`,`t2`.`i` AS `i` from `test`.`t` `t1` join `test`.`t` `t2` where (json_extract(`t1`.`i`,`t1`.`i`) = `t2`.`i`)
 SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
 SHOW ERRORS;
@@ -4200,6 +4378,8 @@ EXPLAIN
         -> Filter: (c.a = b.a)  (rows=4)
             -> Table scan on c  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a`,`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on((`c`.`a` = `b`.`a`)) where true
 SELECT *
 FROM t1 AS a
 LEFT JOIN t1 AS b ON FALSE
@@ -4310,6 +4490,8 @@ EXPLAIN
         -> Hash
             -> Table scan on a  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `a` join `test`.`t` `b` where (`a`.`a` = `b`.`b`)
 SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 1
 1
@@ -4333,6 +4515,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`wstr_name` AS `wstr_name`,`test`.`t2`.`str_name` AS `str_name` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`wstr_name` = `test`.`t2`.`str_name`)
 SELECT wstr_name, str_name
 FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
 wstr_name	str_name
@@ -4404,6 +4588,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,1 AS `f1`,`test`.`t2`.`f1` AS `b_f1` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`f1` = 1)) where true
 DROP TABLE t1,t2;
 DROP VIEW vmerge;
 # Bug#34352156: Hypergraph: Assert PassesConflictRules() failed in
@@ -4434,6 +4620,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`varchar_col` = `test`.`t1`.`varchar_col`)) where true
 SELECT id FROM t1 LEFT JOIN t2 USING (varchar_col);
 id
 NULL
@@ -4449,6 +4637,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t2  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`decimal_col` = `test`.`t1`.`decimal_col`)) where true
 SELECT id FROM t1 LEFT JOIN t2 USING (decimal_col);
 id
 NULL
@@ -4476,6 +4666,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select hex(`t1`.`b`) AS `HEX(t1.b)`,hex(`t2`.`b`) AS `HEX(t2.b)` from `test`.`t` `t1` join `test`.`t` `t2` where (`t2`.`b` = `t1`.`b`)
 SELECT HEX(t1.b), HEX(t2.b) FROM t AS t1, t AS t2 WHERE t1.b = t2.b;
 HEX(t1.b)	HEX(t2.b)
 04B9	04B9
@@ -4545,6 +4737,8 @@ EXPLAIN
     -> Hash
         -> Table scan on x2  (rows=40)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i1` AS `i1`,`x1`.`i2` AS `i2`,`x1`.`c` AS `c`,`x2`.`i1` AS `i1`,`x2`.`i2` AS `i2`,`x2`.`c` AS `c` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x2`.`i2` = `x1`.`i2`)) where (`x1`.`c` <= <cache>(char(0xd83f)))
 SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.i2=x2.i2
 WHERE x1.c <= CHAR(0xd83f);
 ERROR HY000: Cannot convert string '\xD8?' from binary to utf8mb4
@@ -4732,6 +4926,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` anti join (`test`.`t2`) on((`test`.`t2`.`b` = `test`.`t1`.`a`)) where true
 TRUNCATE performance_schema.file_summary_by_event_name;
 SET join_buffer_size = DEFAULT;
 SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t2 WHERE a = b);
@@ -4771,4 +4966,6 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`x` = `test`.`t1`.`x`) limit 1
 DROP TABLE t1, t2;

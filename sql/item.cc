@@ -9187,12 +9187,23 @@ Item *Item_ref::get_tmp_table_item(THD *thd) {
   DBUG_TRACE;
   if (!result_field) {
     Item *result = ref_item()->get_tmp_table_item(thd);
+    if (result == nullptr) return nullptr;
+
+    if (result == ref_item()) {
+      auto *ref = new (thd->mem_root) Item_ref(thd, this);
+      if (ref == nullptr) return nullptr;
+      ref->link_referenced_item();
+      result = ref;
+    }
+
+    result->item_name = item_name;
     return result;
   }
 
   Item_field *item = new Item_field(result_field);
   if (item == nullptr) return nullptr;
 
+  item->item_name = item_name;
   item->set_orignal_db_name(m_orig_db_name);
   item->db_name = db_name;
   item->table_name = table_name;
@@ -9345,28 +9356,40 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
   Item *item = outer_ref;
   Item **item_ref = ref_pointer();
 
-  /*
-    TODO: this field item already might be present in the select list.
-    In this case instead of adding new field item we could use an
-    existing one. The change will lead to less operations for copying fields,
-    smaller temporary tables and less data passed through filesort.
-  */
   assert(!qualifying->base_ref_items.is_null());
   if (!found_in_select_list) {
     /*
-      Add the field item to the select list of the current select.
-      If it's needed reset each Item_ref item that refers this field with
-      a new reference taken from ref_item_array.
+      The same outer field may be resolved several times, for example when it
+      occurs repeatedly in the ORDER BY of a correlated set operation. Reuse
+      the existing reference instead of adding duplicate hidden items, which
+      could exhaust the preallocated base_ref_items array. Only the entries
+      corresponding to fields are populated at this stage.
     */
-    item_ref = qualifying->add_hidden_item(item);
-    /*
-      Now the item is in the all_fields list, which elements are used to fill
-      temporary tables created by the optimizer; thus it will be read and must
-      be marked as such. Outer references are never written to.
-    */
-    if (item->fixed) {
-      Mark_field mf(MARK_COLUMNS_READ);
-      item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
+    for (size_t i = 0; i < qualifying->fields.size(); ++i) {
+      Item *const select_item = qualifying->base_ref_items[i];
+      if (select_item != nullptr && select_item->eq(item)) {
+        item_ref = &qualifying->base_ref_items[i];
+        found_in_select_list = true;
+        break;
+      }
+    }
+    if (!found_in_select_list) {
+      /*
+        Add the field item to the select list of the current query block.
+        If it's needed reset each Item_ref item that refers this field with
+        a new reference taken from ref_item_array.
+      */
+      item_ref = qualifying->add_hidden_item(item);
+      /*
+        Now the item is in the all_fields list, whose elements are used to fill
+        temporary tables created by the optimizer; thus it will be read and
+        must be marked as such. Outer references are never written to.
+      */
+      if (item->fixed) {
+        Mark_field mf(MARK_COLUMNS_READ);
+        item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
+                   pointer_cast<uchar *>(&mf));
+      }
     }
   }
 

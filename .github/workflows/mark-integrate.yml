@@ -17,26 +17,80 @@ jobs:
   integrate:
     runs-on: ubuntu-24.04
     permissions:
-      issues: write
       pull-requests: write
     steps:
       - name: Reconcile integrate label
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const label = {
-              name: 'integrate',
+              name: 'Integrate',
               color: '5319E7',
-              description: 'Approved patch ready for integration',
+              description: 'Advisory only: OCA verified and trusted approval observed; revalidate before merge',
             };
+            const requiredLabelName = 'OCA Verified';
 
-            try {
-              await github.rest.issues.getLabel({ ...context.repo, name: label.name });
-              await github.rest.issues.updateLabel({ ...context.repo, ...label });
-            } catch (error) {
-              if (error.status !== 404) throw error;
+            const repositoryLabels = await github.paginate(
+              github.rest.issues.listLabelsForRepo,
+              { ...context.repo, per_page: 100 },
+            );
+            const existingLabel = repositoryLabels.find(
+              (candidate) => candidate.name.toLowerCase() === label.name.toLowerCase(),
+            );
+            if (existingLabel) {
+              await github.rest.issues.updateLabel({
+                ...context.repo,
+                name: existingLabel.name,
+                new_name: label.name,
+                color: label.color,
+                description: label.description,
+              });
+            } else {
               await github.rest.issues.createLabel({ ...context.repo, ...label });
             }
+
+            const removeIntegrate = async (pullNumber) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: pullNumber,
+                  name: label.name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            const expectedRepository = `${context.repo.owner}/${context.repo.repo}`;
+            const hasRequiredLabel = (pull) => pull?.labels?.some((candidate) => (
+              String(candidate?.name || candidate).toLowerCase() ===
+                requiredLabelName.toLowerCase()
+            ));
+            const isEligiblePull = (pull) => (
+              pull?.state === 'open' &&
+              !pull?.draft &&
+              pull?.base?.ref === 'trunk' &&
+              String(pull?.base?.repo?.full_name).toLowerCase() ===
+                expectedRepository.toLowerCase()
+            );
+            const trustedPermissions = new Set(['admin', 'maintain', 'write']);
+            const permissionCache = new Map();
+            const canApprove = async (login) => {
+              const key = login.toLowerCase();
+              if (permissionCache.has(key)) return permissionCache.get(key);
+              let trusted = false;
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  ...context.repo,
+                  username: login,
+                });
+                trusted = trustedPermissions.has(data.permission);
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+              permissionCache.set(key, trusted);
+              return trusted;
+            };
 
             const prs = await github.paginate(github.rest.pulls.list, {
               ...context.repo,
@@ -46,7 +100,23 @@ jobs:
             });
 
             for (const pr of prs) {
-              if (pr.base.ref !== 'trunk') continue;
+              const { data: currentPull } = await github.rest.pulls.get({
+                ...context.repo,
+                pull_number: pr.number,
+              });
+              if (!isEligiblePull(currentPull)) {
+                await removeIntegrate(pr.number);
+                core.info(`Removed Integrate from PR #${pr.number}; the PR is not eligible.`);
+                continue;
+              }
+              if (!hasRequiredLabel(currentPull)) {
+                await removeIntegrate(pr.number);
+                core.info(
+                  `Removed Integrate from PR #${pr.number}; ${requiredLabelName} is missing.`,
+                );
+                continue;
+              }
+              const evaluatedHead = currentPull.head.sha;
 
               const reviews = await github.paginate(github.rest.pulls.listReviews, {
                 ...context.repo,
@@ -54,36 +124,70 @@ jobs:
                 per_page: 100,
               });
               const meaningfulStates = new Set(['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED']);
-              const latestStates = new Map();
+              const latestReviews = new Map();
 
               for (const review of reviews) {
                 const login = review.user?.login;
                 if (login && meaningfulStates.has(review.state)) {
-                  latestStates.set(login, review.state);
+                  latestReviews.set(login.toLowerCase(), review);
                 }
               }
 
-              const approvers = [...latestStates.entries()]
-                .filter(([, state]) => state === 'APPROVED')
-                .map(([login]) => login);
+              const approvers = [];
+              for (const review of latestReviews.values()) {
+                if (
+                  review.state === 'APPROVED' &&
+                  review.commit_id === evaluatedHead &&
+                  await canApprove(review.user.login)
+                ) {
+                  approvers.push(review.user.login);
+                }
+              }
 
-              if (approvers.length > 0) {
+              // Approval and labels are PR-wide state. Reject any result calculated
+              // for a head that changed while reviews and permissions were checked.
+              const { data: freshPull } = await github.rest.pulls.get({
+                ...context.repo,
+                pull_number: pr.number,
+              });
+              const unchanged = isEligiblePull(freshPull) && freshPull.head.sha === evaluatedHead;
+              const ocaVerified = hasRequiredLabel(freshPull);
+
+              if (unchanged && ocaVerified && approvers.length > 0) {
                 await github.rest.issues.addLabels({
                   ...context.repo,
                   issue_number: pr.number,
                   labels: [label.name],
                 });
-                core.info(`Marked PR #${pr.number} as integrate; active approvals: ${approvers.join(', ')}.`);
-              } else {
-                try {
-                  await github.rest.issues.removeLabel({
-                    ...context.repo,
-                    issue_number: pr.number,
-                    name: label.name,
-                  });
-                } catch (error) {
-                  if (error.status !== 404) throw error;
+                const { data: afterLabelPull } = await github.rest.pulls.get({
+                  ...context.repo,
+                  pull_number: pr.number,
+                });
+                if (
+                  !isEligiblePull(afterLabelPull) ||
+                  !hasRequiredLabel(afterLabelPull) ||
+                  afterLabelPull.head.sha !== evaluatedHead
+                ) {
+                  await removeIntegrate(pr.number);
+                  core.warning(
+                    `PR #${pr.number} changed or lost ${requiredLabelName} during label ` +
+                    'publication; Integrate was removed.',
+                  );
+                  continue;
                 }
-                core.info(`Removed integrate from PR #${pr.number}; no active approvals remain.`);
+                core.info(
+                  `Marked PR #${pr.number} as Integrate; current trusted approvals: ` +
+                  `${approvers.join(', ')}.`,
+                );
+              } else {
+                await removeIntegrate(pr.number);
+                const reason = !ocaVerified
+                  ? `${requiredLabelName} is missing`
+                  : !unchanged
+                    ? 'the PR changed or is no longer eligible'
+                    : 'no current trusted approval remains';
+                core.info(
+                  `Removed Integrate from PR #${pr.number}; ${reason}.`,
+                );
               }
             }

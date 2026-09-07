@@ -5427,7 +5427,7 @@ type_conversion_status Field_time::store_internal_adjust_frac(MYSQL_TIME *ltime,
 
 String *Field_time::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  assert(!is_null());
+  assert(ignore_nulls() || !is_null());
   Time_val time;
   val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
   val_buffer->set_charset(&my_charset_numeric);

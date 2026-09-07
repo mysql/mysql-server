@@ -3496,24 +3496,11 @@ static void dict_foreign_error_report(
   mutex_exit(&dict_foreign_err_mutex);
 }
 
-/** Adds a foreign key constraint object to the dictionary cache. May free
- the object if there already is an object with the same identifier in.
- At least one of the foreign table and the referenced table must already
- be in the dictionary cache!
- @return DB_SUCCESS or error code */
 dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
-                                  /*!< in, own: foreign key constraint */
-                                  const char **col_names,
-                                  /*!< in: column names, or NULL to use
-                                  foreign->foreign_table->col_names */
-                                  bool check_charsets,
-                                  /*!< in: whether to check charset
-                                  compatibility */
+                                  const char **col_names, bool check_charsets,
                                   bool can_free_fk,
-                                  /*!< in: whether free existing FK */
-                                  dict_err_ignore_t ignore_err)
-/*!< in: error to be ignored */
-{
+                                  dict_err_ignore_t ignore_err,
+                                  bool skip_referenced) {
   dict_table_t *for_table;
   dict_table_t *ref_table;
   dict_foreign_t *for_in_cache = nullptr;
@@ -3548,7 +3535,13 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
     for_in_cache = foreign;
   }
 
-  if (ref_table && !for_in_cache->referenced_table) {
+  /* When skip_referenced is true (COPY ALTER temp table), we must not
+  touch ref_table's referenced_set or eviction state.  ref_table may be
+  half-initialised by a concurrent dd_open_table_one (added to the cache
+  but FK not yet loaded).  FK checks still work because
+  row_ins_check_foreign_constraints opens the referenced table on-demand
+  when referenced_table is nullptr. */
+  if (ref_table && !for_in_cache->referenced_table && !skip_referenced) {
     index = dict_foreign_find_index(
         ref_table, nullptr, for_in_cache->referenced_col_names,
         for_in_cache->n_fields, for_in_cache->foreign_index, check_charsets,
@@ -3627,7 +3620,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
   /* We need to move the table to the non-LRU end of the table LRU
   list. Otherwise it will be evicted from the cache. */
 
-  if (ref_table != nullptr) {
+  if (ref_table != nullptr && !skip_referenced) {
     dict_table_prevent_eviction(ref_table);
   }
 

@@ -558,7 +558,6 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           if (marked_columns == 1) {
             const char act[] =
                 "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
-            assert(opt_debug_sync_timeout > 0);
             assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
           }
         };);

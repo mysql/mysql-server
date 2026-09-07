@@ -1,0 +1,126 @@
+# ==== PURPOSE ====
+#
+# Verify that repeated FLUSH PRIVILEGES on the source does not leave gaps in
+# mysql.gtid_executed on a binlogless replica.
+#
+# ==== IMPLEMENTATION ====
+#
+# Start a GTID source/replica topology where the replica runs with
+# --relay-log-recovery=ON, --disable-log-bin and
+# --disable-log-replica-updates. Execute FLUSH PRIVILEGES interleaved with DML
+# on the source. After the replica catches up, purge source binary logs,
+# restart the replica, and verify replication can start.
+#
+# Test steps
+#
+# 1. Start replication with a binlogless replica and relay-log recovery enabled.
+# 2. Run mysqlslap on the source to execute repeated FLUSH PRIVILEGES
+#    interleaved with DML.
+# 3. For replicated FLUSH PRIVILEGES events from the workload, wait in the
+#    replica GTID end-transaction path, force the replica GTID persister to
+#    flush, and release the applier worker while the source remains active.
+# 4. Wait until the replica has applied all source transactions and force one
+#    more replica GTID persister flush.
+# 5. Purge source binary logs and restart the replica.
+# 6. Start replication and sync the replica with the source.
+#
+# Test pass conditions
+#
+# The replica must restart and start replication after the source binary logs
+# that contain the workload have been purged. A failure to start because the
+# source purged required GTIDs reproduces Bug#36849620.
+#
+# ==== REFERENCES ====
+#
+# Bug#36849620 FLUSH PRIVILEGES on binlogless replica causes gtid_executed gap
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave = 1
+--let $rpl_gtid_utils = 1
+--source include/rpl/init_source_replica.inc
+
+--let $flush_privileges_count = 60
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression("The transaction owned GTID is already");
+CALL mtr.add_suppression("Recovery from source pos");
+CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+
+--let $mts_replica_parallel_workers = `SELECT @@global.replica_parallel_workers`
+--let $debug_point = rpl_gtid_table_sync_flush_privileges_gtid_end_transaction
+--source include/add_debug_point.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source1.inc
+
+CREATE TABLE mysqlslap_t(id INT PRIMARY KEY, c INT NOT NULL);
+
+--exec_in_background $MYSQL_SLAP --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --silent --create-schema=test --no-drop --concurrency=4 --iterations=15 --delimiter=";" --query="FLUSH PRIVILEGES; INSERT INTO mysqlslap_t VALUES (CONNECTION_ID(), 1) ON DUPLICATE KEY UPDATE c = c + 1" --commit=1 2>&1
+
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--let $i = 0
+while ($i < $flush_privileges_count)
+{
+SET DEBUG_SYNC = 'now SIGNAL gtid_flush_arm';
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_flush_hit TIMEOUT 300';
+FLUSH LOGS;
+SET DEBUG_SYNC = 'now SIGNAL gtid_flush_go';
+--inc $i
+}
+--enable_query_log
+--let $debug_point = rpl_gtid_table_sync_flush_privileges_gtid_end_transaction
+--source include/remove_debug_point.inc
+--disable_query_log
+--let $i = 0
+while ($i < $mts_replica_parallel_workers)
+{
+SET DEBUG_SYNC = 'now SIGNAL gtid_flush_arm';
+SET DEBUG_SYNC = 'now SIGNAL gtid_flush_go';
+--inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_source1.inc
+--let $wait_condition = SELECT COALESCE(SUM(c), 0) = $flush_privileges_count FROM mysqlslap_t
+--let $wait_timeout = 300
+--source include/wait_condition.inc
+
+--source include/rpl/connection_source1.inc
+--source include/rpl/sync_to_replica.inc
+
+--disable_query_log
+FLUSH LOGS;
+SET DEBUG_SYNC = 'RESET';
+--enable_query_log
+
+--source include/rpl/connection_source1.inc
+FLUSH BINARY LOGS;
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--replace_result $binlog_file BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$binlog_file'
+
+--source include/rpl/connection_replica.inc
+--source include/kill_mysqld.inc
+--let $rpl_server_number = 2
+--source include/rpl/start_server.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source1.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo # Cleanup
+--source include/rpl/connection_source1.inc
+DROP TABLE mysqlslap_t;
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
+
+--let $rpl_skip_sync = 1
+--source include/rpl/deinit.inc

@@ -2417,6 +2417,7 @@ void innodb_redo_log_consumer_advance_deinit(
   The UDF is of type Udf_func_longlong returning INT_RESULT
   and expects LSN argument which is the LSN up to which all
   redo log data has been consumed by the registered consumer.
+  The LSN argument must not be NULL.
 
   Before calling this function the consumer must be registered
   by the innodb_redo_log_consumer_register UDF.
@@ -2430,6 +2431,10 @@ long long innodb_redo_log_consumer_advance(
     [[maybe_unused]] unsigned char *null_value,
     [[maybe_unused]] unsigned char *error) {
   if (current_thd == nullptr) {
+    return 1;
+  }
+  if (args->args[0] == nullptr) {
+    my_error(ER_INVALID_USE_OF_NULL, MYF(0));
     return 1;
   }
   return static_cast<long long>(meb::redo_log_consumer_advance(

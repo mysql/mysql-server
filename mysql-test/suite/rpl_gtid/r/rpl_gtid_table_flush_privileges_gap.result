@@ -1,0 +1,36 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression("The transaction owned GTID is already");
+CALL mtr.add_suppression("Recovery from source pos");
+CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+# Adding debug point 'rpl_gtid_table_sync_flush_privileges_gtid_end_transaction' to @@GLOBAL.debug
+include/rpl/start_replica.inc
+[connection master1]
+CREATE TABLE mysqlslap_t(id INT PRIMARY KEY, c INT NOT NULL);
+[connection slave]
+# Removing debug point 'rpl_gtid_table_sync_flush_privileges_gtid_end_transaction' from @@GLOBAL.debug
+[connection master1]
+[connection master1]
+include/rpl/sync_to_replica.inc
+[connection master1]
+FLUSH BINARY LOGS;
+PURGE BINARY LOGS TO 'BINLOG_FILE';
+[connection slave]
+# Kill the server
+include/rpl/start_server.inc [server_number=2]
+include/rpl/start_replica.inc
+[connection master1]
+include/rpl/sync_to_replica.inc
+# Cleanup
+[connection master1]
+DROP TABLE mysqlslap_t;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

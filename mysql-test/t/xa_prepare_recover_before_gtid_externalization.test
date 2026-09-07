@@ -1,0 +1,66 @@
+# ==== Purpose ====
+#
+# Verify that XA PREPARE updates XA RECOVER before its GTID becomes visible
+# when binary logging is disabled.
+#
+# ==== Requirements ====
+#
+# R1. While XA PREPARE is paused before GTID externalization, XA RECOVER
+#     should list the prepared XID.
+# R2. The XA PREPARE GTID should not be visible while paused, but should
+#     become visible after XA PREPARE completes.
+#
+# ==== References ====
+#
+# Bug#35872823: XA RECOVER may miss XID after XA PREPARE GTID is visible
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $option_name = log_bin
+--let $option_value = 0
+--source include/only_with_option.inc
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a INT);
+
+--connect(con1,localhost,root,,)
+--connection con1
+SET @@SESSION.xa_detach_on_prepare = ON;
+--let $prepare_gtid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
+--eval SET GTID_NEXT = '$prepare_gtid'
+XA START 'xa_prepare_nobinlog';
+INSERT INTO t1 VALUES (1);
+XA END 'xa_prepare_nobinlog';
+
+--connection default
+--let $auxiliary_connection = default
+--let $statement_connection = con1
+--let $statement = XA PREPARE 'xa_prepare_nobinlog'
+--let $sync_point = after_call_actions_before_gtid_state_update
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--let $expected_prepared_xa_count = 1
+--source common/xa_crash_safe/assert_xa_recover.inc
+--let $assert_text = GTID_EXECUTED does not contain the XA PREPARE GTID yet
+--let $has_gtid = `SELECT GTID_SUBSET('$prepare_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "0"
+--source include/assert.inc
+
+--let $reap_statement_connection = 1
+--source include/execute_from_conditional_timestamp_sync_point.inc
+--let $reap_statement_connection = 0
+--let $assert_text = GTID_EXECUTED contains the XA PREPARE GTID
+--let $has_gtid = `SELECT GTID_SUBSET('$prepare_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "1"
+--source include/assert.inc
+
+--connection con1
+SET GTID_NEXT = AUTOMATIC;
+
+--connection default
+XA ROLLBACK 'xa_prepare_nobinlog';
+
+--disconnect con1
+--connection default
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

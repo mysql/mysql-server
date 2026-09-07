@@ -18,6 +18,9 @@
 # 1. Verify that MRS returns user_id column as field, when the user_id is PK
 # 2. Verify that MRS returns user_id column as field, when the user_id in no PK
 # 3. Verify that MRS returns "user_id" column as "userId" field , when the user_id in no PK
+# 4. Verify that raw media collection GET returns a field from an owned row
+# 5. Verify that raw media primary-key GET returns a field from an owned row
+# 6. Verify that raw media primary-key GET hides a field from an unowned row
 #
 CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
 CREATE TABLE IF NOT EXISTS `test`.`user1` (
@@ -186,6 +189,24 @@ GET /svc/basic/note/
     "hasMore": false,
     "count": 1
 }
+OK
+
+#
+# III.4
+GET /svc/basic/user2/?raw=1&f=email&limit=1
+janusz
+OK
+
+#
+# III.5
+GET /svc/basic/user2/2?raw=1&f=email
+janusz
+OK
+
+#
+# III.6
+GET /svc/basic/user2/1?raw=1&f=email
+Not Found(404)
 OK
 DROP USER user_valid@'%';
 DROP TABLE `test`.`user1`;

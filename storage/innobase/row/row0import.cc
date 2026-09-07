@@ -53,8 +53,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0lob.h"
 #include "lob0pages.h"
 #include "log0chkp.h"
+#include "log0recv.h"
 #include "pars0pars.h"
 #include "que0que.h"
+#include "rem/rec.h"
 #include "row0import.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
@@ -323,32 +325,76 @@ class RecIterator {
   /** Default constructor */
   RecIterator() UNIV_NOTHROW = default;
 
-  /** Position the cursor on the first user record. */
-  void open(buf_block_t *block) UNIV_NOTHROW {
-    page_cur_set_before_first(block, &m_cur);
-
-    if (!end()) {
-      next();
+  /** Position the cursor on the first user record.
+  @param page page to scan
+  @return true on success.*/
+  [[nodiscard]] bool open(page_t *page) UNIV_NOTHROW {
+    m_cur.block = nullptr;
+    m_cur.rec = page_get_infimum_rec(page);
+    m_n_recs = page_get_n_recs(page);
+    m_n_visited = 0;
+    /* Opening the iterator sets it on the fixed infimum offset. `end()` checks
+    the fixed supremum offset. They cannot match even if the page is corrupted.
+    */
+    ut_ad(!end());
+    if (page_rec_is_comp(m_cur.rec) &&
+        rec_get_status(m_cur.rec) != REC_STATUS_INFIMUM) {
+      return false;
     }
+    return next();
   }
 
-  /** Move to the next record. */
-  void next() UNIV_NOTHROW { page_cur_move_to_next(&m_cur); }
+  /** Position the cursor on the first user record.
+  @param block block to scan
+  @return true on success.*/
+  [[nodiscard]] bool open(buf_block_t *block) UNIV_NOTHROW {
+    ut_ad(block != nullptr);
+    const auto opened = open(block->frame);
+    m_cur.block = block;
+    return opened;
+  }
+
+  /** Move to the next record.
+  @return true on success. */
+  [[nodiscard]] bool next() UNIV_NOTHROW {
+    const auto next_offs =
+        page_rec_try_get_next_offs(m_cur.rec, page_rec_is_comp(m_cur.rec));
+
+    if (!next_offs) {
+      return false;
+    }
+
+    m_cur.rec = page_align(m_cur.rec) + next_offs.value();
+    if (!end()) {
+      ++m_n_visited;
+    } else {
+      if (page_rec_is_comp(m_cur.rec) &&
+          rec_get_status(m_cur.rec) != REC_STATUS_SUPREMUM) {
+        return false;
+      }
+    }
+
+    /* Check if there are no cycles, we should not visit more than user records
+    stored in the header. */
+    return m_n_visited <= m_n_recs;
+  }
 
   /**
   @return the current record */
   rec_t *current() UNIV_NOTHROW {
     ut_ad(!end());
-    return (page_cur_get_rec(&m_cur));
+    return m_cur.rec;
   }
 
   /**
   @return true if cursor is at the end */
-  bool end() UNIV_NOTHROW { return (page_cur_is_after_last(&m_cur) == true); }
+  bool end() UNIV_NOTHROW { return page_rec_is_supremum(m_cur.rec); }
 
   /** Remove the current record
   @return true on success */
   bool remove(const dict_index_t *index, ulint *offsets) UNIV_NOTHROW {
+    ut_ad(m_cur.block != nullptr);
+
     /* We can't end up with an empty page unless it is root. */
     if (page_get_n_recs(m_cur.block->frame) <= 1) {
       return (false);
@@ -359,6 +405,8 @@ class RecIterator {
 
  private:
   page_cur_t m_cur;
+  size_t m_n_recs{};
+  size_t m_n_visited{};
 };
 
 /** Class that purges delete marked records from indexes, both secondary
@@ -881,6 +929,13 @@ class PageConverter : public AbstractCallback {
   dberr_t operator()(os_offset_t offset,
                      buf_block_t *block) override UNIV_NOTHROW;
 
+  /** Validate index page record links and record types.
+  @param page page to validate
+  @param index index containing the page record type definition
+  @retval DB_SUCCESS or error code */
+  [[nodiscard]] static dberr_t validate_index_page_records_links_and_types(
+      const page_t *page, const dict_index_t *index) UNIV_NOTHROW;
+
  private:
   /** Status returned by PageConverter::validate() */
   enum import_page_status_t {
@@ -906,66 +961,88 @@ class PageConverter : public AbstractCallback {
   /** Update the space, index id, trx id.
   @param block block to convert
   @return DB_SUCCESS or error code */
-  dberr_t update_index_page(buf_block_t *block) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t update_index_page(buf_block_t *block) UNIV_NOTHROW;
+
+  /** Validate index page record links and record types.
+  @param block block to validate
+  @retval DB_SUCCESS or error code */
+  [[nodiscard]] dberr_t validate_index_page_records_links_and_types(
+      buf_block_t *block) UNIV_NOTHROW;
+
+  /** Validate that record metadata read by rec_get_offsets() is on page.
+  @param index the index being imported
+  @param rec record to validate
+  @return true iff the record metadata is valid and fully within the page. */
+  [[nodiscard]] bool check_rec_metadata(const dict_index_t *index,
+                                        rec_t *rec) const UNIV_NOTHROW;
 
   /** Update the BLOB references and write UNDO log entries for
   rows that can't be purged optimistically.
-  @param block block to update
+  @param block page read from file.
   @retval DB_SUCCESS or error code */
-  dberr_t update_records(buf_block_t *block) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t update_records(buf_block_t *block) UNIV_NOTHROW;
 
   /** Validate the page, check for corruption.
   @param        offset  physical offset within file.
   @param        block   page read from file.
   @return 0 on success, 1 if all zero, 2 if corrupted */
-  import_page_status_t validate(os_offset_t offset,
-                                buf_block_t *block) UNIV_NOTHROW;
+  [[nodiscard]] import_page_status_t validate(os_offset_t offset,
+                                              buf_block_t *block) UNIV_NOTHROW;
 
   /** Validate the space flags and update tablespace header page.
   @param block block read from file, not from the buffer pool.
   @retval DB_SUCCESS or error code */
-  dberr_t update_header(buf_block_t *block) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t update_header(buf_block_t *block) UNIV_NOTHROW;
 
   /** Adjust the BLOB reference for a single column that is externally stored
   @param rec record to update
   @param offsets column offsets for the record
   @param i column ordinal value
   @return DB_SUCCESS or error code */
-  dberr_t adjust_cluster_index_blob_column(rec_t *rec, const ulint *offsets,
-                                           ulint i) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t adjust_cluster_index_blob_column(rec_t *rec,
+                                                         const ulint *offsets,
+                                                         ulint i) UNIV_NOTHROW;
 
   /** Adjusts the BLOB reference in the clustered index row for all
   externally stored columns.
   @param rec record to update
   @param offsets column offsets for the record
   @return DB_SUCCESS or error code */
-  dberr_t adjust_cluster_index_blob_columns(rec_t *rec,
-                                            const ulint *offsets) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t adjust_cluster_index_blob_columns(
+      rec_t *rec, const ulint *offsets) UNIV_NOTHROW;
 
   /** In the clustered index, adjist the BLOB pointers as needed.
   Also update the BLOB reference, write the new space id.
   @param rec record to update
   @param offsets column offsets for the record
   @return DB_SUCCESS or error code */
-  dberr_t adjust_cluster_index_blob_ref(rec_t *rec,
-                                        const ulint *offsets) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t adjust_cluster_index_blob_ref(
+      rec_t *rec, const ulint *offsets) UNIV_NOTHROW;
+
+  /** Checks the m_offsets generated for the supplied record are safe to
+  dereference on the page the record is stored in.
+  @param index the index being converted
+  @param rec record for which the m_offsets were generated.
+  @return DB_SUCCESS if the offsets are valid and DB_CORRUPTION otherwise. */
+  [[nodiscard]] dberr_t check_rec_offsets(const dict_index_t *index,
+                                          rec_t *rec) UNIV_NOTHROW;
 
   /** Purge delete-marked records, only if it is possible to do so without
   re-organising the B+tree.
   @return true if purge succeeded */
-  bool purge() UNIV_NOTHROW;
+  [[nodiscard]] bool purge() UNIV_NOTHROW;
 
   /** Adjust the BLOB references and sys fields for the current record.
   @param index the index being converted
   @param rec record to update
   @param offsets column offsets for the record
   @return DB_SUCCESS or error code. */
-  dberr_t adjust_cluster_record(const dict_index_t *index, rec_t *rec,
-                                const ulint *offsets) UNIV_NOTHROW;
+  [[nodiscard]] dberr_t adjust_cluster_record(
+      const dict_index_t *index, rec_t *rec, const ulint *offsets) UNIV_NOTHROW;
 
   /** Find an index with the matching id.
   @return row_index_t* instance or 0 */
-  row_index_t *find_index(space_index_t id) UNIV_NOTHROW {
+  [[nodiscard]] row_index_t *find_index(space_index_t id) UNIV_NOTHROW {
     row_index_t *index = &m_cfg->m_indexes[0];
 
     for (ulint i = 0; i < m_cfg->m_n_indexes; ++i, ++index) {
@@ -2289,8 +2366,6 @@ void IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW {
   mtr_commit(&m_mtr);
 }
 
-/**
-Purge delete-marked records. */
 void IndexPurge::purge() UNIV_NOTHROW {
   m_pcur.store_position(&m_mtr);
 
@@ -2379,12 +2454,9 @@ dberr_t PageConverter::adjust_cluster_index_blob_columns(
     /* Only if the column is stored "externally". */
 
     if (rec_offs_nth_extern(m_cluster_index, offsets, i)) {
-      dberr_t err;
-
-      err = adjust_cluster_index_blob_column(rec, offsets, i);
-
+      const auto err = adjust_cluster_index_blob_column(rec, offsets, i);
       if (err != DB_SUCCESS) {
-        return (err);
+        return err;
       }
     }
   }
@@ -2400,16 +2472,428 @@ BLOB reference, write the new space id.
 dberr_t PageConverter::adjust_cluster_index_blob_ref(
     rec_t *rec, const ulint *offsets) UNIV_NOTHROW {
   if (rec_offs_any_extern(offsets)) {
-    dberr_t err;
+    return adjust_cluster_index_blob_columns(rec, offsets);
+  }
 
-    err = adjust_cluster_index_blob_columns(rec, offsets);
+  return DB_SUCCESS;
+}
 
-    if (err != DB_SUCCESS) {
-      return (err);
+/** Checks whether a byte span is contained in the usable data area of a page.
+@param[in] ptr   Start of the span to check.
+@param[in] len   Length of the span in bytes.
+@param[in] page  Start address of the page frame.
+@return true if the span [@p ptr, @p ptr + @p len) is fully contained
+within the data area of @p page. */
+[[nodiscard]] static bool is_span_within_page(const byte *ptr, size_t len,
+                                              const page_t *page) {
+  ut_ad(page_align(page) == page);
+  const auto int_page = reinterpret_cast<uintptr_t>(page);
+  const auto int_ptr = reinterpret_cast<uintptr_t>(ptr);
+
+  /* Make sure the `int_ptr + len` does not overflow by limiting the possible
+  length. */
+  return len < UNIV_PAGE_SIZE && int_page + FIL_PAGE_DATA <= int_ptr &&
+         int_ptr + len <= int_page + UNIV_PAGE_SIZE - FIL_PAGE_DATA_END;
+}
+
+#ifdef UNIV_ROW_IMPORT_DBG
+/** Access guarded metadata-check state without exposing it from rec.h. */
+class Row_import_metadata_check_guard_state {
+ public:
+  /** Return whether a guarded check sampled every 2^sample_shift calls should
+  run. */
+  [[nodiscard]] static bool should_check(uint8_t sample_shift) {
+    if (s_depth == 0) {
+      return false;
+    }
+
+    ut_ad(sample_shift < 64);
+
+    static thread_local uint64_t sample_count;
+    return (++sample_count & ((uint64_t{1} << sample_shift) - 1)) == 0;
+  }
+
+ private:
+  friend class Row_import_metadata_check_guard;
+  static thread_local uint64_t s_depth;
+};
+
+thread_local uint64_t Row_import_metadata_check_guard_state::s_depth;
+#endif /* UNIV_ROW_IMPORT_DBG */
+
+/** Decode the number of fields for one new-style leaf-page record without
+asserting on malformed metadata.
+
+This encoding is used by tables after instant ADD COLUMN.
+
+The regular record parser, `rec_get_offsets()`, also uses this function for
+copied records outside page frames. Page bounds are checked only when
+explicitly requested or while a row-import metadata-check guard is active.
+@param[in]      page                      frame used for bounds checking.
+                                          Ignored when bounds checking is
+                                          disabled.
+@param[in]      ptr                       last byte of the encoded field count
+@param[out]     n_fields                  decoded number of fields
+@param[out]     length                    length of the encoded field count
+@param[in]      force_page_boundary_check validate page bounds even outside a
+                                          guarded parser scope
+@return true if the field count matches parser constraints and, when requested,
+bytes read are inside the page */
+[[nodiscard]] bool row_import_rec_get_n_fields_instant_checked(
+    const page_t *page, const byte *ptr, uint16_t *n_fields, uint16_t *length,
+    bool force_page_boundary_check) {
+  /* This is a copy of rec_get_n_fields_instant() that does not have debug
+  assertions for malformed field counts. We make sure we report corruption
+  instead of assertions. This method is stable, the disk format is not supposed
+  to be altered. */
+#ifdef UNIV_ROW_IMPORT_DBG
+  const bool check_page_bounds =
+      force_page_boundary_check ||
+      Row_import_metadata_check_guard_state::should_check(0);
+#else
+  const bool check_page_bounds = force_page_boundary_check;
+#endif /* UNIV_ROW_IMPORT_DBG */
+
+  if (check_page_bounds && !is_span_within_page(ptr, 1, page)) {
+    return false;
+  }
+
+  if ((*ptr & REC_N_FIELDS_TWO_BYTES_FLAG) == 0) {
+    *length = 1;
+    *n_fields = *ptr;
+    return *n_fields > 0;
+  }
+
+  if (check_page_bounds && !is_span_within_page(ptr - 1, 2, page)) {
+    return false;
+  }
+
+  *length = 2;
+  *n_fields = ((*ptr-- & REC_N_FIELDS_ONE_BYTE_MAX) << 8);
+  *n_fields |= *ptr;
+
+  return *n_fields > 0 && *n_fields < REC_MAX_N_FIELDS;
+}
+
+#ifdef UNIV_ROW_IMPORT_DBG
+Row_import_metadata_check_guard::Row_import_metadata_check_guard() {
+  ++Row_import_metadata_check_guard_state::s_depth;
+}
+
+Row_import_metadata_check_guard::~Row_import_metadata_check_guard() {
+  ut_ad(Row_import_metadata_check_guard_state::s_depth > 0);
+  --Row_import_metadata_check_guard_state::s_depth;
+}
+
+/** Decide whether the global rec_get_offsets() debug hook may compare its
+regular parser result with the import metadata checker.
+The caller must already be in an enabled Row_import_metadata_check_guard scope -
+that guarded scope is the proof that rec belongs to a valid page. This predicate
+only filters out record classes that row import metadata parsing does not
+support.
+@param[in] rec record passed to rec_get_offsets()
+@param[in] index index passed to rec_get_offsets()
+@return true if rec is an ordinary user record on an index leaf page where the
+regular parser and row import metadata checker must agree. */
+static bool row_import_is_rec_metadata_check_applicable(
+    const rec_t *rec, const dict_index_t *index) {
+  /* Change-buffer records use InnoDB's internal insert-buffer schema, not the
+  imported table's row format contract this checker is meant to cross-check. */
+  if (dict_index_is_ibuf(index)) {
+    return false;
+  }
+
+  /* Recovery can parse records while pages and dictionary state are being
+  reconstructed. The regular parser must work there, but the import checker is
+  an import-time corruption guard that assumes stable page/dict metadata. */
+  if (recv_recovery_on) {
+    return false;
+  }
+
+  const auto *page = page_align(rec);
+
+  /* Non-leaf records carry B-tree node-pointer payload, so their metadata does
+  not have to match the row-record metadata accepted by transportable import. */
+  if (!page_is_leaf(page)) {
+    return false;
+  }
+
+  /* rec_get_offsets() can be called for infimum/supremum during page
+  validation, but the import metadata parser models only user records. */
+  return page_rec_is_user_rec(rec);
+}
+#endif /* UNIV_ROW_IMPORT_DBG */
+
+/** Validate REDUNDANT record metadata on imported page, not assuming page
+correctness.
+@param index the index being imported
+@param rec record to validate
+@return true iff the record metadata is valid and fully within the page. */
+[[nodiscard]] bool row_import_rec_check_old_metadata(const dict_index_t *index,
+                                                     const rec_t *rec) {
+  const auto *page = page_align(rec);
+
+  /* We are accumulating the value, its type has to be big enough. */
+  auto extra_size = size_t{REC_N_OLD_EXTRA_BYTES};
+  if (!is_span_within_page(rec - extra_size, extra_size, page)) {
+    return false;
+  }
+
+  /* Inline rec_get_n_fields_old_raw(). It asserts on zero or too-large field
+  counts, which are corruption errors for transportable tablespace import. */
+  const uint16_t n_fields = rec_get_bit_field_2(
+      rec, REC_OLD_N_FIELDS, REC_OLD_N_FIELDS_MASK, REC_OLD_N_FIELDS_SHIFT);
+
+  const auto index_n_fields = dict_index_get_n_fields(index);
+  /* Validate the field count more strictly than rec_get_n_fields_old_raw() as
+  we have the index the record should comply to.  */
+  if (n_fields == 0 || n_fields > index_n_fields) {
+    return false;
+  }
+  /* The row can have less than number of columns in the index only for
+  versioned indexes. And only clustered index can be versioned, as asserted in
+  the has_instant_cols_or_row_versions(). */
+  if (n_fields != index_n_fields &&
+      (!index->is_clustered() || !index->has_instant_cols_or_row_versions())) {
+    return false;
+  }
+
+  /* This part copies logic from the rec_init_offsets_old(), but instead of
+  assertions and unchecked reads, we report any issues as corruption. */
+  if (rec_old_is_versioned(rec)) {
+    ++extra_size;
+
+    /* Inline rec_get_instant_row_version_old(). It has a debug assertion for
+    invalid row versions; here an invalid version means corrupted input. */
+    const auto *row_version = rec - extra_size;
+    if (!is_span_within_page(row_version, 1, page)) {
+      return false;
+    }
+    if (!is_valid_row_version(static_cast<row_version_t>(*row_version))) {
+      return false;
+    }
+    if (!index->is_clustered()) {
+      return false;
+    }
+    if (!index->has_row_versions() &&
+        (!index->table->is_upgraded_instant() || *row_version != 0)) {
+      return false;
     }
   }
 
-  return (DB_SUCCESS);
+  extra_size += rec_get_1byte_offs_flag(rec) ? n_fields : 2U * n_fields;
+
+  if (!is_span_within_page(rec - extra_size, extra_size, page)) {
+    return false;
+  }
+
+  return true;
+}
+
+/** Validate compact record metadata on imported page, not assuming page
+correctness.
+@param index the index being imported
+@param rec record to validate
+@return true iff the record metadata is valid and fully within the page. */
+[[nodiscard]] bool row_import_rec_check_comp_metadata(const dict_index_t *index,
+                                                      const rec_t *rec) {
+  const auto *page = page_align(rec);
+
+  if (!is_span_within_page(rec - REC_N_NEW_EXTRA_BYTES, REC_N_NEW_EXTRA_BYTES,
+                           page)) {
+    return false;
+  }
+
+  const auto *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+  uint16_t n_null = 0;
+  auto non_default_fields = dict_index_get_n_fields(index);
+  row_version_t row_version = INVALID_ROW_VERSION;
+  static_assert(MAX_ROW_VERSION <= UINT8_MAX,
+                "This method assumes record version is one byte");
+  auto rec_insert_state =
+      REC_INSERT_STATE::INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION;
+
+  /* This block is based on rec_init_null_and_len_comp(). Malformed imported
+  metadata is reported as corruption instead of reaching debug assertions. It
+  identifies which optional metadata precedes the NULL bitmap: row version for
+  new instant rows, or encoded non-default field count for old instant rows. */
+  if (!index->has_instant_cols_or_row_versions()) {
+    n_null = index->n_nullable;
+  } else {
+    /* This block is based on get_rec_insert_state(). */
+    const auto is_versioned = rec_new_is_versioned(rec);
+    const auto is_instant = rec_get_instant_flag_new(rec);
+
+    if (is_versioned && is_instant) {
+      return false;
+    }
+
+    if (is_versioned) {
+      if (!is_span_within_page(nulls, 1, page)) {
+        return false;
+      }
+
+      row_version = static_cast<row_version_t>(*nulls);
+      --nulls;
+      if (!is_valid_row_version(row_version)) {
+        return false;
+      }
+
+      rec_insert_state =
+          row_version == 0
+              ? REC_INSERT_STATE::
+                    INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION
+              : REC_INSERT_STATE::INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION;
+      n_null = index->get_nullable_in_version(row_version);
+    } else if (is_instant) {
+      uint16_t length;
+
+      rec_insert_state =
+          REC_INSERT_STATE::INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION;
+      /* rec_init_null_and_len_comp() reads the old instant field count through
+      rec_get_n_fields_instant(); use the checked copy above so malformed
+      imported data is returned as corruption. */
+      if (!row_import_rec_get_n_fields_instant_checked(
+              page, nulls, &non_default_fields, &length, true) ||
+          non_default_fields > dict_index_get_n_fields(index)) {
+        return false;
+      }
+
+      nulls -= length;
+      n_null = index->calculate_n_instant_nullable(non_default_fields);
+    } else if (index->table->has_instant_cols()) {
+      rec_insert_state =
+          REC_INSERT_STATE::INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION;
+      n_null = index->get_nullable_before_instant_add_drop();
+      non_default_fields = index->get_instant_fields();
+    } else {
+      rec_insert_state =
+          REC_INSERT_STATE::INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION;
+      n_null = index->get_nullable_before_instant_add_drop();
+    }
+  }
+
+  if (rec_insert_state ==
+      REC_INSERT_STATE::INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION) {
+    row_version = 0;
+  }
+
+  if (n_null > dict_index_get_n_fields(index)) {
+    return false;
+  }
+
+  const auto null_bytes = UT_BITS_IN_BYTES(n_null);
+  const auto *lens = nulls - null_bytes;
+  /* rec_init_null_and_len_comp() places the NULL bitmap immediately before the
+  optional metadata handled above, so validate the whole bitmap range before the
+  field loop starts consuming individual bits. */
+  if (null_bytes > 0 && !is_span_within_page(lens + 1, null_bytes, page)) {
+    return false;
+  }
+
+  ulint null_mask = 1;
+  uint16_t remaining_null = n_null;
+
+  /* This loop is based on rec_init_offsets_comp_ordinary(), but it only checks
+  the metadata bytes that method would read while advancing nulls/lens. Data
+  field end offsets are calculated by rec_get_offsets() and checked later by
+  check_rec_offsets(). */
+  for (uint16_t i = 0; i < dict_index_get_n_fields(index); ++i) {
+    const auto *field = index->get_physical_field(i);
+    const auto *col = field->col;
+
+    switch (rec_insert_state) {
+      case REC_INSERT_STATE::INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION:
+        [[fallthrough]];
+
+      case REC_INSERT_STATE::
+          INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION:
+      case REC_INSERT_STATE::INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION:
+        if (col->is_dropped_in_or_before(row_version) ||
+            col->is_added_after(row_version)) {
+          continue;
+        }
+        break;
+
+      case REC_INSERT_STATE::INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION:
+      case REC_INSERT_STATE::INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION:
+        if (i >= non_default_fields) {
+          continue;
+        }
+        break;
+
+      case REC_INSERT_STATE::INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION:
+        break;
+
+      case REC_INSERT_STATE::NONE:
+      default:
+        return false;
+    }
+
+    if (!(col->prtype & DATA_NOT_NULL)) {
+      if (remaining_null == 0) {
+        return false;
+      }
+
+      --remaining_null;
+      if (UNIV_UNLIKELY(!(byte)null_mask)) {
+        /* The whole null bitmap was already confirmed to be within the page
+        content, no need to check it again. */
+        nulls--;
+        null_mask = 1;
+      }
+
+      if (*nulls & null_mask) {
+        null_mask <<= 1;
+        continue;
+      }
+      null_mask <<= 1;
+    }
+
+    if (!field->fixed_len) {
+      if (!is_span_within_page(lens, 1, page)) {
+        return false;
+      }
+
+      const auto len = *lens--;
+      if (DATA_BIG_COL(col) && (len & 0x80)) {
+        if (!is_span_within_page(lens, 1, page)) {
+          return false;
+        }
+
+        lens--;
+      }
+    }
+  }
+
+  return true;
+}
+
+bool PageConverter::check_rec_metadata(const dict_index_t *index,
+                                       rec_t *rec) const UNIV_NOTHROW {
+  return dict_table_is_comp(index->table)
+             ? row_import_rec_check_comp_metadata(index, rec)
+             : row_import_rec_check_old_metadata(index, rec);
+}
+
+dberr_t PageConverter::check_rec_offsets(const dict_index_t *index,
+                                         rec_t *rec) UNIV_NOTHROW {
+  const auto n_fields = rec_offs_n_fields(m_offsets);
+  const auto *page = page_align(rec);
+  for (auto i = 0U; i < n_fields; ++i) {
+    ulint len;
+    const auto *field = rec_get_nth_field(index, rec, m_offsets, i, &len);
+
+    if (len == UNIV_SQL_NULL || len == UNIV_SQL_ADD_COL_DEFAULT ||
+        len == UNIV_SQL_INSTANT_DROP_COL) {
+      continue;
+    }
+
+    if (!is_span_within_page(field, len, page)) {
+      return DB_CORRUPTION;
+    }
+  }
+  return DB_SUCCESS;
 }
 
 bool PageConverter::purge() UNIV_NOTHROW {
@@ -2425,6 +2909,90 @@ bool PageConverter::purge() UNIV_NOTHROW {
   }
 
   return (false);
+}
+
+dberr_t PageConverter::validate_index_page_records_links_and_types(
+    const page_t *page, const dict_index_t *index) UNIV_NOTHROW {
+  const auto comp = dict_table_is_comp(index->table);
+  ulint n_recs = 0;
+
+  if (page_is_comp(page) != comp) {
+    return DB_CORRUPTION;
+  }
+
+  RecIterator rec_iter;
+  if (!rec_iter.open(const_cast<page_t *>(page))) {
+    return DB_CORRUPTION;
+  }
+
+  while (!rec_iter.end()) {
+    rec_t *rec = rec_iter.current();
+
+    ++n_recs;
+    if (n_recs > page_get_n_recs(page)) {
+      return DB_CORRUPTION;
+    }
+
+    if (comp) {
+      switch (rec_get_status(rec)) {
+        case REC_STATUS_ORDINARY:
+          if (!page_is_leaf(page)) {
+            return DB_CORRUPTION;
+          }
+          break;
+        case REC_STATUS_NODE_PTR:
+          if (page_is_leaf(page)) {
+            return DB_CORRUPTION;
+          }
+          break;
+        case REC_STATUS_INFIMUM:
+        case REC_STATUS_SUPREMUM:
+        default:
+          return DB_CORRUPTION;
+      }
+    }
+
+    if (!rec_iter.next()) {
+      return DB_CORRUPTION;
+    }
+  }
+
+  if (n_recs != page_get_n_recs(page)) {
+    return DB_CORRUPTION;
+  }
+
+  return DB_SUCCESS;
+}
+
+#ifdef UNIV_ROW_IMPORT_DBG
+void row_import_assert_rec_metadata_valid(const rec_t *rec,
+                                          const dict_index_t *index) {
+  /* Keep the global parser hook cheap in debug builds. This also skips calls
+  outside guarded page-parser scopes. */
+  if (!Row_import_metadata_check_guard_state::should_check(5)) {
+    return;
+  }
+
+  if (!row_import_is_rec_metadata_check_applicable(rec, index)) {
+    return;
+  }
+
+  ut_ad(dict_table_is_comp(index->table)
+            ? row_import_rec_check_comp_metadata(index, rec)
+            : row_import_rec_check_old_metadata(index, rec));
+}
+
+void row_import_assert_index_page_records_links_and_types_valid(
+    const page_t *page, const dict_index_t *index) {
+  ut_ad(PageConverter::validate_index_page_records_links_and_types(
+            page, index) == DB_SUCCESS);
+}
+#endif /* UNIV_ROW_IMPORT_DBG */
+
+dberr_t PageConverter::validate_index_page_records_links_and_types(
+    buf_block_t *block) UNIV_NOTHROW {
+  return validate_index_page_records_links_and_types(block->frame,
+                                                     m_index->m_srv_index);
 }
 
 dberr_t PageConverter::adjust_cluster_record(
@@ -2444,23 +3012,20 @@ dberr_t PageConverter::adjust_cluster_record(
   return (err);
 }
 
-/** Update the BLOB references and write UNDO log entries for
-rows that can't be purged optimistically.
-@param block block to update
-@retval DB_SUCCESS or error code */
 dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
-  auto comp = dict_table_is_comp(m_cfg->m_table);
-  bool clust_index = (m_index->m_srv_index == m_cluster_index) ||
-                     dict_index_is_sdi(m_index->m_srv_index);
+  const auto comp = dict_table_is_comp(m_index->m_srv_index->table);
+  const auto clust_index = (m_index->m_srv_index == m_cluster_index) ||
+                           dict_index_is_sdi(m_index->m_srv_index);
 
   /* This will also position the cursor on the first user record. */
-
-  m_rec_iter.open(block);
+  if (!m_rec_iter.open(block)) {
+    return DB_CORRUPTION;
+  }
 
   while (!m_rec_iter.end()) {
     rec_t *rec = m_rec_iter.current();
 
-    auto has_version =
+    const auto has_version =
         (comp ? rec_new_is_versioned(rec) : rec_old_is_versioned(rec));
 
     /* CFG file is required to process records having version */
@@ -2469,19 +3034,28 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
       return (DB_SCHEMA_MISMATCH);
     }
 
-    auto deleted = rec_get_deleted_flag(rec, comp);
+    const auto deleted = rec_get_deleted_flag(rec, comp);
     /* For the clustered index we have to adjust the BLOB
     reference and the system fields irrespective of the
     delete marked flag. The adjustment of delete marked
     cluster records is required for purge to work later. */
 
     if (deleted || clust_index) {
+      if (!check_rec_metadata(m_index->m_srv_index, rec)) {
+        return DB_CORRUPTION;
+      }
+
       m_offsets = rec_get_offsets(rec, m_index->m_srv_index, m_offsets,
                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
+      const auto offsets_err = check_rec_offsets(m_index->m_srv_index, rec);
+      if (offsets_err != DB_SUCCESS) {
+        return offsets_err;
+      }
     }
 
     if (clust_index) {
-      dberr_t err = adjust_cluster_record(m_index->m_srv_index, rec, m_offsets);
+      const auto err =
+          adjust_cluster_record(m_index->m_srv_index, rec, m_offsets);
 
       if (err != DB_SUCCESS) {
         return (err);
@@ -2496,13 +3070,17 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
       next record. */
 
       if (!purge()) {
-        m_rec_iter.next();
+        if (!m_rec_iter.next()) {
+          return DB_CORRUPTION;
+        }
       }
 
       ++m_index->m_stats.m_n_deleted;
     } else {
       ++m_index->m_stats.m_n_rows;
-      m_rec_iter.next();
+      if (!m_rec_iter.next()) {
+        return DB_CORRUPTION;
+      }
     }
   }
 
@@ -2558,6 +3136,11 @@ dberr_t PageConverter::update_index_page(buf_block_t *block) UNIV_NOTHROW {
     }
 
     return (DB_SUCCESS);
+  }
+
+  const auto err = validate_index_page_records_links_and_types(block);
+  if (err != DB_SUCCESS) {
+    return err;
   }
 
   if (!page_is_leaf(block->frame)) {
@@ -2846,21 +3429,25 @@ static void row_import_discard_changes(
 
   ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
-  /* Since we update the index root page numbers on disk after
-  we've done a successful import. The table will not be loadable.
-  However, we need to ensure that the in memory root page numbers
-  are reset to "NULL". We assume these indexes were not added to AHI, otherwise
-  the btr_search_drop_page_hash_index() will fail for these indexes. */
+  /* The persistent DD is updated with imported index root page numbers only
+  after IMPORT succeeds. On failure, invalidate the roots in the in-memory
+  dictionary so B-tree operations cannot use stale root page numbers, and mark
+  the tablespace missing below.
+
+  Keep index->space intact so lazy AHI cleanup can match stale buffer-pool pages
+  to their indexes. Such pages can remain after the tablespace is closed and
+  still refer to these dict_index_t objects. */
 
   for (auto index : table->indexes) {
     index->page = FIL_NULL;
-    index->space = FIL_NULL;
   }
 
   table->ibd_file_missing = true;
 
   err = fil_close_tablespace(table->space);
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
+
+  DEBUG_SYNC_C("row_import_discard_changes_after_close_tablespace");
 }
 
 /** Clean up after import tablespace. */
@@ -4535,9 +5122,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       err = cfg.match_schema(trx->mysql_thd, table_def);
     }
 
-    /* Update index->page and SYS_INDEXES.PAGE_NO to match the
-    B-tree root page numbers in the tablespace. Use the index
-    name from the .cfg file to find match. */
+    /* Set the in-memory index roots from the B-tree root page numbers in the
+    .cfg file. The persistent DD is updated only after IMPORT succeeds. */
 
     if (err == DB_SUCCESS) {
       cfg.set_root_by_name();
@@ -4583,9 +5169,9 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     if (err == DB_SUCCESS) {
       err = fetchIndexRootPages.build_row_import(&cfg);
 
-      /* Update index->page and SYS_INDEXES.PAGE_NO
-      to match the B-tree root page numbers in the
-      tablespace. */
+      /* Set the in-memory index roots from B-tree root page numbers discovered
+      in the tablespace. The persistent DD is updated only after IMPORT
+      succeeds. */
 
       if (err == DB_SUCCESS) {
         err = cfg.set_root_by_heuristic();

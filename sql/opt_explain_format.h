@@ -538,6 +538,14 @@ class Explain_format {
   virtual bool is_hierarchical() const = 0;
 
   /**
+    Whether the format is EXPLAIN FORMAT=TREE.
+
+    @retval true        Tree explain format.
+    @retval false       Any other explain format.
+  */
+  [[nodiscard]] virtual bool is_tree() const { return false; }
+
+  /**
     Whether the format closely resembles the final plan to be executed by
     execution iterators (See RowIterator). These formats share a common logic
     that uses AccessPath structure to generate the information, so they all

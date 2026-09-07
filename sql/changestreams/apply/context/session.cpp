@@ -47,7 +47,6 @@ Session::Session(THD *, std::size_t seq_num)
   PSI_THREAD_CALL(set_thread_THD)(psi, m_thd);
   m_thd->set_psi(psi);
 #endif
-  mysql_thread_set_psi_id(m_thd->thread_id());
 
   Session_guard replace_guard(m_thd);
   m_thd->thread_stack = (char *)&m_thd;

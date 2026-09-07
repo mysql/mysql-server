@@ -36,13 +36,16 @@ class EnableComReq {
   friend class TrpmanProxy;
 
  public:
-  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 SignalLength = 5;
 
  private:
   Uint32 m_senderRef;
   Uint32 m_senderData;
-  Uint32 m_enableNodeId;
+  Uint32 m_enableNodeId;  // 0 means use m_nodeIds instead
   Uint32 m_dbHbSender;    // Qmgr::cneighbourl
+  // Heartbeat interval for m_enableNodeId, or all nodes in m_nodeIds when
+  // m_enableNodeId is 0. It is not specifically for m_dbHbSender.
+  Uint32 m_heartbeatInterval;
   NodeBitmask m_nodeIds;  // Not part of signal, but first section
 };
 

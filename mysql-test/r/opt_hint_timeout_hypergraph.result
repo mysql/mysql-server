@@ -23,6 +23,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint MAX_EXECUTION_TIME(100) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ MAX_EXECUTION_TIME(10) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`
 DROP TABLE t1;
 
 # test the MAX_EXECUTION_TIME hint for SELECT statements:

@@ -1620,13 +1620,15 @@ INSERT INTO t1 VALUES (3,15),(6,8),(20,6),(15,6),(18,5),(17,5),
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 PRIMARY,col_int_key) */ *
+FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key	col_int_key	5	NULL	20	28.89	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
-SELECT * FROM t1 WHERE pk IN (6,2)
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `PRIMARY`, `col_int_key`) */ `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
+SELECT /*+ INDEX_MERGE(t1 PRIMARY,col_int_key) */ *
+FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 pk	col_int_key
 2	1
@@ -1636,13 +1638,15 @@ ALTER TABLE t1 ADD INDEX key2 (col_int_key);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1 FORCE INDEX (key1,key2) WHERE pk IN (6,2)
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 key1,key2) */ *
+FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	4,5	NULL	3	100.00	Using sort_union(key1,key2); Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,col_int_key,key1,key2	key1,key2	4,5	NULL	3	100.00	Using sort_union(key1,key2); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` FORCE INDEX (`key2`) FORCE INDEX (`key1`) where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
-SELECT * FROM t1 FORCE INDEX (key1,key2) WHERE pk IN (6,2)
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `key1`, `key2`) */ `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
+SELECT /*+ INDEX_MERGE(t1 key1,key2) */ *
+FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 pk	col_int_key
 2	1

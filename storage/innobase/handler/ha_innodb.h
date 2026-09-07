@@ -591,6 +591,9 @@ class ha_innobase : public handler {
   @return error code. */
   int bulk_load_end(THD *thd, void *load_ctx, bool is_error) override;
 
+  int bulk_load_preserve_auto_increment(
+      ulonglong auto_increment_value) override;
+
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
 

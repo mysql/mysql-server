@@ -356,6 +356,7 @@ int main(int argc, char **argv) {
   if (!(mysql_init(&mysql))) {
     fprintf(stderr, "%s: mysql_init() failed ERROR : %s\n", my_progname,
             mysql_error(&mysql));
+    mysql_server_end();
     my_end(0);
     return EXIT_FAILURE;
   }
@@ -363,6 +364,7 @@ int main(int argc, char **argv) {
   if (set_mysql_options(&mysql) != 0) {
     fprintf(stderr, "%s: set_mysql_options() failed\n", my_progname);
     mysql_close(&mysql);
+    mysql_server_end();
     my_end(0);
     return EXIT_FAILURE;
   }
@@ -374,12 +376,14 @@ int main(int argc, char **argv) {
       fprintf(stderr, "%s: Error when connecting to server: %s\n", my_progname,
               mysql_error(&mysql));
       mysql_close(&mysql);
+      mysql_server_end();
       my_end(0);
       return EXIT_FAILURE;
     }
     if (ssl_client_check_post_connect_ssl_setup(
             &mysql, [](const char *err) { fprintf(stderr, "%s\n", err); })) {
       mysql_close(&mysql);
+      mysql_server_end();
       my_end(0);
       return EXIT_FAILURE;
     }

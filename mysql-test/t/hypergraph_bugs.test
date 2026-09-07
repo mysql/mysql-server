@@ -3316,4 +3316,398 @@ SELECT 1 WHERE EXISTS (
 DROP TABLE t_small;
 DROP TABLE t_union;
 
+--echo #
+--echo # Bug 36784038 - Explain TREE format does not display
+--echo #.               transformed query like TRADITIONAL format
+--echo #
+
+CREATE TABLE t1 (f1 integer);
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) AS dt WHERE f1 > 10;
+--enable_warnings
+SHOW WARNINGS;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#37543247 Missing optimization in hypergraph in case of
+--echo #              multi-valued index
+--echo #
+
+# Table t1: KEY(arr, id) with id also PRIMARY KEY.
+# Anti-correlated ids/array values so wrong sort elision is observable.
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (id),
+  KEY k_arr_id ((CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t1 VALUES
+  (1,'[20,30]'), (2,'[40]'),     (3,'[30]'),   (4,'[10,30]'),
+  (5,'[50]'),    (6,'[30,30]'),  (7,'[]'),     (8,'[10,20,30]'),
+  (9,'[10]'),    (10,'[30]');
+ANALYZE TABLE t1;
+
+# Case 1a: MEMBER OF pins array keypart -> ORDER BY id DESC uses
+# reverse MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 1b: same, ORDER BY id ASC -> forward ordered MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 6: two disjoint trailing ranges sharing the same array prefix
+# value -> ordered MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND (id < 3 OR id > 7)
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 7a: JSON_OVERLAPS with a single value -> one array point range,
+# ordered MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_OVERLAPS(j->'$[*]', '[30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 7b: JSON_CONTAINS with a single value -> ordered MVI range,
+# no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_CONTAINS(j->'$[*]', '[30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 8a: JSON_OVERLAPS with two distinct values -> ranges do not share
+# one array value, Sort must be retained.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_OVERLAPS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 8b: JSON_CONTAINS with two distinct values -> Sort retained.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_CONTAINS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 9: JSON_OVERLAPS multi-value materialized as the range plus a
+# residual MEMBER OF on the same column -> Sort retained; a MEMBER OF
+# in the WHERE clause must not by itself grant ordering.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_OVERLAPS(j->'$[*]', '[10,20]')
+               AND 30 MEMBER OF (j->'$[*]')
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 12: row with duplicate array values [30,30] must be returned once.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND id BETWEEN 5 AND 7
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 11: full-index guard. Multi-element and empty-array rows exist;
+# a full MVI scan would duplicate id=8 and drop id=7. No range predicate
+# is available, so the plan must not use k_arr_id at all.
+let $query = SELECT /*+ NO_RANGE_OPTIMIZATION(t1) */ id
+             FROM t1 FORCE INDEX (k_arr_id) ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t1;
+
+# Table t2: KEY(arr, id) with id NOT the primary key.
+CREATE TABLE t2 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_arr_id ((CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t2 (id, j) VALUES
+  (1,'[20,30]'), (2,'[40]'),  (3,'[30]'), (4,'[10,30]'),
+  (5,'[50]'),    (6,'[30]'),  (8,'[10,20,30]');
+ANALYZE TABLE t2;
+
+# Case 2a: trailing non-PK keypart, ORDER BY id DESC -> reverse ordered
+# MVI range, no Sort.
+let $query = SELECT id FROM t2
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 2b: same, ORDER BY id ASC.
+let $query = SELECT id FROM t2
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 13: implicit PK extension on the MVI. ORDER BY id, pk DESC
+# follows the reverse ordering only when the extended PK part is used.
+let $query = SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC, pk DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let $query = SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t2;
+
+# Table t3: composite KEY(a, arr, id) with a leading scalar keypart.
+CREATE TABLE t3 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  a  INT NOT NULL,
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_a_arr_id (a, (CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t3 (a, id, j) VALUES
+  (1, 100, '[10,30]'), (1,   1, '[20,30]'), (1,  50, '[30]'),
+  (1,   4, '[10,30]'), (1, 200, '[30]'),
+  (2,   3, '[30]'),    (2,  90, '[10,30]'), (2,   2, '[30]');
+ANALYZE TABLE t3;
+
+# Case 3a: a = const AND MEMBER OF pins the whole prefix through the
+# array keypart -> ORDER BY id DESC uses reverse MVI range, no Sort.
+let $query = SELECT id FROM t3
+             WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 3b: same, ORDER BY id ASC.
+let $query = SELECT id FROM t3
+             WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+             ORDER BY id ASC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 4a: a > 0 leaves the array keypart unbound in the materialized
+# range. Physical order is (a, array_element, id); Sort must be retained.
+let $query = SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 4b: same with LIMIT so a wrongly elided Sort would return the
+# wrong first rows.
+let $query = SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id LIMIT 3;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 5: a IN (1,2) AND MEMBER OF -> two point prefixes with different
+# leading values, ORDER BY id must retain Sort (conservative).
+let $query = SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a IN (1,2) AND 30 MEMBER OF (j->'$[*]') ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 10: MVI prefix REF. NO_RANGE_OPTIMIZATION forces ref on a = 1;
+# the array keypart is not bound by REF, so the lookup is forward and
+# unordered and a Sort is required. Must not choose reverse REF.
+let $query = SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ a, id
+             FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t3;
+
+# Table t4: KEY(arr, id, c(10)) with a full key part and then a partial key
+# part after the array keypart. The ordering stops at the partial key part,
+# so ORDER BY id follows the index while ORDER BY c must keep its Sort.
+CREATE TABLE t4 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  id INT NOT NULL,
+  c  VARCHAR(50) NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_arr_id_c ((CAST(j->'$[*]' AS SIGNED ARRAY)), id, c(10))
+);
+INSERT INTO t4 (id, c, j) VALUES
+  (3,'ccc','[30]'),   (1,'aaa','[30]'), (5,'bbb','[10,30]'),
+  (9,'eee','[40]'),   (2,'ddd','[30]');
+ANALYZE TABLE t4;
+
+# The full suffix key part id before the partial part stays ordered: no Sort.
+let $query = SELECT id FROM t4 FORCE INDEX (k_arr_id_c)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# The partial key part c is excluded from the ordering: Sort must stay.
+let $query = SELECT c FROM t4 FORCE INDEX (k_arr_id_c)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY c DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t4;
+
+# Table t5: KEY(c(10), arr, id) with a partial key part before the array
+# keypart, so the array keypart itself is unusable and ORDER BY id must keep
+# its Sort even though c is bound to a single value.
+CREATE TABLE t5 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  c  VARCHAR(50) NOT NULL,
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_c_arr_id (c(10), (CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t5 (c, id, j) VALUES
+  ('aaa', 3, '[30]'),   ('aaa', 1, '[30]'), ('aaa', 5, '[10,30]'),
+  ('aaa', 2, '[30]'),   ('bbb', 9, '[30]');
+ANALYZE TABLE t5;
+
+let $query = SELECT id FROM t5 FORCE INDEX (k_c_arr_id)
+             WHERE c = 'aaa' AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t5;
+
+--echo #
+--echo # Bug#39822725: hypergraph_optimizer=on silently updates/deletes the
+--echo # wrong rows for single-table UPDATE/DELETE with ORDER BY when the WH
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60);
+INSERT INTO t2 VALUES (1), (3), (5), (7);
+ANALYZE TABLE t1, t2;
+
+let $update =
+     UPDATE t1 SET b = b + 1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+let $delete = DELETE FROM t1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+
+# To reproduce the bug, the target table of the UPDATE and DELETE
+# statements must be part of a hash join and have a sorting step after
+# the join. Verify the plan structure with EXPLAIN.
+--eval EXPLAIN FORMAT=JSON INTO @explain_update $update
+SELECT JSON_EXTRACT(@explain_update,
+                    '$.query_plan.inputs[0].access_type',
+                    '$.query_plan.inputs[0].inputs[0].join_algorithm') AS plan;
+--eval EXPLAIN FORMAT=JSON INTO @explain_delete $delete
+SELECT JSON_EXTRACT(@explain_delete,
+                    '$.query_plan.inputs[0].access_type',
+                    '$.query_plan.inputs[0].inputs[0].join_algorithm') AS plan;
+
+# Used to update row 6 instead of row 1 and 3.
+--eval $update
+SELECT * FROM t1 ORDER BY a;
+
+# Used to delete row 6 instead of row 1 and 3.
+--eval $delete
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1, t2;
+
+# Another problem related to bug#39822725 manifested itself when
+# updating a view that had a WITH CHECK OPTION.
+
+CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, a INT);
+INSERT INTO t1 VALUES
+  (), (), (), (), (), (), (), (), (), (),
+  (), (), (), (), (), (), (), (), (), (),
+  (), (), (), (), (), (), (), (), (), ();
+
+CREATE TABLE t2(a INT, b INT DEFAULT (a));
+INSERT INTO t2(a) VALUES (1), (3), (5), (7), (9), (11), (13), (15);
+
+CREATE TABLE t3(a INT);
+INSERT INTO t3 VALUES (3), (7), (15), (20);
+
+CREATE VIEW v1 AS
+  SELECT t1.* FROM t1, t2, t3
+  WHERE t1.id = t2.a AND t2.b = t3.a
+  WITH CHECK OPTION;
+
+ANALYZE TABLE t1, t2, t3;
+
+# To reproduce the bug, the target table of the UPDATE statement must
+# not be under a hash join, but the other tables referenced by the
+# CHECK OPTION (t2 and t3) must be under a hash join.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE UPDATE v1 SET a = 1;
+# The statement used to fail with "Can't find record".
+UPDATE v1 SET a = 1;
+SELECT ROW_COUNT();
+
+# Verify that rows were updated correctly.
+SELECT * FROM t1 WHERE a IS NOT NULL ORDER BY id;
+
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+
+# A buffered update of a view with CHECK OPTION also stores the row IDs of
+# non-updated tables used by the check condition. This case worked before the
+# bug fix, but was identified during review as lacking test coverage. Verify
+# that those row IDs are preserved when the target table is not the outermost
+# table of the join.
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (b INT PRIMARY KEY, c INT DEFAULT 0);
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2
+WITH RECURSIVE seq(n) AS (
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM seq WHERE n < 1000
+)
+SELECT n, 0 FROM seq;
+
+ANALYZE TABLE t1, t2;
+
+CREATE VIEW v1 AS
+SELECT t2.b, t2.c
+FROM t1 JOIN t2 ON t1.a = t2.b
+WITH CHECK OPTION;
+
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE
+UPDATE v1 SET c = c + 1;
+
+UPDATE v1 SET c = c + 1;
+SELECT ROW_COUNT();
+SELECT * FROM t2 WHERE b <= 3 ORDER BY b;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
 --source include/disable_hypergraph.inc

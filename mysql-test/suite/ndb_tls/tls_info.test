@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb_tls/include/check_openssl.inc
 
 # The server is up
 #
@@ -17,4 +16,3 @@ SELECT 1;
 
 # cleanup
 --remove_file $NDB_TOOLS_OUTPUT
-

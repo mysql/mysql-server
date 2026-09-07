@@ -24,14 +24,13 @@
 */
 
 /* Enable NDB code to use OpenSSL 3 APIs unconditionally
-   with any OpenSSL version starting from 1.0.2
+   with any OpenSSL version starting from 1.1.1
 */
 
 #ifndef NDB_PORTLIB_OPENSSL_COMPAT_H
 #define NDB_PORTLIB_OPENSSL_COMPAT_H
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
-#include "portlib/ndb_openssl_version.h"
 
 // Macro not defined in OpenSSL 1.x headers (Brought in via ssl.h for OSSL3.0)
 #ifndef SSL_R_UNEXPECTED_EOF_WHILE_READING
@@ -43,7 +42,35 @@
 #define X509_REQ_VERSION_1 0
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
+/* OpenSSL 3 made these X509_NAME arguments const. */
+static inline X509_NAME *ndb_x509_name_dup(const X509_NAME *name) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+  return X509_NAME_dup(const_cast<X509_NAME *>(name));
+#else
+  return X509_NAME_dup(name);
+#endif
+}
+
+static inline int ndb_x509_name_get_index_by_nid(const X509_NAME *name, int nid,
+                                                 int lastpos) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+  return X509_NAME_get_index_by_NID(const_cast<X509_NAME *>(name), nid,
+                                    lastpos);
+#else
+  return X509_NAME_get_index_by_NID(name, nid, lastpos);
+#endif
+}
+
+static inline const X509_NAME_ENTRY *ndb_x509_name_get_entry(
+    const X509_NAME *name, int loc) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+  return X509_NAME_get_entry(const_cast<X509_NAME *>(name), loc);
+#else
+  return X509_NAME_get_entry(name, loc);
+#endif
+}
+
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 
 EVP_PKEY *EVP_RSA_gen(unsigned int bits);
 int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
@@ -55,36 +82,5 @@ int X509_self_signed(X509 *cert, int verify_signature);
 #define EVP_EC_generate(curve) EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", curve)
 
 #endif /* OPENSSL_VERSION_NUMBER */
-
-/* These stub functions allow NDB TLS code to compile with OpenSSL 1.0.x */
-#if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
-#include <openssl/x509v3.h>
-const ASN1_INTEGER *X509_get0_serialNumber(const X509 *);
-
-#ifndef X509_getm_notBefore
-
-#define X509_getm_notBefore X509_get_notBefore
-#define X509_getm_notAfter X509_get_notAfter
-#define __NEED_STUB_ASN1_FUNCTIONS 1
-int ASN1_INTEGER_get_uint64(uint64_t *, const ASN1_INTEGER *);
-int ASN1_TIME_to_tm(const ASN1_TIME *, struct tm *);
-const ASN1_TIME *X509_get0_notBefore(const X509 *);
-const ASN1_TIME *X509_get0_notAfter(const X509 *);
-
-#endif
-
-EVP_PKEY *X509_get0_pubkey(X509 *);
-EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *);
-inline void X509_get0_signature(const ASN1_BIT_STRING **, const X509_ALGOR **,
-                                const X509 *) {}
-int X509_get_signature_info(X509 *, int *, int *, int *, uint32_t *);
-X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *, X509V3_CTX *, int,
-                                    const char *);
-int EVP_PKEY_up_ref(EVP_PKEY *);
-int X509_up_ref(X509 *);
-
-inline SSL_METHOD *TLS_method() { return nullptr; }
-
-#endif
 
 #endif /* NDB_PORTLIB_OPENSSL_COMPAT_H */

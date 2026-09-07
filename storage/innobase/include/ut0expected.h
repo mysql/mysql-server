@@ -1,5 +1,4 @@
 /*****************************************************************************
-
 Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -35,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ut0expected_h
 #define ut0expected_h
 
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -77,16 +77,22 @@ class Expected : public std::variant<T, E> {
   using error_type = E;
 
  public:
+  constexpr Expected(const Expected &other) = default;
+
   constexpr Expected(Expected &&other) noexcept
       : std::variant<T, E>(std::move(other)) {}
 
-  template <typename U = std::remove_cv_t<T>>
-  constexpr explicit(!std::is_convertible_v<U, T>) Expected(U &&u) noexcept
+  template <class U, std::enable_if_t<
+                         !std::is_same_v<std::decay_t<U>, Expected>, int> = 0>
+  constexpr Expected(U &&u) noexcept
       : std::variant<T, E>(std::in_place_index<0>, std::forward<U>(u)) {}
 
   template <class U>
   constexpr Expected(Unexpected<U> &&u)
       : std::variant<T, E>(std::in_place_index<1>, std::move(u).error()) {}
+
+  constexpr Expected &operator=(const Expected &) = default;
+  constexpr Expected &operator=(Expected &&) = default;
 
   constexpr const T *operator->() const noexcept {
     ut_a(has_value());
@@ -103,13 +109,20 @@ class Expected : public std::variant<T, E> {
     return std::get<0>(*this);
   }
 
-  constexpr T &operator*() &noexcept { return std::get<0>(*this); }
+  constexpr T &operator*() &noexcept {
+    ut_a(has_value());
+    return std::get<0>(*this);
+  }
 
   constexpr const T &&operator*() const &&noexcept {
+    ut_a(has_value());
     return std::move(std::get<0>(*this));
   }
 
-  constexpr T &&operator*() &&noexcept { return std::move(std::get<0>(*this)); }
+  constexpr T &&operator*() &&noexcept {
+    ut_a(has_value());
+    return std::move(std::get<0>(*this));
+  }
 
   constexpr explicit operator bool() const noexcept { return has_value(); }
 

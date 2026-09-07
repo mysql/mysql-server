@@ -87,8 +87,24 @@ bool get_group_replication_view_change_uuid(std::string &uuid);
 */
 bool is_group_replication_member_secondary();
 
+/**
+  Result of handing an incoming MySQL protocol connection to Group
+  Replication.
+*/
+enum class Gr_incoming_connection_status {
+  /** The connection was successfully handed to Group Replication. */
+  ACCEPTED,
+
+  /** The handoff slot already contains an unconsumed connection. */
+  BUSY,
+
+  /** The callback or provider is unavailable, or registration failed. */
+  ERROR,
+};
+
 // Callback definition for socket donation
-typedef int (*gr_incoming_connection_cb)(THD *thd, int fd, SSL *ssl_ctx);
+typedef Gr_incoming_connection_status (*gr_incoming_connection_cb)(
+    THD *thd, int fd, SSL *ssl_ctx);
 void set_gr_incoming_connection(gr_incoming_connection_cb x);
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */

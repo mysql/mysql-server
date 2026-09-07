@@ -49,6 +49,8 @@ EXPLAIN
         -> Repeat until convergence
             -> Scan new records on qn
 
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `1` union /* select#3 */ select 1 AS `1` from `qn`) /* select#1 */ select `qn`.`1` AS `1` from `qn`
 with recursive qn as
 (select 1 from dual union
 select 1 from qn)
@@ -1107,6 +1109,8 @@ EXPLAIN
                     -> Filter: (t2.id = tree_of_a.rightpar)
                         -> Table scan on t2
 
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
 # rely on it, just as he shouldn't expect some particular order
@@ -1410,6 +1414,8 @@ EXPLAIN
         -> Repeat until convergence
             -> Scan new records on qn
 
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `1` union /* select#3 */ select 1 AS `1` from `qn`) /* select#1 */ select `qn`.`1` AS `1` from `qn`
 with recursive qn as
 (select 1 from dual union
 select 1 from qn)
@@ -2468,6 +2474,8 @@ EXPLAIN
                     -> Filter: (t2.id = tree_of_a.rightpar)
                         -> Table scan on t2
 
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
 # rely on it, just as he shouldn't expect some particular order

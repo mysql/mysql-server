@@ -48,6 +48,8 @@ EXPLAIN
         -> Aggregate: sum(t.x)
             -> Table scan on t
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(secondary_engine_cost_threshold=100000) */ `test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`x` = (/* select#2 */ select sum(`test`.`t`.`x`) from `test`.`t`))
 SET optimizer_trace = 'enabled=off';
 SELECT JSON_PRETTY(
 JSON_REPLACE(

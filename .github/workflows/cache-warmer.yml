@@ -1,0 +1,103 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Trusted Build Cache
+
+on:
+  push:
+    branches: [trunk]
+    paths-ignore: ["Docs/**", "**/*.md"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: trusted-build-cache-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    name: Warm ${{ matrix.compiler }} cache
+    if: ${{ github.ref == 'refs/heads/trunk' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    env:
+      CC: ${{ matrix.compiler == 'gcc' && 'gcc' || 'clang' }}
+      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+    steps:
+      # Use the same checkout path as the PR workflows so ccache sees stable
+      # source and build paths across trusted trunk and pull request builds.
+      - name: Check out trusted trunk
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: source
+      - name: Install toolchain
+        working-directory: source
+        run: scripts/ci/bootstrap.sh
+      - name: Restore Boost cache
+        id: boost-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mysql-boost
+          key: boost-${{ hashFiles('source/cmake/boost.cmake') }}
+      - name: Restore ccache
+        id: compiler-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ matrix.compiler }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.compiler }}-
+      - name: Limit ccache size
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --cleanup
+      - name: Build
+        working-directory: source
+        run: scripts/ci/build.sh debug
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats
+
+  prune:
+    name: Retain recent trusted caches
+    if: ${{ always() && github.ref == 'refs/heads/trunk' }}
+    needs: warm
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+    steps:
+      - name: Keep two cache generations per key family
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const ref = 'refs/heads/trunk';
+            const caches = [];
+            for (let page = 1; ; page += 1) {
+              const { data } = await github.rest.actions.getActionsCacheList({
+                ...context.repo,
+                ref,
+                per_page: 100,
+                page,
+              });
+              caches.push(...data.actions_caches);
+              if (data.actions_caches.length < 100) break;
+            }
+
+            const families = ['ccache-gcc-', 'ccache-clang-', 'boost-'];
+            for (const prefix of families) {
+              const matching = caches
+                .filter((cache) => cache.key.startsWith(prefix))
+                .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
+              for (const cache of matching.slice(2)) {
+                await github.rest.actions.deleteActionsCacheById({
+                  ...context.repo,
+                  cache_id: cache.id,
+                });
+                core.info(`Deleted ${cache.key} (${cache.id}).`);
+              }
+            }

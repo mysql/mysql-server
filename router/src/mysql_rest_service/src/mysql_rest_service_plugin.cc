@@ -336,7 +336,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
     if (sections.empty())
       throw std::invalid_argument(
-          "Missing configuration section for MRDS plugin.");
+          "Missing configuration section for MRS plugin.");
 
     if (1 < sections.size())
       throw std::invalid_argument(

@@ -4410,6 +4410,8 @@ EXPLAIN
                 -> Index lookup on t1 using kp1 (kp1 = t3.a)  (rows=1.02)
             -> Single-row covering index lookup on t4 using PRIMARY (pk = t1.c)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1` join `test`.`t4`) where ((`test`.`t1`.`kp1` = `test`.`t3`.`a`) and (`test`.`t4`.`pk` = `test`.`t1`.`c`) and (`test`.`t3`.`a` < 20))
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 a
@@ -4576,6 +4578,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4595,6 +4599,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4615,6 +4621,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4642,6 +4650,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4661,6 +4671,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4681,6 +4693,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4708,6 +4722,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4727,6 +4743,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4747,6 +4765,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 SET internal_tmp_mem_storage_engine='TempTable';
 CREATE TABLE t1 (a BIT(7)) ENGINE=InnoDB;
@@ -4775,6 +4795,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4794,6 +4816,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4814,6 +4838,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4841,6 +4867,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4860,6 +4888,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4880,6 +4910,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -4907,6 +4939,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4926,6 +4960,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -4946,6 +4982,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 SET internal_tmp_mem_storage_engine=default;
 SET SESSION big_tables=true;
@@ -4975,6 +5013,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -4994,6 +5034,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -5014,6 +5056,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -5041,6 +5085,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -5060,6 +5106,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -5080,6 +5128,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
 INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
@@ -5107,6 +5157,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
 a
 @
@@ -5126,6 +5178,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
 a
 @
@@ -5146,6 +5200,8 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1, t2;
 SET SESSION big_tables=default;
 create table t1 (a int);
@@ -6645,6 +6701,8 @@ EXPLAIN
                 -> Hash
                     -> Table scan on ot3  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a`,`test`.`ot3`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` semi join (`test`.`it3`)) on(((`test`.`it3`.`a` = `test`.`ot1`.`a`) and (`test`.`ot2`.`a` = `test`.`ot1`.`a`))) left join (`test`.`ot3` semi join (`test`.`it3`)) on(((`test`.`ot3`.`a` = `test`.`ot2`.`a`) and (`test`.`it3`.`a` = `test`.`ot2`.`a`))) where true
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
@@ -13926,6 +13984,8 @@ EXPLAIN
                     -> Filter: (t3.col_int_key = t2.col_int)  (rows=1)
                         -> Table scan on t3  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`col_int_key` AS `col_int_key` from `test`.`t4` semi join (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t3`.`col_int_key` = `test`.`t2`.`col_int`)))) where ((`test`.`t1`.`col_int_key` = `test`.`t4`.`col_int_key`) and (`test`.`t3`.`col_int` is null)) order by `test`.`t4`.`col_int_key`
 SELECT *
 FROM t4
 WHERE (col_int_key) IN (
@@ -14275,6 +14335,8 @@ EXPLAIN
         -> Hash
             -> Table scan on alias1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` semi join (`test`.`t2` left join `test`.`t1` on(true) left join `test`.`t1` `alias1` on(true)) where true
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 f1	f2
 08:35:24	X

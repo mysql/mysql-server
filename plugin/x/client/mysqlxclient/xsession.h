@@ -181,7 +181,7 @@ class MYSQLXCLIENT_EXPORT XSession {
       TLS protocols permitted by the client for encrypted connections.
 
       The value is a comma-separated list containing one or more protocol
-      names. (TLSv1,TLSv1.1,TLSv1.2)
+      names. (TLSv1.2,TLSv1.3)
 
       Default: ""
       Option type: STRING.

@@ -27,36 +27,25 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_MEDIA_H_
 
 #include <string>
-#include <vector>
 
-#include "mrs/database/helper/query.h"
-#include "mrs/database/json_mapper/select.h"
+#include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
 
-class QueryRestSPMedia : private Query {
+class QueryRestSPMedia {
  public:
+  using MySQLSession = mysqlrouter::MySQLSession;
+
+  virtual ~QueryRestSPMedia() = default;
+
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object,
                              const mysqlrouter::sqlstring &values);
 
-  virtual void query_entries(MySQLSession *session, const std::string &column,
-                             const std::string &schema,
-                             const std::string &object,
-                             const PrimaryKeyColumnValues &pk);
-
-  virtual void query_entries(MySQLSession *session, const std::string &column,
-                             const std::string &schema,
-                             const std::string &object, const uint64_t limit,
-                             const uint64_t offset);
-
   std::string response;
   uint64_t items;
-
- private:
-  void on_row(const ResultRow &r) override;
-  void on_metadata(unsigned int number, MYSQL_FIELD *fields) override;
 };
 
 }  // namespace database

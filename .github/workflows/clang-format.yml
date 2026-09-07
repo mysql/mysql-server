@@ -1,9 +1,15 @@
 # Copyright (c) 2026, Oracle and/or its affiliates.
 name: Format Check
 on:
-  pull_request_target:
+  pull_request:
     branches: [trunk]
-    paths: ["**/*.c", "**/*.cc", "**/*.cpp", "**/*.h", "**/*.hpp"]
+    paths:
+      - "**/*.c"
+      - "**/*.cc"
+      - "**/*.cpp"
+      - "**/*.h"
+      - "**/*.hpp"
+      - ".clang-format"
 
 permissions: {}
 
@@ -18,9 +24,8 @@ jobs:
       contents: read
     steps:
       - name: Check out PR merge commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           fetch-depth: 2
           persist-credentials: false
           path: source
@@ -29,7 +34,9 @@ jobs:
         env:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_MERGE: ${{ github.sha }}
         run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MERGE"
           test "$(git rev-parse HEAD^1)" = "$EXPECTED_BASE"
           test "$(git rev-parse HEAD^2)" = "$EXPECTED_HEAD"
       - name: Install clang-format
@@ -38,35 +45,31 @@ jobs:
       - name: Check formatting of changed files
         working-directory: source
         run: |
-          changed=$(git diff --name-only HEAD^1 HEAD | grep -E '\.(c|cc|cpp|h|hpp)$' || true)
-          [ -z "$changed" ] && { echo "No C/C++ changes."; exit 0; }
-          fail=0
-          for f in $changed; do
-            [ -f "$f" ] || continue
-            if ! clang-format-18 --style=file --dry-run --Werror "$f"; then fail=1; fi
-          done
-          if [ "$fail" -ne 0 ]; then
-            echo "::error::Run scripts/ci/format.sh to fix formatting."; exit 1
+          if ! git diff --quiet --no-ext-diff --no-textconv HEAD^1 HEAD -- \
+            '.clang-format'; then
+            echo "::error::The repository formatting policy requires trusted review."
+            exit 1
           fi
 
-  report:
-    name: Report format result
-    if: ${{ always() && !cancelled() }}
-    needs: clang-format
-    runs-on: ubuntu-24.04
-    permissions:
-      statuses: write
-    steps:
-      - name: Publish format status on the PR head
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const passed = '${{ needs.clang-format.result }}' === 'success';
-            await github.rest.repos.createCommitStatus({
-              ...context.repo,
-              sha: context.payload.pull_request.head.sha,
-              state: passed ? 'success' : 'failure',
-              context: 'Format Check',
-              description: passed ? 'Formatting check passed' : 'Formatting check failed',
-              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
-            });
+          changed_files="$RUNNER_TEMP/clang-format-files"
+          git diff --name-only -z --diff-filter=ACMR \
+            --no-ext-diff --no-textconv HEAD^1 HEAD -- \
+            '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' > "$changed_files"
+
+          found=0
+          fail=0
+          while IFS= read -r -d '' file; do
+            found=1
+            [ -f "$file" ] || continue
+            if ! clang-format-18 --style=file --dry-run --Werror -- "$file"; then
+              fail=1
+            fi
+          done < "$changed_files"
+
+          if [ "$found" -eq 0 ]; then
+            echo "No C/C++ changes."
+          fi
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::Run scripts/ci/format.sh to fix formatting."
+            exit 1
+          fi

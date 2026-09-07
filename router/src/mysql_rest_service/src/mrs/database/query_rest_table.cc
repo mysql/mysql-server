@@ -433,6 +433,96 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   query_ << where << offset << limit;
 }
 
+void QueryRestTableMedia::query_media_entries(
+    MySQLSession *session, std::shared_ptr<database::entry::Object> object,
+    const Column &column, const uint64_t offset, const uint64_t limit,
+    const ObjectRowOwnership &row_ownership, const FilterObjectGenerator &fog) {
+  object_ = object;
+  metadata_received_ = false;
+  items = 0;
+  media_response.reset();
+
+  build_query(column, offset, limit, row_ownership, fog);
+  execute(session);
+}
+
+void QueryRestTableMedia::query_entry(
+    MySQLSession *session, std::shared_ptr<database::entry::Object> object,
+    const Column &column, const PrimaryKeyColumnValues &pk,
+    const ObjectRowOwnership &row_ownership, const FilterObjectGenerator &fog) {
+  object_ = object;
+  metadata_received_ = false;
+  items = 0;
+  media_response.reset();
+
+  build_query(column, pk, row_ownership, fog);
+  execute(session);
+}
+
+void QueryRestTableMedia::on_row(const ResultRow &r) {
+  if (items != 0)
+    throw std::runtime_error(
+        "Querying raw media, from a table. Received multiple rows.");
+
+  media_response.emplace();
+  if (r[0]) media_response->assign(r[0], r.get_data_size(0));
+  ++items;
+}
+
+void QueryRestTableMedia::build_query(const Column &column,
+                                      const uint64_t offset,
+                                      const uint64_t limit,
+                                      const ObjectRowOwnership &row_ownership,
+                                      const FilterObjectGenerator &fog) {
+  auto where = build_where(row_ownership);
+  extend_where(where, fog);
+
+  sqlstring field{"!.!"};
+  field << object_->table_alias << column.column_name;
+
+  sqlstring from{"!.! as !"};
+  from << object_->schema << object_->table << object_->table_alias;
+
+  if (max_execution_time_ms_ > 0) {
+    query_ = "SELECT /*+ MAX_EXECUTION_TIME(?) */ ? FROM ? ? LIMIT ?,?";
+    query_ << max_execution_time_ms_;
+  } else {
+    query_ = "SELECT ? FROM ? ? LIMIT ?,?";
+  }
+
+  query_ << field << from << where << offset << limit;
+}
+
+void QueryRestTableMedia::build_query(const Column &column,
+                                      const PrimaryKeyColumnValues &pk,
+                                      const ObjectRowOwnership &row_ownership,
+                                      const FilterObjectGenerator &fog) {
+  auto where = build_where(row_ownership);
+  extend_where(where, fog);
+
+  if (where.is_empty()) {
+    where = {"WHERE "};
+    where.append_preformatted(dv::format_where_expr(*object_, pk));
+  } else {
+    where.append_preformatted_sep(" AND ", dv::format_where_expr(*object_, pk));
+  }
+
+  sqlstring field{"!.!"};
+  field << object_->table_alias << column.column_name;
+
+  sqlstring from{"!.! as !"};
+  from << object_->schema << object_->table << object_->table_alias;
+
+  if (max_execution_time_ms_ > 0) {
+    query_ = "SELECT /*+ MAX_EXECUTION_TIME(?) */ ? FROM ? ?";
+    query_ << max_execution_time_ms_;
+  } else {
+    query_ = "SELECT ? FROM ? ?";
+  }
+
+  query_ << field << from << where;
+}
+
 void QueryRestTable::create_serializer() {
   mrs::json::JsonTemplateFactory factory_instance;
   auto factory = factory_ ? factory_ : &factory_instance;

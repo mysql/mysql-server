@@ -420,3 +420,7 @@ max-time: 360
 cmd: testBackup
 args: -nBackupLogBufferFullAbort T1
 max-time : 120
+
+cmd: testNodeRestart
+args: -n TcTakeoverReopenOlderGciBehindNewerGci T1
+max-time: 480

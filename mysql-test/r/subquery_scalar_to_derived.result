@@ -3990,6 +3990,11 @@ EXPLAIN
                         -> Hash
                             -> Table scan on a  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_3`.`AVG(cc.col_varchar_key)` AS `AVG(cc.col_varchar_key)`,`derived_1_4`.`SUM(cc.col_int_key)` AS `(
+SELECT SUM(cc.col_int_key)
+FROM cc,a
+)` from (/* select#3 */ select avg(`test`.`cc`.`col_varchar_key`) AS `AVG(cc.col_varchar_key)` from `test`.`cc` straight_join `test`.`bb` where ((`test`.`bb`.`col_varchar` = `test`.`cc`.`col_varchar_key`) and (`test`.`cc`.`col_varchar` <> 'w'))) `derived_1_3` left join (/* select#4 */ select sum(`test`.`cc`.`col_int_key`) AS `SUM(cc.col_int_key)` from `test`.`cc` join `test`.`a`) `derived_1_4` on(true) where true
 DROP TABLE a, bb, cc;
 #
 # Bug#30774730 WL#12885 SIG 6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC
@@ -4113,6 +4118,8 @@ EXPLAIN
                             -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (rows=0.1)
                                 -> Index lookup on cc using idx_cc_col_int_key (col_int_key = subquery1_t2.col_int)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_4`.`field1` AS `field1`,`derived_1_5`.`subquery1_field1` AS `field2` from (/* select#4 */ select avg(`table2`.`col_int`) AS `field1` from `test`.`cc` `table1` straight_join `test`.`cc` `table2` where ((((`table1`.`pk` = 1) and ((`table1`.`col_varchar_key` = 'D') or (`table1`.`col_varchar_key` = `table1`.`col_varchar_key`))) or (`table1`.`col_varchar_key` < 'O')) and (`table1`.`col_varchar_key` = `table1`.`col_varchar_key`))) `derived_1_4` left join (/* select#5 */ select count(`subquery1_t1`.`col_varchar_key`) AS `subquery1_field1` from `test`.`cc` `subquery1_t1` join `test`.`cc` `subquery1_t2` join `test`.`cc` where ((`test`.`cc`.`col_varchar` = `subquery1_t2`.`col_varchar_key`) and (`test`.`cc`.`col_int_key` = `subquery1_t2`.`col_int`) and (`subquery1_t1`.`col_varchar_key` <> `subquery1_t2`.`col_varchar`))) `derived_1_5` on(true) where true limit 2,1000
 DROP VIEW view_cc;
 DROP TABLE cc;
 #
@@ -4806,6 +4813,8 @@ EXPLAIN
             -> Rows fetched before execution  (rows=1)
             -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `one` from `test`.`t` join (/* select#2 */ select 1 AS `1` union /* select#3 */ select 2 AS `2`) `derived_1_2` where (`derived_1_2`.`1` = 1)
 DROP TABLE t;
 #
 # Bug#34998721 Mysqld crash - Assertion `table_num_to_node_num[table_num] != -1' failed.

@@ -40,5 +40,17 @@ UPDATE `mysql_rest_service_metadata`.`object_field` SET enabled=(name="id" or na
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1?f=id,cyear
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
 
+--let $mrs_client_arg_path='/svc/basic/t2/1?raw=1&f=cyear'
+--let $mrs_client_arg_expected_status=BadRequest
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=request,status,result
+--source ../include/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/svc/basic/t2/1?raw=1&f=ctext&q={"\\\$asof":"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}'
+--let $mrs_client_arg_expected_status=BadRequest
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=request,status,result
+--source ../include/mrs/mrs_client.inc
+
 # Cleanup
 --source ../include/mrs/cleanup.inc

@@ -19,108 +19,393 @@ jobs:
       github.event.pull_request.draft == false &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
+      pull-requests: read
     outputs:
-      review_b64: ${{ steps.run_review.outputs.review_b64 }}
+      review_json: ${{ steps.run_codex.outcome == 'success' && steps.run_codex.outputs.final-message || steps.run_codex_fallback.outputs.final-message }}
+      reviewed_base_sha: ${{ steps.prepare.outputs.base-sha }}
+      reviewed_sha: ${{ steps.prepare.outputs.head-sha }}
     steps:
-      - name: Verify PR author can write
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const username = context.payload.pull_request.user.login;
-            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
-              ...context.repo,
-              username,
-            });
-            if (!['admin', 'maintain', 'write'].includes(data.permission)) {
-              throw new Error(`@${username} does not have write permission`);
-            }
-
-      - name: Check out PR merge commit
-        uses: actions/checkout@v4
-        with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
-          fetch-depth: 2
-          persist-credentials: false
-          path: source
-
-      - name: Verify PR merge commit
-        working-directory: source
-        env:
-          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          test "$(git rev-parse HEAD^1)" = "$EXPECTED_BASE"
-          test "$(git rev-parse HEAD^2)" = "$EXPECTED_HEAD"
-
-      - name: Check out trusted review client
-        uses: actions/checkout@v4
+      - name: Check out trusted base revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 1
           persist-credentials: false
-          sparse-checkout: scripts/ci/codex_pr_review.py
-          sparse-checkout-cone-mode: false
-          path: trusted
+          path: source
 
-      - name: Verify trusted review client
+      - name: Prepare bounded pull request diff
+        id: prepare
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
-        run: test "$(git -C trusted rev-parse HEAD)" = "$EXPECTED_BASE"
+          EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
 
-      - name: Review pull request
-        id: run_review
+            const pullNumber = Number(process.env.PR_NUMBER);
+            if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+              throw new Error('Pull request number is invalid');
+            }
+
+            const expectedRepository = `${context.repo.owner}/${context.repo.repo}`;
+            if (process.env.EXPECTED_REPOSITORY !== expectedRepository) {
+              throw new Error('Event repository does not match the workflow repository');
+            }
+
+            const expectedBase = process.env.EXPECTED_BASE_SHA;
+            const expectedHead = process.env.EXPECTED_HEAD_SHA;
+            const validatePullRequest = (pull) => {
+              if (pull.state !== 'open' || pull.draft) {
+                throw new Error('Pull request is not open and ready for review');
+              }
+              if (pull.base.repo?.full_name !== expectedRepository || pull.base.ref !== 'trunk') {
+                throw new Error('Pull request does not target this repository trunk');
+              }
+              if (pull.base.sha !== expectedBase || pull.head.sha !== expectedHead) {
+                throw new Error('Pull request revisions changed before review');
+              }
+            };
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            validatePullRequest(pull);
+
+            const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
+              ...context.repo,
+              username: pull.user.login,
+            });
+            if (!['admin', 'maintain', 'write'].includes(access.permission)) {
+              throw new Error(`@${pull.user.login} does not have write permission`);
+            }
+
+            const response = await github.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+              ...context.repo,
+              pull_number: pullNumber,
+              headers: { accept: 'application/vnd.github.diff' },
+            });
+            if (typeof response.data !== 'string') {
+              throw new Error('GitHub did not return a unified pull request diff');
+            }
+
+            const diff = Buffer.from(response.data, 'utf8');
+            if (diff.length === 0 || diff.length > 256 * 1024) {
+              throw new Error('Pull request diff is empty or exceeds the 256 KiB review limit');
+            }
+
+            const { data: current } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            validatePullRequest(current);
+
+            const reviewDirectory = path.join(process.env.GITHUB_WORKSPACE, 'source', '.codex-review');
+            const diffPath = path.join(reviewDirectory, 'pr.diff');
+            fs.mkdirSync(reviewDirectory, { mode: 0o700 });
+            fs.writeFileSync(diffPath, diff, { flag: 'wx', mode: 0o400 });
+            fs.chmodSync(reviewDirectory, 0o500);
+            core.setOutput('base-sha', expectedBase);
+            core.setOutput('head-sha', expectedHead);
+
+      # Keep Codex as the final step in this job. Its output is handled on a fresh runner.
+      - name: Review pull request with Codex
+        id: run_codex
+        continue-on-error: true
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          codex-version: "0.146.0"
+          model: ${{ vars.OPENAI_REVIEW_MODEL || 'gpt-5.6-sol' }}
+          effort: medium
+          working-directory: ${{ github.workspace }}/source
+          permission-profile: ":read-only"
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral"]'
+          output-schema-file: ${{ github.workspace }}/source/.github/codex/review-output-schema.json
+          prompt-file: ${{ github.workspace }}/source/.github/codex/review-prompt.md
+
+      - name: Wait before Codex fallback
+        if: >-
+          steps.run_codex.outcome != 'success' ||
+          steps.run_codex.outputs.final-message == ''
+        run: sleep 20
+
+      - name: Retry pull request review with fallback model
+        id: run_codex_fallback
+        if: >-
+          steps.run_codex.outcome != 'success' ||
+          steps.run_codex.outputs.final-message == ''
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          codex-version: "0.146.0"
+          model: ${{ vars.OPENAI_REVIEW_FALLBACK_MODEL || 'gpt-5.6-terra' }}
+          effort: medium
+          working-directory: ${{ github.workspace }}/source
+          permission-profile: ":read-only"
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral"]'
+          output-schema-file: ${{ github.workspace }}/source/.github/codex/review-output-schema.json
+          prompt-file: ${{ github.workspace }}/source/.github/codex/review-prompt.md
+
+      - name: Require Codex review output
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_REVIEW_MODEL: ${{ vars.OPENAI_REVIEW_MODEL || 'gpt-5.6-sol' }}
-          PYTHONNOUSERSITE: "1"
-          PYTHONSAFEPATH: "1"
-        run: >-
-          python3 "$GITHUB_WORKSPACE/trusted/scripts/ci/codex_pr_review.py"
-          --source "$GITHUB_WORKSPACE/source"
+          REVIEW_JSON: ${{ steps.run_codex.outcome == 'success' && steps.run_codex.outputs.final-message || steps.run_codex_fallback.outputs.final-message }}
+        run: test -n "$REVIEW_JSON"
 
   post_feedback:
     runs-on: ubuntu-24.04
     needs: codex
     if: >-
       needs.codex.result == 'success' &&
-      needs.codex.outputs.review_b64 != ''
+      needs.codex.outputs.review_json != '' &&
+      needs.codex.outputs.reviewed_sha != ''
     permissions:
-      issues: write
       pull-requests: write
     steps:
       - name: Post Codex feedback
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          REVIEW_B64: ${{ needs.codex.outputs.review_b64 }}
+          REVIEWED_BASE_SHA: ${{ needs.codex.outputs.reviewed_base_sha }}
+          REVIEWED_SHA: ${{ needs.codex.outputs.reviewed_sha }}
+          REVIEW_JSON: ${{ needs.codex.outputs.review_json }}
         with:
           github-token: ${{ github.token }}
           script: |
-            const encoded = process.env.REVIEW_B64 || '';
-            const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
-            if (!encoded || !base64.test(encoded)) {
-              throw new Error('Review output is not canonical base64');
+            const encoded = process.env.REVIEW_JSON || '';
+            let result;
+            try {
+              result = JSON.parse(encoded);
+            } catch {
+              throw new Error('Codex output is not valid JSON');
             }
-            const decoded = Buffer.from(encoded, 'base64');
-            if (decoded.length === 0 || decoded.length > 48 * 1024) {
-              throw new Error('Review output is empty or too large');
+            if (Buffer.byteLength(encoded, 'utf8') > 192 * 1024) {
+              throw new Error('Codex output exceeds the 192 KiB limit');
             }
-            if (decoded.toString('base64') !== encoded) {
-              throw new Error('Review output failed base64 validation');
+
+            const pullNumber = context.payload.pull_request.number;
+            const expectedRepository = `${context.repo.owner}/${context.repo.repo}`;
+            const validatePullRequest = (pull) => {
+              if (
+                pull.state !== 'open' ||
+                pull.draft ||
+                pull.head.sha !== process.env.REVIEWED_SHA ||
+                pull.base.sha !== process.env.REVIEWED_BASE_SHA ||
+                pull.base.repo?.full_name !== expectedRepository ||
+                pull.base.ref !== 'trunk'
+              ) {
+                throw new Error('Pull request changed before Codex feedback was posted');
+              }
+            };
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            validatePullRequest(pull);
+
+            const marker = `<!-- codex-pr-review-inline:${process.env.REVIEWED_SHA} -->`;
+            const existingReviews = await github.paginate(github.rest.pulls.listReviews, {
+              ...context.repo,
+              pull_number: pullNumber,
+              per_page: 100,
+            });
+            if (
+              existingReviews.some(
+                (review) =>
+                  review.user?.login === 'github-actions[bot]' &&
+                  review.body?.includes(marker),
+              )
+            ) {
+              core.info('Codex review was already posted for this commit');
+              return;
             }
-            const body = decoded.toString('utf8');
-            if (!Buffer.from(body, 'utf8').equals(decoded)) {
-              throw new Error('Review output is not valid UTF-8');
+
+            const isPlainObject = (value) =>
+              value !== null && typeof value === 'object' && !Array.isArray(value);
+            const isScore = (value) =>
+              typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+            if (
+              !isPlainObject(result) ||
+              !Array.isArray(result.findings) ||
+              result.findings.length > 25 ||
+              !['patch is correct', 'patch is incorrect'].includes(result.overall_correctness) ||
+              typeof result.overall_explanation !== 'string' ||
+              result.overall_explanation.length === 0 ||
+              result.overall_explanation.length > 8192 ||
+              !isScore(result.overall_confidence_score)
+            ) {
+              throw new Error('Codex output does not match the review schema');
             }
-            const safeBody = body.replace(/@(?=[A-Za-z0-9_-])/g, '@\u200b');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: '<!-- repository-owned-code-review -->\n' + safeBody,
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: pullNumber,
+              per_page: 100,
+            });
+            const filesByPath = new Map(files.map((file) => [file.filename, file]));
+
+            const parseRightSideLines = (patch) => {
+              if (typeof patch !== 'string' || patch.length === 0) return null;
+              const displayed = new Set();
+              const added = new Set();
+              let oldLine = 0;
+              let newLine = 0;
+              let inHunk = false;
+              for (const line of patch.split('\n')) {
+                const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                if (hunk) {
+                  oldLine = Number(hunk[1]);
+                  newLine = Number(hunk[2]);
+                  inHunk = true;
+                  continue;
+                }
+                if (!inHunk || line.startsWith('\\ No newline at end of file')) continue;
+                if (line.startsWith('+')) {
+                  displayed.add(newLine);
+                  added.add(newLine);
+                  newLine += 1;
+                } else if (line.startsWith('-')) {
+                  oldLine += 1;
+                } else if (line.startsWith(' ')) {
+                  displayed.add(newLine);
+                  oldLine += 1;
+                  newLine += 1;
+                }
+              }
+              return { displayed, added };
+            };
+
+            const safeMarkdown = (value) => value.replace(/@(?=[A-Za-z0-9_-])/g, '@\u200b');
+            const comments = [];
+            const unanchored = [];
+
+            for (const finding of result.findings) {
+              const location = finding?.code_location;
+              const range = location?.line_range;
+              const path = location?.relative_file_path;
+              const start = range?.start;
+              const end = range?.end;
+              const findingIsValid =
+                isPlainObject(finding) &&
+                typeof finding.title === 'string' &&
+                finding.title.length > 0 &&
+                finding.title.length <= 100 &&
+                typeof finding.body === 'string' &&
+                finding.body.length > 0 &&
+                finding.body.length <= 4096 &&
+                isScore(finding.confidence_score) &&
+                finding.confidence_score >= 0.8 &&
+                Number.isInteger(finding.priority) &&
+                finding.priority >= 0 &&
+                finding.priority <= 3 &&
+                typeof path === 'string' &&
+                path.length > 0 &&
+                path.length <= 1024 &&
+                Number.isSafeInteger(start) &&
+                Number.isSafeInteger(end) &&
+                start > 0 &&
+                end >= start;
+              if (!findingIsValid) {
+                throw new Error('Codex finding does not match the review schema');
+              }
+
+              // Review ranges are inclusive, so this caps inline comments at 20 lines.
+              const commentEnd = Math.min(end, start + 19);
+              const commentLines = Array.from(
+                { length: commentEnd - start + 1 },
+                (_, offset) => start + offset,
+              );
+              const rightLines = parseRightSideLines(filesByPath.get(path)?.patch);
+              const rangeIsDisplayed =
+                rightLines &&
+                commentLines.every((line) => rightLines.displayed.has(line));
+              const rangeHasAddition =
+                rightLines &&
+                commentLines.some((line) => rightLines.added.has(line));
+              const body = `**P${finding.priority}: ${safeMarkdown(finding.title)}**\n\n${safeMarkdown(finding.body)}\n\n_Confidence: ${Math.round(finding.confidence_score * 100)}%_`;
+
+              if (
+                filesByPath.has(path) &&
+                rangeIsDisplayed &&
+                rangeHasAddition
+              ) {
+                comments.push({
+                  path,
+                  line: commentEnd,
+                  side: 'RIGHT',
+                  ...(start < commentEnd ? { start_line: start, start_side: 'RIGHT' } : {}),
+                  body,
+                });
+              } else {
+                unanchored.push({ path, start, end, body });
+              }
+            }
+
+            const overall = safeMarkdown(result.overall_explanation);
+            const summary = [
+              marker,
+              '## Codex PR review',
+              '',
+              `**Overall:** ${result.overall_correctness} (${Math.round(result.overall_confidence_score * 100)}% confidence)`,
+              '',
+              overall,
+              '',
+              result.findings.length === 0
+                ? 'No high-confidence findings were reported.'
+                : comments.length === 0
+                  ? 'No findings could be posted as inline comments.'
+                  : `${comments.length} finding(s) were posted inline.`,
+            ];
+            if (unanchored.length > 0) {
+              summary.push(
+                '',
+                '### Findings without a current diff anchor',
+                '',
+                'These findings remain in the summary because their locations could not be verified against the current GitHub diff.',
+              );
+              for (const finding of unanchored) {
+                const entry = `${finding.body}\n\n\`${finding.path}:${finding.start}-${finding.end}\``;
+                const candidate = [...summary, '', entry].join('\n');
+                if (Buffer.byteLength(candidate, 'utf8') <= 60 * 1024) {
+                  summary.push('', entry);
+                } else {
+                  finding.omitted = true;
+                }
+              }
+              const omitted = unanchored.filter((finding) => finding.omitted).length;
+              if (omitted > 0) {
+                summary.push('', `_${omitted} additional unanchored finding(s) omitted for length._`);
+              }
+            }
+
+            const summaryBody = summary.join('\n');
+            if (Buffer.byteLength(summaryBody, 'utf8') > 64 * 1024) {
+              throw new Error('Codex review summary exceeds the 64 KiB limit');
+            }
+
+            const { data: current } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            validatePullRequest(current);
+
+            await github.rest.pulls.createReview({
+              ...context.repo,
+              pull_number: pullNumber,
+              commit_id: process.env.REVIEWED_SHA,
+              event: 'COMMENT',
+              body: summaryBody,
+              ...(comments.length > 0 ? { comments } : {}),
             });
 
   report:
@@ -135,10 +420,10 @@ jobs:
       statuses: write
     steps:
       - name: Publish Codex status on the PR head
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          REVIEW_RESULT: ${{ needs.codex.result }}
           POST_RESULT: ${{ needs.post_feedback.result }}
+          REVIEW_RESULT: ${{ needs.codex.result }}
         with:
           script: |
             const passed =

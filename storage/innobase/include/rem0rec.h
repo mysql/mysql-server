@@ -46,6 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "trx0types.h"
 #include "ut0class_life_cycle.h"
+#include "ut0expected.h"
 
 #include "rem0wrec.h"
 
@@ -69,6 +70,14 @@ next chained record on the same page.
 @return the page offset of the next chained record, or 0 if none */
 [[nodiscard]] static inline ulint rec_get_next_offs(const rec_t *rec,
                                                     ulint comp);
+/** The following function is used to get the offset of the
+next chained record on the same page.
+@param[in] rec  Physical record.
+@param[in] comp true iff compact page layout is used
+@return the page offset of the next chained record, or unexpected offset in case
+the encoded next field is invalid. */
+[[nodiscard]] static inline ut::Expected<uint16_t, uint16_t>
+rec_try_get_next_offs(const rec_t *rec, bool comp);
 
 /** The following function is used to set the next record offset field of an
 old-style record.

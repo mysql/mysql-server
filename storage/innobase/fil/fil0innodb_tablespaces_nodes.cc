@@ -32,6 +32,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #include "trx0undo_trunc.h"
 #include "ut0dbg.h" /* ut_error */
+
+#ifdef UNIV_PFS_IO
+static const mysql_pfs_key_t &get_pfs_key(space_id_t id) {
+  return fsp_is_system_temporary(id) ? innodb_temp_file_key
+                                     : innodb_data_file_key;
+}
+#endif /* UNIV_PFS_IO */
+
 namespace ib::fil {
 
 Tablespaces_nodes::Capabilities Tablespaces_nodes::get_capabilities() {
@@ -77,9 +85,8 @@ Tablespaces_nodes::create(Tablespace_id space_id, size_t node_order,
       OS_FILE_ON_ERROR_NO_EXIT;
 
   bool success = false;
-  auto handle = os_file_create(
-      is_temporary_tablespace ? innodb_temp_file_key : innodb_data_file_key,
-      node_path, create_mode, purpose, enforce_readonly_checks, &success);
+  auto handle = os_file_create(get_pfs_key(space_id), node_path, create_mode,
+                               purpose, enforce_readonly_checks, &success);
 
   if (!success) {
     /* The following call will print an error message */
@@ -101,14 +108,12 @@ Tablespaces_nodes::create(Tablespace_id space_id, size_t node_order,
   }
 
   auto delete_file_guard =
-      create_scope_guard([&handle, &node_path, is_temporary_tablespace]() {
+      create_scope_guard([&handle, &node_path, space_id]() {
         /* [[maybe_unused]] is not possible in lambda capture, and it can be
         unused if UNIV_PFS_IO is not defined. */
-        (void)is_temporary_tablespace;
+        (void)space_id;
         os_file_close(handle);
-        os_file_delete(is_temporary_tablespace ? innodb_temp_file_key
-                                               : innodb_data_file_key,
-                       node_path);
+        os_file_delete(get_pfs_key(space_id), node_path);
       });
 
 #ifndef UNIV_HOTBACKUP
@@ -182,7 +187,9 @@ Tablespaces_nodes::open_undo_tablespace(const space_id_t space_id,
                                         bool for_read_only) {
   pfs_os_file_t handle;
   bool success = false;
-
+  /* All the temporary undo logs are stored in the system temporary tablespace,
+  so are not opened through this API */
+  ut_ad(!fsp_is_system_temporary(space_id));
   handle = os_file_create(
       innodb_data_file_key, hints.m_path.c_str(),
       OS_FILE_OPEN_RETRY | OS_FILE_ON_ERROR_NO_EXIT | OS_FILE_ON_ERROR_SILENT,
@@ -190,8 +197,11 @@ Tablespaces_nodes::open_undo_tablespace(const space_id_t space_id,
 
   if (!success) {
     /* If the file does not exist, the `os_file_check_mode()` returns true. */
-    if (!os_file_check_mode(hints.m_path.c_str(), hints.m_is_raw_disk,
-                            for_read_only)) {
+    if (!os_file_check_mode(
+#ifdef UNIV_PFS_IO
+            innodb_data_file_key,
+#endif /* UNIV_PFS_IO */
+            hints.m_path.c_str(), hints.m_is_raw_disk, for_read_only)) {
       ib::error(ER_IB_MSG_UNDO_TABLESPACE_WRONG_MODE, hints.m_path.c_str(),
                 for_read_only ? "readable!" : "writable!");
       return ut::Unexpected(Open_error::NO_ACCESS_PERMISSIONS);
@@ -216,11 +226,8 @@ Tablespaces_nodes::open(Tablespace_id space_id, size_t node_order,
   pfs_os_file_t handle;
   bool success = false;
 
-  const bool is_temporary_tablespace = fsp_is_system_temporary(space_id);
-
 #ifdef UNIV_PFS_IO
-  const auto &file_key =
-      is_temporary_tablespace ? innodb_temp_file_key : innodb_data_file_key;
+  const auto &file_key = get_pfs_key(space_id);
 #endif
 
   /* Open the file on Windows in the unbuffered async I/O mode, though global
@@ -243,8 +250,11 @@ Tablespaces_nodes::open(Tablespace_id space_id, size_t node_order,
 
   if (!success) {
     /* If the file does not exist, the `os_file_check_mode()` returns true. */
-    if (!os_file_check_mode(hints.m_path.c_str(), hints.m_is_raw_disk,
-                            for_read_only)) {
+    if (!os_file_check_mode(
+#ifdef UNIV_PFS_IO
+            file_key,
+#endif /* UNIV_PFS_IO */
+            hints.m_path.c_str(), hints.m_is_raw_disk, for_read_only)) {
       return ut::Unexpected(Open_error::NO_ACCESS_PERMISSIONS);
     }
     return ut::Unexpected(Open_error::NODE_DOES_NOT_EXIST);
@@ -259,9 +269,7 @@ Tablespaces_nodes::Status Tablespaces_nodes::rename(
     space_id_t space_id, size_t /* node_order */, const std::string &old_path,
     const std::string &new_path) {
   const bool renamed_successfully =
-      os_file_rename(fsp_is_system_temporary(space_id) ? innodb_temp_file_key
-                                                       : innodb_data_file_key,
-                     old_path.c_str(), new_path.c_str());
+      os_file_rename(get_pfs_key(space_id), old_path.c_str(), new_path.c_str());
   /* We can`t assert the rename succeeded as it may fail if we were to move the
   file between different file systems. */
 
@@ -294,9 +302,7 @@ Tablespaces_nodes::Status Tablespaces_nodes::remove(Tablespace_id space_id,
                                                     size_t /* node_order */,
                                                     const Node_hints &hints) {
 #ifdef UNIV_PFS_IO
-  const auto &file_key = fsp_is_system_temporary(space_id)
-                             ? innodb_temp_file_key
-                             : innodb_data_file_key;
+  const auto &file_key = get_pfs_key(space_id);
 #endif
   /* Additionally delete any generated files, otherwise when we drop the
   database the remove directory will fail. */
@@ -325,6 +331,12 @@ Tablespaces_nodes::get_node_info(Tablespace_id space_id,
   /* As per specification, SPACE_UNKNOWN means we are not interested in the
   node storage size and page_size must be 0. */
   ut_a(space_id != SPACE_UNKNOWN || page_size == 0);
+  /* As per specification, SPACE_UNKNOWN means we are not interested in the
+  access_permissions and thus m_check_permissions must be false. This part of
+  the contract is important as checking permissions requires opening a file,
+  which in turn registers a path in the PFS under specified pfs key, and not
+  knowing space_id we don't know which of the keys to use. */
+  ut_a(space_id != SPACE_UNKNOWN || !hints.m_check_permissions);
 
   switch (os_file_get_status(hints.m_path.c_str(), &stat)) {
     case DB_FAIL:
@@ -336,8 +348,11 @@ Tablespaces_nodes::get_node_info(Tablespace_id space_id,
              stat.size / page_size <= std::numeric_limits<page_no_t>::max());
         const auto access_permissions =
             hints.m_check_permissions
-                ? os_file_check_access(hints.m_path.c_str(),
-                                       hints.m_is_raw_disk)
+                ? os_file_check_access(
+#ifdef UNIV_PFS_IO
+                      get_pfs_key(space_id),
+#endif /* UNIV_PFS_IO */
+                      hints.m_path.c_str(), hints.m_is_raw_disk)
                 : Access_permissions{};
         return Node_info{(page_size != 0)
                              ? static_cast<page_no_t>(stat.size / page_size)

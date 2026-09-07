@@ -599,6 +599,8 @@ EXPLAIN
     -> Materialize  (rows=2)
         -> Table scan on cc  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select 'm' AS `o1` from (/* select#2 */ select `test`.`cc`.`i1` AS `i1`,`test`.`cc`.`i2` AS `i2` from `test`.`cc`) `table3` where ((`table3`.`i2` = 'm') and (`table3`.`i1` = 'm'))
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE cc;
 DROP TABLE C;

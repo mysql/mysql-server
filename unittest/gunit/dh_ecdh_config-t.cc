@@ -38,14 +38,7 @@
 
 namespace dh_ecdh_config_unittest {
 
-#if OPENSSL_VERSION_NUMBER >= 0x30500000L
-
 using SslCtx_ptr = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
-using Ssl_ptr = std::unique_ptr<SSL, decltype(&SSL_free)>;
-using EvpPkey_ptr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
-using EvpPkeyCtx_ptr =
-    std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
-using X509_ptr = std::unique_ptr<X509, decltype(&X509_free)>;
 
 std::string consume_openssl_errors() {
   std::string errors;
@@ -58,6 +51,31 @@ std::string consume_openssl_errors() {
   }
   return errors.empty() ? "no OpenSSL error available" : errors;
 }
+
+static const SSL_METHOD *server_method() {
+#ifdef HAVE_TLSv13
+  return TLS_server_method();
+#else
+  return SSLv23_server_method();
+#endif
+}
+
+TEST(DhEcdhConfigTest, DefaultGroupsInitializeSslContext) {
+  SSL_library_init();
+  SSL_load_error_strings();
+
+  SslCtx_ptr ctx(SSL_CTX_new(server_method()), &SSL_CTX_free);
+  ASSERT_NE(ctx, nullptr) << consume_openssl_errors();
+  EXPECT_FALSE(set_ecdh(ctx.get(), false, nullptr)) << consume_openssl_errors();
+}
+
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+
+using Ssl_ptr = std::unique_ptr<SSL, decltype(&SSL_free)>;
+using EvpPkey_ptr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
+using EvpPkeyCtx_ptr =
+    std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
+using X509_ptr = std::unique_ptr<X509, decltype(&X509_free)>;
 
 EvpPkey_ptr make_rsa_key() {
   EvpPkeyCtx_ptr ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr),
@@ -78,14 +96,14 @@ X509_ptr make_self_signed_cert(EVP_PKEY *key) {
   X509_ptr cert(X509_new(), &X509_free);
   if (cert == nullptr) return cert;
 
-  X509_NAME *name = X509_get_subject_name(cert.get());
+  const X509_NAME *name = X509_get_subject_name(cert.get());
   if (X509_set_version(cert.get(), 2) != 1 ||
       ASN1_INTEGER_set(X509_get_serialNumber(cert.get()), 1) != 1 ||
       X509_gmtime_adj(X509_getm_notBefore(cert.get()), 0) == nullptr ||
       X509_gmtime_adj(X509_getm_notAfter(cert.get()), 60 * 60) == nullptr ||
       X509_set_pubkey(cert.get(), key) != 1 || name == nullptr ||
       X509_NAME_add_entry_by_txt(
-          name, "CN", MBSTRING_ASC,
+          const_cast<X509_NAME *>(name), "CN", MBSTRING_ASC,
           reinterpret_cast<const unsigned char *>("localhost"), -1, -1,
           0) != 1 ||
       X509_set_issuer_name(cert.get(), name) != 1 ||

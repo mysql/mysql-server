@@ -82,6 +82,11 @@ write this new information to encryption header.
 [[nodiscard]] dberr_t log_encryption_update_and_write_header(
     log_t &log, const ib::redo::Handler_interface::Metadata_value block);
 
+/** Generates enough dummy redo to cross a physical redo block boundary and
+waits until the barrier is written using the current value of
+srv_redo_log_encrypt. */
+void log_encryption_write_dummy_barrier();
+
 /** Generate new encryption information for REDO log.
 @return DB_SUCCESS or DB_ERROR */
 [[nodiscard]] dberr_t log_encryption_generate_metadata();

@@ -1,0 +1,54 @@
+# ==== PURPOSE ====
+#
+# Verify that PITR replay through mysqlbinlog and mysql applies a row-based
+# CREATE TABLE ... SELECT transaction when the target server has no binary log.
+#
+# ==== IMPLEMENTATION ====
+#
+# Test steps
+# 1. Stop the replica, which starts with --skip-log-bin from the test option
+#    file.
+# 2. Generate CREATE TABLE, INSERT, CTAS, and INSERT transactions on source.
+# 3. Replay the generated source-binlog range through mysqlbinlog piped to
+#    mysql.
+# 4. Verify the source and CTAS tables, including rows inserted after CTAS.
+#
+# Test pass conditions
+# - mysqlbinlog replay finishes without an error.
+# - The replay target contains the expected source and CTAS rows.
+#
+# ==== REFERENCES ====
+#
+# Bug reproduction: CTAS START TRANSACTION must not start a second
+# transaction in a binlog-applier THD.
+
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+
+--let $source_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $source_binlog_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+CREATE TABLE pitr_ctas_source (id INT);
+INSERT INTO pitr_ctas_source VALUES (1), (2), (3);
+CREATE TABLE pitr_ctas_target AS SELECT * FROM pitr_ctas_source;
+INSERT INTO pitr_ctas_target VALUES (4), (5), (6);
+
+--let $replica_connection_args= --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+--exec $MYSQL_BINLOG --start-position=$source_binlog_position $server_1_datadir/$source_binlog_file | $MYSQL $replica_connection_args test
+
+--let $diff_tables=master:pitr_ctas_source, slave:pitr_ctas_source
+--source include/diff_tables.inc
+
+--let $diff_tables=master:pitr_ctas_target, slave:pitr_ctas_target
+--source include/diff_tables.inc
+
+# Cleanup
+--source include/rpl/connection_replica.inc
+DROP TABLE pitr_ctas_source, pitr_ctas_target;
+RESET BINARY LOGS AND GTIDS;
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+DROP TABLE pitr_ctas_source, pitr_ctas_target;
+--source include/rpl/deinit.inc

@@ -221,11 +221,8 @@ TEST_F(SplicerTest, invalid_metadata) {
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       // connect failed eventually.
       // depending on the timing this cand also be "SSL connection aborted"
-      // openssl 1.1.1: 2013
-      // openssl 1.0.2: 2026
       EXPECT_THAT(e.code(),
-                  ::testing::AnyOf(::testing::Eq(2003), ::testing::Eq(2013),
-                                   ::testing::Eq(2026)));
+                  ::testing::AnyOf(::testing::Eq(2003), ::testing::Eq(2013)));
     }
   }
 
@@ -402,16 +399,9 @@ const SplicerFailParam splicer_fail_params[] = {
          {"client_ssl_curves", "not-a-curve"},
      },
      [](const std::vector<std::string> &output_lines) {
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
        ASSERT_THAT(output_lines,
                    ::testing::Contains(::testing::HasSubstr(
                        "setting client_ssl_curves=not-a-curve failed")));
-#else
-       ASSERT_THAT(output_lines,
-                   ::testing::Contains(::testing::HasSubstr(
-                       "setting client_ssl_curves is not supported by the ssl "
-                       "library, it should stay unset")));
-#endif
      }},
     {"client_ssl_curves_p521r1_and_unknown",  // RT2_CIPHERS_RECOGNISED_06
      {
@@ -420,17 +410,10 @@ const SplicerFailParam splicer_fail_params[] = {
          {"client_ssl_curves", "secp521r1:not-a-curve"},
      },
      [](const std::vector<std::string> &output_lines) {
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
        ASSERT_THAT(
            output_lines,
            ::testing::Contains(::testing::HasSubstr(
                "setting client_ssl_curves=secp521r1:not-a-curve failed")));
-#else
-       ASSERT_THAT(output_lines,
-                   ::testing::Contains(::testing::HasSubstr(
-                       "setting client_ssl_curves is not supported by the ssl "
-                       "library, it should stay unset")));
-#endif
      }},
     {"server_ssl_ca_not_exists",  // RT2_ARGS_PATHS_INVALID_04
      {
@@ -485,33 +468,6 @@ const SplicerFailParam splicer_fail_params[] = {
                                      "setting server_ssl_curves")));
      }},
 
-#if 0
-    // some openssl fail with "no match" if one specifies an unknown cipher
-    // some others don't.
-    //
-    // ubuntu 20.04: openssl 1.1.1f: fails
-    // ubuntu 18.04: openssl 1.1.1: ignores
-    // debian9     : openssl 1.1.0: fails
-    // el6         : openssl 1.0.1: fails
-    //
-    //
-    {"client_ssl_cipher_no_match",  // RT2_CIPHERS_UNKNOWN_01
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-         {"client_ssl_cipher", "-ALL:unknown"},
-     },
-     [](const std::vector<std::string> &output_lines) {
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
-       // openssl 1.0.1 doesn't fail on unknown ciphers.
-       ASSERT_THAT(output_lines, ::testing::Contains(::testing::HasSubstr(
-                                     "setting client_ssl_cipher")));
-#else
-       // unused
-       (void)output_lines;
-#endif
-     }},
-#endif
     {"server_ssl_capath_not_exists",  // RT2_ARGS_PATHS_INVALID_05,
                                       // RT2_CAPATH_BAD_03
                                       // RT2_CAPATH_CRLPATH_VALID_02
@@ -613,16 +569,9 @@ const SplicerFailParam splicer_fail_params[] = {
          {"server_ssl_curves", "not-a-curve"},
      },
      [](const std::vector<std::string> &output_lines) {
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
        ASSERT_THAT(output_lines,
                    ::testing::Contains(::testing::HasSubstr(
                        "setting server_ssl_curves=not-a-curve failed")));
-#else
-       ASSERT_THAT(output_lines, ::testing::Contains(::testing::HasSubstr(
-                                     "setting server_ssl_curves=not-a-curve is "
-                                     "not supported by the ssl "
-                                     "library, it should stay unset")));
-#endif
      }},
     {"server_crl_bad",  // RT2_CRL_BAD_02
      {
@@ -1284,8 +1233,6 @@ INSTANTIATE_TEST_SUITE_P(ServerPlain, SplicerConnectParamTest,
                            return p.test_name;
                          });
 
-#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
-// enable tests for curves with openssl 1.0.2 and later
 const SplicerConnectParam splicer_connect_openssl_102_params[] = {
     {"client_ssl_curves_p521r1",  // RT2_CIPHERS_RECOGNISED_02
      {
@@ -1379,7 +1326,6 @@ INSTANTIATE_TEST_SUITE_P(ServerPlainOpenssl102, SplicerConnectParamTest,
                            auto p = info.param;
                            return p.test_name;
                          });
-#endif
 
 const SplicerConnectParam splicer_connect_tls_params[] = {
     {"server_tlsv12_only",

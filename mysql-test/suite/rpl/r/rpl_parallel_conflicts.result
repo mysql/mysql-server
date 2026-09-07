@@ -53,7 +53,6 @@ DROP DATABASE db3;
 include/rpl/reset.inc
 [connection slave]
 include/rpl/stop_replica.inc
-SET GLOBAL replica_preserve_commit_order = FALSE;
 include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
@@ -89,7 +88,6 @@ DROP TABLE t1;
 include/rpl/sync_to_replica.inc
 [connection slave]
 include/rpl/stop_replica.inc
-SET GLOBAL replica_preserve_commit_order = 1;
 include/rpl/start_replica.inc
 [connection master]
 include/rpl/reset.inc

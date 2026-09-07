@@ -3501,7 +3501,9 @@ CREATE TABLE t1 ( pk INTEGER NOT NULL, a INTEGER );
 PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
 SET @v = 2;
 --replace_regex /  \(cost=.*//
+--disable_warnings
 EXECUTE q USING @v;
+--enable_warnings
 
 DROP TABLE t1;
 

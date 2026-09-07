@@ -117,9 +117,6 @@ SELECT * FROM p_dv1;
 UPDATE p_dv1 SET data = NULL;
 SELECT * FROM p_dv1;
 
---error ER_JDV_MISSING_VALUE
-UPDATE p_dv1 SET data = '{ "_id" : 1 } ';
-
 UPDATE p_dv1 SET data = '{ "_id" : 1, "f2" : 1, "_metadata": {"etag": "c05bfee044e2572d142725a5bf6e8bf4"} } ';
 SELECT * FROM p_dv1;
 
@@ -459,12 +456,6 @@ CREATE OR REPLACE JSON DUALITY VIEW p_dv1 AS SELECT
             ) FROM p_t1 ;
 
 SELECT * FROM  p_dv1;
-
---error ER_JDV_MISSING_VALUE
-UPDATE p_dv1 SET data = ' {
-     "_id" : 1,
-     "childN" : [ {"f11" : 1, "f13":333} ]
-} ';
 
 UPDATE p_dv1 SET data = ' {
      "_id" : 1,
@@ -1826,10 +1817,12 @@ SELECT JSON_DUALITY_OBJECT(
     FROM hole_group WHERE (hole_group.course_id = course.id))) AS Name_exp_1
 FROM course;
 
-
+# Specify primary keys explicitly so sibling array elements are deterministic
+# across query plans.
 INSERT INTO course_dv
 VALUES (
   '{
+    "_id": 1,
     "name": "Rock Harbor Golf Course - Boulder Course",
     "address": "365 Rock Harbor Drive",
     "address2": null,
@@ -1840,46 +1833,57 @@ VALUES (
     "abbrev": "RHB",
     "holeGroups": [
       {
+        "id": 1,
         "name": "Front Nine",
         "sort_order": 1,
         "slope": 136.00,
         "rating": 35.15,
+        "course_id": 1,
         "holes": [
-          { "number": 1, "handicap": 15, "par": 4 },
-          { "number": 2, "handicap": 5, "par": 3 },
-          { "number": 3, "handicap": 7, "par": 4 },
-          { "number": 4, "handicap": 17, "par": 5 },
-          { "number": 5, "handicap": 13, "par": 3 },
-          { "number": 6, "handicap": 1, "par": 5 },
-          { "number": 7, "handicap": 9, "par": 4 },
-          { "number": 8, "handicap": 3, "par": 3 },
-          { "number": 9, "handicap": 11, "par": 5 }
+          { "id": 1, "number": 1, "handicap": 15, "par": 4, "hole_group_id": 1 },
+          { "id": 2, "number": 2, "handicap": 5, "par": 3, "hole_group_id": 1 },
+          { "id": 3, "number": 3, "handicap": 7, "par": 4, "hole_group_id": 1 },
+          { "id": 4, "number": 4, "handicap": 17, "par": 5, "hole_group_id": 1 },
+          { "id": 5, "number": 5, "handicap": 13, "par": 3, "hole_group_id": 1 },
+          { "id": 6, "number": 6, "handicap": 1, "par": 5, "hole_group_id": 1 },
+          { "id": 7, "number": 7, "handicap": 9, "par": 4, "hole_group_id": 1 },
+          { "id": 8, "number": 8, "handicap": 3, "par": 3, "hole_group_id": 1 },
+          { "id": 9, "number": 9, "handicap": 11, "par": 5, "hole_group_id": 1 }
         ]
       },
       {
+        "id": 2,
         "name": "Back Nine",
         "sort_order": 2,
         "slope": 136.00,
         "rating": 35.15,
+        "course_id": 1,
         "holes": [
-          { "number": 10, "handicap": 4, "par": 5 },
-          { "number": 11, "handicap": 18, "par": 3 },
-          { "number": 12, "handicap": 16, "par": 4 },
-          { "number": 13, "handicap": 14, "par": 3 },
-          { "number": 14, "handicap": 8, "par": 4 },
-          { "number": 15, "handicap": 2, "par": 4 },
-          { "number": 16, "handicap": 6, "par": 5 },
-          { "number": 17, "handicap": 12, "par": 3 },
-          { "number": 18, "handicap": 10, "par": 5 }
+          { "id": 10, "number": 10, "handicap": 4, "par": 5, "hole_group_id": 2 },
+          { "id": 11, "number": 11, "handicap": 18, "par": 3, "hole_group_id": 2 },
+          { "id": 12, "number": 12, "handicap": 16, "par": 4, "hole_group_id": 2 },
+          { "id": 13, "number": 13, "handicap": 14, "par": 3, "hole_group_id": 2 },
+          { "id": 14, "number": 14, "handicap": 8, "par": 4, "hole_group_id": 2 },
+          { "id": 15, "number": 15, "handicap": 2, "par": 4, "hole_group_id": 2 },
+          { "id": 16, "number": 16, "handicap": 6, "par": 5, "hole_group_id": 2 },
+          { "id": 17, "number": 17, "handicap": 12, "par": 3, "hole_group_id": 2 },
+          { "id": 18, "number": 18, "handicap": 10, "par": 5, "hole_group_id": 2 }
         ]
       }
     ]
   }'
 );
 
+--sorted_result
 SELECT * FROM course_dv;
+
+--sorted_result
 SELECT * FROM course;
+
+--sorted_result
 SELECT * FROM hole_group;
+
+--sorted_result
 SELECT * FROM hole;
 
 --echo # Note that only the base table course is actually being updated here.

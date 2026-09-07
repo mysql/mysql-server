@@ -74,6 +74,7 @@
 // #define DEBUG_MULTI_TRP 1
 // #define DEBUG_STARTUP 1
 // #define DEBUG_ARBIT 1
+// #define DEBUG_REGREQ 1
 #endif
 
 #ifdef DEBUG_ARBIT
@@ -729,11 +730,11 @@ void Qmgr::setHbDelay(UintR aHbDelay) {
   hb_check_timer.reset(now);
 }
 
-void Qmgr::setHbApiDelay(UintR aHbApiDelay) {
+void Qmgr::setHbApiDelay(Uint32 nodeId, UintR aHbApiDelay) {
   const NDB_TICKS now = NdbTick_getCurrentTicks();
-  chbApiDelay = (aHbApiDelay < 100 ? 100 : aHbApiDelay);
-  hb_api_timer.setDelay(chbApiDelay);
-  hb_api_timer.reset(now);
+  chbApiDelay[nodeId] = (aHbApiDelay < 100 ? 100 : aHbApiDelay);
+  hb_api_timer[nodeId].setDelay(chbApiDelay[nodeId]);  // Per-node timer
+  hb_api_timer[nodeId].reset(now);
 }
 
 void Qmgr::setArbitTimeout(UintR aArbitTimeout) {
@@ -2724,6 +2725,7 @@ void Qmgr::execCM_ADD(Signal *signal) {
       enableComReq->m_senderData = ENABLE_COM_CM_ADD_COMMIT;
       enableComReq->m_enableNodeId = addNodePtr.i;
       enableComReq->m_dbHbSender = cneighbourl;
+      enableComReq->m_heartbeatInterval = hb_check_timer.getDelay();
       sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
                  EnableComReq::SignalLength, JBB);
       break;
@@ -2807,6 +2809,11 @@ void Qmgr::joinedCluster(Signal *signal, NodeRecPtr nodePtr) {
   enableComReq->m_senderData = ENABLE_COM_CM_COMMIT_NEW;
   enableComReq->m_enableNodeId = 0;
   enableComReq->m_dbHbSender = cneighbourl;
+  /*
+   * Same DB heartbeat interval applies to all data nodes in m_nodeIds.
+   * TRPMAN only uses it for the current DB heartbeat sender transporter.
+   */
+  enableComReq->m_heartbeatInterval = hb_check_timer.getDelay();
   enableComReq->m_nodeIds.clear();
   jam();
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
@@ -2817,6 +2824,7 @@ void Qmgr::joinedCluster(Signal *signal, NodeRecPtr nodePtr) {
       // to open communication to ourself.
       /*-------------------------------------------------------------------*/
       jamLine(nodePtr.i);
+      ndbrequire(getNodeInfo(nodePtr.i).m_type == NodeInfo::DB);
       enableComReq->m_nodeIds.set(nodePtr.i);
     }  // if
   }    // for
@@ -3305,10 +3313,14 @@ void Qmgr::timerHandlingLab(Signal *signal) {
     checkStartInterface(signal, TcurrentTime);
   }
 
-  if (hb_api_timer.check(TcurrentTime)) {
+  for (Uint32 nodeId = c_connectedNodes.find(1);
+       nodeId != NodeBitmask::NotFound;
+       nodeId = c_connectedNodes.find(nodeId + 1)) {
     jam();
-    hb_api_timer.reset(TcurrentTime);
-    apiHbHandlingLab(signal, TcurrentTime);
+    const NodeInfo::NodeType type = getNodeInfo(nodeId).getType();
+    if (type == NodeInfo::DB || type == NodeInfo::INVALID) continue;
+
+    apiHbHandlingLab(signal, nodeId, TcurrentTime);
   }
 
   if (ka_send_timer.getDelay() > 0 && ka_send_timer.check(TcurrentTime)) {
@@ -3411,56 +3423,55 @@ void Qmgr::checkHeartbeat(Signal *signal) {
   }  // if
 }  // Qmgr::checkHeartbeat()
 
-void Qmgr::apiHbHandlingLab(Signal *signal, NDB_TICKS now) {
+void Qmgr::apiHbHandlingLab(Signal *signal, Uint32 nodeId, NDB_TICKS now) {
   NodeRecPtr TnodePtr;
 
   jam();
-  for (TnodePtr.i = 1; TnodePtr.i < MAX_NODES; TnodePtr.i++) {
-    const Uint32 nodeId = TnodePtr.i;
-    ptrAss(TnodePtr, nodeRec);
+  TnodePtr.i = nodeId;
+  ptrAss(TnodePtr, nodeRec);
 
-    const auto nodeInfo = getNodeInfo(nodeId);
-    const NodeInfo::NodeType type = nodeInfo.getType();
-    if (type == NodeInfo::DB) continue;
+  const auto nodeInfo = getNodeInfo(nodeId);
+  const NodeInfo::NodeType type = nodeInfo.getType();
+  if (type == NodeInfo::DB) return;
 
-    if (type == NodeInfo::INVALID) continue;
+  if (type == NodeInfo::INVALID) return;
 
-    if (c_connectedNodes.get(nodeId)) {
-      jamLine(nodeId);
-      set_hb_count(TnodePtr.i)++;
+  ndbrequire(c_connectedNodes.get(nodeId));
 
-      const unsigned first_missed_hb_to_log =
-          (ndb_heartbeat_send_twice_per_interval(nodeInfo.m_version) ? 1 : 2);
-      if (get_hb_count(TnodePtr.i) > first_missed_hb_to_log) {
-        signal->theData[0] = NDB_LE_MissedHeartbeat;
-        signal->theData[1] = nodeId;
-        signal->theData[2] = get_hb_count(TnodePtr.i) - 1;
-        sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
-      }
+  if (hb_api_timer[nodeId].getDelay() == 0 ||
+      !hb_api_timer[nodeId].check(now)) {
+    jam();
+    return;
+  }
+  hb_api_timer[nodeId].reset(now);
 
-      if (get_hb_count(TnodePtr.i) > 4) {
-        jam();
-        /*------------------------------------------------------------------*/
-        /* THE API NODE HAS NOT SENT ANY HEARTBEAT FOR FOUR HEARTBEATS.
-         * WE WILL DISCONNECT FROM IT NOW.
-         *------------------------------------------------------------------*/
-        /*------------------------------------------------------------------*/
-        /* We call node_failed to release all connections for this api node */
-        /*------------------------------------------------------------------*/
-        signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
-        signal->theData[1] = nodeId;
-        sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  jamLine(nodeId);
+  set_hb_count(TnodePtr.i)++;
 
-        api_failed(signal, nodeId, AFC_Heartbeat, 0);
-      }  // if
-    }    // if
-    else if (TnodePtr.p->phase == ZAPI_INACTIVE && TnodePtr.p->m_secret != 0 &&
-             NdbTick_Compare(now, TnodePtr.p->m_alloc_timeout) > 0) {
-      jam();
-      TnodePtr.p->m_secret = 0;
-      warningEvent("Releasing node id allocation for node %u", TnodePtr.i);
-    }
-  }  // for
+  const unsigned first_missed_hb_to_log =
+      (ndb_heartbeat_send_twice_per_interval(nodeInfo.m_version) ? 1 : 2);
+  if (get_hb_count(TnodePtr.i) > first_missed_hb_to_log) {
+    signal->theData[0] = NDB_LE_MissedHeartbeat;
+    signal->theData[1] = nodeId;
+    signal->theData[2] = get_hb_count(TnodePtr.i) - 1;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  }
+
+  if (get_hb_count(TnodePtr.i) > 4) {
+    jam();
+    /*------------------------------------------------------------------*/
+    /* THE API NODE HAS NOT SENT ANY HEARTBEAT FOR FOUR HEARTBEATS.
+     * WE WILL DISCONNECT FROM IT NOW.
+     *------------------------------------------------------------------*/
+    /*------------------------------------------------------------------*/
+    /* We call node_failed to release all connections for this api node */
+    /*------------------------------------------------------------------*/
+    signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
+    signal->theData[1] = nodeId;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
+    api_failed(signal, nodeId, AFC_Heartbeat, 0);
+  }  // if
   return;
 }  // Qmgr::apiHbHandlingLab()
 
@@ -3636,7 +3647,9 @@ void Qmgr::checkStartInterface(Signal *signal, NDB_TICKS now) {
           }
         }
       }
-    } else if (type == NodeInfo::DB && nodePtr.p->phase == ZINIT &&
+    } else if (((type == NodeInfo::DB && nodePtr.p->phase == ZINIT) ||
+                ((type == NodeInfo::API || type == NodeInfo::MGM) &&
+                 nodePtr.p->phase == ZAPI_INACTIVE)) &&
                nodePtr.p->m_secret != 0 &&
                NdbTick_Compare(now, nodePtr.p->m_alloc_timeout) > 0) {
       jam();
@@ -4141,6 +4154,9 @@ void Qmgr::api_failed(Signal *signal, Uint32 nodeId, ApiFailureCause afc,
   failedNodePtr.i = nodeId;
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
   failedNodePtr.p->m_secret = 0;  // Not yet Uint64(rand()) << 32 + rand();
+  chbApiDelay[nodeId] = cdefaultHbApiDelay;
+  hb_api_timer[nodeId].setDelay(0);
+  hb_api_timer[nodeId].reset(NdbTick_getCurrentTicks());
 
   if (failedNodePtr.p->phase == ZFAIL_CLOSING) {
     jam();
@@ -4265,11 +4281,18 @@ void Qmgr::execAPI_REGREQ(Signal *signal) {
   const BlockReference ref = req->ref;
 
   Uint32 mysql_version = req->mysql_version;
+  Uint32 apiHeartbeatInterval = RNIL;
+  if (signal->getLength() >= ApiRegReq::SignalLength) {
+    apiHeartbeatInterval = req->apiHeartbeatInterval;
+  }
 
   NodeRecPtr apiNodePtr;
   apiNodePtr.i = refToNode(ref);
   ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
 
+#ifdef DEBUG_REGREQ
+  g_eventLogger->info("API_REGREQ from node %u", apiNodePtr.i);
+#endif
   if (apiNodePtr.p->phase == ZFAIL_CLOSING) {
     jam();
     /**
@@ -4333,6 +4356,27 @@ void Qmgr::execAPI_REGREQ(Signal *signal) {
   setNodeInfo(apiNodePtr.i).m_version = version;
   setNodeInfo(apiNodePtr.i).m_mysql_version = mysql_version;
   set_hb_count(apiNodePtr.i) = 0;
+  Uint32 newApiHeartbeatInterval = chbApiDelay[apiNodePtr.i];
+  if (apiHeartbeatInterval != RNIL) {
+    newApiHeartbeatInterval =
+        (apiHeartbeatInterval < 100) ? 100 : apiHeartbeatInterval;
+  }
+
+  /*
+   * setHbApiDelay() resets the timer. Only call it when the timer is not yet
+   * initialized, so normal API_REGREQ heartbeats do not postpone the heartbeat
+   * check handled by apiHbHandlingLab().
+   */
+  if (hb_api_timer[apiNodePtr.i].getDelay() == 0 ||
+      chbApiDelay[apiNodePtr.i] != newApiHeartbeatInterval) {
+    jam();
+    setHbApiDelay(apiNodePtr.i, newApiHeartbeatInterval);  // per-node HB
+#ifdef DEBUG_REGREQ
+    g_eventLogger->info(
+        "Qmgr::execAPI_REGREQ: Setting HB interval for node %u to %u",
+        apiNodePtr.i, newApiHeartbeatInterval);
+#endif
+  }
 
   NodeState state = getNodeState();
   if (apiNodePtr.p->phase == ZAPI_INACTIVE) {
@@ -4358,6 +4402,7 @@ void Qmgr::execAPI_REGREQ(Signal *signal) {
       enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
       enableComReq->m_enableNodeId = apiNodePtr.i;
       enableComReq->m_dbHbSender = cneighbourl;
+      enableComReq->m_heartbeatInterval = chbApiDelay[apiNodePtr.i];
       sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
                  EnableComReq::SignalLength, JBB);
       return;
@@ -4473,7 +4518,9 @@ void Qmgr::sendApiRegConf(Signal *signal, Uint32 node) {
 
   ApiRegConf *const apiRegConf = (ApiRegConf *)&signal->theData[0];
   apiRegConf->qmgrRef = reference();
-  apiRegConf->apiHeartbeatInterval = (chbApiDelay / 10);
+  Uint32 nodeId = refToNode(ref);
+  apiRegConf->apiHeartbeatInterval = (chbApiDelay[nodeId] / 10);
+
   apiRegConf->version = NDB_VERSION;
   apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
   apiRegConf->nodeState = getNodeState();

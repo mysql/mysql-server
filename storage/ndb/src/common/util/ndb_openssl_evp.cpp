@@ -40,12 +40,6 @@
 #include "openssl/opensslv.h"
 #include "openssl/rand.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#include "openssl/engine.h"
-#include "portlib/NdbMutex.h"
-#include "portlib/NdbThread.h"
-#endif
-
 #include "my_ssl_algo_cache.h"
 
 // clang-format off
@@ -57,39 +51,6 @@
 //#define RETURN(rv) abort()
 //#define RETURN(r) do { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require(false); return (r); } while (0)
 // clang-format on
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static unsigned long ndb_openssl_id() {
-  NdbThread *thread = NdbThread_GetNdbThread();
-  if (sizeof(unsigned long) >= sizeof(uintptr_t)) {
-    return (uintptr_t)thread;
-  } else {
-    int id = NdbThread_GetTid(thread);
-    require(id != -1);
-    return (unsigned)id;
-  }
-}
-
-static NdbMutex *ndb_openssl_lock_array = nullptr;
-
-static void ndb_openssl_lock(int mode, int n, const char *, int) {
-  require(n >= 0);
-  require(n < CRYPTO_num_locks());
-
-  switch (mode) {
-    case CRYPTO_LOCK | CRYPTO_READ:
-    case CRYPTO_LOCK | CRYPTO_WRITE:
-      NdbMutex_Lock(&ndb_openssl_lock_array[n]);
-      break;
-    case CRYPTO_UNLOCK | CRYPTO_READ:
-    case CRYPTO_UNLOCK | CRYPTO_WRITE:
-      NdbMutex_Unlock(&ndb_openssl_lock_array[n]);
-      break;
-    default:
-      abort();
-  }
-}
-#endif
 
 /*
  * OPENSSL library initialization and cleanup
@@ -104,35 +65,10 @@ int ndb_openssl_evp::library_init() {
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();
   ERR_load_crypto_strings();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  RAND_set_rand_engine(nullptr);  // Needed until OpenSSL 1.0.1e
-
-  int num_locks = CRYPTO_num_locks();
-  ndb_openssl_lock_array =
-      (NdbMutex *)OPENSSL_malloc(num_locks * sizeof(ndb_openssl_lock_array[0]));
-  for (int i = 0; i < num_locks; i++) NdbMutex_Init(&ndb_openssl_lock_array[i]);
-
-  CRYPTO_set_locking_callback(&ndb_openssl_lock);
-  CRYPTO_set_id_callback(&ndb_openssl_id);
-#endif
   return 0;
 }
 
 int ndb_openssl_evp::library_end() {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  CRYPTO_set_locking_callback(nullptr);
-  CRYPTO_set_id_callback(nullptr);
-
-  int num_locks = CRYPTO_num_locks();
-  for (int i = 0; i < num_locks; i++)
-    NdbMutex_Deinit(&ndb_openssl_lock_array[i]);
-
-  OPENSSL_free(ndb_openssl_lock_array);
-  ndb_openssl_lock_array = nullptr;
-
-  ENGINE_cleanup();
-  ERR_remove_thread_state(nullptr);
-#endif
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   EVP_default_properties_enable_fips(nullptr, 0);
 #else
@@ -475,7 +411,7 @@ void ndb_openssl_evp::operation::reset() {
   m_op_mode = NO_OP;
   m_input_position = -1;
   m_output_position = -1;
-  EVP_CIPHER_CTX_init(m_evp_context);
+  EVP_CIPHER_CTX_reset(m_evp_context);
 }
 
 ndb_openssl_evp::operation::~operation() {
@@ -492,7 +428,7 @@ int ndb_openssl_evp::operation::set_context(const ndb_openssl_evp *context) {
   m_input_position = -1;
   m_output_position = -1;
   m_context = context;
-  EVP_CIPHER_CTX_init(m_evp_context);  // _reset in newer openssl
+  EVP_CIPHER_CTX_reset(m_evp_context);
   return 0;
 }
 
@@ -985,24 +921,6 @@ int ndb_openssl_evp::operation::decrypt_end() {
   return 0;
 }
 
-bool ndb_openssl_evp::is_aeskw256_supported() {
-#ifndef EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
-  /*
-   * EVP_CIPHER_CTX_FLAG_WRAP_ALLOW and EVP_aes_256_wrap should have been
-   * defined in openssl/evp.h.
-   */
-  return false;
-#else
-  return true;
-#endif
-}
-
-#ifndef EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
-int ndb_openssl_evp::wrap_keys_aeskw256(byte *, size_t *, const byte *, size_t,
-                                        const byte *, size_t) {
-  return -1;  // Not supported before OpenSSL 1.0.2
-}
-#else
 int ndb_openssl_evp::wrap_keys_aeskw256(byte *wrapped, size_t *wrapped_size,
                                         const byte *keys, size_t keys_size,
                                         const byte *wrapping_key,
@@ -1032,14 +950,7 @@ int ndb_openssl_evp::wrap_keys_aeskw256(byte *wrapped, size_t *wrapped_size,
   EVP_CIPHER_CTX_free(ctx);
   return 0;
 }
-#endif
 
-#ifndef EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
-int ndb_openssl_evp::unwrap_keys_aeskw256(byte *, size_t *, const byte *,
-                                          size_t, const byte *, size_t) {
-  return -1;  // Not supported before OpenSSL 1.0.2
-}
-#else
 int ndb_openssl_evp::unwrap_keys_aeskw256(byte *keys, size_t *keys_size,
                                           const byte *wrapped,
                                           size_t wrapped_size,
@@ -1071,7 +982,6 @@ int ndb_openssl_evp::unwrap_keys_aeskw256(byte *keys, size_t *keys_size,
   EVP_CIPHER_CTX_free(ctx);
   return 0;
 }
-#endif
 
 #ifdef TEST_NDB_OPENSSL_EVP
 

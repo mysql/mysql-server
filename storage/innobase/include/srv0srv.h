@@ -422,6 +422,9 @@ extern char *srv_log_group_home_dir;
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern bool srv_redo_log_encrypt;
 
+/** Whether the redo block at the recovered LSN was encrypted on disk. */
+extern bool srv_recovered_redo_block_was_encrypted;
+
 /* Maximum number of redo files of a cloned DB. */
 constexpr size_t SRV_N_LOG_FILES_CLONE_MAX = 1000;
 

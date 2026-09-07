@@ -201,15 +201,19 @@ class Tablespaces_nodes_interface {
   @param[in]      space_id        Tablespace ID. It can be `SPACE_UNKNOWN` to
                                   check if the path specified in hints exists
                                   and get all info but the size of node in
-                                  pages.
+                                  pages. In such case @p page_size should be set
+                                  to 0 and @p hints.m_check_permissions must be
+                                  set to false.
   @param[in]      node_order      Number of the node in the tablespace.
   @param[in]      hints           Additional information that may be useful for
-                                  querying the node's storage.
+                                  querying the node's storage. If space_id is
+                                  `SPACE_UNKNOWN` then @p m_check_permissions
+                                  must be set to false.
   @param[in]      page_size       Physical page size used in the tablespace,
                                   must match one specified when creating the
                                   tablespace. However, if the @p space_id is
                                   `SPACE_UNKNOWN` or we are not interested in
-                                  the node size, a value of 0 can be specified.
+                                  the node size, then @p page_size should be 0.
                                   In such case, the returned Node_info::size
                                   will be 0. */
   [[nodiscard]] virtual ut::Expected<Node_info, Node_error> get_node_info(

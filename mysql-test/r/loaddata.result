@@ -837,9 +837,6 @@ LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug38939847_rows' INTO TABLE t3 FIELDS TE
 Warnings:
 Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 1
 Warning	1261	Row 2 doesn't contain data for all columns
-SELECT @@warning_count;
-@@warning_count
-2
 SELECT id, b, b = '' AS b_is_default FROM t3 ORDER BY id;
 id	b	b_is_default
 1		1

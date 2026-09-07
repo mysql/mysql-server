@@ -1041,6 +1041,8 @@ EXPLAIN
             -> Aggregate using temporary table
                 -> Table scan on t1  (rows=1536)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c2` AS `c2` from `test`.`t1` group by `test`.`t1`.`c1` having (count(0) > 1)
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 c2
 1
@@ -1251,6 +1253,8 @@ EXPLAIN
                 -> Filter: (table1.f2 = table2.f3)  (rows=1)
                     -> Table scan on table2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `table1`.`pk` AS `pk` from `test`.`t1` `table1` left join `test`.`t1` `table2` on((`table1`.`f2` = `table2`.`f3`)) where (`table2`.`f1` is null)
 DROP TABLE t1;
 CREATE TABLE t1 (
 pk integer
@@ -1289,6 +1293,8 @@ EXPLAIN
                 -> Filter: (t1.pk = t3.f2)  (rows=1)
                     -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t3`,`t1`) */ distinct `test`.`t2`.`pk` AS `pk` from `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t1`.`pk` = `test`.`t3`.`f2`) and (`test`.`t3`.`f3` = `test`.`t2`.`f1`) and (`test`.`t3`.`pk` <> `test`.`t2`.`pk`))
 DROP TABLE t1, t2, t3;
 SET optimizer_switch=@old_optimizer_switch;
 #
@@ -1315,6 +1321,8 @@ EXPLAIN
             -> Aggregate using temporary table
                 -> Table scan on t1  (rows=7224)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct count(0) AS `num` from `test`.`t1` group by `test`.`t1`.`f` having (`num` = 1)
 SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 num
 1
@@ -1347,6 +1355,8 @@ EXPLAIN
                 -> Sort: t1.a DESC, t1.b  (rows=3)
                     -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` desc,`test`.`t1`.`b` order by `test`.`t1`.`a` desc
 SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 a
 3

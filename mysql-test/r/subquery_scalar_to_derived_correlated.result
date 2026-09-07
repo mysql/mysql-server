@@ -1379,6 +1379,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` join (/* select#2 */ select any_value(`test`.`t1`.`a`),`test`.`t1`.`b` AS `b`,count(0) AS `Name_exp_3` from `test`.`t1` group by `test`.`t1`.`b` having (1 = any_value(`test`.`t1`.`a`))) `derived_1_2` where ((`derived_1_2`.`b` = `test`.`t2`.`a`) and reject_if((`derived_1_2`.`Name_exp_3` > 1)))
 SELECT a
 FROM t2 WHERE 1 = (SELECT t1.a FROM t1 WHERE t1.b = t2.a);
 a
@@ -1401,6 +1402,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t2`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` join (/* select#2 */ select any_value(`test`.`t1`.`a`),`test`.`t1`.`b` AS `b`,count(0) AS `Name_exp_3` from `test`.`t1` group by `test`.`t1`.`b` having (1 = any_value(`test`.`t1`.`a`))) `derived_1_2` where ((`test`.`t2`.`a` = `derived_1_2`.`b`) and reject_if((`derived_1_2`.`Name_exp_3` > 1)))
 SELECT /*+ JOIN_SUFFIX (t2) */ a
 FROM t2 WHERE 1 = (SELECT t1.a FROM t1 WHERE t1.b = t2.a);
 a

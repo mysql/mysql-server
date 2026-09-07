@@ -56,9 +56,6 @@ SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_status
 --let $assert_text=FR8: Checking if session data file was populated
 --let $assert_select=-*BEGIN SSL SESSION PARAMETERS
 --let $assert_count=0;
-# openssl 1.0 (that doesn't support TLS 1.3) will still send
-# SSL session resumption data even if disabled on the server
-# Hence we expect 1 with it.
 if (`SELECT @@GLOBAL.tls_version NOT LIKE '%TLSv1.3'`) {
   let $assert_count=1;
 }

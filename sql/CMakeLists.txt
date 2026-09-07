@@ -791,7 +791,6 @@ ENDIF()
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
-  ${GEN_KEYWORD_LIST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
@@ -857,22 +856,6 @@ IF(WIN32)
       )
 ENDIF()
 
-# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
-IF(WIN32)
-  ADD_COMPILE_FLAGS(
-    gis/difference.cc
-    gis/difference_functor.cc
-    gis/intersection_functor.cc
-    gis/symdifference_functor.cc
-    gis/touches.cc
-    gis/union.cc
-    gis/union_functor.cc
-    gis/within.cc
-    item_geofunc.cc
-    item_geofunc_relchecks.cc
-    COMPILE_FLAGS "/bigobj")
-ENDIF()
-
 # Downgrade -Werror to warning for gcc
 IF(MY_COMPILER_IS_GNU)
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
@@ -904,7 +887,10 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef -Wno-unused-label")
-  IF(MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
+  IF((MY_COMPILER_IS_CLANG AND
+      CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14) OR
+     (MY_COMPILER_IS_GNU AND
+      CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16))
     ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
@@ -936,11 +922,15 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
+ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE})
+TARGET_LINK_LIBRARIES(sql_main PRIVATE ext::icu ext::xxhash)
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
+# mysqld.cc includes an RPL protobuf generated header, so sql_main must wait
+# for the small protobuf library even though it does not link that library.
+ADD_DEPENDENCIES(sql_main ${RPL_PROTOBUF_LITE_LIB})
 
 IF(DEFINED WITH_HYPERGRAPH_OPTIMIZER)
   IF(WITH_HYPERGRAPH_OPTIMIZER)
@@ -963,9 +953,10 @@ ELSEIF(WITH_SHOW_PARSE_TREE_DEFAULT STREQUAL "default")
     $<$<CONFIG:Debug>:WITH_SHOW_PARSE_TREE=1>)
 ENDIF()
 
-TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
+TARGET_LINK_LIBRARIES(sql_main PRIVATE extra::unordered_dense)
 
-TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
+TARGET_LINK_LIBRARIES(sql_main INTERFACE ${MYSQLD_STATIC_PLUGIN_LIBS})
+TARGET_LINK_LIBRARIES(sql_main PRIVATE
   mysql_server_component_services mysys library_mysys strings vio
   mysql_binlog_event ${LIBWRAP} ${LIBDL} OpenSSL::SSL OpenSSL::Crypto
   extra::rapidjson extra::boost)
@@ -973,16 +964,33 @@ TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
 # sql/immutable_string.h uses
 # google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
 # which may or may not be inlined.
-TARGET_LINK_LIBRARIES(sql_main ext::libprotobuf-lite)
+TARGET_LINK_LIBRARIES(sql_main PRIVATE ext::libprotobuf-lite)
+
+SET(SQL_SERVER_HEADER_LIBRARIES
+  extra::boost
+  extra::rapidjson
+  extra::unordered_dense
+  ext::zlib
+  )
 
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
+IF(WIN32)
+  # /bigobj fixes "C1128: number of sections exceeded object file format limit".
+  # It could be applied per file, when needed, but it causes per-file MSBuild
+  # metadata to be added for VC++, which in turn causes the compiler to compile
+  # then sequentially, as opposed to building them in parallel, needlessly
+  # prolonging the compilation time. See comment on
+  # SQL_DD_BASENAME_COLLISION_SOURCES for more details on this mechanism.
+  TARGET_COMPILE_OPTIONS(sql_gis PRIVATE "/bigobj")
+ENDIF()
 ADD_DEPENDENCIES(sql_gis GenServerSource)
 ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
 ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
-TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
-TARGET_LINK_LIBRARIES(sql_gis extra::boost)
+TARGET_LINK_LIBRARIES(sql_gis INTERFACE sql_dd sql_main)
+TARGET_LINK_LIBRARIES(sql_gis
+  PRIVATE ${SQL_SERVER_HEADER_LIBRARIES})
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 # This typically saves a few hundred megabytes of disk space.
@@ -993,15 +1001,81 @@ IF(COMPRESS_DEBUG_SECTIONS)
   ENDIF()
 ENDIF()
 
-ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
-ADD_DEPENDENCIES(sql_dd GenFixPrivs)
-ADD_DEPENDENCIES(sql_dd GenServerSource)
-ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
-ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
-ADD_DEPENDENCIES(sql_dd GenSysSchema)
-ADD_DEPENDENCIES(sql_dd GenError)
-ADD_DEPENDENCIES(sql_dd GenKeywordList)
-TARGET_LINK_LIBRARIES(sql_dd sql_gis sql_main)
+SET(SQL_DD_GENERATED_DEPENDENCIES
+  GenFixPrivs
+  GenServerSource
+  GenDigestServerSource
+  GenBootstrapPriv
+  GenSysSchema
+  GenError
+)
+
+IF(MSVC)
+  # VC++ serializes compilation for sources with colliding object names within
+  # the same project. Move the later source of each collision out of sql_dd into
+  # a separate library that we link back to sql_dd. This improves compilation
+  # times and handles new collisions without maintaining a manual source list.
+  # In more detail, the msbuild is able to parallelise build per source group,
+  # using compiler's /MP option, as it is building the groups in sequence. And
+  # each change of output objfile (required by filename collisions) with /Fo
+  # creates a separate group. Refer to this documentation and project file for
+  # more details:
+  # https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-batching?view=visualstudio
+  # https://learn.microsoft.com/en-us/cpp/build/reference/mp-build-with-multiple-processes?view=msvc-180
+  # https://learn.microsoft.com/en-us/cpp/build/reference/fo-object-file-name?view=msvc-180
+
+  SET(SQL_DD_OBJECT_NAMES)
+  SET(SQL_DD_BASENAME_COLLISION_OBJECT_NAMES)
+  SET(SQL_DD_BASENAME_COLLISION_SOURCES)
+  FOREACH(source ${DD_SOURCES})
+    # Different source extensions and letter case can still produce the same
+    # case-insensitive object name on Windows.
+    GET_FILENAME_COMPONENT(object_name "${source}" NAME_WLE)
+    STRING(TOLOWER "${object_name}" object_name)
+    LIST(FIND SQL_DD_OBJECT_NAMES "${object_name}" object_name_index)
+    IF(object_name_index EQUAL -1)
+      LIST(APPEND SQL_DD_OBJECT_NAMES "${object_name}")
+    ELSE()
+      LIST(FIND SQL_DD_BASENAME_COLLISION_OBJECT_NAMES
+        "${object_name}" collision_object_name_index)
+      IF(collision_object_name_index EQUAL -1)
+        LIST(APPEND SQL_DD_BASENAME_COLLISION_OBJECT_NAMES "${object_name}")
+      ELSE()
+        MESSAGE(WARNING
+          "DD source ${source} generates ${object_name}.obj, which collides "
+          "with at least two other sources. Rename the source, or improve "
+          "this CMake script to include another source group.")
+      ENDIF()
+      LIST(APPEND SQL_DD_BASENAME_COLLISION_SOURCES "${source}")
+    ENDIF()
+  ENDFOREACH()
+
+  LIST(REMOVE_ITEM DD_SOURCES ${SQL_DD_BASENAME_COLLISION_SOURCES})
+ENDIF()
+
+# Keep keyword_list.h in its consuming target so its generation cannot race
+# with compilation of dd/impl/system_views/keywords.cc.
+ADD_LIBRARY(sql_dd STATIC
+  ${DD_SOURCES}
+  ${GEN_KEYWORD_LIST_SOURCES}
+  )
+ADD_DEPENDENCIES(sql_dd ${SQL_DD_GENERATED_DEPENDENCIES})
+TARGET_LINK_LIBRARIES(sql_dd
+  PRIVATE ${SQL_SERVER_HEADER_LIBRARIES})
+
+IF(MSVC AND SQL_DD_BASENAME_COLLISION_SOURCES)
+  ADD_LIBRARY(sql_dd_basename_collisions STATIC
+    ${SQL_DD_BASENAME_COLLISION_SOURCES})
+
+  TARGET_LINK_LIBRARIES(sql_dd_basename_collisions
+    INTERFACE sql_gis sql_main
+    PRIVATE ${SQL_SERVER_HEADER_LIBRARIES})
+  TARGET_LINK_LIBRARIES(sql_dd INTERFACE sql_dd_basename_collisions)
+
+  ADD_DEPENDENCIES(sql_dd_basename_collisions
+    ${SQL_DD_GENERATED_DEPENDENCIES})
+ENDIF()
+TARGET_LINK_LIBRARIES(sql_dd INTERFACE sql_gis sql_main)
 SET_TARGET_PROPERTIES(sql_dd PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 #
@@ -1010,7 +1084,7 @@ SET_TARGET_PROPERTIES(sql_dd PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 #
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-  TARGET_LINK_LIBRARIES(sql_main auth_win_client)
+  TARGET_LINK_LIBRARIES(sql_main PRIVATE auth_win_client)
   IF(OPENSSL_APPLINK_C)
     MY_ADD_COMPILE_DEFINITIONS(
       ../sql-common/client_authentication.cc
@@ -1114,20 +1188,23 @@ SET(BINLOG_SOURCE
   sql_binlog.cc
   )
 ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
-TARGET_LINK_LIBRARIES(binlog mysql_binlog_event)
-TARGET_LINK_LIBRARIES(binlog rpl)
+TARGET_LINK_LIBRARIES(binlog
+  PRIVATE mysql_binlog_event ${SQL_SERVER_HEADER_LIBRARIES})
+TARGET_LINK_LIBRARIES(binlog INTERFACE rpl)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl STATIC ${RPL_SOURCE})
-TARGET_LINK_LIBRARIES(rpl sql_main)
+TARGET_LINK_LIBRARIES(rpl PRIVATE ${SQL_SERVER_HEADER_LIBRARIES})
+TARGET_LINK_LIBRARIES(rpl INTERFACE sql_main)
 
 # library for the replication source
 SET (RPL_SOURCE_SRCS rpl_source.cc rpl_binlog_sender.cc binlog_reader.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(rpl_source STATIC ${RPL_SOURCE_SRCS})
 ADD_DEPENDENCIES(rpl_source GenError)
-TARGET_LINK_LIBRARIES(rpl_source binlog sql_main)
+TARGET_LINK_LIBRARIES(rpl_source PRIVATE ${SQL_SERVER_HEADER_LIBRARIES})
+TARGET_LINK_LIBRARIES(rpl_source INTERFACE binlog sql_main)
 
 SET (RPL_REPLICA_SRCS
   ${RPL_CSA_SOURCES}
@@ -1180,13 +1257,17 @@ SET (RPL_REPLICA_SRCS
   )
 ADD_STATIC_LIBRARY(rpl_replica ${RPL_REPLICA_SRCS}
   DEPENDENCIES GenError
-  LINK_LIBRARIES binlog sql_main mysql_concurrency_server mysql_scheduler_server ${RPL_PROTOBUF_LITE_LIB}
   )
+TARGET_LINK_LIBRARIES(rpl_replica
+  INTERFACE binlog sql_main
+  PRIVATE mysql_concurrency_server mysql_scheduler_server
+    ${RPL_PROTOBUF_LITE_LIB} ${SQL_SERVER_HEADER_LIBRARIES})
 
 IF(WIN32)
   # Silence warnings about: needs to have dll-interface
   TARGET_COMPILE_OPTIONS(rpl_replica PRIVATE "/wd4251")
-  ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS "/wd4251")
+  # The generated RPL protobuf header triggers a false C26815 warning.
+  ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS "/wd4251" "/wd26815")
   IF(WIN32_CLANG)
     ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS " -Wno-microsoft-cast")
     ADD_COMPILE_FLAGS(log_event.cc COMPILE_FLAGS " -Wno-microsoft-template")
@@ -1194,7 +1275,7 @@ IF(WIN32)
 ENDIF()
 
 # All these libraries depend on each other.
-TARGET_LINK_LIBRARIES(sql_main rpl rpl_source rpl_replica binlog)
+TARGET_LINK_LIBRARIES(sql_main INTERFACE rpl rpl_source rpl_replica binlog)
 
 IF(WIN32)
   SET(MYSQLD_SOURCE
@@ -1347,12 +1428,7 @@ TARGET_LINK_LIBRARIES(mysqld
 # Add dependency on ldap library, to ensure it is not unloaded
 # when we shutdown the authentication plugin.
 # For Valgrind, we need it to enable our suppressions.
-# For OpenSSL in the 1.0.x series, we need it for clean shutdown.
 IF(WITH_VALGRIND)
-  SET(LINK_MYSQLD_LDAP_LIBRARY 1)
-ENDIF()
-IF(WITH_SSL STREQUAL "system" AND
-    "${OPENSSL_VERSION_MAJOR}.${OPENSSL_VERSION_MINOR}" VERSION_LESS "1.1")
   SET(LINK_MYSQLD_LDAP_LIBRARY 1)
 ENDIF()
 IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)

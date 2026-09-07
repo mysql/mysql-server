@@ -24,6 +24,7 @@
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCXXCompilerFlag)
 INCLUDE(cmake/floating_point.cmake)
+INCLUDE(cmake/compiler_bugs.cmake)
 
 SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 

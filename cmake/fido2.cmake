@@ -167,21 +167,9 @@ FUNCTION(MYSQL_USE_BUNDLED_FIDO)
 ENDFUNCTION(MYSQL_USE_BUNDLED_FIDO)
 
 MACRO(MYSQL_CHECK_FIDO)
-  IF("${OPENSSL_MAJOR_MINOR_FIX_VERSION}" VERSION_GREATER "1.1.0")
-    SET(OPENSSL_IS_COMPATIBLE_WITH_BUNDLED_FIDO ON)
-  ELSE()
-    SET(OPENSSL_IS_COMPATIBLE_WITH_BUNDLED_FIDO OFF)
-    SET(WITH_AUTHENTICATION_WEBAUTHN OFF)
-  ENDIF()
-
   IF (NOT WITH_FIDO)
-    IF(OPENSSL_IS_COMPATIBLE_WITH_BUNDLED_FIDO)
-      SET(WITH_FIDO "bundled"
-        CACHE STRING "By default use bundled libfido2.")
-    ELSE()
-      SET(WITH_FIDO "none"
-        CACHE STRING "Do not compile libfido2 for OpenSSL < 1.1.1")
-    ENDIF()
+    SET(WITH_FIDO "bundled"
+      CACHE STRING "By default use bundled libfido2.")
   ENDIF()
 
   IF(WITH_FIDO STREQUAL "none")
@@ -190,12 +178,7 @@ MACRO(MYSQL_CHECK_FIDO)
        FIDO based authentication plugins will be skipped.")
   ELSE()
     IF(WITH_FIDO STREQUAL "bundled")
-      IF(OPENSSL_IS_COMPATIBLE_WITH_BUNDLED_FIDO)
-        MYSQL_USE_BUNDLED_FIDO()
-      ELSE()
-        MESSAGE(FATAL_ERROR
-          "Bundled libfido2 requires OpenSSL version >= 1.1.1")
-      ENDIF()
+      MYSQL_USE_BUNDLED_FIDO()
     ELSEIF(WITH_FIDO STREQUAL "system")
       FIND_SYSTEM_FIDO()
       IF(NOT FIDO_FOUND)

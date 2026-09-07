@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cassert>
+#include <memory>
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
@@ -411,24 +412,24 @@ bool get_component_primary_election_enabled() {
  * @param fd      File descriptor of the connections
  * @param ssl_ctx SSL data of the connection
  *
- * @return int Returns 1 in case of any error. 0 otherwise.
+ * @return the result of handing the connection to Group Replication
  */
 
-int handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                 SSL *ssl_ctx) {
-  auto *new_connection = new Network_connection(fd, ssl_ctx);
+Gr_incoming_connection_status handle_group_replication_incoming_connection(
+    THD *thd, int fd, SSL *ssl_ctx) {
+  auto new_connection = std::make_unique<Network_connection>(fd, ssl_ctx);
   new_connection->has_error = false;
-  int error_return = 1;
 
-  if (auto mysql_provider = gcs_module->get_mysql_network_provider();
-      mysql_provider) {
-    mysql_provider->set_new_connection(thd, new_connection);
-    error_return = 0;
-  } else {
-    delete new_connection;
-  }
+  auto *mysql_provider = gcs_module->get_mysql_network_provider();
+  if (mysql_provider == nullptr) return Gr_incoming_connection_status::ERROR;
 
-  return error_return;
+  const auto result =
+      mysql_provider->set_new_connection(thd, new_connection.get());
+
+  if (result == Gr_incoming_connection_status::ACCEPTED)
+    new_connection.release();
+
+  return result;
 }
 
 /**
@@ -3948,7 +3949,7 @@ static int check_sysvar_bool(MYSQL_THD, SYS_VAR *, void *save,
 
 static bool tls_force_pqc_supported_for_version(const char *tls_version
                                                 [[maybe_unused]]) {
-#if !defined(HAVE_TLSv13) || OPENSSL_VERSION_NUMBER < 0x30500000L
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
   return false;
 #else
   return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
@@ -3964,7 +3965,7 @@ static int validate_group_replication_force_pqc_tls_version(
 }
 
 static void adjust_startup_group_replication_force_pqc_for_tls_version() {
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (!ov.force_pqc_var ||
       tls_force_pqc_supported_for_version(ov.recovery_tls_version_var))
     return;

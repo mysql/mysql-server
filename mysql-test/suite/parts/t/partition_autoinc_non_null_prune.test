@@ -522,3 +522,31 @@ eval $query;
 SELECT COUNT(*) FROM sbtest1;
 
 DROP TABLE sbtest1;
+
+--echo #
+--echo # Bug#39596279 SEGV in Field::is_nullable() from
+--echo #              partition_info::can_prune_insert() with DEFAULT
+--echo #
+
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY AUTO_INCREMENT,
+  c1 INT
+) PARTITION BY HASH(pk) PARTITIONS 2;
+
+# Bare DEFAULT for the AUTO_INCREMENT partitioning column, no column list.
+INSERT INTO t1 VALUES (DEFAULT, 1);
+
+# Bare DEFAULT with an explicit column list.
+INSERT INTO t1 (pk, c1) VALUES (DEFAULT, 2);
+
+# Multi-row VALUES mixing an explicit value and bare DEFAULT.
+INSERT INTO t1 VALUES (10, 3), (DEFAULT, 4);
+
+# Pruning is disabled since DEFAULT for AUTO_INCREMENT means the value is
+# generated at execution time.
+EXPLAIN INSERT INTO t1 VALUES (DEFAULT, 5);
+INSERT INTO t1 VALUES (DEFAULT, 5);
+
+SELECT c1 FROM t1 ORDER BY c1;
+
+DROP TABLE t1;

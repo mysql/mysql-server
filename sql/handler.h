@@ -5402,6 +5402,15 @@ class handler {
     return false;
   }
 
+  /** Preserve the AUTO_INCREMENT value that was in effect before an
+  empty-table bulk load recreated the table.
+  @param[in] auto_increment_value  next AUTO_INCREMENT value to preserve
+  @return 0 on success, non-zero on error */
+  virtual int bulk_load_preserve_auto_increment(ulonglong auto_increment_value
+                                                [[maybe_unused]]) {
+    return 0;
+  }
+
   /**
     Submit a dd::Table object representing a core DD table having
     hardcoded data to be filled in by the DDSE. This function can be

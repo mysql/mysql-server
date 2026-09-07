@@ -3217,6 +3217,25 @@ static void buf_page_make_young_if_needed(buf_page_t *bpage) {
 
 #ifdef UNIV_DEBUG
 
+bool buf_page_was_freed(const page_id_t &page_id) noexcept {
+  buf_pool_t *buf_pool = buf_pool_get(page_id);
+  rw_lock_t *hash_lock;
+  buf_page_t *bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
+
+  if (bpage == nullptr) {
+    return false;
+  }
+
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+  ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
+  mutex_enter(block_mutex);
+  rw_lock_s_unlock(hash_lock);
+  const bool was_freed = bpage->file_page_was_freed;
+  mutex_exit(block_mutex);
+
+  return was_freed;
+}
+
 /** Sets file_page_was_freed true if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
@@ -3328,7 +3347,16 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
     if (bpage) {
       ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
-      ut_ad(!bpage->was_stale());
+      if (bpage->was_stale()) {
+        if (!buf_page_free_stale(buf_pool, bpage, hash_lock)) {
+          /* The stale page is IO-fixed. Back off before retrying so the
+           pending IO can finish without a tight CPU loop. */
+          std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        /* buf_page_free_stale() released the hash lock. Repeat the lookup until
+        the stale page is gone or replaced with a usable page. */
+        continue;
+      }
       break;
     }
 

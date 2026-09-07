@@ -4002,6 +4002,28 @@ static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
       /* in case of error ret is 0 and header size is 0 */
       *err = ((param_length == 0 && *header_len == 0) ||
               (packet_left_len < *header_len + param_length));
+      if (!*err) {
+        switch (type) {
+          case MYSQL_TYPE_DECIMAL:
+          case MYSQL_TYPE_NEWDECIMAL:
+            break;
+          case MYSQL_TYPE_DATE:
+            *err = param_length != 0 && param_length != 4;
+            break;
+          case MYSQL_TYPE_TIME:
+            *err = param_length != 0 && param_length != 8 && param_length != 12;
+            break;
+          case MYSQL_TYPE_DATETIME:
+          case MYSQL_TYPE_TIMESTAMP:
+            *err = param_length != 0 && param_length != 4 &&
+                   param_length != 7 && param_length != 11 &&
+                   param_length != 13;
+            break;
+          default:
+            assert(false);
+            *err = true;
+        }
+      }
       DBUG_PRINT("info", ("ret=%lu ", param_length));
       return param_length;
     }

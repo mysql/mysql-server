@@ -864,7 +864,7 @@ ib::redo::Lsn recv_read_log_seg(log_t &log, byte *buf, ib::redo::Lsn start_lsn,
     const dberr_t err =
         log_data_blocks_read(file_handle, source_offset, len, buf);
 
-    if (err == DB_UNSUPPORTED) {
+    if (err == DB_IO_DECRYPT_FAIL) {
       /* The log block may be encrypted, read and update the log_sys */
       dberr_t err = log_read_encryption_info(*log_sys);
       if (err != DB_SUCCESS) {
@@ -877,6 +877,7 @@ ib::redo::Lsn recv_read_log_seg(log_t &log, byte *buf, ib::redo::Lsn start_lsn,
         case DB_SUCCESS:
           break;
 
+        case DB_IO_DECRYPT_FAIL:
         case DB_UNSUPPORTED:
           ib::error(ER_IB_MSG_CANT_DECRYPT_REDO_LOG, ulonglong{source_offset},
                     file_handle.file_path().c_str());

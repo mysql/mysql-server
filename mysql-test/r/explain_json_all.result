@@ -2897,6 +2897,8 @@ EXPLAIN
                                         -> Limit table size: 3 unique row(s)
                                             -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `test`.`s`.`a` limit 1) union (/* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#4 */ select 2 AS `2` limit 3) order by `a` limit 3) order by `a`
 # Test no result if no materializaton
 EXPLAIN FORMAT=json SELECT 1 UNION ALL SELECT 2;
 EXPLAIN
@@ -9138,6 +9140,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t t1 JOIN t t2 WHERE t1.i = t2.i;
 EXPLAIN
 -> Zero rows (no matching row in const table)  (cost=0..0 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `i`,NULL AS `i` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(NULL, NULL)
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t t1 JOIN t t2 WHERE t1.i = t2.i;
 SELECT JSON_KEYS(@var);
 JSON_KEYS(@var)

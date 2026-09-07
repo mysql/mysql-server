@@ -32,7 +32,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "log0redo.h"
 
+#include <list>
+#include <map>
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 
 #include "btr0cur.h"
@@ -40,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "fsp0fsp.h"
 #include "ibuf0ibuf.h"
+#include "log0parsed_index_lru_cache.h"
 #include "log0test.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
@@ -791,13 +795,6 @@ class Redo_applier::Impl {
         ut_error;
     }
 
-    if (index != nullptr) {
-      dict_table_t *table = index->table;
-
-      dict_mem_index_free(index);
-      dict_mem_table_free(table);
-    }
-
     return maybe_error(ptr);
   }
 
@@ -861,27 +858,67 @@ class Redo_applier::Impl {
     }
   }
 
-  /** Calls mlog_parse_index() and sets index->id if page is not null.
-  mlog_parse_index() creates a dummy index with the index->id field unset. This
-  field is required when applying a record to a page. In this case, read the
-  index id from the page header and assign it.
-  @param[in]  ptr     buffer
+  /** Provides a result of mlog_parse_index() which creates a dummy index based
+  on redo log information in [ptr, end_ptr).
+  The index->id is set to the one extracted from the page if it is provided.
+  This id is required when applying a record to a page.
+  The caller should not attempt to free the index, and can only dereference it
+  until another call to parse_index(..).
+  @param[in]  ptr     buffer containing index description (i.e. what typically
+                      follows after the type of the redo log record and page id)
   @param[in]  end_ptr buffer end
-  @param[out] index   own: dummy index
+  @param[out] index   this will be set by this function to point to an instance
+                      of dict_index_t corresponding to the result of parsing the
+                      prefix of [ptr, end_ptr). The ownership is not transferred
+                      to the caller. It is owned by m_parsed_index_cache and so
+                      can be evicted or overwritten by another call to
+                      parse_index(..) or the destructor of this Redo_applier
   @param[in]  page    page to apply the record or null
   @return parsed record end or null if record is incomplete. */
   [[nodiscard]] const byte *parse_index(const byte *ptr, const byte *end_ptr,
                                         dict_index_t **index,
                                         const page_t *page) {
-    ptr = mlog_parse_index(ptr, end_ptr, index);
-    if (ptr && page) {
-      (*index)->id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
+    Parsed_index_lru_cache::sequence_view buffer(
+        ptr, static_cast<size_t>(end_ptr - ptr));
+    if (dict_index_t *cached = m_parsed_index_cache.lookup(buffer);
+        cached != nullptr) {
+      *index = cached;
+      if (page) {
+        (*index)->id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
+      }
+      return end_ptr - buffer.size();
     }
-    return ptr;
+
+    dict_index_t *parsed_index = nullptr;
+    const byte *parsed_end = mlog_parse_index(ptr, end_ptr, &parsed_index);
+    if (parsed_end == nullptr) {
+      /* Note: for some incomplete buffers mlog_parse_index() might have
+      allocated dummy objects and returned nullptr. Keep the old behavior and
+      free them here (the cache only owns successful parses). */
+      if (parsed_index != nullptr) {
+        dict_table_t *table = parsed_index->table;
+        dict_mem_index_free(parsed_index);
+        dict_mem_table_free(table);
+      }
+      return nullptr;
+    }
+
+    if (page) {
+      parsed_index->id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
+    }
+    const bool inserted = m_parsed_index_cache.insert_mru(
+        Parsed_index_lru_cache::sequence_view(
+            ptr, static_cast<size_t>(parsed_end - ptr)),
+        parsed_index);
+    ut_a(inserted);
+    *index = parsed_index;
+    return parsed_end;
   }
 
  private:
   std::unique_ptr<Persisters> m_persisters;
+  /** Maps a buffer prefix to parsed dict_index_t. */
+  Parsed_index_lru_cache m_parsed_index_cache;
 };
 
 Redo_applier::Redo_applier() : m_impl(std::make_unique<Impl>()) {}

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "gcs_base_test.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
 
 using std::vector;
 
@@ -58,8 +59,71 @@ class GcsXComNetworking : public GcsBaseTest {
     m_sock_probe_mock.mock_gcs_sock_probe_interface_default();
   }
 
+  void verify_sock_descriptor_to_string(sa_family_t family,
+                                        const std::string &expected_address) {
+    struct Socket_guard {
+      explicit Socket_guard(int socket) : m_socket(socket) {}
+      ~Socket_guard() {
+        if (m_socket != -1) CLOSESOCKET(m_socket);
+      }
+
+      int m_socket;
+    };
+
+    Socket_guard listener(
+        static_cast<int>(socket(family, SOCK_STREAM, IPPROTO_TCP)));
+    ASSERT_FALSE(is_socket_error(listener.m_socket));
+
+    sockaddr_storage address{};
+    socklen_t address_size;
+    if (family == AF_INET) {
+      auto *ipv4_address = reinterpret_cast<sockaddr_in *>(&address);
+      ipv4_address->sin_family = AF_INET;
+      ipv4_address->sin_port = htons(0);
+      ASSERT_EQ(1, inet_pton(AF_INET, expected_address.c_str(),
+                             &ipv4_address->sin_addr));
+      address_size = static_cast<socklen_t>(sizeof(*ipv4_address));
+    } else {
+      auto *ipv6_address = reinterpret_cast<sockaddr_in6 *>(&address);
+      ipv6_address->sin6_family = AF_INET6;
+      ipv6_address->sin6_port = htons(0);
+      ASSERT_EQ(1, inet_pton(AF_INET6, expected_address.c_str(),
+                             &ipv6_address->sin6_addr));
+      address_size = static_cast<socklen_t>(sizeof(*ipv6_address));
+    }
+
+    ASSERT_EQ(0, bind(listener.m_socket, reinterpret_cast<sockaddr *>(&address),
+                      address_size));
+    ASSERT_EQ(
+        0, getsockname(listener.m_socket,
+                       reinterpret_cast<sockaddr *>(&address), &address_size));
+    ASSERT_EQ(0, listen(listener.m_socket, 1));
+
+    Socket_guard client(
+        static_cast<int>(socket(family, SOCK_STREAM, IPPROTO_TCP)));
+    ASSERT_FALSE(is_socket_error(client.m_socket));
+    ASSERT_EQ(0, connect(client.m_socket,
+                         reinterpret_cast<sockaddr *>(&address), address_size));
+
+    Socket_guard accepted(
+        static_cast<int>(accept(listener.m_socket, nullptr, nullptr)));
+    ASSERT_FALSE(is_socket_error(accepted.m_socket));
+
+    std::string actual_address;
+    EXPECT_FALSE(sock_descriptor_to_string(accepted.m_socket, actual_address));
+    EXPECT_EQ(expected_address, actual_address);
+  }
+
   mock_gcs_sock_probe_interface m_sock_probe_mock;
 };
+
+TEST_F(GcsXComNetworking, SockDescriptorToStringIPv4) {
+  verify_sock_descriptor_to_string(AF_INET, "127.0.0.1");
+}
+
+TEST_F(GcsXComNetworking, SockDescriptorToStringIPv6) {
+  verify_sock_descriptor_to_string(AF_INET6, "::1");
+}
 
 TEST_F(GcsXComNetworking, SockProbeInvalid) {
   EXPECT_CALL(m_sock_probe_mock, init_sock_probe(_))

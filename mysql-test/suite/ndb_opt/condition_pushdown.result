@@ -3531,6 +3531,8 @@ EXPLAIN
         -> Aggregate: avg(t1.d)  (rows=1)
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`d` > (/* select#2 */ select avg(`test`.`t1`.`d`) from `test`.`t1`))
 SELECT variable_value into @read_cnt0
 FROM performance_schema.global_status
 WHERE variable_name = 'Ndb_api_read_row_count';
@@ -3597,38 +3599,52 @@ select * from t1 where b > 2;
 EXPLAIN
 -> Table scan on t1, with pushed condition: (t1.b > 2)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 2)
 explain format=tree
 select * from t1 where a > 2;
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 2)
 explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
 -> Sort: t1.b  (rows=3)
     -> Index range scan (Multi-Range Read) on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 2) order by `test`.`t1`.`b`
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
 -> Index lookup on t1 using PRIMARY (a = 2), with pushed condition: (t1.c > 0)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`c` > 0))
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
 -> Sort: t1.d  (rows=3)
     -> Index lookup on t1 using PRIMARY (a = 2), with pushed condition: (t1.c > 0)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`c` > 0)) order by `test`.`t1`.`d`
 explain format=tree
 select * from t1 where b > 0 order by a;
 EXPLAIN
 -> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0) order by `test`.`t1`.`a`
 explain format=tree
 select * from t1 where b > 0 order by a desc;
 EXPLAIN
 -> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0) order by `test`.`t1`.`a` desc
 explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 EXPLAIN
@@ -3636,6 +3652,8 @@ EXPLAIN
     -> Table scan on t1, activating pushed join of 2 tables  (rows=16)
     -> Index lookup on t2 using PRIMARY (a = t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (rows=0.333)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c`,`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`t2`.`a` = `test`.`t1`.`b`) and (`t2`.`c` > 3))
 drop table t1;
 #
 # Bug#29595346 INCORRECT RESULT FROM SPECIFYING ORDER BY ON
@@ -3663,6 +3681,8 @@ EXPLAIN
 -> Sort: t1.col_varchar_256  (rows=6)
     -> Index range scan (Multi-Range Read) on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_256` AS `field1` from `test`.`t1` where (`test`.`t1`.`col_int_unique` <> 8) order by `field1`
 DROP TABLE t1;
 #
 # WL#13120 & WL#13121
@@ -3719,12 +3739,16 @@ where v1.d < 5;
 EXPLAIN
 -> Table scan on t1, with pushed condition: (t1.d < 5)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`d` < 5)
 explain format=tree
 select * from v1
 where v1.d < v1.c;
 EXPLAIN
 -> Table scan on t1, with pushed condition: (t1.d < t1.c)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`d` < `test`.`t1`.`c`)
 explain format=tree
 select * from t1,v1
 where v1.d < 5;
@@ -3736,6 +3760,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` join `test`.`t1` where (`test`.`t1`.`d` < 5)
 explain format=tree
 select * from
 (select a,b,c,d from t1) as v1(a,b,c,d)
@@ -3743,6 +3768,8 @@ where v1.d < 5;
 EXPLAIN
 -> Table scan on t1, with pushed condition: (t1.d < 5)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`d` < 5)
 explain format=tree
 select * from
 (select a,b,c,d from t1) as v1(a,b,c,d)
@@ -3750,6 +3777,8 @@ where v1.d < v1.c;
 EXPLAIN
 -> Table scan on t1, with pushed condition: (t1.d < t1.c)  (rows=5.33)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`d` < `test`.`t1`.`c`)
 explain format=tree
 select * from t1,
 (select a,b,c,d from t1) as v1(a,b,c,d)
@@ -3762,6 +3791,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` join `test`.`t1` where (`test`.`t1`.`d` < 5)
 drop view v1;
 drop table t1;
 #########################################################

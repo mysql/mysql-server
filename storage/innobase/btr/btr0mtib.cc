@@ -36,6 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/uio.h>
 #endif /* _WIN32 */
 
+#include <debug_sync.h>
+
 #include "arch0arch.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
@@ -52,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread-create.h"
 #include "page0page.h"
 #include "scope_guard.h"
+#include "sync0debug.h"
 #include "trx0trx.h"
 #include "ut0test.h"
 #include "ut0ut.h"
@@ -61,9 +64,26 @@ namespace Btree_multi {
 #ifdef UNIV_DEBUG
 thread_local uint64_t debug_counter = 0;
 static bool g_slow_io_debug = false;
+static constexpr char REUSED_FREED_PAGE_SYNC_POINT[] =
+    "bulk_load_find_reused_freed_page";
 void bulk_load_enable_slow_io_debug() { g_slow_io_debug = true; }
 void bulk_load_disable_slow_io_debug() { g_slow_io_debug = false; }
 #endif /* UNIV_DEBUG */
+
+/** Evict a range of pages from the buffer pool.
+@param[in] index index owning the page range
+@param[in] range half-open page range
+@param[in] dirty_is_ok whether dirty pages may be flushed */
+static void force_evict_pages(dict_index_t *index,
+                              const Page_extent::Page_range_t &range,
+                              const bool dirty_is_ok) {
+  const space_id_t space_id = dict_index_get_space(index);
+  const page_size_t page_size(dict_table_page_size(index->table));
+
+  for (page_no_t page_no = range.first; page_no < range.second; ++page_no) {
+    buf_page_force_evict(page_id_t{space_id, page_no}, page_size, dirty_is_ok);
+  }
+}
 
 #ifndef UNIV_PFS_THREAD
 #define bulk_flusher_thread_key PFS_NOT_INSTRUMENTED
@@ -531,9 +551,6 @@ dberr_t Page_extent::flush(fil_node_t *node) {
       return DB_FAIL;
     }
   }
-
-  /* Remove any old copies in the buffer pool. */
-  m_btree_load->force_evict(m_range);
 
   if (m_btree_load->is_tpc_enabled() || m_btree_load->is_tpe_enabled()) {
     err = flush_one_by_one(node);
@@ -1612,6 +1629,7 @@ Btree_load::Btree_load(dict_index_t *index, trx_t *trx, size_t loader_num,
 }
 
 trx_id_t Btree_load::get_trx_id() const { return m_trx->id; }
+
 Flush_observer *Btree_load::get_flush_observer() const {
   return m_trx->flush_observer;
 }
@@ -2076,13 +2094,7 @@ void Page_load::set_min_rec_flag(mtr_t *mtr) {
 
 void Btree_load::force_evict(const Page_range_t &range,
                              const bool dirty_is_ok) {
-  const space_id_t space_id = dict_index_get_space(m_index);
-  const page_size_t page_size(dict_table_page_size(m_index->table));
-
-  for (page_no_t p_no = range.first; p_no < range.second; ++p_no) {
-    const page_id_t page_id(space_id, p_no);
-    buf_page_force_evict(page_id, page_size, dirty_is_ok);
-  }
+  force_evict_pages(m_index, range, dirty_is_ok);
 }
 
 void Btree_load::get_root_page_stat(Page_stat &stat) {
@@ -2307,6 +2319,35 @@ bool Bulk_extent_allocator::is_interrupted() {
   return (m_trx != nullptr && trx_is_interrupted(m_trx));
 }
 
+#ifdef UNIV_DEBUG
+void Bulk_extent_allocator::debug_sync_reused_freed_page(
+    const Page_range_t &range) {
+  THD *thd = m_trx->mysql_thd;
+  if (Sync_point::enabled(thd, REUSED_FREED_PAGE_SYNC_POINT)) {
+    const space_id_t space_id = dict_index_get_space(m_index);
+    for (page_no_t page_no = range.first; page_no < range.second; ++page_no) {
+      if (buf_page_was_freed(page_id_t{space_id, page_no})) {
+        Sync_point::erase(thd, REUSED_FREED_PAGE_SYNC_POINT);
+        DEBUG_SYNC(thd, "bulk_load_reused_freed_page");
+        break;
+      }
+    }
+  }
+}
+#endif /* UNIV_DEBUG */
+
+void Bulk_extent_allocator::evict_allocated_range(const Page_range_t &range) {
+  const bool dirty_is_ok = true;
+  force_evict_pages(m_index, range, dirty_is_ok);
+
+#ifdef UNIV_DEBUG
+  const space_id_t space_id = dict_index_get_space(m_index);
+  for (page_no_t page_no = range.first; page_no < range.second; ++page_no) {
+    ut_ad(!buf_page_peek(page_id_t{space_id, page_no}));
+  }
+#endif /* UNIV_DEBUG */
+}
+
 dberr_t Bulk_extent_allocator::allocate_page(bool is_leaf,
                                              Page_range_t &range) {
   const space_id_t space_id = m_index->space;
@@ -2344,11 +2385,17 @@ dberr_t Bulk_extent_allocator::allocate_page(bool is_leaf,
   range.first = page_no;
   range.second = range.first + 1;
 
+  ut_d(debug_sync_reused_freed_page(range));
+
+  /* Eviction can wait for buffer-pool I/O. Release the index, root, and
+  allocation metadata latches before attempting eviction in the
+  `evict_allocated_range()`. */
   mtr.commit();
 
   if (n_reserved > 0) {
     fil_space_release_free_extents(space_id, n_reserved);
   }
+  evict_allocated_range(range);
   return DB_SUCCESS;
 }
 
@@ -2547,6 +2594,8 @@ dberr_t Bulk_extent_allocator::allocate_extents(bool is_leaf,
 
   auto &extents = is_leaf ? m_leaf_extents : m_non_leaf_extents;
   dberr_t err = DB_SUCCESS;
+  std::vector<Page_range_t> allocated_ranges;
+  allocated_ranges.reserve(num_extents);
 
   for (size_t index = 1; index <= num_extents; index++) {
     Page_range_t range;
@@ -2554,9 +2603,20 @@ dberr_t Bulk_extent_allocator::allocate_extents(bool is_leaf,
     if (err != DB_SUCCESS) {
       break;
     }
+    ut_d(debug_sync_reused_freed_page(range));
     extents.set_range(index, range);
+    allocated_ranges.push_back(range);
   }
+
+  /* Eviction can wait for buffer-pool I/O. Release the index, root, and
+  allocation metadata latches before attempting eviction in the
+  `evict_allocated_range()`. */
   on_exit();
+
+  /* The caller publishes ranges to consumers only after this returns. */
+  for (const auto &range : allocated_ranges) {
+    evict_allocated_range(range);
+  }
   return err;
 }
 

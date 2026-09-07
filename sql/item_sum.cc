@@ -4333,17 +4333,19 @@ int dump_leaf_key(void *key_arg, element_count count [[maybe_unused]],
       We also can't use table->field array to access the fields
       because it contains both order and arg list fields.
      */
-    if ((*arg)->const_item())
+    if ((*arg)->const_item()) {
       res = (*arg)->val_str(&tmp);
-    else {
+    } else {
       Field *field = (*arg)->get_tmp_table_field();
-      if (field) {
+      if (field != nullptr) {
+        field->set_ignore_nulls();
         const uint offset =
             (field->offset(field->table->record[0]) - table->s->null_bytes);
         assert(offset < table->s->reclength);
         res = field->val_str(&tmp, key + offset);
-      } else
+      } else {
         res = (*arg)->val_str(&tmp);
+      }
     }
     if (res) result->append(*res);
   }

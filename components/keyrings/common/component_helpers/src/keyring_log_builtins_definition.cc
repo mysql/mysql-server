@@ -148,8 +148,10 @@ static log_item_data *kr_line_item_set_with_key(log_line *ll, log_item_type t,
                                                 uint32 alloc) {
   if ((ll == nullptr) || (ll->count >= LOG_ITEM_MAX)) return nullptr;
 
-  log_item *li = &(ll->item[ll->count++]);
   const int c = log_item_wellknown_by_type(t);
+  if (c == LOG_ITEM_TYPE_NOT_FOUND) return nullptr;
+
+  log_item *li = &(ll->item[ll->count++]);
 
   li->alloc = alloc;
   /*

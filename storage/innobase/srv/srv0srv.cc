@@ -234,6 +234,9 @@ char *srv_log_group_home_dir = nullptr;
 /** Enable or disable Encrypt of REDO tablespace. */
 bool srv_redo_log_encrypt = false;
 
+/** Whether the redo block at the recovered LSN was encrypted on disk. */
+bool srv_recovered_redo_block_was_encrypted = false;
+
 ulonglong srv_redo_log_capacity, srv_redo_log_capacity_used;
 
 #ifdef UNIV_DEBUG_DEDICATED

@@ -129,8 +129,6 @@ void rpl_replica_debug_point(enum_rpl_replica_debug_point point_id,
                              THD *thd = nullptr) {
   if (!thd) thd = current_thd;
 
-  assert(opt_debug_sync_timeout > 0);
-
   std::string debug_point_string{""};
 
   switch (point_id) {

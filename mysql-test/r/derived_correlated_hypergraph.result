@@ -23,6 +23,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` join lateral (/* select#2 */ select distinct `test`.`t1`.`x` AS `x`) `dt` join `test`.`t2` where multiple equal(`test`.`t2`.`pk`, `dt`.`x`)
 SELECT 1 FROM
 t1,
 LATERAL (SELECT DISTINCT t1.x) AS dt1,

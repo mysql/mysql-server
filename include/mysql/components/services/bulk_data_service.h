@@ -263,7 +263,9 @@ struct Column_mysql {
   void init() {
     m_type = 0;
     m_data_len = 0;
+    m_is_prefix = false;
     m_is_null = false;
+    m_is_ext = false;
     m_data_ptr = nullptr;
     m_int_data = 0;
   }

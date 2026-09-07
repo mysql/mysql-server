@@ -1283,6 +1283,7 @@ char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = true;
 bool opt_collect_replica_applier_metrics = false;
 bool opt_replica_allow_higher_version_source = true;
+bool opt_rpl_dump_thread_account_affinity = false;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -7258,27 +7259,21 @@ static int init_thread_environment() {
 
 static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#define FILE_LINE_ARGS
-#else
-#define FILE_LINE_ARGS , const char *, int
-#endif
-
-static void *my_openssl_malloc(size_t size FILE_LINE_ARGS) {
+static void *my_openssl_malloc(size_t size, const char *, int) {
 #ifndef _WIN32
   return my_malloc(key_memory_openssl, size, MYF(MY_WME));
 #else
   return my_std_malloc(key_memory_openssl, size, MYF(MY_WME));
 #endif  // !_WIN32
 }
-static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
+static void *my_openssl_realloc(void *ptr, size_t size, const char *, int) {
 #ifndef _WIN32
   return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 #else
   return my_std_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 #endif  // !_WIN32
 }
-static void my_openssl_free(void *ptr FILE_LINE_ARGS) {
+static void my_openssl_free(void *ptr, const char *, int) {
 #ifndef _WIN32
   return my_free(ptr);
 #else
@@ -7336,10 +7331,6 @@ static int init_ssl_communication() {
                mysql_admin_channel.c_str(), mysql_main_channel.c_str());
     }
   }
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (init_rsa_keys()) return 1;
 
@@ -11667,11 +11658,7 @@ static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
 }
 
 static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
-#if OPENSSL_VERSION_NUMBER <= 0x10100000L
-  strncpy(buff, SSLeay_version(SSLEAY_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
-#else
   strncpy(buff, OpenSSL_version(OPENSSL_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
-#endif
   buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
   var->type = SHOW_CHAR;
   var->value = buff;

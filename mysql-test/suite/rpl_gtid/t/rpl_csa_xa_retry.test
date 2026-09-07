@@ -67,17 +67,13 @@ XA END 'xa1';
 XA PREPARE 'xa1';
 
 --source include/rpl/connection_replica.inc
-# Wait until a worker is actively applying the XA transaction, then track
-# retry state through its PFS worker row.
---let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'
---source include/wait_condition.inc
---let $worker_thread_id=`SELECT thread_id FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'`
---let $wait_condition=SELECT APPLYING_TRANSACTION_RETRIES_COUNT > 0 FROM performance_schema.replication_applier_status_by_worker WHERE thread_id = $worker_thread_id
+# Wait until the applier thread starts retrying.
+--let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.replication_applier_status_by_worker WHERE APPLYING_TRANSACTION_RETRIES_COUNT > 0
 --source include/wait_condition.inc
 
 --let $lock_wait_timeout_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
 --let $assert_text = CSA retry path reports lock wait timeout as the transient error
---let $actual_transient_errno = query_get_value(SELECT APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER FROM performance_schema.replication_applier_status_by_worker WHERE thread_id = $worker_thread_id, APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER, 1)
+--let $actual_transient_errno = query_get_value(SELECT APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER FROM performance_schema.replication_applier_status_by_worker WHERE APPLYING_TRANSACTION_RETRIES_COUNT > 0, APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER, 1)
 --let $assert_cond = "$actual_transient_errno" = "$lock_wait_timeout_errno"
 --source include/assert.inc
 

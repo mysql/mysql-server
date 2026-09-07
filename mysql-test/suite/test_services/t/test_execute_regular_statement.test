@@ -69,6 +69,24 @@ SELECT test_execute_regular_statement_field_metadata("SELECT col_enum, col_set, 
 
 DROP TABLE my_type_table;
 
+--echo ###################################### SQL prepared statement OUT parameter test ######################################
+
+DELIMITER |;
+CREATE PROCEDURE output_parameter(OUT output_value INT)
+BEGIN
+  SET output_value = 42;
+END|
+DELIMITER ;|
+
+SELECT test_execute_regular_statement("PREPARE output_parameter_stmt FROM 'CALL output_parameter(?)'");
+SET @output_value = 0;
+--disable_result_log
+SELECT test_execute_regular_statement("EXECUTE output_parameter_stmt USING @output_value");
+--enable_result_log
+SELECT @output_value;
+DEALLOCATE PREPARE output_parameter_stmt;
+DROP PROCEDURE output_parameter;
+
 SELECT test_execute_regular_statement("DROP PROCEDURE multiple_queries;");
 SELECT test_execute_regular_statement("DROP TABLE my_table;");
 SELECT test_execute_regular_statement("DROP TABLE my_table2;");

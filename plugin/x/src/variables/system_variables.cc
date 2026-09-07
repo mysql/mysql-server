@@ -104,7 +104,7 @@ static constexpr const char *k_mysqlx_tls_kex_name = "mysqlx_tls_kex";
 
 static bool tls_force_pqc_supported_for_version(const char *tls_version
                                                 [[maybe_unused]]) {
-#if !defined(HAVE_TLSv13) || OPENSSL_VERSION_NUMBER < 0x30500000L
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
   return false;
 #else
   return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
@@ -152,7 +152,7 @@ static std::string get_tls_version() {
 }
 
 static void adjust_startup_force_pqc_for_tls_version() {
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (!Plugin_system_variables::m_tls_force_pqc) return;
 
   const std::string tls_version = get_tls_version();

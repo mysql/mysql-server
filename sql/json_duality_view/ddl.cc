@@ -30,6 +30,8 @@
 #include "sql/dd/dd_view.h"
 #include "sql/dd/types/table.h"
 #include "sql/item_sum.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 #include "sql/thd_raii.h"
@@ -624,16 +626,92 @@ bool is_prepare_required(THD *thd, Table_ref *view) {
       [](Table_ref *view_table) { return view_table->table != nullptr; });
 }
 
+/**
+  Returns whether every table represented by a content-tree node has a
+  secondary engine. This temporary compatibility helper is kept separate from
+  content-tree preparation because changing that shared interface was not
+  feasible. It should be removed when HeatWave supports CHECK tags and
+  multi-level JSON duality views.
+*/
+static bool all_content_tree_tables_have_secondary_engine(
+    const Content_tree_node *node) {
+  assert(node->table_ref()->table != nullptr);
+  if (!node->table_ref()->table->s->has_secondary_engine()) return false;
+
+  for (const Content_tree_node *child : node->children()) {
+    if (!all_content_tree_tables_have_secondary_engine(child)) return false;
+  }
+
+  return true;
+}
+
+/**
+  Validates JDV requirements for secondary-engine ETAG calculation.
+
+  HeatWave can calculate an ETAG only for a single-level JDV whose content-tree
+  columns are all projected with effective CHECK tags. The CHECK requirement is
+  validated here. To preserve backward compatibility, validation that the JDV
+  is single-level is deferred to HeatWave; we just issue a warning here when a
+  multi-level JDV is encountered while secondary-engine execution is enabled.
+
+  @param thd          Current session.
+  @param content_tree Root of the JDV content tree.
+
+  @retval false Execution can continue.
+  @retval true  An error was reported.
+*/
+static bool validate_secondary_engine_compatibility(
+    THD *thd, const Content_tree_node *content_tree) {
+  /*
+    A JDV can execute in HeatWave only when every content-tree table is
+    available in HeatWave and use_secondary_engine is ON or FORCED. HeatWave
+    compatibility requirements do not apply otherwise.
+  */
+  if (likely(thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) ||
+      !all_content_tree_tables_have_secondary_engine(content_tree))
+    return false;
+
+  assert(content_tree->is_root_object());
+
+  /*
+    Multi-level JDVs are rejected later by HeatWave. Do not report this warning
+    when secondary-engine execution is explicitly disabled.
+  */
+  if (!content_tree->children().empty()) {
+    push_warning(
+        thd, Sql_condition::SL_WARNING, ER_SECONDARY_ENGINE,
+        "Multi-level JSON duality views are not supported by HeatWave");
+  }
+
+  /*
+    HeatWave requires every content-tree column to be projected with an
+    effective CHECK tag for ETAG calculation.
+  */
+  for (const Key_column_info &column : content_tree->key_column_info_list()) {
+    if (!column.is_column_projected() || !column.allows_check()) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "HeatWave can calculate an ETAG only when every JSON duality "
+               "view column is projected with an effective CHECK tag");
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool prepare(THD *thd, Table_ref *view) {
   View_lex_handler view_lex_handler(thd, view);
   LEX *view_lex = view_lex_handler.get_view_lex();
   if (view_lex == nullptr) return true;
 
-  // Validate syntax only while creating a view. Once view is created with valid
-  // syntax, for other operations while opening a view syntax validation is
-  // skipped.
-  bool is_ddl_statement =
+  const bool is_ddl_statement =
       (thd->lex->sql_command == enum_sql_command::SQLCOM_CREATE_VIEW);
+  const bool is_select_statement =
+      (thd->lex->sql_command == enum_sql_command::SQLCOM_SELECT);
+
+  /*
+    Only DDL statements require syntax validation.
+  */
   if (is_ddl_statement &&
       validate_view_syntax(thd, view_lex->unit, "Root Node", true))
     return true;
@@ -642,13 +720,31 @@ bool prepare(THD *thd, Table_ref *view) {
   Content_tree_node *content_tree = prepare_content_tree(thd, view_lex);
   if (content_tree == nullptr) return true;
 
-  // Apply create rules.
+  /*
+    For SELECT statements, enforce JDV compatibility when every content-tree
+    table has a secondary engine and execution is enabled by the requested
+    policy. This does not depend on the optimizer's eventual offload decision.
+  */
+  if (is_select_statement &&
+      validate_secondary_engine_compatibility(thd, content_tree)) {
+    destroy_content_tree(content_tree);
+    return true;
+  }
+
+  /*
+    Validate every object in the content tree against the JSON duality view
+    semantic rules.
+  */
   std::map<std::string, Mem_root_array<Key_column_info> *> table_to_columns_map;
   if (validate_view_semantics(content_tree, table_to_columns_map)) {
     destroy_content_tree(content_tree);
     return true;
   }
 
+  /*
+    Attach the validated content tree to the view for subsequent JDV processing.
+    The view owns the tree until statement cleanup.
+  */
   view->jdv_content_tree = content_tree;
   return false;
 }

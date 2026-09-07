@@ -89,6 +89,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t;
 EXPLAIN
 -> Table scan on t  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`x` AS `x`,`test`.`t`.`y` AS `y` from `test`.`t`
 FLUSH STATUS;
 SELECT * FROM t;
 SHOW STATUS LIKE 'select%';
@@ -109,6 +111,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t ORDER BY x;
 EXPLAIN
 -> Covering index scan on t using x  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` order by `test`.`t`.`x`
 FLUSH STATUS;
 SELECT 1 FROM t ORDER BY x;
 SHOW STATUS LIKE 'select%';
@@ -144,6 +148,8 @@ EXPLAIN
 -> Index range scan on t using x over (x < 0)
 -> Index range scan on t using id over (100 < id)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t`@`select#1`) */ 1 AS `1` from `test`.`t` where ((`test`.`t`.`x` < 0) or (`test`.`t`.`id` > 100))
 FLUSH STATUS;
 SELECT /*+ INDEX_MERGE(t) */ 1 FROM t WHERE x < 0 OR id > 100;
 1
@@ -229,6 +235,8 @@ EXPLAIN
     -> Filter: (t1.x < t2.x)  (rows=3.33)
         -> Index range scan on t2 (re-planned for each iteration)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` `t2` where (`t1`.`x` < `t2`.`x`)
 FLUSH STATUS;
 SELECT 1 FROM t AS t1, t AS t2 WHERE t1.x < t2.x;
 SHOW STATUS LIKE 'select%';
@@ -320,6 +328,8 @@ EXPLAIN
         -> Table scan on t  (rows=10)
         -> Table scan on t  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`y` AS `y` from `test`.`t` union /* select#2 */ select (`test`.`t`.`y` + 1) AS `y + 1` from `test`.`t`
 FLUSH STATUS;
 SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t;
 SHOW STATUS LIKE 'select%';
@@ -337,6 +347,8 @@ EXPLAIN
     -> Stream results  (rows=10)
         -> Table scan on t  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`y` AS `y` from `test`.`t` union all /* select#2 */ select (`test`.`t`.`y` + 1) AS `y + 1` from `test`.`t`
 FLUSH STATUS;
 SELECT y FROM t UNION ALL SELECT y + 1 FROM t;
 SHOW STATUS LIKE 'select%';
@@ -353,6 +365,8 @@ EXPLAIN
         -> Table scan on t  (rows=10)
         -> Table scan on t  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`y` AS `y` from (/* select#2 */ select `test`.`t`.`y` AS `y` from `test`.`t` union /* select#3 */ select (`test`.`t`.`y` + 1) AS `y + 1` from `test`.`t`) `dt`
 FLUSH STATUS;
 SELECT * FROM (SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t) AS dt;
 SHOW STATUS LIKE 'select%';

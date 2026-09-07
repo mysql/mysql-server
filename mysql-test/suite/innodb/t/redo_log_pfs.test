@@ -1,0 +1,1 @@
+SELECT DISTINCT(EVENT_NAME) FROM performance_schema.file_summary_by_instance WHERE FILE_NAME LIKE '%#innodb_redo%#ib_redo%';

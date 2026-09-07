@@ -5509,14 +5509,17 @@ dberr_t os_get_free_space(const char *path, uint64_t &free_space) {
   return (err);
 }
 
-Access_permissions os_file_check_access(const char *path, bool is_raw_device) {
+Access_permissions os_file_check_access(
+#ifdef UNIV_PFS_IO
+    mysql_pfs_key_t pfs_key,
+#endif /* UNIV_PFS_IO */
+    const char *path, bool is_raw_device) {
   bool success = false;
   Access_permissions res{};
   {
     const auto file = os_file_create_simple_no_error_handling(
-        innodb_data_file_key, path,
-        is_raw_device ? OS_FILE_OPEN_RAW : OS_FILE_OPEN, OS_FILE_READ_WRITE,
-        &success);
+        pfs_key, path, is_raw_device ? OS_FILE_OPEN_RAW : OS_FILE_OPEN,
+        OS_FILE_READ_WRITE, &success);
     res.has_write_access = res.has_read_access = success;
     if (success) {
       os_file_close(file);
@@ -5525,9 +5528,8 @@ Access_permissions os_file_check_access(const char *path, bool is_raw_device) {
   }
   {
     const auto file = os_file_create_simple_no_error_handling(
-        innodb_data_file_key, path,
-        is_raw_device ? OS_FILE_OPEN_RAW : OS_FILE_OPEN, OS_FILE_READ_ONLY,
-        &success);
+        pfs_key, path, is_raw_device ? OS_FILE_OPEN_RAW : OS_FILE_OPEN,
+        OS_FILE_READ_ONLY, &success);
     res.has_read_access = success;
     if (success) {
       os_file_close(file);
@@ -5561,7 +5563,11 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info) {
   return (ret);
 }
 
-bool os_file_check_mode(const char *name, bool is_raw_device, bool read_only) {
+bool os_file_check_mode(
+#ifdef UNIV_PFS_IO
+    mysql_pfs_key_t pfs_key,
+#endif /* UNIV_PFS_IO */
+    const char *name, bool is_raw_device, bool read_only) {
   os_file_stat_t stat;
 
   memset(&stat, 0x0, sizeof(stat));
@@ -5574,7 +5580,11 @@ bool os_file_check_mode(const char *name, bool is_raw_device, bool read_only) {
 
   } else if (err == DB_SUCCESS) {
     if (stat.type == OS_FILE_TYPE_FILE) {
-      const auto access_permissions = os_file_check_access(name, is_raw_device);
+      const auto access_permissions = os_file_check_access(
+#ifdef UNIV_PFS_IO
+          pfs_key,
+#endif
+          name, is_raw_device);
       if (!(read_only ? access_permissions.has_read_access
                       : access_permissions.has_write_access)) {
         const char *mode = read_only ? "read" : "read-write";

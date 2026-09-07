@@ -1,0 +1,31 @@
+CREATE ROLE administrator;
+GRANT SELECT, CREATE TEMPORARY TABLES, CREATE USER ON *.*
+TO administrator WITH GRANT OPTION;
+GRANT CREATE TEMPORARY TABLES ON sys.* TO administrator WITH GRANT OPTION;
+REVOKE CREATE TEMPORARY TABLES ON mysql.* FROM administrator;
+CREATE USER test_user@'127.0.0.1', test_user@'%';
+GRANT administrator TO test_user@'127.0.0.1' WITH ADMIN OPTION;
+SET ROLE administrator;
+GRANT CREATE TEMPORARY TABLES ON sys.* TO test_user@'127.0.0.1';
+GRANT CREATE TEMPORARY TABLES ON *.* TO test_user@'%';
+REVOKE CREATE TEMPORARY TABLES ON sys.* FROM test_user@'%';
+GRANT SELECT ON *.* TO test_user@'%';
+SHOW GRANTS FOR test_user@'%';
+Grants for test_user@%
+GRANT SELECT, CREATE TEMPORARY TABLES ON *.* TO `test_user`@`%`
+REVOKE CREATE TEMPORARY TABLES ON `mysql`.* FROM `test_user`@`%`
+REVOKE CREATE TEMPORARY TABLES ON `sys`.* FROM `test_user`@`%`
+DROP USER test_user@'127.0.0.1', test_user@'%';
+CREATE USER test_user@'%', test_user@'192.0.2.1';
+GRANT administrator TO test_user@'%' WITH ADMIN OPTION;
+SET ROLE administrator;
+GRANT CREATE TEMPORARY TABLES ON *.* TO test_user@'192.0.2.1';
+REVOKE CREATE TEMPORARY TABLES ON sys.* FROM test_user@'192.0.2.1';
+GRANT SELECT ON *.* TO test_user@'192.0.2.1';
+SHOW GRANTS FOR test_user@'192.0.2.1';
+Grants for test_user@192.0.2.1
+GRANT SELECT, CREATE TEMPORARY TABLES ON *.* TO `test_user`@`192.0.2.1`
+REVOKE CREATE TEMPORARY TABLES ON `mysql`.* FROM `test_user`@`192.0.2.1`
+REVOKE CREATE TEMPORARY TABLES ON `sys`.* FROM `test_user`@`192.0.2.1`
+DROP USER test_user@'%', test_user@'192.0.2.1';
+DROP ROLE administrator;

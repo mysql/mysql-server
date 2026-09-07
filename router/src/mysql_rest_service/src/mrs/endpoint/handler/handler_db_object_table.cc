@@ -52,7 +52,6 @@
 #include "mrs/database/helper/query_gtid_executed.h"
 #include "mrs/database/helper/query_retry_on_ro.h"
 #include "mrs/database/json_mapper/select.h"
-#include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/database/query_rest_table_updater.h"
@@ -95,6 +94,24 @@ MediaType validate_content_type_encoding(HeaderAccept *accepts) {
   }
 
   return allowed_type.value();
+}
+
+std::shared_ptr<mrs::database::entry::Column> validate_raw_media_column(
+    const std::shared_ptr<mrs::database::entry::Object> &object,
+    const std::optional<std::string> &target_field) {
+  if (!target_field.has_value() || target_field->empty()) {
+    throw mrs::http::Error(
+        HttpStatusCode::BadRequest,
+        "Raw media requests require exactly one field parameter");
+  }
+
+  auto column = object->get_column_with_field_name(*target_field);
+  if (!column || !column->enabled) {
+    throw mrs::http::Error(HttpStatusCode::BadRequest,
+                           "Invalid field for raw media request");
+  }
+
+  return column;
 }
 
 mysqlrouter::sqlstring rest_param_to_sql_value(
@@ -359,22 +376,34 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
     field_filter = database::dv::ObjectFieldFilter::from_object(*object);
   }
 
-  std::string raw_value = it_raw ? uri_param.get_query_parameter("raw") : "";
+  const bool raw_requested =
+      it_raw && !uri_param.get_query_parameter("raw").empty();
 
-  if (!raw_value.empty() && !target_field.has_value()) {
-    throw http::Error(HttpStatusCode::BadRequest);
+  if (raw_requested && !target_field.has_value()) {
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Raw media requests require exactly one field parameter");
+  }
+
+  std::shared_ptr<database::entry::Column> raw_column;
+  if (raw_requested) {
+    raw_column = validate_raw_media_column(object, target_field);
   }
 
   database::FilterObjectGenerator fog(object, true, get_options().query.wait,
                                       get_options().query.embed_wait);
   fog.parse(uri_param.get_query_parameter("q"));
 
+  if (raw_requested && fog.has_asof()) {
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Raw media requests do not support $asof");
+  }
+
   if (pk.empty()) {
     uint64_t offset = 0;
     uint64_t limit = get_items_on_page();
     uri_param.parse_offset_limit(&offset, &limit);
 
-    if (raw_value.empty()) {
+    if (!raw_requested) {
       static const std::string empty;
       database::QueryRestTable rest{opt_encode_bigints_as_string,
                                     opt_sp_include_links, slow_query_timeout()};
@@ -410,25 +439,30 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
       return std::move(rest.response);
     }
 
-    if (limit != 1) throw http::Error(HttpStatusCode::BadRequest);
+    if (limit != 1)
+      throw http::Error(HttpStatusCode::BadRequest,
+                        "Raw media requests require limit=1");
 
-    database::QueryRestSPMedia rest;
+    database::QueryRestTableMedia rest{slow_query_timeout()};
     execute_and_handle_timeout([&]() {
-      rest.query_entries(session.get(), *target_field, schema_entry_->name,
-                         entry_->name, limit, offset);
+      rest.query_media_entries(session.get(), object, *raw_column, offset,
+                               limit, row_ownership, fog);
     });
+    if (!rest.media_response.has_value())
+      throw http::Error(HttpStatusCode::NotFound);
+
     helper::MediaDetector md;
-    auto detected_type = md.detect(rest.response);
+    auto detected_type = md.detect(*rest.media_response);
     Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
 
-    return {std::move(rest.response), detected_type};
+    return {std::move(*rest.media_response), detected_type};
   } else {
     if (fog.has_where() || fog.has_order()) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Invalid filter object for GET request by id");
     }
 
-    if (raw_value.empty()) {
+    if (!raw_requested) {
       database::QueryRestTableSingleRow rest(
           nullptr, opt_encode_bigints_as_string, opt_sp_include_links,
           mrs::database::RowLockType::NONE, slow_query_timeout());
@@ -451,7 +485,7 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
         });
       } while (query_retry.should_retry(rest.items));
 
-      if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
+      if (rest.items == 0) throw http::Error(HttpStatusCode::NotFound);
       Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
 
       if (response_cache_) {
@@ -464,17 +498,19 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
       return std::move(rest.response);
     }
 
-    database::QueryRestSPMedia rest;
+    database::QueryRestTableMedia rest{slow_query_timeout()};
 
     execute_and_handle_timeout([&]() {
-      rest.query_entries(session.get(), *target_field, schema_entry_->name,
-                         entry_->name, pk);
+      rest.query_entry(session.get(), object, *raw_column, pk, row_ownership,
+                       fog);
     });
+    if (!rest.media_response.has_value())
+      throw http::Error(HttpStatusCode::NotFound);
 
     helper::MediaDetector md;
-    auto detected_type = md.detect(rest.response);
+    auto detected_type = md.detect(*rest.media_response);
 
-    return {std::move(rest.response), detected_type};
+    return {std::move(*rest.media_response), detected_type};
   }
 
   // TODO(lkotula): Return proper error. (Shouldn't be in review)

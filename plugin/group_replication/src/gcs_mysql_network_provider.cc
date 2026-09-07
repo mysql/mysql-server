@@ -30,13 +30,14 @@
 #include <mysqld_error.h>
 #include <sql-common/net_ns.h>
 #include <sql/sql_class.h>
+#include "mutex_lock.h"
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/rpl_group_replication.h"
 
 // Forward declaration of Group Replication callback...
-int handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                 SSL *ssl_ctx);
+Gr_incoming_connection_status handle_group_replication_incoming_connection(
+    THD *thd, int fd, SSL *ssl_ctx);
 
 bool Gcs_mysql_network_provider_auth_interface_impl::get_credentials(
     std::string &username, std::string &password) {
@@ -55,6 +56,11 @@ bool Gcs_mysql_network_provider_native_interface_impl::send_command(
     MYSQL *mysql, enum enum_server_command command, const unsigned char *arg,
     size_t length, bool skip_check) {
   return simple_command(mysql, command, arg, length, skip_check);
+}
+
+unsigned int Gcs_mysql_network_provider_native_interface_impl::mysql_errno(
+    MYSQL *mysql) {
+  return ::mysql_errno(mysql);
 }
 
 MYSQL *Gcs_mysql_network_provider_native_interface_impl::mysql_init(
@@ -318,12 +324,19 @@ std::unique_ptr<Network_connection> Gcs_mysql_network_provider::open_connection(
   if (m_native_interface->send_command(mysql_connection,
                                        COM_SUBSCRIBE_GROUP_REPLICATION_STREAM,
                                        nullptr, 0, 0)) {
-    // This Log Output might have its log level changed due to
-    // @see network_provider_dynamic_log_level input parameter of
-    // this method.
-    LogPluginErr(Gcs_mysql_network_provider_util::log_level_adaptation(
-                     ERROR_LEVEL, log_level),
-                 ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_CLIENT_ERROR_COMMAND_ERR);
+    const unsigned int error_number =
+        m_native_interface->mysql_errno(mysql_connection);
+    const bool retryable_handoff_error =
+        Gcs_mysql_network_provider_util::is_retryable_connection_handoff_error(
+            error_number);
+    if (!retryable_handoff_error) {
+      // This Log Output might have its log level changed due to
+      // @see network_provider_dynamic_log_level input parameter of
+      // this method.
+      LogPluginErr(Gcs_mysql_network_provider_util::log_level_adaptation(
+                       ERROR_LEVEL, log_level),
+                   ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_CLIENT_ERROR_COMMAND_ERR);
+    }
     goto err;
   }
 
@@ -383,11 +396,24 @@ int Gcs_mysql_network_provider::close_connection(
   return retval;
 }
 
-void Gcs_mysql_network_provider::set_new_connection(
+Gr_incoming_connection_status Gcs_mysql_network_provider::set_new_connection(
     THD *thd, Network_connection *connection) {
-  mysql_mutex_lock(&m_GR_LOCK_connection_map_mutex);
-  m_incoming_connection_map.emplace(thd->active_vio->mysql_socket.fd, thd);
-  mysql_mutex_unlock(&m_GR_LOCK_connection_map_mutex);
+  MUTEX_LOCK(mutex_guard, &m_GR_LOCK_connection_map_mutex);
 
-  Network_provider::set_new_connection(connection);
+  const auto [connection_it, inserted] =
+      m_incoming_connection_map.emplace(thd->active_vio->mysql_socket.fd, thd);
+
+  if (!inserted) return Gr_incoming_connection_status::ERROR;
+
+  if (Network_provider::set_new_connection(connection) ==
+      Network_connection_handoff_status::ACCEPTED)
+    return Gr_incoming_connection_status::ACCEPTED;
+
+  m_incoming_connection_map.erase(connection_it);
+  return Gr_incoming_connection_status::BUSY;
+}
+
+bool Gcs_mysql_network_provider_util::is_retryable_connection_handoff_error(
+    unsigned int error_number) {
+  return error_number == ER_GRP_RPL_CONNECTION_HANDOFF_BUSY;
 }

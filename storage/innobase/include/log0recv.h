@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0byte.h"
 #include "ut0new.h"
+#include "ut0per_thread.h"
 #include "ut0todo_counter.h"
 
 #include <list>
@@ -55,6 +56,51 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 class MetadataRecover;
 class PersistentTableMetadata;
+
+namespace ib::redo {
+
+/** Registry of per-thread Redo_applier instances, which can be all
+freed by calling reset().
+
+This is used and owned by recv_sys.
+This wraps ut::Per_thread so recovery workers can reuse one Redo_applier per
+thread while keeping explicit recv_sys-controlled destruction instead of
+thread-exit destruction. */
+class Redo_applier_registry {
+ public:
+  using Storage = ut::Per_thread<ut::unique_ptr<ib::redo::Redo_applier>>;
+
+  Redo_applier_registry()
+      : m_storage(ut::make_unique<Storage>([] {
+          return ut::make_unique<ib::redo::Redo_applier>(
+              UT_NEW_THIS_FILE_PSI_KEY);
+        })) {}
+
+  Redo_applier_registry(const Redo_applier_registry &) = delete;
+  Redo_applier_registry &operator=(const Redo_applier_registry &) = delete;
+
+  /** Destroy all per-thread appliers owned by this registry.
+
+  Calling operator->() afterwards is a contract violation.
+  */
+  void reset() { m_storage.reset(); }
+
+  /** Return the Redo_applier associated with the calling thread.
+
+  The applier is created on first access for that thread.
+
+  @return Redo_applier owned by this registry for the calling thread.
+  */
+  ib::redo::Redo_applier *operator->() {
+    ut_a(m_storage != nullptr);
+    return m_storage->operator->()->get();
+  }
+
+ private:
+  ut::unique_ptr<Storage> m_storage;
+};
+
+}  // namespace ib::redo
 
 #ifdef UNIV_HOTBACKUP
 
@@ -530,8 +576,10 @@ struct recv_sys_t {
   /** Tablespace IDs that were explicitly deleted. */
   Missing_Ids deleted;
 
-  /** Redo log applier. */
-  ut::unique_ptr<ib::redo::Redo_applier> redo_applier;
+  /** Registry of Per-thread Redo_applier instances.
+  To access Redo_applier for this thread use -> operator.
+  Do not use after recv_sys_finish(). */
+  ib::redo::Redo_applier_registry per_thread_applier;
 };
 
 /** The recovery system */

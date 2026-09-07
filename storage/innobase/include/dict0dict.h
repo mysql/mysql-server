@@ -303,24 +303,35 @@ void dict_table_change_id_in_cache(
 /** Removes a foreign constraint struct from the dictionary cache. */
 void dict_foreign_remove_from_cache(
     dict_foreign_t *foreign); /*!< in, own: foreign constraint */
-/** Adds a foreign key constraint object to the dictionary cache. May free
- the object if there already is an object with the same identifier in.
- At least one of foreign table or referenced table must already be in
- the dictionary cache!
- @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t dict_foreign_add_to_cache(
-    dict_foreign_t *foreign,
-    /*!< in, own: foreign key constraint */
-    const char **col_names,
-    /*!< in: column names, or NULL to use
-    foreign->foreign_table->col_names */
-    bool check_charsets,
-    /*!< in: whether to check charset
-    compatibility */
-    bool can_free_fk,
-    /*!< in: whether free existing FK */
-    dict_err_ignore_t ignore_err);
-/*!< in: error to be ignored */
+/**
+Adds a foreign key constraint to the dictionary cache.
+
+If a constraint with the same identifier is already cached, this function
+can free @p foreign. At least one of the foreign or referenced tables must
+already be in the dictionary cache.
+
+@param[in,out] foreign           Foreign key constraint to cache. Ownership
+                                  remains with the caller only if it is not
+                                  adopted or freed by this function.
+@param[in]     col_names         Column names, or nullptr to use the foreign
+                                  table's column names.
+@param[in]     check_charsets    Whether to verify character-set compatibility.
+@param[in]     can_free_fk       Whether an existing foreign key may be freed.
+@param[in]     ignore_err        Errors to ignore while adding the constraint.
+@param[in]     skip_referenced   Whether to avoid registering the constraint
+                                  in the referenced table's referenced set and
+                                  to avoid preventing that table's eviction.
+                                  COPY ALTER uses this while the referenced
+                                  table may be concurrently opened.
+
+@return DB_SUCCESS on success, or an error code on failure.
+*/
+[[nodiscard]] dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
+                                                const char **col_names,
+                                                bool check_charsets,
+                                                bool can_free_fk,
+                                                dict_err_ignore_t ignore_err,
+                                                bool skip_referenced = false);
 /** Checks if a table is referenced by foreign keys.
  @return true if table is referenced by a foreign key */
 [[nodiscard]] bool dict_table_is_referenced_by_foreign_key(
@@ -1685,7 +1696,7 @@ void get_permissible_max_size(const dict_table_t *table,
 @param[in]  page_rec_max maximum size of possible record on leaf page
 @param[in]  page_ptr_max maximum size of possible record on non-leaf page
 @param[out] rec_max_size maximum size of record on page
-@return true if max record size is within limit, false otherwise. */
+@return true if max record size exceeds the limit, false otherwise. */
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
                                       const dict_index_t *index,
                                       const size_t page_rec_max,

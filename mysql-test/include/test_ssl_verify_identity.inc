@@ -5,7 +5,7 @@
 #    when ssl-mode=VERIFY_IDENTITY, the DNS/IPs provided in the Subject
 #    Alternative Names (which can be provided as an extension in X509)
 #    fields are also checked for apart from the Common Name in the subject.
-#    Applicable for openssl versions 1.0.2 and greater.
+#    Applicable for openssl versions 1.1.1 and greater.
 #
 #  $param_test_exe -
 #    defines the application which should run the test,
@@ -31,8 +31,9 @@
 # Bug #16211011 - SSL CERTIFICATE SUBJECT ALT NAMES WITH IPS NOT RESPECTED WITH ssl-mode=VERIFY_IDENTITY
 # Bug #29691694 - LIBMYSQLXCLIENT --SSL-MODE=VERIFY_IDENTITY DOESN'T USE SUBJECT ALT NAMES
 #
-# Note that these test cases are written keeping in mind that the openssl version used by the system will
-# be 1.0.2+. For older versions of openssl, the test will be skipped.
+# Note that these test cases are written keeping in mind that the openssl
+# version used by the system will be 1.1.1+. For older versions of openssl,
+# the test will be skipped.
 
 --source include/check_openssl_version.inc
 

@@ -1,0 +1,38 @@
+CREATE TABLE t1 (
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+inquiry_id BIGINT UNSIGNED NOT NULL,
+groupclients JSON NOT NULL,
+PRIMARY KEY (id),
+KEY inquiry_id_index (inquiry_id),
+KEY groupclients_index ((CAST(groupclients AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(1, 99999, JSON_ARRAY(1)),
+(2, 1, JSON_ARRAY(99999)),
+(3, 99999, JSON_ARRAY(99999)),
+(4, 1, JSON_ARRAY(1));
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SET cte_max_recursion_depth=2000;
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS
+(SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 2000)
+SELECT 10000 + n, 99999, JSON_ARRAY(99999) FROM seq;
+SET DEBUG='+d,compare_end_range';
+EXPLAIN
+SELECT /*+ INDEX_MERGE(t1 inquiry_id_index, groupclients_index) */ id
+FROM t1
+WHERE inquiry_id = 99999 OR 99999 MEMBER OF(groupclients);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	inquiry_id_index,groupclients_index	inquiry_id_index,groupclients_index	8,9	NULL	#	#	Using sort_union(inquiry_id_index,groupclients_index); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `inquiry_id_index`, `groupclients_index`) */ `test`.`t1`.`id` AS `id` from `test`.`t1` where ((`test`.`t1`.`inquiry_id` = 99999) or json'99999' member of (cast(`groupclients` as unsigned array)))
+SELECT /*+ INDEX_MERGE(t1 inquiry_id_index, groupclients_index) */ id
+FROM t1
+WHERE inquiry_id = 99999 OR 99999 MEMBER OF(groupclients);
+id
+1
+2
+3
+SET DEBUG='-d,compare_end_range';
+ROLLBACK;
+DROP TABLE t1;

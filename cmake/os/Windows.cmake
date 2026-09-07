@@ -230,6 +230,8 @@ IF(MSVC)
   STRING_PREPEND(CMAKE_CXX_FLAGS "/std:c++23preview ")
 
   OPTION(WIN_INCREMENTAL_LINK "Enable incremental linking on Windows" OFF)
+  SET(WIN_UNITTEST_LINK_WAVE_SIZE 6 CACHE STRING
+    "Maximum concurrent Visual Studio server unittest links to be allowed; 0 disables limiting")
 
   # The cmake default is /INCREMENTAL for Debug/RelWithDebInfo
   FOREACH(type EXE SHARED MODULE)

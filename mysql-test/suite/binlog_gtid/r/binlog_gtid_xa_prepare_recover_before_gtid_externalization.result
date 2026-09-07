@@ -1,0 +1,30 @@
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a INT);
+SET @@SESSION.xa_detach_on_prepare = ON;
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+XA START 'xa_prepare_detach_on';
+INSERT INTO t1 VALUES (1);
+XA END 'xa_prepare_detach_on';
+include/execute_to_conditional_timestamp_sync_point.inc [after_call_actions_before_gtid_state_update]
+XA PREPARE 'xa_prepare_detach_on';
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [GTID_EXECUTED does not contain the XA PREPARE GTID yet]
+include/execute_from_conditional_timestamp_sync_point.inc [1@after_call_actions_before_gtid_state_update]
+include/assert.inc [GTID_EXECUTED contains the XA PREPARE GTID]
+SET GTID_NEXT = AUTOMATIC;
+XA ROLLBACK 'xa_prepare_detach_on';
+SET @@SESSION.xa_detach_on_prepare = OFF;
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+XA START 'xa_prepare_detach_off';
+INSERT INTO t1 VALUES (2);
+XA END 'xa_prepare_detach_off';
+include/execute_to_conditional_timestamp_sync_point.inc [after_call_actions_before_gtid_state_update]
+XA PREPARE 'xa_prepare_detach_off';
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [GTID_EXECUTED does not contain the XA PREPARE GTID yet]
+include/execute_from_conditional_timestamp_sync_point.inc [1@after_call_actions_before_gtid_state_update]
+include/assert.inc [GTID_EXECUTED contains the XA PREPARE GTID]
+SET GTID_NEXT = AUTOMATIC;
+XA ROLLBACK 'xa_prepare_detach_off';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

@@ -23,13 +23,14 @@ include/rpl/sync_to_replica.inc
 ##############################################################
 # 2. Make coordinator wait on a transaction dependency
 #    Check the table shows this
+[connection slave]
 [connection slave1]
 LOCK TABLE t1 READ;
 [connection master]
 UPDATE t1 SET a = 11 WHERE a = 1;
 UPDATE t1 SET a = 21 WHERE a = 11;
 [connection slave]
-include/assert_eventually.inc [Eventually, coordinator increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT to 2]
+include/assert.inc [Coordinator increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT by 1]
 include/assert_eventually.inc [Eventually, worker increments TRANSACTIONS_ONGOING_COUNT]
 include/assert_eventually.inc [Eventually, receiver increments TRANSACTIONS_PENDING_COUNT to 2]
 include/assert_eventually.inc [Eventually, worker increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME to nonzero.]

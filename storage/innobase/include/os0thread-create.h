@@ -39,11 +39,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include "os0thread.h"
+#include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h"
+#include "sync0debug.h"
 #include "ut0log.h" /* ib::warn */
 
 #include <atomic>
 #include <functional>
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 /** Maximum number of threads inside InnoDB */
 extern uint32_t srv_max_n_threads;
@@ -142,7 +148,27 @@ class Runnable : public MySQL_thread {
   @param[in]    pfs_key         Performance schema key
   @param[in]    pfs_seqnum      Performance schema sequence number */
   explicit Runnable(mysql_pfs_key_t pfs_key, PSI_thread_seqnum pfs_seqnum)
-      : MySQL_thread(pfs_key, pfs_seqnum) {}
+      : MySQL_thread(pfs_key, pfs_seqnum) {
+    MySQL_thread::preamble();
+  }
+
+  /** Create and configure the current THD for this Runnable.
+  @param[in] caller_thd         Source session context to copy, or nullptr. */
+  dberr_t setup_thd(const THD *caller_thd = nullptr) noexcept {
+    ut_ad(m_thd == nullptr);
+
+    m_thd = create_current_thd(caller_thd);
+    return m_thd == nullptr ? DB_OUT_OF_MEMORY : DB_SUCCESS;
+  }
+
+  /** Destroy the current THD and deregister the MySQL thread. */
+  ~Runnable() noexcept {
+    if (m_thd != nullptr) {
+      destroy_current_thd(m_thd);
+    }
+
+    MySQL_thread::epilogue();
+  }
 
   /** Method to execute the callable
   @param[in]    f               Callable object
@@ -150,14 +176,50 @@ class Runnable : public MySQL_thread {
   @retval f return value. */
   template <typename F, typename... Args>
   dberr_t operator()(F &&f, Args &&...args) {
-    MySQL_thread::preamble();
-
-    auto r = std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-
-    MySQL_thread::epilogue();
-
-    return r;
+    return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
   }
+
+ private:
+  /** Create and configure the THD used by this DDL worker invocation. */
+  THD *create_current_thd(const THD *caller_thd) noexcept {
+    ut_ad(current_thd == nullptr);
+
+    auto thd = create_mysql_thd();
+    if (thd == nullptr) {
+      return nullptr;
+    }
+
+    ut_ad_eq(current_thd, thd);
+
+    if (caller_thd != nullptr) {
+#ifdef HAVE_ASAN
+      ASAN_POISON_MEMORY_REGION((void *)&thd->variables,
+                                sizeof(thd->variables));
+      ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables.sql_mode,
+                                  sizeof(thd->variables.sql_mode));
+#endif
+      thd->variables.sql_mode = caller_thd->variables.sql_mode;
+      ut_d(Sync_point::clone_from(caller_thd);)
+    }
+
+    return thd;
+  }
+
+  /** Destroy a THD created by create_current_thd(). */
+  void destroy_current_thd(THD *thd) noexcept {
+    ut_ad_eq(current_thd, thd);
+
+#ifdef HAVE_ASAN
+    ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
+                                sizeof(thd->variables));
+#endif
+    ut_d(Sync_point::erase(thd));
+    destroy_mysql_thd(thd);
+
+    ut_ad(current_thd == nullptr);
+  }
+
+  THD *m_thd{nullptr};
 };
 
 /** Wrapper for a callable, it will count the number of registered

@@ -1,31 +1,36 @@
 # ==== Purpose ====
 #
-# Tests that an autocommitted XA transaction where the master crashes
+# Tests that an autocommitted XA transaction where the source crashes
 # just before writing the XID log event is executed correctly.  The
-# master rolls back, so the slave should not execute statement.
+# source rolls back, so the replica should not execute statement.
 #
 # This test was previously part of rpl_ndb_transaction.test
 #
 #
 # ==== Method ====
 #
-# We want master to be alive so that it can replicate the statement to
-# the slave. So in the test case, we must not crash the
-# master. Instead, we fake the crash by just not writing the XID event
+# We want source to be alive so that it can replicate the statement to
+# the replica. So in the test case, we must not crash the
+# source. Instead, we fake the crash by just not writing the XID event
 # to the binlog. This is done by the @@debug='d,do_not_write_xid'
 # flag. This, in turn, requires us to do 'source
 # include/have_debug.inc'
 #
-# So, unlike if the master had crashed, the master *will* execute the
-# statement. But the slave should not execute it. Hence, after the
-# test is executed, the expected result on master is a table with one
-# row, and on slave a table with no rows.
+# So, unlike if the source had crashed, the source *will* execute the
+# statement. But the replica should not execute it. Hence, after the
+# test is executed, the expected result on source is a table with one
+# row, and on replica a table with no rows.
 #
-# To simulate the slave correctly, we wait until everything up to but
+# To simulate the replica correctly, we wait until everything up to but
 # not including the XID is replicated. This has to be done with
 # include/rpl/sync_to_replica_received.inc, not sync_slave_with_master,
-# since the latter waits until the slave *SQL* thread has caught up
-# with the master's position, which it will never do.
+# since the latter waits until the replica SQL thread has caught up
+# with the source position, which it will never do.
+#
+# In the non-compression case, the test waits until a replica worker is
+# in the middle of applying the transaction, then stops the applier and
+# waits for ER_MTA_INCONSISTENT_DATA. In the compression case, the main
+# assertion remains that the replica must not apply the row.
 #
 #
 # ==== Related bugs ====
@@ -34,7 +39,7 @@
 
 --source include/not_group_replication_plugin.inc
 
-# have_debug is needed since we use the @@debug variable on master
+# have_debug is needed since we use the @@debug variable on source
 --source include/have_debug.inc
 
 # CSA does not support syncing with source's position
@@ -47,74 +52,97 @@
 
 --echo ==== Initialize ====
 
---echo [on master]
---connection master
+--echo [on source]
+--source include/rpl/connection_source.inc
 
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 CREATE TABLE tinnodb (a INT) ENGINE = INNODB;
 SHOW CREATE TABLE tinnodb;
 
-# do_not_write_xid stops the master from writing an XID event.
+# do_not_write_xid stops the source from writing an XID event.
 set @old_debug= @@debug;
 set @@debug= '+d,do_not_write_xid';
 
 
 --echo ==== Test ====
 
-# Save the position up to which the slave SQL thread should execute.
+# Save the position up to which the replica SQL thread should execute.
 save_master_pos;
 
 # Execute query and check that the row made it to the table.
 INSERT INTO tinnodb VALUES (1);
 SELECT * FROM tinnodb ORDER BY a;
 
-# Sync slave's IO thread.
---echo [on slave]
+# Sync replica's receiver thread.
+--echo [on replica]
 # After the implementation of the transaction boundary parser,
 # this sync cannot use GTIDs or else sync will timeout because only
 # GTIDs of fully replicated transactions are in the
-# Retrieved_Gtid_Set of the slave and, as the last event of the
+# Retrieved_Gtid_Set of the replica and, as the last event of the
 # transaction never arrives, syncing with GTIDs won't work.
 --let ignore_gtids_on_sync= 1
 source include/rpl/sync_to_replica_received.inc;
 
-# Sync slave's SQL thread.
+# Sync replica's SQL thread.
 sync_with_master 0;
 
---echo ==== Verify results on slave ====
+--echo ==== Verify results on replica ====
 
-# the applier will stop workers and fails with this error, since
-# they are in the middle of a transaction
+--let $count = `SELECT IF(@@global.binlog_transaction_compression = 0, 1, 0)`
+
+# Wait until a replica worker has started applying the transaction and is
+# waiting for the missing commit boundary.
+if ($count) {
+  --let $wait_condition= SELECT COUNT(*) >= 1 FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME = '' AND SERVICE_STATE = "ON" AND APPLYING_TRANSACTION != "" AND IFNULL(LAST_APPLIED_TRANSACTION, "") != APPLYING_TRANSACTION
+  --source include/wait_condition.inc
+}
+
+# Stopping the applier in the middle of the incomplete transaction can report
+# ER_MTA_INCONSISTENT_DATA in the non-compression case.
 --let $slave_sql_errno=1756
 source include/rpl/stop_replica.inc;
 
---let $status_items=Replica_IO_State,Last_SQL_Error,Last_IO_Error
---source include/rpl/deprecated/show_replica_status.inc
+if ($count) {
+  --let $include_silent=1
+  source include/rpl/wait_for_applier_error.inc;
+  --let $include_silent=0
+}
 
---let $assert_text= Assert that the slave table has no rows
+--let $assert_text = Assert that receiver status is off
+--let $assert_cond = `SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = '' AND SERVICE_STATE='OFF'`
+--source include/assert.inc
+
+--let $assert_text = Assert expected error / no error code reported
+--let $assert_cond = `SELECT COUNT(*) = $count FROM performance_schema.replication_applier_status_by_coordinator WHERE CHANNEL_NAME = '' AND LAST_ERROR_NUMBER=1756`
+--source include/assert.inc
+
+--let $assert_text = Assert expected applier error / no error message reported
+--let $assert_cond = `SELECT COUNT(*) = $count FROM performance_schema.replication_applier_status_by_coordinator WHERE CHANNEL_NAME = '' AND LAST_ERROR_MESSAGE LIKE "%The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state%"`
+--source include/assert.inc
+
+--let $assert_text= Assert that the replica table has no rows
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM tinnodb`
 --source include/assert.inc
 
 --echo ==== Clean up ====
 
-# Easiest to clean up master and slave separately, without
-# replication, since master and slave are out of sync.
+# Easiest to clean up source and replica separately, without
+# replication, since source and replica are out of sync.
 
---echo [on master]
-connection master;
+--echo [on source]
+--source include/rpl/connection_source.inc
 DROP TABLE tinnodb;
 set @@debug= @old_debug;
 
 RESET BINARY LOGS AND GTIDS;
 
---echo [on slave]
-connection slave;
+--echo [on replica]
+--source include/rpl/connection_replica.inc
 DROP TABLE tinnodb;
 
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-
 --source include/rpl/start_replica.inc
 
 --source include/rpl/deinit.inc

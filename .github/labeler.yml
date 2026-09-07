@@ -2,41 +2,41 @@
 # Area auto-labels, driven by the paths a PR touches. Keeps triage cheap and
 # routes reviews to the right owners (see CODEOWNERS).
 #
-# Format note: actions/labeler@v5 requires the `changed-files` /
+# Format note: actions/labeler@v5+ requires the `changed-files` /
 # `any-glob-to-any-file` structure below. The older flat "label: [globs]"
-# layout (v4) is NOT compatible with v5 and fails to parse.
+# layout (v4) is NOT compatible with current releases and fails to parse.
 
-"innodb":
+"InnoDB":
   - changed-files:
       - any-glob-to-any-file: ["storage/innobase/**"]
 
-"optimizer":
+"Optimizer":
   - changed-files:
       - any-glob-to-any-file:
           - "sql/join_optimizer/**"
           - "sql/sql_optimizer*"
           - "sql/range_optimizer/**"
 
-"replication":
+"Replication":
   - changed-files:
       - any-glob-to-any-file:
           - "sql/rpl_*"
           - "libbinlogevents/**"
           - "plugin/group_replication/**"
 
-"client":
+"Client":
   - changed-files:
       - any-glob-to-any-file:
           - "client/**"
           - "libmysql/**"
 
-"pluggable":
+"Pluggable":
   - changed-files:
       - any-glob-to-any-file:
           - "plugin/**"
           - "components/**"
 
-"build":
+"Build":
   - changed-files:
       - any-glob-to-any-file:
           - "cmake/**"
@@ -44,11 +44,11 @@
           - "scripts/ci/**"
           - ".github/**"
 
-"tests":
+"Tests":
   - changed-files:
       - any-glob-to-any-file: ["mysql-test/**"]
 
-"docs":
+"Docs":
   - changed-files:
       - any-glob-to-any-file:
           - "docs/**"

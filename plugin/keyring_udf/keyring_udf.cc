@@ -268,7 +268,7 @@ static bool validate_compile_time(UDF_ARGS *args, uint expected_arg_count,
       strcpy(message, "Key id cannot be NULL.");
       return true;
     }
-    if (args->args[0] != nullptr && !is_type_valid(args->args[1])) {
+    if (args->args[1] != nullptr && !is_type_valid(args->args[1])) {
       strcpy(message, "Invalid key type.");
       return true;
     }

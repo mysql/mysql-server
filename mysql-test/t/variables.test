@@ -1913,5 +1913,47 @@ SET GLOBAL innodb_strict_mode = '0';
 SET GLOBAL innodb_strict_mode = 'true';
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL innodb_strict_mode = 'false';
+
+--echo #
+--echo # Bug#36596561 Optimizer switch accepts invalid flag values
+--echo #
+SET optimizer_switch = 'index_merge=on';
+SET @before = @@optimizer_switch;
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_switch = 'index_merge=of';
+SELECT @@optimizer_switch = @before;
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_switch = 'mrr=off,index_merge=of';
+SELECT @@optimizer_switch = @before;
+
+SET optimizer_switch = 'index_merge=off';
+SET @before = @@optimizer_switch;
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_switch = 'index_merge=o';
+SELECT @@optimizer_switch = @before;
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_switch = 'index_merge=oof';
+SELECT @@optimizer_switch = @before;
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_switch = 'index_merge=def';
+SELECT @@optimizer_switch = @before;
+
+SET optimizer_trace = 'enabled=on';
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_trace = 'enabled=of';
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_trace = 'enabled=o';
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_trace = 'enabled=oof';
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+--error ER_WRONG_VALUE_FOR_VAR
+SET optimizer_trace = 'enabled=def';
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+
+SET optimizer_trace = DEFAULT;
+SET optimizer_switch = DEFAULT;
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

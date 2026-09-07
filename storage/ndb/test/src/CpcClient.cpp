@@ -555,7 +555,7 @@ SimpleCpcClient::Parser_t::ParserStatus SimpleCpcClient::cpc_recv(
   SocketInputStream cpc_in(cpc_sock, 2 * 60 * 1000);
 
   Parser_t::Context ctx;
-  ParserDummy session(cpc_sock);
+  ParserDummy session;
   Parser_t parser(syntax, cpc_in);
   *reply = parser.parse(ctx, session);
 
@@ -580,9 +580,6 @@ const Properties *SimpleCpcClient::cpc_call(const char *cmd,
   cpc_recv(reply_syntax, &ret);
   return ret;
 }
-
-SimpleCpcClient::ParserDummy::ParserDummy(const NdbSocket &sock)
-    : SocketServer::Session(sock) {}
 
 template class Vector<SimpleCpcClient::Process>;
 template class Vector<ParserRow<SimpleCpcClient::ParserDummy> const *>;

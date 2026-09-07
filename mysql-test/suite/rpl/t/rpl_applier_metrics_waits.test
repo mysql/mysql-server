@@ -89,13 +89,16 @@ INSERT INTO t1 (a) VALUES(1);
 --echo # 2. Make coordinator wait on a transaction dependency
 --echo #    Check the table shows this
 
+--source include/rpl/connection_replica.inc
+
+--let $start_wait_count = `SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch`
+
 --source include/rpl/connection_replica1.inc
 
 # block the update to t1
 LOCK TABLE t1 READ;
 
 --source include/rpl/connection_source.inc
-
 # Coordinator will schedule the first transation, which will block. Then,
 # coordinator wants to schedule the second transction, and has to wait for
 # the dependency.
@@ -104,13 +107,16 @@ UPDATE t1 SET a = 21 WHERE a = 11;
 
 --source include/rpl/connection_replica.inc
 
-# The first transaction since channel start always performs a pointless wait on
-# a dependency, even if there is no preceding transaction to wait for. This
-# increments the counter to 1. Hence the "real" wait in this scenario increments
-# the counter to 2.
---let $assert_text = Eventually, coordinator increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT to 2
---let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch] = 2
---source include/assert_eventually.inc
+--let $wait_condition= SELECT TRANSACTIONS_ONGOING_COUNT = 1 AND TRANSACTIONS_PENDING_COUNT = 2 AND WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME > 0 $from_ch
+--source include/wait_condition.inc
+
+--let $end_wait_count = `SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch`
+
+# Step 2 should contribute exactly one additional dependency wait after the
+# baseline observed before the blocked updates are sent.
+--let $assert_text = Coordinator increments WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT by 1
+--let $assert_cond = ($end_wait_count - $start_wait_count) = 1
+--source include/assert.inc
 
 --let $assert_text = Eventually, worker increments TRANSACTIONS_ONGOING_COUNT
 --let $assert_cond = [SELECT TRANSACTIONS_ONGOING_COUNT $from_ch] = 1

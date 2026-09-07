@@ -1,0 +1,17 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+# The test intentionally creates a large single transaction with many
+# operations on one row. Raise operation limits so rollback reaches DBTUP.
+MaxNoOfConcurrentOperations=512K
+MaxNoOfLocalOperations=512K
+MaxDMLOperationsPerTransaction=200000
+
+# Match the production cluster watchdog interval from Bug#39184721.
+TimeBetweenWatchDogCheck=800
+TimeBetweenWatchDogCheckInitial=800
+
+# Keep the per-row operation limit below the watchdog-triggering workload size
+# so DBTUP rejects the transaction before commit or rollback has to clean up
+# a problematic same-row operation chain.
+MaxRowVersionsPerTransaction=1000

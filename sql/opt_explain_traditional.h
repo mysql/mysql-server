@@ -71,6 +71,7 @@ class Explain_format_tree : public Explain_format {
   Explain_format_tree() = default;
 
   bool is_hierarchical() const override { return false; }
+  [[nodiscard]] bool is_tree() const override { return true; }
   bool send_headers(Query_result *) override {
     assert(false);
     return true;

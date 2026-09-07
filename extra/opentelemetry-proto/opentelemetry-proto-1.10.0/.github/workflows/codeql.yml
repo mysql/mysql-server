@@ -1,0 +1,35 @@
+name: CodeQL
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "47 8 * * 4"  # weekly at 08:47 UTC on Thursday
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze GitHub Actions
+    permissions:
+      contents: read
+      actions: read  # for github/codeql-action/init to get workflow details
+      security-events: write  # for github/codeql-action/analyze to upload SARIF results
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
+        with:
+          languages: actions
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
+        with:
+          category: "/language:actions"

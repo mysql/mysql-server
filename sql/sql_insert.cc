@@ -831,7 +831,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     const char act[] =
         "now "
         "wait_for signal.continue";
-    assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
 

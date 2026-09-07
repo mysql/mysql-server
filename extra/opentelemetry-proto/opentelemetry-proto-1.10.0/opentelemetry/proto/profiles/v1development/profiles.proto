@@ -1,0 +1,499 @@
+// Copyright 2023, OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// This file includes work covered by the following copyright and permission notices:
+//
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package opentelemetry.proto.profiles.v1development;
+
+import "opentelemetry/proto/common/v1/common.proto";
+import "opentelemetry/proto/resource/v1/resource.proto";
+
+option csharp_namespace = "OpenTelemetry.Proto.Profiles.V1Development";
+option java_multiple_files = true;
+option java_package = "io.opentelemetry.proto.profiles.v1development";
+option java_outer_classname = "ProfilesProto";
+option go_package = "go.opentelemetry.io/proto/otlp/profiles/v1development";
+
+//                Relationships Diagram
+//
+// ┌──────────────────┐                      LEGEND
+// │   ProfilesData   │ ─────┐
+// └──────────────────┘      │           ─────▶ embedded
+//   │                       │
+//   │ 1-n                   │           ─────▷ referenced by index
+//   ▼                       ▼
+// ┌──────────────────┐   ┌────────────────────┐
+// │ ResourceProfiles │   │ ProfilesDictionary │
+// └──────────────────┘   └────────────────────┘
+//   │
+//   │ 1-n
+//   ▼
+// ┌──────────────────┐
+// │  ScopeProfiles   │
+// └──────────────────┘
+//   │
+//   │ 1-n
+//   ▼
+// ┌──────────────────┐
+// │      Profile     │
+// └──────────────────┘
+//   │                                n-1
+//   │ 1-n         ┌───────────────────────────────────────┐
+//   ▼             │                                       ▽
+// ┌──────────────────┐   1-n   ┌─────────────────┐   ┌──────────┐
+// │      Sample      │ ──────▷ │ KeyValueAndUnit │   │   Link   │
+// └──────────────────┘         └─────────────────┘   └──────────┘
+//   │                              △      △
+//   │ n-1                          │      │ 1-n
+//   ▽                              │      │
+// ┌──────────────────┐             │      │
+// │      Stack       │             │      │
+// └──────────────────┘             │      │
+//   │                     1-n      │      │
+//   │ 1-n         ┌────────────────┘      │
+//   ▽             │                       │
+// ┌──────────────────┐   n-1   ┌─────────────┐
+// │     Location     │ ──────▷ │   Mapping   │
+// └──────────────────┘         └─────────────┘
+//   │
+//   │ 1-n
+//   ▼
+// ┌──────────────────┐
+// │       Line       │
+// └──────────────────┘
+//   │
+//   │ 1-1
+//   ▽
+// ┌──────────────────┐
+// │     Function     │
+// └──────────────────┘
+//
+
+// ProfilesDictionary represents the profiles data shared across the
+// entire message being sent. The following applies to all fields in this
+// message:
+//
+// - A dictionary is an array of dictionary items. Users of the dictionary
+//   compactly reference the items using the index within the array.
+//
+// - A dictionary MUST have a zero value encoded as the first element. This
+//   allows for _index fields pointing into the dictionary to use a 0 pointer
+//   value to indicate 'null' / 'not set'. Unless otherwise defined, a 'zero
+//   value' message value is one with all default field values, so as to
+//   minimize wire encoded size.
+//
+// - There SHOULD NOT be dupes in a dictionary. The identity of dictionary
+//   items is based on their value, recursively as needed. If a particular
+//   implementation does emit duplicated items, it MUST NOT attempt to give them
+//   meaning based on the index or order. A profile processor may remove
+//   duplicate items and this MUST NOT have any observable effects for
+//   consumers.
+//
+// - There SHOULD NOT be orphaned (unreferenced) items in a dictionary. A
+//   profile processor may remove ("garbage-collect") orphaned items and this
+//   MUST NOT have any observable effects for consumers.
+//
+message ProfilesDictionary {
+  // Mappings from address ranges to the image/binary/library mapped
+  // into that address range referenced by locations via Location.mapping_index.
+  //
+  // mapping_table[0] must always be zero value (Mapping{}) and present.
+  repeated Mapping mapping_table = 1;
+
+  // Locations referenced by samples via Stack.location_indices.
+  //
+  // location_table[0] must always be zero value (Location{}) and present.
+  repeated Location location_table = 2;
+
+  // Functions referenced by locations via Line.function_index.
+  //
+  // function_table[0] must always be zero value (Function{}) and present.
+  repeated Function function_table = 3;
+
+  // Links referenced by samples via Sample.link_index.
+  //
+  // link_table[0] must always be zero value (Link{}) and present.
+  repeated Link link_table = 4;
+
+  // A common table for strings referenced by various messages.
+  //
+  // string_table[0] must always be "" and present.
+  repeated string string_table = 5;
+
+  // A common table for attributes referenced by the Profile, Sample, Mapping
+  // and Location messages below through attribute_indices field. Each entry is
+  // a key/value pair with an optional unit. Since this is a dictionary table,
+  // multiple entries with the same key may be present, unlike direct attribute
+  // tables like Resource.attributes. The referencing attribute_indices fields,
+  // though, do maintain the key uniqueness requirement.
+  //
+  // It's recommended to use attributes for variables with bounded cardinality,
+  // such as categorical variables
+  // (https://en.wikipedia.org/wiki/Categorical_variable). Using an attribute of
+  // a floating point type (e.g., CPU time) in a sample can quickly make every
+  // attribute value unique, defeating the purpose of the dictionary and
+  // impractically increasing the profile size.
+  //
+  // Examples of attributes:
+  //     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+  //     "abc.com/myattribute": true
+  //     "allocation_size": 128 bytes
+  //
+  // attribute_table[0] must always be zero value (KeyValueAndUnit{}) and present.
+  repeated KeyValueAndUnit attribute_table = 6;
+
+  // Stacks referenced by samples via Sample.stack_index.
+  //
+  // stack_table[0] must always be zero value (Stack{}) and present.
+  repeated Stack stack_table = 7;
+}
+
+// ProfilesData represents the profiles data that can be stored in persistent storage,
+// OR can be embedded by other protocols that transfer OTLP profiles data but do not
+// implement the OTLP protocol.
+//
+// The main difference between this message and collector protocol is that
+// in this message there will not be any "control" or "metadata" specific to
+// OTLP protocol.
+//
+// When new fields are added into this message, the OTLP request MUST be updated
+// as well.
+message ProfilesData {
+  // An array of ResourceProfiles.
+  // For data coming from an SDK profiler, this array will typically contain one
+  // element. Host-level profilers will usually create one ResourceProfile per
+  // container, as well as one additional ResourceProfile grouping all samples
+  // from non-containerized processes.
+  // Other resource groupings are possible as well and clarified via
+  // Resource.attributes and semantic conventions.
+  // Tools that visualize profiles should prefer displaying
+  // resources_profiles[0].scope_profiles[0].profiles[0] by default.
+  repeated ResourceProfiles resource_profiles = 1;
+
+  // One instance of ProfilesDictionary
+  ProfilesDictionary dictionary = 2;
+}
+
+
+// A collection of ScopeProfiles from a Resource.
+message ResourceProfiles {
+  reserved 1000;
+
+  // The resource for the profiles in this message.
+  // If this field is not set then no resource info is known.
+  opentelemetry.proto.resource.v1.Resource resource = 1;
+
+  // A list of ScopeProfiles that originate from a resource.
+  repeated ScopeProfiles scope_profiles = 2;
+
+  // The Schema URL, if known. This is the identifier of the Schema that the resource data
+  // is recorded in. Notably, the last part of the URL path is the version number of the
+  // schema: http[s]://server[:port]/path/<version>. To learn more about Schema URL see
+  // https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+  // This schema_url applies to the data in the "resource" field. It does not apply
+  // to the data in the "scope_profiles" field which have their own schema_url field.
+  string schema_url = 3;
+}
+
+// A collection of Profiles produced by an InstrumentationScope.
+message ScopeProfiles {
+  // The instrumentation scope information for the profiles in this message.
+  // Semantically when InstrumentationScope isn't set, it is equivalent with
+  // an empty instrumentation scope name (unknown).
+  opentelemetry.proto.common.v1.InstrumentationScope scope = 1;
+
+  // A list of Profiles that originate from an instrumentation scope.
+  repeated Profile profiles = 2;
+
+  // The Schema URL, if known. This is the identifier of the Schema that the profile data
+  // is recorded in. Notably, the last part of the URL path is the version number of the
+  // schema: http[s]://server[:port]/path/<version>. To learn more about Schema URL see
+  // https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+  // This schema_url applies to the data in the "scope" field and all profiles in the
+  // "profiles" field.
+  string schema_url = 3;
+}
+
+// Profile is a common stacktrace profile format.
+//
+// Measurements represented with this format should follow the
+// following conventions:
+//
+// - Consumers should treat unset optional fields as if they had been
+//   set with their default value.
+//
+// - When possible, measurements should be stored in "unsampled" form
+//   that is most useful to humans.  There should be enough
+//   information present to determine the original sampled values.
+//
+// - The profile is represented as a set of samples, where each sample
+//   references a stack trace which is a list of locations, each belonging
+//   to a mapping.
+// - There is a N->1 relationship from Stack.location_indices entries to
+//   locations. For every Stack.location_indices entry there must be a
+//   unique Location with that index.
+// - There is an optional N->1 relationship from locations to
+//   mappings. For every nonzero Location.mapping_id there must be a
+//   unique Mapping with that index.
+
+// Represents a complete profile, including sample types, samples, mappings to
+// binaries, stacks, locations, functions, string table, and additional
+// metadata. It modifies and annotates pprof Profile with OpenTelemetry
+// specific fields.
+//
+// Note that whilst fields in this message retain the name and field id from pprof in most cases
+// for ease of understanding data migration, it is not intended that pprof:Profile and
+// OpenTelemetry:Profile encoding be wire compatible.
+message Profile {
+  // The type and unit of all Sample.values in this profile.
+  // For a cpu or off-cpu profile this might be:
+  //   ["cpu","nanoseconds"] or ["off_cpu","nanoseconds"]
+  // For a heap profile, this might be:
+  //   ["allocated_objects","count"] or ["allocated_space","bytes"],
+  ValueType sample_type = 1;
+  // The set of samples recorded in this profile.
+  repeated Sample samples = 2;
+
+  // The following fields 3-12 are informational, do not affect
+  // interpretation of results.
+
+  // Time of collection. Value is UNIX Epoch time in nanoseconds since 00:00:00
+  // UTC on 1 January 1970.
+  fixed64 time_unix_nano = 3;
+  // Duration of the profile. For instant profiles like live heap snapshot, the
+  // duration can be zero but it may be preferable to set time_unix_nano to the
+  // process start time and duration_nano to the relative time when the profile
+  // was gathered. This ensures Sample.timestamps_unix_nano values such as
+  // allocation timestamp fall into the profile time range.
+  uint64 duration_nano = 4;
+  // The kind of events between sampled occurrences.
+  // e.g [ "cpu","cycles" ] or [ "heap","bytes" ]
+  ValueType period_type = 5;
+  // The number of events between sampled occurrences.
+  int64 period = 6;
+
+  // A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
+  // all zeroes is considered invalid. It may be used for deduplication and signal
+  // correlation purposes. It is acceptable to treat two profiles with different values
+  // in this field as not equal, even if they represented the same object at an earlier
+  // time.
+  // This field is optional; an ID may be assigned to an ID-less profile in a later step.
+  bytes profile_id = 7;
+
+  // The number of attributes that were discarded. Attributes
+  // can be discarded because their keys are too long or because there are too many
+  // attributes. If this value is 0, then no attributes were dropped.
+  uint32 dropped_attributes_count = 8;
+
+  // The original payload format. See also original_payload. Optional, but the
+  // format and the bytes must be set or unset together.
+  //
+  // The allowed values for the format string are defined by the OpenTelemetry
+  // specification. Some examples are "jfr", "pprof", "linux_perf".
+  //
+  // The original payload may be optionally provided when the conversion to the
+  // OLTP format was done from a different format with some loss of the fidelity
+  // and the receiver may want to store the original payload to allow future
+  // lossless export or reinterpretation. Some examples of the original format
+  // are JFR (Java Flight Recorder), pprof, Linux perf.
+  //
+  // Even when the original payload is in a format that is semantically close to
+  // OTLP, such as pprof, a conversion may still be lossy in some cases (e.g. if
+  // the pprof file contains custom extensions or conventions).
+  //
+  // The original payload can be large in size, so including the original
+  // payload should be configurable by the profiler or collector options. The
+  // default behavior should be to not include the original payload.
+  string original_payload_format = 9;
+  // The original payload bytes. See also original_payload_format. Optional, but
+  // format and the bytes must be set or unset together.
+  bytes original_payload = 10;
+
+  // References to attributes in attribute_table. [optional]
+  repeated int32 attribute_indices = 11;
+}
+
+// A pointer from a profile Sample to a trace Span.
+// Connects a profile sample to a trace span, identified by unique trace and span IDs.
+message Link {
+  // A unique identifier of a trace that this linked span is part of. The ID is a
+  // 16-byte array.
+  bytes trace_id = 1;
+
+  // A unique identifier for the linked span. The ID is an 8-byte array.
+  bytes span_id = 2;
+}
+
+// ValueType describes the type and units of a value.
+message ValueType {
+  // Index into ProfilesDictionary.string_table.
+  int32 type_strindex = 1;
+
+  // Index into ProfilesDictionary.string_table.
+  int32 unit_strindex = 2;
+}
+
+// Each Sample records values encountered in some program context. The program
+// context is typically a stack trace, perhaps augmented with auxiliary
+// information like the thread-id, some indicator of a higher level request
+// being handled etc.
+//
+// A Sample MUST have have at least one values or timestamps_unix_nano entry. If
+// both fields are populated, they MUST contain the same number of elements, and
+// the elements at the same index MUST refer to the same event.
+//
+// For the purposes of efficiently representing aggregated data observations, a Sample is regarded
+// as having a shared identity and an associated collection of per-observation data points.
+// Samples having the same identity SHOULD be combined by inserting timestamps and values to the data arrays.
+//
+// Examples of different ways ('shapes') of representing a sample with the total value of 10:
+//
+// Report of a stacktrace at 10 timestamps (consumers must assume the value is 1 for each point):
+//    values: []
+//    timestamps_unix_nano: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+//
+// Report of a stacktrace with an aggregated value without timestamps:
+//   values: [10]
+//    timestamps_unix_nano: []
+//
+// Report of a stacktrace at 4 timestamps where each point records a specific value:
+//    values: [2, 2, 3, 3]
+//    timestamps_unix_nano: [1, 2, 3, 4]
+//
+// All Samples for a Profile SHOULD have the same shape, i.e. all data observation series should consistently
+// adopt the same data recording style.
+//
+message Sample {
+
+  // A Sample's identity (i.e. 'primary key') is the tuple of {stack_index, set_of(attribute_indices), link_index}
+
+  // Reference to stack in ProfilesDictionary.stack_table.
+  int32 stack_index = 1;
+  // References to attributes in ProfilesDictionary.attribute_table. [optional]
+  repeated int32 attribute_indices = 2;
+  // Reference to link in ProfilesDictionary.link_table. [optional]
+  // It can be unset / set to 0 if no link exists, as link_table[0] is always a 'null' default value.
+  int32 link_index = 3;
+
+  // The following fields may contain per-observation data and do not form part of the Sample's identity.
+
+  // The type and unit of each value is defined by Profile.sample_type.
+  repeated int64 values = 4;
+  // Timestamps associated with Sample. Value is UNIX Epoch time in nanoseconds
+  // since 00:00:00 UTC on 1 January 1970. The timestamps should fall within the
+  // [Profile.time_unix_nano, Profile.time_unix_nano + Profile.duration_nano)
+  // time range.
+  repeated fixed64 timestamps_unix_nano = 5;
+}
+
+// Describes the mapping of a binary in memory, including its address range,
+// file offset, and metadata like build ID
+message Mapping {
+  // Address at which the binary (or DLL) is loaded into memory.
+  uint64 memory_start = 1;
+  // The limit of the address range occupied by this mapping.
+  uint64 memory_limit = 2;
+  // Offset in the binary that corresponds to the first mapped address.
+  uint64 file_offset = 3;
+  // The object this entry is loaded from.  This can be a filename on
+  // disk for the main binary and shared libraries, or virtual
+  // abstractions like "[vdso]".
+  int32 filename_strindex = 4;  // Index into ProfilesDictionary.string_table.
+  // References to attributes in ProfilesDictionary.attribute_table. [optional]
+  repeated int32 attribute_indices = 5;
+}
+
+// A Stack represents a stack trace as a list of locations.
+message Stack {
+  // References to locations in ProfilesDictionary.location_table.
+  // The first location is the leaf frame.
+  repeated int32 location_indices = 1;
+}
+
+// Describes function and line table debug information.
+message Location {
+  // Reference to mapping in ProfilesDictionary.mapping_table.
+  // It can be unset / set to 0 if the mapping is unknown or not applicable for
+  // this profile type, as mapping_table[0] is always a 'null' default mapping.
+  int32 mapping_index = 1;
+  // The instruction address for this location, if available.  It
+  // should be within [Mapping.memory_start...Mapping.memory_limit]
+  // for the corresponding mapping. A non-leaf address may be in the
+  // middle of a call instruction. It is up to display tools to find
+  // the beginning of the instruction if necessary.
+  uint64 address = 2;
+  // Multiple line indicates this location has inlined functions,
+  // where the last entry represents the caller into which the
+  // preceding entries were inlined.
+  //
+  // E.g., if memcpy() is inlined into printf:
+  //    lines[0].function_name == "memcpy"
+  //    lines[1].function_name == "printf"
+  repeated Line lines = 3;
+  // References to attributes in ProfilesDictionary.attribute_table. [optional]
+  repeated int32 attribute_indices = 4;
+}
+
+// Details a specific line in a source code, linked to a function.
+message Line {
+  // Reference to function in ProfilesDictionary.function_table.
+  int32 function_index = 1;
+  // Line number in source code. 0 means unset.
+  int64 line = 2;
+  // Column number in source code. 0 means unset.
+  int64 column = 3;
+}
+
+// Describes a function, including its human-readable name, system name,
+// source file, and starting line number in the source.
+message Function {
+  // The function name. Empty string if not available.
+  int32 name_strindex = 1;
+  // Function name, as identified by the system. For instance,
+  // it can be a C++ mangled name. Empty string if not available.
+  int32 system_name_strindex = 2;
+  // Source file containing the function. Empty string if not available.
+  int32 filename_strindex = 3;
+  // Line number in source file. 0 means unset.
+  int64 start_line = 4;
+}
+
+// A custom 'dictionary native' style of encoding attributes which is more convenient
+// for profiles than opentelemetry.proto.common.v1.KeyValue
+// Specifically, uses the string table for keys and allows optional unit information.
+message KeyValueAndUnit {
+  // The index into the string table for the attribute's key.
+  int32 key_strindex  = 1;
+  // The value of the attribute.
+  opentelemetry.proto.common.v1.AnyValue value = 2;
+  // The index into the string table for the attribute's unit.
+  // zero indicates implicit (by semconv) or non-defined unit.
+  int32 unit_strindex = 3;
+}

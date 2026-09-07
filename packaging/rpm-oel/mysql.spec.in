@@ -159,6 +159,14 @@ Source7:        %{compatsrc}
 BuildRequires:  cmake >= 3.14.6
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
+# rpcgen shells out to the system C preprocessor to generate
+# xdr_gen/xcom_vp.h. Without it rpcgen fails silently and xcom
+# fails to compile.
+# cpp is not declared explicitly in BuildRequires.
+# On el9/el10 yum-builddep's resolution pulls in gcc as a side effect,
+# and gcc itself requires cpp. On el8 this does not happen so it must
+# be declared explicitly.
+%{?el8:BuildRequires:  cpp}
 %else
 BuildRequires:  cmake3 >= 3.14.6
 %endif
@@ -195,12 +203,16 @@ BuildRequires:  binutils
 BuildRequires:  dwz
 BuildRequires:  gcc-c++
 BuildRequires:  gcc
-BuildRequires:  libfido2-devel
 %ifnarch aarch64
 BuildRequires:  libquadmath-devel
 %endif
-BuildRequires:  libudev-devel
 %endif # el10
+%if 0%{?rhel} >= 8
+# Needed to build the FIDO2/WebAuthn client plugin, configured similarly to
+# add_fido_plugins above to avoid configuration drift.
+BuildRequires:  libfido2-devel
+BuildRequires:  libudev-devel
+%endif # add_fido_plugins deps (el8+)
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  patchelf
@@ -345,6 +357,20 @@ Obsoletes:      mariadb-server-utils
 Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-gssapi-server
 Obsoletes:      mariadb-oqgraph-engine
+%if 0%{?rhel} == 10
+# EL10 packages the MariaDB stack with versioned names. Obsolete the full
+# versioned stack so DNF does not select it alongside MySQL and hit file
+# conflicts on shared client/server binaries.
+Obsoletes:      mariadb11.8
+Obsoletes:      mariadb11.8-common
+Obsoletes:      mariadb11.8-errmsg
+Obsoletes:      mariadb11.8-backup
+Obsoletes:      mariadb11.8-cracklib-password-check
+Obsoletes:      mariadb11.8-gssapi-server
+Obsoletes:      mariadb11.8-server
+Obsoletes:      mariadb11.8-server-utils
+Obsoletes:      mariadb11.8-client-utils
+%endif
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
@@ -669,7 +695,7 @@ Summary:       MySQL Router
 Group:         Applications/Databases
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
-%{?el7:Requires:  openssl-libs >= 1.0.2j}
+%{?el7:Requires:  openssl11-libs >= 1.1.1}
 %if 0%{?commercial}
 Obsoletes:     mysql-router-community < %{version}-%{release}
 %endif

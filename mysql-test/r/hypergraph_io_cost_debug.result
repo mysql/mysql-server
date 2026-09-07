@@ -25,6 +25,8 @@ EXPLAIN FORMAT=TREE SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 EXPLAIN
 -> Table scan on t1  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t1`@`select#1`) */ `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`fill` AS `fill` from `test`.`t1`
 SET DEBUG="d,in_memory_0";
 EXPLAIN FORMAT=JSON INTO @explain0 SELECT /*+ NO_INDEX(t1) */ * FROM t1;
 SET DEBUG="d,in_memory_50";
@@ -36,6 +38,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE a=0;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (a = 0)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where multiple equal(0, `test`.`t1`.`a`)
 SET DEBUG="d,in_memory_0";
 EXPLAIN FORMAT=JSON INTO @explain0 SELECT pk FROM t1 WHERE a=0;
 SET DEBUG="d,in_memory_50";
@@ -47,6 +51,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a<10;
 EXPLAIN
 -> Index range scan on t1 using k1 over (a < 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`fill` AS `fill` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 SET DEBUG="d,in_memory_0";
 EXPLAIN FORMAT=JSON INTO @explain0 SELECT * FROM t1 WHERE a<10;
 SET DEBUG="d,in_memory_50";
@@ -58,6 +64,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE a<10;
 EXPLAIN
 -> Covering index range scan on t1 using k1 over (a < 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 SET DEBUG="d,in_memory_0";
 EXPLAIN FORMAT=JSON INTO @explain0 SELECT pk FROM t1 WHERE a<10;
 SET DEBUG="d,in_memory_50";
@@ -76,20 +84,28 @@ EXPLAIN
 -> Filter: (t1.a < 100)  (...)
     -> Index scan on t1 using PRIMARY  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 SET DEBUG="d,in_memory_100";
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<100;
 EXPLAIN
 -> Index range scan on t1 using k1 over (a < 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 SET DEBUG="d,in_memory_0";
 EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE a<10;
 EXPLAIN
 -> Covering index range scan on t1 using k1 over (a < 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 EXPLAIN FORMAT=TREE SELECT b FROM t1 WHERE a<10;
 EXPLAIN
 -> Index range scan on t1 using k1 over (a < 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 EXPLAIN FORMAT=JSON INTO @explain_covering SELECT pk FROM t1 WHERE a<10;
 EXPLAIN FORMAT=JSON INTO @explain_non_covering SELECT b FROM t1 WHERE a<10;
 SELECT check_cost_ratio(@explain_non_covering, @explain_covering, 13.0, 0.05);

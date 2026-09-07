@@ -1,0 +1,59 @@
+#
+# ==== PURPOSE ====
+#
+# This test checks that an idle replica applier thread does not retain the last
+# applied rewritten query in performance_schema.threads.PROCESSLIST_INFO.
+#
+# ==== IMPLEMENTATION ====
+#
+# The test applies CREATE USER while the legacy SHOW PROCESSLIST
+# implementation is selected, waits until the replica applier is idle,
+# and inspects the thread directly through performance_schema.threads.
+#
+# Test steps:
+#
+# 1. Configure source-to-replica replication.
+# 2. Select the legacy SHOW PROCESSLIST implementation on the replica.
+# 3. Replicate CREATE USER, which produces a rewritten query.
+# 4. Wait for the replica applier to consume the query and become idle.
+# 5. Assert that the thread's PROCESSLIST_INFO is NULL.
+#
+# Test pass conditions:
+#
+# - The replica applier reaches the caught-up idle state.
+# - PROCESSLIST_INFO does not retain the completed CREATE USER statement.
+#
+# ==== REFERENCES ====
+#
+# BUG#31140932: CREATE USER GET STUCK ON SHOW PROCESSLIST AND PS.THREADS ON SLAVE
+#
+
+# Test is binlog format agnostic, so run it only with row format.
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--echo ==== Test ====
+
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--disable_warnings
+SET GLOBAL performance_schema_show_processlist= OFF;
+--enable_warnings
+--enable_query_log
+
+--source include/rpl/connection_source.inc
+CREATE USER 'bug31140932'@'localhost' IDENTIFIED BY 'do-not-display';
+--source include/rpl/sync_to_replica.inc
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME LIKE '%replica_sql' AND PROCESSLIST_STATE = 'Replica has read all relay log; waiting for more updates'
+--source include/wait_condition.inc
+
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.threads WHERE NAME IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND PROCESSLIST_INFO IS NOT NULL
+--let $assert_text= Idle replica applier threads must not retain the applied query in P_S.threads
+--source include/assert.inc
+
+--echo ==== Clean up ====
+
+--source include/rpl/connection_source.inc
+DROP USER 'bug31140932'@'localhost';
+--source include/rpl/deinit.inc

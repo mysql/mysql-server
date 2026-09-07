@@ -61,9 +61,6 @@
 
 #define JAM_FILE_ID 484
 
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
-
 static void systemInfo(const Configuration &config) {
 #ifdef _WIN32
   int processors = 0;
@@ -1062,12 +1059,8 @@ void ndbd_run(bool foreground, int report_fd, const char *connect_str,
   ndb_mgm_get_int_parameter(p, CFG_DB_REQUIRE_TLS, &requireTls);
 
   if ((requireCert || requireTls) && !globalTransporterRegistry.canUseTls()) {
-    if (openssl_version_ok)
-      g_eventLogger->error(
-          "Shutting down. Configuration requires TLS, but TLS setup failed.");
-    else
-      g_eventLogger->error(
-          "Shutting down. This version of OpenSSL is not supported.");
+    g_eventLogger->error(
+        "Shutting down. Configuration requires TLS, but TLS setup failed.");
     stop_async_log_func(log_threadvar, thread_args);
     ndbd_exit(-1);
   }

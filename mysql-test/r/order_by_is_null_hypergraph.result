@@ -34,6 +34,8 @@ EXPLAIN
 -> Sort: t1.f7  (cost=6.48..6.48 rows=4)
     -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL)  (cost=1.21..4.84 rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f3` is null) and multiple equal(100, `test`.`t1`.`f2`)) order by `test`.`t1`.`f7`
 SELECT f1, f2, f3, f7 FROM t1
 WHERE f2 = 100 AND f3 IS NULL
 ORDER BY f2, f3, f7;
@@ -56,6 +58,8 @@ EXPLAIN
     -> Filter: (t1.f7 >= 'Item B')  (cost=0.957..1.91 rows=2)
         -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL, f4 = 'User1', f5 = 'Active', f6 = 0)  (cost=0.953..1.91 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f3` is null) and (`test`.`t1`.`f7` >= 'Item B') and multiple equal(100, `test`.`t1`.`f2`) and multiple equal('User1', `test`.`t1`.`f4`) and multiple equal('Active', `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`)) order by `test`.`t1`.`f7` limit 10
 SELECT f1, f2, f3, f4, f5, f6, f7
 FROM t1
 WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
@@ -77,6 +81,8 @@ ORDER BY f2, f3, f4, f5, f6, f7;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL, f4 = 'User1', f5 = 'Active', f6 = 0)  (cost=0.635..1.91 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f3` is null) and multiple equal(100, `test`.`t1`.`f2`) and multiple equal('User1', `test`.`t1`.`f4`) and multiple equal('Active', `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`)) order by `test`.`t1`.`f7`
 SELECT f1, f2, f3, f4, f5, f6, f7
 FROM t1
 WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
@@ -97,6 +103,8 @@ EXPLAIN
     -> Filter: (t1.f3 is not null)  (cost=2.33..14.7 rows=6.3)
         -> Index scan on t1 using PRIMARY  (cost=2.04..14.3 rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (`test`.`t1`.`f3` is not null) order by `test`.`t1`.`f3`,`test`.`t1`.`f7`
 SELECT f1, f2, f3, f7 FROM t1
 WHERE f3 IS NOT NULL ORDER BY f3, f7;
 f1	f2	f3	f7
@@ -134,6 +142,8 @@ EXPLAIN
     -> Filter: ((t1.f3 is null) or (t1.f3 > TIMESTAMP'2024-01-01 00:00:00'))  (cost=1.72..8.62 rows=5)
         -> Covering index lookup on t1 using k1 (f2 = 100)  (cost=1.68..8.42 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f3` is null) or (`test`.`t1`.`f3` > TIMESTAMP'2024-01-01 00:00:00')) and multiple equal(100, `test`.`t1`.`f2`)) order by `test`.`t1`.`f3`,`test`.`t1`.`f7`
 SELECT f1, f2, f3, f7 FROM t1
 WHERE f2 = 100 AND (f3 IS NULL OR f3 > '2024-01-01')
 ORDER BY f3, f7;
@@ -155,6 +165,8 @@ EXPLAIN
 -> Sort: t1.f7  (cost=6.48..6.48 rows=4)
     -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL)  (cost=1.21..4.84 rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f3` is null) or (`test`.`t1`.`f3` is null)) and multiple equal(100, `test`.`t1`.`f2`)) order by `test`.`t1`.`f7`
 SELECT f1, f2, f3, f7 FROM t1
 WHERE f2 = 100 AND (f3 IS NULL OR f3 IS NULL)
 ORDER BY f2, f3, f7;
@@ -176,6 +188,8 @@ EXPLAIN
     -> Filter: ((t1.f3 <=> NULL) or (t1.f3 is null))  (cost=2.16..8.62 rows=4)
         -> Covering index lookup on t1 using k1 (f2 = 100)  (cost=2.11..8.42 rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f3` <=> NULL) or (`test`.`t1`.`f3` is null)) and multiple equal(100, `test`.`t1`.`f2`)) order by `test`.`t1`.`f3`,`test`.`t1`.`f7`
 SELECT f1, f2, f3, f7 FROM t1
 WHERE f2 = 100 AND (f3 <=> NULL OR f3 IS NULL)
 ORDER BY f2, f3, f7;
@@ -192,6 +206,8 @@ EXPLAIN
     -> Filter: ((t1.f3 is null) or (t1.f3 <=> NULL))  (cost=2.16..8.62 rows=4)
         -> Covering index lookup on t1 using k1 (f2 = 100)  (cost=2.11..8.42 rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f3` is null) or (`test`.`t1`.`f3` <=> NULL)) and multiple equal(100, `test`.`t1`.`f2`)) order by `test`.`t1`.`f3`,`test`.`t1`.`f7`
 SELECT f1, f2, f3, f7 FROM t1
 WHERE f2 = 100 AND (f3 IS NULL OR f3 <=> NULL)
 ORDER BY f2, f3, f7;
@@ -211,6 +227,8 @@ ORDER BY f2, f3, f4, f5, f6, f7 DESC;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL, f4 = 'User1', f5 = 'Active', f6 = 0) (reverse)  (cost=0.635..1.91 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f3` is null) and multiple equal(100, `test`.`t1`.`f2`) and multiple equal('User1', `test`.`t1`.`f4`) and multiple equal('Active', `test`.`t1`.`f5`) and multiple equal(0, `test`.`t1`.`f6`)) order by `test`.`t1`.`f7` desc
 SELECT f1, f2, f3, f4, f5, f6, f7
 FROM t1
 WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
@@ -266,6 +284,8 @@ WHERE f2 IS NULL ORDER BY f2 DESC, f3 ASC;
 EXPLAIN
 -> Covering index lookup on t2 using k1 (f2 = NULL)  (cost=0.779..2.34 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t2` where (`test`.`t2`.`f2` is null) order by `test`.`t2`.`f3`
 SELECT f1, f2, f3 FROM t2
 WHERE f2 IS NULL ORDER BY f2 DESC, f3 ASC;
 f1	f2	f3
@@ -280,6 +300,8 @@ WHERE f2 IS NULL ORDER BY f2 ASC, f3 DESC;
 EXPLAIN
 -> Covering index lookup on t2 using k1 (f2 = NULL) (reverse)  (cost=0.779..2.34 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t2` where (`test`.`t2`.`f2` is null) order by `test`.`t2`.`f3` desc
 SELECT f1, f2, f3 FROM t2
 WHERE f2 IS NULL ORDER BY f2 ASC, f3 DESC;
 f1	f2	f3

@@ -661,6 +661,12 @@ class Field {
   bool m_is_tmp_null;
 
   /**
+    If true, Field class does not use NULL values, regardless of m_nullable.
+    This is an irregular use and should be avoided. Affects debug code only.
+  */
+  bool m_ignore_nulls{false};
+
+  /**
     The value of THD::check_for_truncated_fields at the moment of setting
     m_is_tmp_null attribute.
   */
@@ -915,6 +921,12 @@ class Field {
   void reset_tmp_null() { m_is_tmp_null = false; }
 
   void set_tmp_null();
+
+  /// Set field clause to ignore nullability. Affects debug code only.
+  void set_ignore_nulls() { m_ignore_nulls = true; }
+
+  /// @returns true if class does not handle nulls, regardless of nullability.
+  bool ignore_nulls() const { return m_ignore_nulls; }
 
   /**
     @return temporary NULL-ability flag.
@@ -1216,6 +1228,8 @@ class Field {
                false if neither table's row nor the Field has value NULL
   */
   bool is_null(ptrdiff_t row_offset = 0) const {
+    // If class ignores nulls, never ask for a NULL state.
+    assert(!ignore_nulls());
     /*
       if the field is NULLable, it returns NULLity based
       on m_null_ptr[row_offset] value. Otherwise it returns

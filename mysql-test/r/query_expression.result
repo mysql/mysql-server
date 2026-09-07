@@ -23,6 +23,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on r  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r`
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION ALL SELECT * FROM t;
@@ -38,6 +40,8 @@ EXPLAIN
     -> Stream results  (rows=3)
         -> Table scan on t  (rows=3)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION DISTINCT SELECT * FROM t;
@@ -49,6 +53,8 @@ EXPLAIN
         -> Table scan on r  (rows=1)
         -> Table scan on t  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION ALL (SELECT * FROM t UNION DISTINCT SELECT * FROM r);
@@ -67,6 +73,8 @@ EXPLAIN
                 -> Table scan on t  (rows=3)
                 -> Table scan on r  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all (/* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION ALL (SELECT * FROM t UNION ALL SELECT * FROM r);
@@ -84,6 +92,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on r  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union all /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r`
 DROP TABLE t, t1, r;
 #
 # INTERSECT and EXCEPT support
@@ -113,6 +123,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r UNION ALL SELECT * FROM s INTERSECT ALL SELECT * FROM t;
 EXPLAIN
@@ -125,6 +137,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT ALL SELECT * FROM s) INTERSECT ALL SELECT * FROM t;
 EXPLAIN
@@ -136,6 +150,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT ALL SELECT * FROM s INTERSECT ALL SELECT * FROM t;
 EXPLAIN
@@ -147,6 +163,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT ALL SELECT * FROM s) UNION ALL SELECT * FROM t;
 EXPLAIN
@@ -159,6 +177,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT ALL SELECT * FROM s UNION ALL SELECT * FROM t;
 EXPLAIN
@@ -171,6 +191,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s) INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -182,6 +204,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r UNION DISTINCT SELECT * FROM s INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -193,6 +217,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -204,6 +230,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -215,6 +243,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -226,6 +256,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s UNION DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -237,6 +269,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM r UNION SELECT * FROM s) INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -248,6 +282,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r UNION SELECT * FROM s INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -259,6 +295,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT SELECT * FROM s) INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -270,6 +308,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT SELECT * FROM s INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -281,6 +321,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT SELECT * FROM s) UNION SELECT * FROM t;
 EXPLAIN
@@ -292,6 +334,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT SELECT * FROM s UNION SELECT * FROM t;
 EXPLAIN
@@ -303,6 +347,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 #
 # Bug#33905918 Server crashes after using explain of a query with except/intersect.
 #
@@ -1431,6 +1477,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT SELECT * FROM t2) EXCEPT SELECT * FROM t1;
 i
 3
@@ -1442,6 +1490,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT (SELECT * FROM t2 EXCEPT SELECT * FROM t1);
 i
 1
@@ -1456,6 +1506,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 #
 # ALL
 #
@@ -1472,6 +1524,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT ALL SELECT * FROM t2) EXCEPT ALL SELECT * FROM t1;
 i
 3
@@ -1485,6 +1539,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT ALL (SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1);
 i
 1
@@ -1501,6 +1557,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 #
 # Mix of DISTINCT and ALL
 #
@@ -1517,6 +1575,8 @@ EXPLAIN
             -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT ALL SELECT * FROM t2) EXCEPT SELECT * FROM t1;
 i
 3
@@ -1530,6 +1590,8 @@ EXPLAIN
             -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT ALL (SELECT * FROM t2 EXCEPT SELECT * FROM t1);
 i
 1
@@ -1547,6 +1609,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 SELECT * FROM t3 EXCEPT SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1;
 i
 3
@@ -1558,6 +1622,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT SELECT * FROM t2) EXCEPT ALL SELECT * FROM t1;
 i
 3
@@ -1569,6 +1635,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT (SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1);
 i
 3
@@ -1582,6 +1650,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
@@ -1615,6 +1685,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT SELECT * FROM t2) INTERSECT SELECT * FROM t1;
 i
 1
@@ -1626,6 +1698,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT (SELECT * FROM t2 INTERSECT SELECT * FROM t1);
 i
 1
@@ -1637,6 +1711,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 #
 # ALL
 #
@@ -1654,6 +1730,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) intersect all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT ALL SELECT * FROM t2) INTERSECT ALL SELECT * FROM t1;
 i
 1
@@ -1668,6 +1746,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) intersect all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT ALL (SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1);
 i
 1
@@ -1682,6 +1762,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=4)
                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect all (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 #
 # Mix of DISTINCT and ALL
 #
@@ -1696,6 +1778,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT ALL SELECT * FROM t2) INTERSECT SELECT * FROM t1;
 i
 1
@@ -1707,6 +1791,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT ALL (SELECT * FROM t2 INTERSECT SELECT * FROM t1);
 i
 1
@@ -1718,6 +1804,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1;
 i
 1
@@ -1729,6 +1817,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT SELECT * FROM t2) INTERSECT ALL SELECT * FROM t1;
 i
 1
@@ -1740,6 +1830,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT (SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1);
 i
 1
@@ -1751,6 +1843,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM (SELECT * FROM t3 UNION DISTINCT SELECT * FROM t3 UNION ALL SELECT * FROM t3) x1
 INTERSECT
 SELECT * FROM (SELECT * FROM t3 UNION DISTINCT SELECT * FROM t3 UNION ALL SELECT * FROM t3) x2
@@ -1782,6 +1876,8 @@ EXPLAIN
                         -> Filter: (t3.i > 1)  (rows=2)
                             -> Table scan on t3  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i` AS `i` from (/* select#2 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` union /* select#3 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` union all /* select#4 */ select `test`.`t3`.`i` AS `i` from `test`.`t3`) `x1` intersect /* select#6 */ select `x2`.`i` AS `i` from (/* select#7 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` where (`test`.`t3`.`i` > 1) union /* select#8 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` where (`test`.`t3`.`i` > 1) union all /* select#9 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` where (`test`.`t3`.`i` > 1)) `x2` order by `i`
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 ORDER BY i) x1 WHERE i < 5;
 i
 1
@@ -1798,6 +1894,8 @@ EXPLAIN
                     -> Filter: (t2.i < 5)  (rows=1.33)
                         -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` where (`test`.`t2`.`i` < 5) intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` where (`test`.`t2`.`i` < 5) order by `i`) `x1`
 #
 # Test LIMIT, OFFSET
 #
@@ -1812,6 +1910,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1
 SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1 OFFSET 1;
 i
 CORRECT
@@ -1823,6 +1923,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1,1
 #
 # LIMIT, OFFSET with derived table
 #
@@ -1836,6 +1938,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1) `t`
 SELECT * FROM (SELECT i FROM t1 INTERSECT SELECT i FROM t3 LIMIT 1) t;
 i
 1
@@ -1846,6 +1950,8 @@ EXPLAIN
         -> Table scan on t1  (rows=2)
         -> Table scan on t3  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` intersect /* select#3 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` limit 1) `t`
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1;
 i
 CORRECT
@@ -1857,6 +1963,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) `t` limit 1
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1 OFFSET 1) t;
 i
 CORRECT
@@ -1868,6 +1976,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1,1) `t`
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1 OFFSET 1 ;
 i
 CORRECT
@@ -1879,6 +1989,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) `t` limit 1,1
 SELECT SQL_CALC_FOUND_ROWS i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1;
 i
 CORRECT
@@ -2266,6 +2378,8 @@ EXPLAIN
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=7)
                 -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 3)
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 INTERSECT (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
@@ -2276,6 +2390,8 @@ EXPLAIN
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=7)
                 -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` intersect (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 3)
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 EXCEPT    (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
@@ -2286,6 +2402,8 @@ EXPLAIN
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=7)
                 -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` except (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 3)
 DROP TABLE t1;
 #
 # Bug#34843764 Wrong Results when INTERSECT/EXCEPT combine with JOIN
@@ -2333,6 +2451,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` intersect /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 SELECT *
 FROM (SELECT a, b FROM t1 INTERSECT ALL SELECT a, b FROM t3) AS x
 JOIN
@@ -2365,6 +2485,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` intersect all /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 SELECT *
 FROM (SELECT a, b FROM t1 EXCEPT SELECT a, b FROM t3) AS x
 JOIN
@@ -2391,6 +2513,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` except /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 SELECT *
 FROM (SELECT a, b FROM t1 EXCEPT ALL SELECT a, b FROM t3) AS x
 JOIN
@@ -2425,6 +2549,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` except all /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 DROP TABLE t1, t2, t3;
 #
 # Bug#34704011 When using a single select in parenthesis, a
@@ -2499,6 +2625,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on r  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r`
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION ALL SELECT * FROM t;
@@ -2514,6 +2642,8 @@ EXPLAIN
     -> Stream results  (rows=3)
         -> Table scan on t  (rows=3)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION DISTINCT SELECT * FROM t;
@@ -2525,6 +2655,8 @@ EXPLAIN
         -> Table scan on r  (rows=1)
         -> Table scan on t  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION ALL (SELECT * FROM t UNION DISTINCT SELECT * FROM r);
@@ -2543,6 +2675,8 @@ EXPLAIN
                 -> Table scan on t  (rows=3)
                 -> Table scan on r  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all (/* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM t UNION SELECT * FROM t1)  UNION ALL SELECT * FROM r
 UNION ALL (SELECT * FROM t UNION ALL SELECT * FROM r);
@@ -2560,6 +2694,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on r  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union all /* select#3 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#4 */ select `test`.`t`.`a` AS `a` from `test`.`t` union all /* select#5 */ select `test`.`r`.`a` AS `a` from `test`.`r`
 DROP TABLE t, t1, r;
 #
 # INTERSECT and EXCEPT support
@@ -2589,6 +2725,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r UNION ALL SELECT * FROM s INTERSECT ALL SELECT * FROM t;
 EXPLAIN
@@ -2601,6 +2739,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union all (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT ALL SELECT * FROM s) INTERSECT ALL SELECT * FROM t;
 EXPLAIN
@@ -2612,6 +2752,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT ALL SELECT * FROM s INTERSECT ALL SELECT * FROM t;
 EXPLAIN
@@ -2623,6 +2765,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT ALL SELECT * FROM s) UNION ALL SELECT * FROM t;
 EXPLAIN
@@ -2635,6 +2779,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT ALL SELECT * FROM s UNION ALL SELECT * FROM t;
 EXPLAIN
@@ -2647,6 +2793,8 @@ EXPLAIN
     -> Stream results  (rows=1)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union all /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s) INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -2658,6 +2806,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r UNION DISTINCT SELECT * FROM s INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -2669,6 +2819,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -2680,6 +2832,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s INTERSECT DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -2691,6 +2845,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -2702,6 +2858,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s UNION DISTINCT SELECT * FROM t;
 EXPLAIN
@@ -2713,6 +2871,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 (SELECT * FROM r UNION SELECT * FROM s) INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -2724,6 +2884,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r UNION SELECT * FROM s INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -2735,6 +2897,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT SELECT * FROM s) INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -2746,6 +2910,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT SELECT * FROM s INTERSECT SELECT * FROM t;
 EXPLAIN
@@ -2757,6 +2923,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
                 -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` intersect /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`)
 EXPLAIN FORMAT = tree
 (SELECT * FROM r EXCEPT SELECT * FROM s) UNION SELECT * FROM t;
 EXPLAIN
@@ -2768,6 +2936,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 EXPLAIN FORMAT = tree
 SELECT * FROM r EXCEPT SELECT * FROM s UNION SELECT * FROM t;
 EXPLAIN
@@ -2779,6 +2949,8 @@ EXPLAIN
                 -> Table scan on s  (rows=2)
         -> Table scan on t  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`) union /* select#3 */ select `test`.`t`.`a` AS `a` from `test`.`t`
 #
 # Bug#33905918 Server crashes after using explain of a query with except/intersect.
 #
@@ -3907,6 +4079,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT SELECT * FROM t2) EXCEPT SELECT * FROM t1;
 i
 3
@@ -3918,6 +4092,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT (SELECT * FROM t2 EXCEPT SELECT * FROM t1);
 i
 1
@@ -3932,6 +4108,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 #
 # ALL
 #
@@ -3948,6 +4126,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT ALL SELECT * FROM t2) EXCEPT ALL SELECT * FROM t1;
 i
 3
@@ -3961,6 +4141,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT ALL (SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1);
 i
 1
@@ -3977,6 +4159,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 #
 # Mix of DISTINCT and ALL
 #
@@ -3993,6 +4177,8 @@ EXPLAIN
             -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT ALL SELECT * FROM t2) EXCEPT SELECT * FROM t1;
 i
 3
@@ -4006,6 +4192,8 @@ EXPLAIN
             -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT ALL (SELECT * FROM t2 EXCEPT SELECT * FROM t1);
 i
 1
@@ -4023,6 +4211,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except all (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 SELECT * FROM t3 EXCEPT SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1;
 i
 3
@@ -4034,6 +4224,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 EXCEPT SELECT * FROM t2) EXCEPT ALL SELECT * FROM t1;
 i
 3
@@ -4045,6 +4237,8 @@ EXPLAIN
         -> Table scan on t2  (rows=3)
         -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 EXCEPT (SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1);
 i
 3
@@ -4058,6 +4252,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=3)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` except (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` except all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
@@ -4091,6 +4287,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT SELECT * FROM t2) INTERSECT SELECT * FROM t1;
 i
 1
@@ -4102,6 +4300,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT (SELECT * FROM t2 INTERSECT SELECT * FROM t1);
 i
 1
@@ -4113,6 +4313,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 #
 # ALL
 #
@@ -4130,6 +4332,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) intersect all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT ALL SELECT * FROM t2) INTERSECT ALL SELECT * FROM t1;
 i
 1
@@ -4144,6 +4348,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect all /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) intersect all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT ALL (SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1);
 i
 1
@@ -4158,6 +4364,8 @@ EXPLAIN
                 -> Table scan on t2  (rows=4)
                 -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect all (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect all /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`)
 #
 # Mix of DISTINCT and ALL
 #
@@ -4172,6 +4380,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT ALL SELECT * FROM t2) INTERSECT SELECT * FROM t1;
 i
 1
@@ -4183,6 +4393,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT ALL (SELECT * FROM t2 INTERSECT SELECT * FROM t1);
 i
 1
@@ -4194,6 +4406,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1;
 i
 1
@@ -4205,6 +4419,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 (SELECT * FROM t3 INTERSECT SELECT * FROM t2) INTERSECT ALL SELECT * FROM t1;
 i
 1
@@ -4216,6 +4432,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM t3 INTERSECT (SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1);
 i
 1
@@ -4227,6 +4445,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 SELECT * FROM (SELECT * FROM t3 UNION DISTINCT SELECT * FROM t3 UNION ALL SELECT * FROM t3) x1
 INTERSECT
 SELECT * FROM (SELECT * FROM t3 UNION DISTINCT SELECT * FROM t3 UNION ALL SELECT * FROM t3) x2
@@ -4258,6 +4478,8 @@ EXPLAIN
                         -> Filter: (t3.i > 1)  (rows=2)
                             -> Table scan on t3  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i` AS `i` from (/* select#2 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` union /* select#3 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` union all /* select#4 */ select `test`.`t3`.`i` AS `i` from `test`.`t3`) `x1` intersect /* select#6 */ select `x2`.`i` AS `i` from (/* select#7 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` where (`test`.`t3`.`i` > 1) union /* select#8 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` where (`test`.`t3`.`i` > 1) union all /* select#9 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` where (`test`.`t3`.`i` > 1)) `x2` order by `i`
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 ORDER BY i) x1 WHERE i < 5;
 i
 1
@@ -4274,6 +4496,8 @@ EXPLAIN
                     -> Filter: (t2.i < 5)  (rows=1.33)
                         -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` where (`test`.`t2`.`i` < 5) intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` where (`test`.`t2`.`i` < 5) order by `i`) `x1`
 #
 # Test LIMIT, OFFSET
 #
@@ -4288,6 +4512,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1
 SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1 OFFSET 1;
 i
 CORRECT
@@ -4299,6 +4525,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1,1
 #
 # LIMIT, OFFSET with derived table
 #
@@ -4312,6 +4540,8 @@ EXPLAIN
         -> Table scan on t2  (rows=4)
         -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1) `t`
 SELECT * FROM (SELECT i FROM t1 INTERSECT SELECT i FROM t3 LIMIT 1) t;
 i
 1
@@ -4322,6 +4552,8 @@ EXPLAIN
         -> Table scan on t1  (rows=2)
         -> Table scan on t3  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` intersect /* select#3 */ select `test`.`t3`.`i` AS `i` from `test`.`t3` limit 1) `t`
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1;
 i
 CORRECT
@@ -4333,6 +4565,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) `t` limit 1
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1 OFFSET 1) t;
 i
 CORRECT
@@ -4344,6 +4578,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` limit 1,1) `t`
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1 OFFSET 1 ;
 i
 CORRECT
@@ -4355,6 +4591,8 @@ EXPLAIN
             -> Table scan on t2  (rows=4)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `t`.`i` AS `i` from (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` intersect /* select#3 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) `t` limit 1,1
 SELECT SQL_CALC_FOUND_ROWS i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1;
 i
 CORRECT
@@ -4742,6 +4980,8 @@ EXPLAIN
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=7)
                 -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 3)
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 INTERSECT (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
@@ -4752,6 +4992,8 @@ EXPLAIN
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=7)
                 -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` intersect (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 3)
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 EXCEPT    (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
@@ -4762,6 +5004,8 @@ EXPLAIN
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=7)
                 -> Table scan on t1  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` except (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 3)
 DROP TABLE t1;
 #
 # Bug#34843764 Wrong Results when INTERSECT/EXCEPT combine with JOIN
@@ -4809,6 +5053,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` intersect /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 SELECT *
 FROM (SELECT a, b FROM t1 INTERSECT ALL SELECT a, b FROM t3) AS x
 JOIN
@@ -4841,6 +5087,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` intersect all /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 SELECT *
 FROM (SELECT a, b FROM t1 EXCEPT SELECT a, b FROM t3) AS x
 JOIN
@@ -4867,6 +5115,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` except /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 SELECT *
 FROM (SELECT a, b FROM t1 EXCEPT ALL SELECT a, b FROM t3) AS x
 JOIN
@@ -4901,6 +5151,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t2  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a`,`x`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` except all /* select#3 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `x` join `test`.`t2` where ((`x`.`b` = `test`.`t2`.`b`) and (`x`.`a` = `test`.`t2`.`a`)) order by `x`.`a`,`x`.`b`
 DROP TABLE t1, t2, t3;
 #
 # Bug#34704011 When using a single select in parenthesis, a

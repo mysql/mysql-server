@@ -25,14 +25,14 @@
 
 /*
   Enable NDB code to use OpenSSL 3 APIs unconditionally
-  with any OpenSSL version starting from 1.0.2
+  with any OpenSSL version starting from 1.1.1
 */
 
 #include "util/ndb_openssl3_compat.h"
 
 #include <openssl/ssl.h>
 
-#if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -104,58 +104,5 @@ int X509_self_signed(X509 *cert, int verify_signature) {
 
   return verify_signature ? X509_verify(cert, pkey) : 1;
 }
-
-#endif
-
-/* Stub functions to allow NodeCertificate.cpp to compile with old OpenSSL */
-#if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
-
-const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x) {
-  return X509_get_serialNumber(const_cast<X509 *>(x));
-}
-
-EVP_PKEY *X509_get0_pubkey(X509 *x) {
-  EVP_PKEY *key = X509_get_pubkey(x);
-  if (key) EVP_PKEY_free(key);
-  return key;
-}
-
-EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *csr) {
-  EVP_PKEY *key = X509_REQ_get_pubkey(csr);
-  if (key) EVP_PKEY_free(key);
-  return key;
-}
-
-int X509_get_signature_info(X509 *, int *, int *, int *, uint32_t *) {
-  return 0;
-}
-
-X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) * conf,
-                                    X509V3_CTX *ctx, int ext_nid,
-                                    const char *value) {
-  return X509V3_EXT_conf_nid(conf, ctx, ext_nid, const_cast<char *>(value));
-}
-
-int EVP_PKEY_up_ref(EVP_PKEY *) { return 0; }
-
-int X509_up_ref(X509 *) { return 0; }
-
-#ifdef __NEED_STUB_ASN1_FUNCTIONS
-const ASN1_TIME *X509_get0_notBefore(const X509 *x) {
-  return X509_get_notBefore(x);
-}
-
-const ASN1_TIME *X509_get0_notAfter(const X509 *x) {
-  return X509_get_notAfter(x);
-}
-
-int ASN1_TIME_to_tm(const ASN1_TIME *, struct tm *) { return 0; }
-
-int ASN1_INTEGER_get_uint64(uint64_t *v, const ASN1_INTEGER *) {
-  *v = 0;
-  return 0;
-}
-
-#endif  // __NEED_STUB_ASN1_FUNCTIONS
 
 #endif

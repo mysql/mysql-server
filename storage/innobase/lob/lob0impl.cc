@@ -1066,6 +1066,12 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
   DBUG_TRACE;
   ut_ad(offset == 0);
+  ut_ad(len > 0);
+  ut_ad(buf == ctx->m_buf);
+  ut_ad(len <= ctx->m_len);
+  UNIV_MEM_ASSERT_W(buf, len);
+  ut_ad(memset(buf, 0x00, len));
+
   const uint32_t lob_version = ref.version();
 
   ref_mem_t ref_mem;
@@ -1073,8 +1079,6 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 
   /* Cache of s-latched blocks of LOB index pages.*/
   BlockCache cached_blocks;
-
-  ut_ad(len > 0);
 
   /* Obtain length of LOB available in clustered index.*/
   const ulint avail_lob = ref.length();

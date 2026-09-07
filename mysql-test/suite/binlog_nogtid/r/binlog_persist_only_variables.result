@@ -163,6 +163,7 @@ SET PERSIST_ONLY replication_optimize_for_static_plugin_config = @@GLOBAL.replic
 SET PERSIST_ONLY replication_sender_observe_commit_only = @@GLOBAL.replication_sender_observe_commit_only;
 SET PERSIST_ONLY replication_tls_kex = @@GLOBAL.replication_tls_kex;
 SET PERSIST_ONLY replication_use_pqc_sign = @@GLOBAL.replication_use_pqc_sign;
+SET PERSIST_ONLY rpl_dump_thread_account_affinity = @@GLOBAL.rpl_dump_thread_account_affinity;
 SET PERSIST_ONLY rpl_read_size = @@GLOBAL.rpl_read_size;
 SET PERSIST_ONLY rpl_semi_sync_replica_enabled = @@GLOBAL.rpl_semi_sync_replica_enabled;
 SET PERSIST_ONLY rpl_semi_sync_replica_trace_level = @@GLOBAL.rpl_semi_sync_replica_trace_level;
@@ -354,6 +355,7 @@ RESET PERSIST replication_optimize_for_static_plugin_config;
 RESET PERSIST replication_sender_observe_commit_only;
 RESET PERSIST replication_tls_kex;
 RESET PERSIST replication_use_pqc_sign;
+RESET PERSIST rpl_dump_thread_account_affinity;
 RESET PERSIST rpl_read_size;
 RESET PERSIST rpl_semi_sync_replica_enabled;
 RESET PERSIST rpl_semi_sync_replica_trace_level;

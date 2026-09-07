@@ -24,6 +24,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDE
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,point(0,0)) AS `d` from `test`.`cafe` order by `d`
 SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
 d
 SELECT ST_Distance(POINT(0,0), location) as d FROM cafe ORDER BY d ASC;
@@ -34,6 +36,8 @@ EXPLAIN
 -> Sort: d  (rows=14)
     -> Index scan on cafe using PRIMARY  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,point(0,0)) AS `d` from `test`.`cafe` order by `d`
 SET debug = '+d,handlerton_supports_distance_scan';
 SELECT ST_Distance(location, ST_GEOMFROMTEXT('Point(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
 d
@@ -79,12 +83,16 @@ EXPLAIN
 -> Sort: d, limit input to 5 row(s) per chunk  (rows=5)
     -> Index scan on cafe2 using PRIMARY  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`cafe2`.`location1`) AS `ST_AsText(location1)`,st_astext(`test`.`cafe2`.`location2`) AS `ST_AsText(location2)`,st_distance(`test`.`cafe2`.`location1`,`test`.`cafe2`.`location2`) AS `d` from `test`.`cafe2` order by `d` limit 5
 EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, POINT(0,0)) as d1,
 ST_Distance(location2, POINT(0,0)) as d2 FROM cafe2 ORDER BY d1, d2 ASC;
 EXPLAIN
 -> Sort: d1, d2  (rows=14)
     -> Index distance scan on cafe2 using location1  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`cafe2`.`location1`) AS `ST_AsText(location1)`,st_astext(`test`.`cafe2`.`location2`) AS `ST_AsText(location2)`,st_distance(`test`.`cafe2`.`location1`,point(0,0)) AS `d1`,st_distance(`test`.`cafe2`.`location2`,point(0,0)) AS `d2` from `test`.`cafe2` order by `d1`,`d2`
 SET optimizer_trace="enabled=on";
 EXPLAIN FORMAT=TREE SELECT cafe.id, ST_Distance(location, POINT(0,0)) as d FROM cafe JOIN cafe2 ON cafe2.id=cafe.id ORDER BY d;
 EXPLAIN
@@ -94,6 +102,8 @@ EXPLAIN
         -> Hash
             -> Covering index scan on cafe2 using PRIMARY  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`cafe`.`id` AS `id`,st_distance(`test`.`cafe`.`location`,point(0,0)) AS `d` from `test`.`cafe` join `test`.`cafe2` where multiple equal(`test`.`cafe2`.`id`, `test`.`cafe`.`id`) order by `d`
 DROP TABLE cafe;
 DROP TABLE cafe2;
 CREATE TABLE cafe(
@@ -122,6 +132,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(0 0)', 4
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('POINT(0 0)',4326)) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 CREATE TABLE cafe(
 location linestring NOT NULL srid 0, SPATIAL INDEX(location),
@@ -149,6 +161,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('LINESTRING(0 0
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('LINESTRING(0 0,40 15)')) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 CREATE TABLE cafe(
 location polygon NOT NULL srid 0, SPATIAL INDEX(location),
@@ -176,6 +190,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POLYGON((0 10,
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('POLYGON((0 10,50 27,40 12,0 10))')) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 CREATE TABLE cafe(
 location multipoint NOT NULL srid 0, SPATIAL INDEX(location),
@@ -203,6 +219,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOINT(0 1
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('MULTIPOINT(0 10,50 27,40 12,0 10)')) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 CREATE TABLE cafe(
 location multilinestring NOT NULL srid 0, SPATIAL INDEX(location),
@@ -230,6 +248,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTILINESTRIN
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('MULTILINESTRING((0 10,50 27,40 12,0 10))')) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 CREATE TABLE cafe(
 location multipolygon NOT NULL srid 0, SPATIAL INDEX(location),
@@ -257,6 +277,8 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOLYGON((
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('MULTIPOLYGON(((0 10,50 27,40 12,0 10)))')) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 CREATE TABLE cafe(
 location geometrycollection NOT NULL srid 0, SPATIAL INDEX(location),
@@ -284,10 +306,14 @@ EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('GEOMETRYCOLLEC
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('GEOMETRYCOLLECTION(POINT(40 10))')) AS `d` from `test`.`cafe` order by `d`
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(40 10)')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
 -> Index distance scan on cafe using location  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select st_distance(`test`.`cafe`.`location`,st_geomfromtext('POINT(40 10)')) AS `d` from `test`.`cafe` order by `d`
 DROP TABLE cafe;
 SELECT HOST FROM performance_schema.setup_actors WHERE HOST = '%' AND USER = '%';
 HOST

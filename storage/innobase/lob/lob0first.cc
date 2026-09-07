@@ -46,20 +46,10 @@ void first_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
   want -= data_to_copy;
 }
 
-/** Replace data in the page by making a copy-on-write.
-@param[in]      trx     Current transaction.
-@param[in]      offset  Location where replace operation starts.
-@param[in,out]  ptr     Buffer containing new data. after the call it will
-point to remaining data.
-@param[in,out]  want    Requested amount of data to be replaced. After the
-call it will contain amount of data yet to be replaced.
-@param[in]      mtr     Mini-transaction context.
-@return  the newly allocated buffer block.
-@return  nullptr if new page could not be allocated
-(DB_OUT_OF_FILE_SPACE). */
 buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                    ulint &want, mtr_t *mtr) {
   DBUG_TRACE;
+  ut_ad(trx != nullptr);
 
   buf_block_t *new_block = nullptr;
 

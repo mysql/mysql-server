@@ -80,7 +80,7 @@ def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
 def			SHOW_STATISTICS	Collation	Collation	253	4	1	Y	0	0	255
 def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
-def					Packed	6	0	0	Y	32896	0	63
+def		SHOW_STATISTICS	SHOW_STATISTICS	PACKED	Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	12	0	N	1	0	255
 def			SHOW_STATISTICS	Index_type	Index_type	253	44	5	N	129	0	255
 def			SHOW_STATISTICS	Comment	Comment	253	32	0	N	1	0	255
@@ -541,7 +541,7 @@ def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
 def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	63
 def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	3	Y	32768	0	63
-def					Packed	6	0	0	Y	32896	0	63
+def		SHOW_STATISTICS	SHOW_STATISTICS	PACKED	Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	63
 def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	63
 def			SHOW_STATISTICS	Comment	Comment	253	8	0	N	1	0	63
@@ -760,7 +760,7 @@ def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
 def			SHOW_STATISTICS	Collation	Collation	253	3	1	Y	0	0	33
 def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
-def					Packed	6	0	0	Y	32896	0	63
+def		SHOW_STATISTICS	SHOW_STATISTICS	PACKED	Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	9	0	N	1	0	33
 def			SHOW_STATISTICS	Index_type	Index_type	253	33	5	N	129	0	33
 def			SHOW_STATISTICS	Comment	Comment	253	24	0	N	1	0	33

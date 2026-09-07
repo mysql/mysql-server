@@ -384,6 +384,27 @@ bool Dbtup::prepareActiveOpList(OperationrecPtr regOperPtr,
     ndbrequire(c_operation_pool.getValidPtr(prevOpPtr));
     req_struct->prevOpPtr.p = prevOpPtr.p;
 
+    Uint32 op = regOperPtr.p->op_type;
+    if (op == ZUPDATE || op == ZINSERT) {
+      /*
+       * The new operation has not assigned its own tupVersion yet.
+       * Compare the latest prepared operation with the committed tuple
+       * version in DBTUP's wrapped tuple-version space.
+       */
+      const Uint32 tuple_version =
+          req_struct->m_tuple_ptr->get_tuple_version() & ZTUP_VERSION_MASK;
+      const Uint32 prev_op_version =
+          prevOpPtr.p->op_struct.bit_field.tupVersion & ZTUP_VERSION_MASK;
+      const Uint32 row_versions =
+          (prev_op_version - tuple_version) & ZTUP_VERSION_MASK;
+      ndbrequire(row_versions <= m_max_row_versions_per_transaction);
+      if (unlikely(row_versions >= m_max_row_versions_per_transaction)) {
+        jam();
+        terrorCode = ZTOO_MANY_ROW_VERSIONS_ERROR;
+        return false;
+      }
+    }
+
     regOperPtr.p->op_struct.bit_field.m_wait_log_buffer =
         prevOpPtr.p->op_struct.bit_field.m_wait_log_buffer;
     regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit =
@@ -401,7 +422,6 @@ bool Dbtup::prepareActiveOpList(OperationrecPtr regOperPtr,
     prevOpPtr.p->op_struct.bit_field.m_load_diskpage_on_commit = 0;
 
     if (prevOpPtr.p->tuple_state == TUPLE_PREPARED) {
-      Uint32 op = regOperPtr.p->op_type;
       Uint32 prevOp = prevOpPtr.p->op_type;
       if (prevOp == ZDELETE) {
         if (op == ZINSERT) {
