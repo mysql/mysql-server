@@ -145,25 +145,26 @@ bool Collector::update_settings() {
 */
 void Collector::apply_pending_settings() {
   consume_settings_pending();
-  const bool next_run_state = running();
-
-  // If static settings have changed, restart the thread
+  // If static settings have changed, restart the thread.
   if (settings_changed() || static_settings_changed()) {
+    // A concurrent SET can change the run state while stop_thread() waits for
+    // the worker to exit.
     stop_thread();
     set_params();
-    initialize_sample_timers();  // reinit timers with new settings
+    // Use the run state applied by set_params(). A later SET will remain
+    // pending for the next pass.
+    const bool next_run_state = m_running;
+    initialize_sample_timers();
     log_collector_status(std::string("Settings"), true);
     if (next_run_state) {
       start_thread();
     }
   }
-  // If only dynamic settings changed, update live (if thread alive)
+  // If only dynamic settings changed, update live, no restart needed.
   else if (dynamic_settings_changed()) {
     set_params();
     log_collector_status(std::string("Settings (live)"), true);
-    // No thread restart needed
   }
-  // Otherwise, nothing to do
 }
 
 /**

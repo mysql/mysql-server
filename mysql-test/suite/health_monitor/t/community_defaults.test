@@ -1,6 +1,17 @@
 --echo ##
---echo ## Health Monitor Community Edition defaults
+--echo ## Health Monitor component
 --echo ##
+--echo ## Verify the Health Monitor defaults for Community Edition.
+--echo ## A fresh installation uses an empty monitored path and disables fencing.
+--echo ## Both disk consumers must resolve the empty path to the data directory.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Install the component without changing its default configuration.
+--echo #  2. Check the public defaults and disk fencing ownership status.
+--echo #  3. Verify both disk consumers start with the data directory path.
+--echo #  4. Check explicit configuration values and restore them with DEFAULT.
+--echo #  5. Uninstall the component.
 
 --echo
 --echo # Ignore collector messages during installation
@@ -27,6 +38,8 @@ select @@global.datadir, now(6)
 
 --echo
 --echo # Install the component with fresh defaults
+# Do not use the common setup: It replaces the empty monitored path and changes
+# fencing settings before this test could inspect the installation defaults.
 --eval install component 'file://component_health_monitor'
 
 --echo
@@ -43,6 +56,8 @@ select variable_name, variable_value
 
 --echo
 --echo # Verify the untouched empty default resolves to the data directory
+# Wait for both consumers to start. Reading the public empty value alone does
+# not prove that either consumer resolved its effective filesystem path.
 let $wait_timeout = 15;
 let $wait_condition =
   select count(*) > 0

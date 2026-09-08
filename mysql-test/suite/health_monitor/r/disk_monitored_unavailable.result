@@ -1,6 +1,17 @@
 ##
-## Health Monitor unavailable monitored path transitions
+## Health Monitor component
 ##
+## Verify disk collection when the monitored path becomes unavailable.
+## Failed checks must retain valid rows, suppress repeated warnings and
+## leave fencing unchanged. Collection must resume when the path returns.
+##
+
+# Procedure:
+#  1. Collect valid disk and metric rows before selecting a missing path.
+#  2. Verify retries retain rows and emit one warning for that path.
+#  3. Select another missing path and verify its separate warning.
+#  4. Switch to a valid path and check that no false recovery is reported.
+#  5. Restore the missing path, verify collection resumes and clean up.
 
 ## Test case initialization - Begin
 

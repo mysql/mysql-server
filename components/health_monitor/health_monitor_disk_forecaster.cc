@@ -208,15 +208,19 @@ bool Disk_Forecaster::update_settings() {
   if (!processing_guard.owns_lock()) return false;
 
   consume_settings_pending();
-  const bool next_run_state = running();
 
   if (settings_changed() || static_settings_changed()) {
     // Set the stop predicate while the processing gate is held. A worker that
     // is already waiting for the gate will observe it before starting a cycle.
     request_thread_stop();
     processing_guard.unlock();
+    // A concurrent SET can change the run state while join_thread() waits for
+    // the worker to exit.
     join_thread();
     set_params();
+    // Use the run state applied by set_params(). A later SET will remain
+    // pending for the next pass.
+    const bool next_run_state = m_running;
     initialize_sample_timers();
     log_collector_status(std::string("Settings"), true);
     if (next_run_state) {

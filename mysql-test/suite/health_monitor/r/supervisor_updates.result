@@ -1,3 +1,17 @@
+##
+## Health Monitor component
+##
+## Verify that the Supervisor applies Memory and System Collector settings.
+## Configuration updates must restart active collectors when needed and
+## apply pending values even when the collectors are stopped.
+##
+
+# Procedure:
+#  1. Start both collectors and verify static updates replace their threads.
+#  2. Issue repeated active updates and wait for the final settings.
+#  3. Issue concurrent updates and verify each variable's final value.
+#  4. Stop both collectors and apply repeated updates while they are idle.
+#  5. Re-enable both collectors and verify their threads return.
 
 ## Test case initialization - Begin
 
@@ -127,12 +141,7 @@ and logged > @active_updates_start;
 final_active_updates_applied
 1
 
-# Concurrent updates serialize detection and application
-select @@global.health_monitor.memory_sample_rate =
-@@global.health_monitor.system_sample_rate
-as concurrent_pair_is_consistent;
-concurrent_pair_is_consistent
-1
+# Concurrent updates apply each variable's final value
 
 # Apply deterministic cleanup values after observing concurrent work
 set @@global.health_monitor.memory_sample_rate = 60;

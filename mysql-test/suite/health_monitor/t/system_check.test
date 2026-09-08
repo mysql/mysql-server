@@ -26,6 +26,14 @@ set @@global.health_monitor.system_running = ON;
 
 use performance_schema;
 
+# The Supervisor applies collector settings asynchronously. Wait until the
+# system collector enables the on-demand tables.
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.system_cpu_stats
+   where cpu is not null;
+--source include/wait_condition_or_abort.inc
+
 --echo
 --echo ###
 --echo ### Test 2: Confirm that available system capabilities are populated

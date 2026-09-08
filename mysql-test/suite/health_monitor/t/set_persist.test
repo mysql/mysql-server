@@ -1,3 +1,18 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify SET GLOBAL, SET PERSIST and SET PERSIST_ONLY for disk_monitored
+--echo ## and disk_fallback_enable. Reload the component to verify that persisted
+--echo ## values are applied during registration.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Save active settings and require no persisted values for this test.
+--echo #  2. Verify SET GLOBAL does not persist the fencing setting.
+--echo #  3. Persist fencing ON and an empty path, retaining the active path.
+--echo #  4. Reload the component and verify persisted values and path resolution.
+--echo #  5. Remove the test's persisted values and restore active settings.
+
 --source include/not_parallel.inc
 --source ../include/health_monitor_setup.inc
 
@@ -13,6 +28,7 @@ set @data_directory = @@global.datadir;
 --enable_query_log
 
 --let $no_preexisting_rows = `SELECT COUNT(*) = 0 FROM performance_schema.persisted_variables WHERE variable_name IN ('health_monitor.disk_monitored', 'health_monitor.disk_fallback_enable')`
+# Fail before writing persisted values if cleanup would remove existing state.
 --assert($no_preexisting_rows)
 
 --echo
@@ -31,6 +47,7 @@ set persist health_monitor.disk_fallback_enable = on;
 
 --echo
 --echo # SET PERSIST_ONLY stores an empty path without changing the active path
+# Keep an explicit live path to distinguish PERSIST_ONLY from SET PERSIST.
 set global health_monitor.disk_monitored = @data_directory;
 set persist_only health_monitor.disk_monitored = '';
 
@@ -53,6 +70,8 @@ select variable_name,
 
 --echo
 --echo # Component reload applies the two persisted values during registration
+# Reloading registers the variables again and applies the persisted values
+# without requiring a server restart.
 --disable_query_log
 select now(6) into @component_reload_start;
 --enable_query_log

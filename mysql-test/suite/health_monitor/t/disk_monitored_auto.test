@@ -1,8 +1,19 @@
 --source include/not_windows.inc
 
 --echo ##
---echo ## Health Monitor automatic disk path selection
+--echo ## Health Monitor component
 --echo ##
+--echo ## Verify automatic monitored path selection for the Disk Collector and
+--echo ## Disk Forecaster. An empty configured path selects the data directory
+--echo ## filesystem while the public system variable remains empty.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Save the explicit setup path and start disk collection.
+--echo #  2. Set an empty path and verify both consumers use the data directory.
+--echo #  3. Verify a live sample, then reapply an empty value and DEFAULT.
+--echo #  4. Check that an unrelated setting does not refresh the monitored path.
+--echo #  5. Restore the explicit path and verify both consumers apply it.
 
 --disable_query_log
 select now(6) into @setup_start;
@@ -38,6 +49,8 @@ select now(6) into @automatic_settings_start;
 --enable_query_log
 set @@global.health_monitor.disk_monitored = '';
 
+# Settings are applied asynchronously. Verify both consumers and the restarted
+# disk thread before checking the configured value or published samples.
 let $wait_timeout = 15;
 let $wait_condition =
   select count(*) > 0
@@ -85,6 +98,8 @@ select count(*) > 0 as sample_published,
 
 --echo
 --echo # Reapplying an empty value refreshes both automatic path consumers
+# A new timestamp prevents the earlier automatic selection from satisfying
+# the refresh checks, even though the configured value is unchanged.
 --disable_query_log
 select now(6) into @empty_reapply_start;
 --enable_query_log
@@ -153,6 +168,7 @@ let $wait_condition =
 
 --echo
 --echo # An unrelated setting does not cause a false monitored path update
+# Collection is stopped, so only settings work can produce these log entries.
 set @memory_retention_save = @@global.health_monitor.memory_retention;
 --disable_query_log
 select now(6) into @unrelated_settings_start;

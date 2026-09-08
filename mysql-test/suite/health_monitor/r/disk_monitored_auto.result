@@ -1,6 +1,17 @@
 ##
-## Health Monitor automatic disk path selection
+## Health Monitor component
 ##
+## Verify automatic monitored path selection for the Disk Collector and
+## Disk Forecaster. An empty configured path selects the data directory
+## filesystem while the public system variable remains empty.
+##
+
+# Procedure:
+#  1. Save the explicit setup path and start disk collection.
+#  2. Set an empty path and verify both consumers use the data directory.
+#  3. Verify a live sample, then reapply an empty value and DEFAULT.
+#  4. Check that an unrelated setting does not refresh the monitored path.
+#  5. Restore the explicit path and verify both consumers apply it.
 
 ## Test case initialization - Begin
 

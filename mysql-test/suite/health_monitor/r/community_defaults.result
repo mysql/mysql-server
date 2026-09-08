@@ -1,6 +1,17 @@
 ##
-## Health Monitor Community Edition defaults
+## Health Monitor component
 ##
+## Verify the Health Monitor defaults for Community Edition.
+## A fresh installation uses an empty monitored path and disables fencing.
+## Both disk consumers must resolve the empty path to the data directory.
+##
+
+# Procedure:
+#  1. Install the component without changing its default configuration.
+#  2. Check the public defaults and disk fencing ownership status.
+#  3. Verify both disk consumers start with the data directory path.
+#  4. Check explicit configuration values and restore them with DEFAULT.
+#  5. Uninstall the component.
 
 # Ignore collector messages during installation
 set session sql_log_bin = 0;

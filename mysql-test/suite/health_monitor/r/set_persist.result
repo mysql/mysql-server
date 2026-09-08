@@ -1,3 +1,17 @@
+##
+## Health Monitor component
+##
+## Verify SET GLOBAL, SET PERSIST and SET PERSIST_ONLY for disk_monitored
+## and disk_fallback_enable. Reload the component to verify that persisted
+## values are applied during registration.
+##
+
+# Procedure:
+#  1. Save active settings and require no persisted values for this test.
+#  2. Verify SET GLOBAL does not persist the fencing setting.
+#  3. Persist fencing ON and an empty path, retaining the active path.
+#  4. Reload the component and verify persisted values and path resolution.
+#  5. Remove the test's persisted values and restore active settings.
 
 ## Test case initialization - Begin
 
