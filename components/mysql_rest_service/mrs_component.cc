@@ -341,7 +341,8 @@ int MRSComponent::backend_init() {
 }
 
 int MRSComponent::backend_start() {
-  // Lifecycle UDFs may only validate accounts provisioned during installation.
+  // Lifecycle callers do not provide account-provisioning authority. A pending
+  // install-time operation may still resume with the installer's context.
   if (backend().start(AccountProvisioning::kValidateOnly) != 0) return 1;
 
   return 0;

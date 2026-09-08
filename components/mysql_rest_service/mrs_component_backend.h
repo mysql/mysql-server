@@ -202,12 +202,12 @@ class Backend : private mrs::MrsStartObserver {
   // Thread handling
   std::thread m_service_thread, m_backend_starter_thread;
   std::atomic<bool> m_backend_thd_stop_requested{false};
-  // Retain the installer's authority only while account provisioning is
-  // deferred waiting for the metadata provider roles. A lifecycle retry can
-  // then finish the same install-time operation without allowing ordinary
-  // restarts to recreate missing accounts.
+  // Retain the installer identity while install-time account provisioning is
+  // pending. Lifecycle retries may continue that operation, but cannot provide
+  // replacement provisioning authority.
   std::optional<CurrentSecurityCtx> m_deferred_account_provisioning_context;
 #if !defined(NDEBUG)
+  bool m_debug_pause_before_account_provisioning{false};
   // MTR synchronization hook. When enabled at backend start, pause the
   // MRS-ready callback until stop() requests shutdown or an idempotent start
   // explicitly releases it.

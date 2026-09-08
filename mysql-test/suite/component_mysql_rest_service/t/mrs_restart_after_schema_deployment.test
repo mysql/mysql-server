@@ -1,5 +1,8 @@
+--source include/have_mysql_rest_service_component.inc
+
 # Verify that MRS provisions its internal accounts when its installation was
-# deferred until the metadata schema was deployed and the service is restarted.
+# deferred until the metadata schema was deployed and the service is restarted
+# by a caller without account-provisioning privileges.
 
 --source include/not_solaris.inc
 
@@ -29,9 +32,20 @@
 --let $assert_cond = "$mrs_state" = "WAITING_FOR_METADATA"
 --source include/assert.inc
 
+--disable_query_log
+--disable_result_log
+CREATE USER 'mrs_restart_caller'@'localhost';
+GRANT MYSQL_REST_SERVICE_ADMIN ON *.* TO
+  'mrs_restart_caller'@'localhost';
+--enable_result_log
+--enable_query_log
+
 --source ../../router/include/mrs/initialize_schema.inc
 
+--connect(mrs_restart_caller, localhost, mrs_restart_caller,,)
 SELECT mysql_rest_service_restart();
+--connection default
+--disconnect mrs_restart_caller
 
 --let $wait_timeout=60
 --let $wait_condition=SELECT COUNT(*) = 2 FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost'
@@ -43,5 +57,11 @@ SELECT mysql_rest_service_restart();
 --let $assert_text = state reports READY after deferred account provisioning
 --let $assert_cond = "$mrs_state" = "READY"
 --source include/assert.inc
+
+--disable_query_log
+--disable_result_log
+DROP USER 'mrs_restart_caller'@'localhost';
+--enable_result_log
+--enable_query_log
 
 --source ../include/cmrs/cleanup.inc

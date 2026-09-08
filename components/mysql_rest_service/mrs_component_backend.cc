@@ -826,6 +826,9 @@ int Backend::start_backend(AccountProvisioning account_provisioning) {
   m_debug_pause_before_runtime_status_publication =
       debug_keyword_service->lookup_debug_keyword(
           "mrs_component_pause_before_runtime_status_publication") != 0;
+  m_debug_pause_before_account_provisioning =
+      debug_keyword_service->lookup_debug_keyword(
+          "mrs_component_pause_before_account_provisioning") != 0;
 #endif
 
   // Set the Application type
@@ -1324,6 +1327,12 @@ void Backend::run(std::promise<int> p, bool has_bootstrap_context) {
     // Setup the logger
     setup_logger(dim);
 
+    if (has_bootstrap_context) {
+      // Preserve the installer identity before minimal startup is reported.
+      // A lifecycle restart may cancel the worker immediately afterwards.
+      m_deferred_account_provisioning_context = m_sec_ctx;
+    }
+
     // Signal successful minimal startup so init() can return early
     p.set_value(0);
 
@@ -1375,22 +1384,25 @@ void Backend::run(std::promise<int> p, bool has_bootstrap_context) {
           };
 
           try {
+#if !defined(NDEBUG)
+            while (m_debug_pause_before_account_provisioning &&
+                   !m_backend_thd_stop_requested) {
+              std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+#endif
             if (abort_startup_if_requested()) return;
 
             if (!has_bootstrap_context) validate_tls_configuration();
 
-            // Only installation may create missing fixed accounts. Server
-            // startup and lifecycle UDFs validate and use the persisted
-            // metadata account.
+            // Only installation, including continuation of its pending
+            // provisioning, may create missing fixed accounts.
             bool accounts_provisioned = false;
             if (has_bootstrap_context) {
               // Schema bootstrap can race with component installation. Treat
               // ER_USER_DOES_NOT_EXIST as temporary, wait for schema readiness,
               // then retry account provisioning.
               accounts_provisioned = provision_accounts(true);
-              if (!accounts_provisioned) {
-                m_deferred_account_provisioning_context = m_sec_ctx;
-              } else {
+              if (accounts_provisioned) {
                 m_deferred_account_provisioning_context.reset();
               }
             }
