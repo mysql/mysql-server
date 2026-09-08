@@ -124,6 +124,13 @@ class Item_subselect : public Item_result_field {
   */
   virtual bool is_single_column_scalar_subquery() const { return false; }
 
+  /// Return whether this subquery references any tables in the directly
+  /// containing query block, i.e. whether there are outer references to the
+  /// containing block inside the subquery.
+  bool contains_outer_references() const {
+    return (used_tables() & ~PSEUDO_TABLE_BITS) != 0;
+  }
+
   void cleanup() override;
   /**
     Reset state after a single execution of a subquery, useful when a
@@ -676,7 +683,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool need_expr_cache{true};
 
  private:
-  bool mark_as_outer(Item *left_row, size_t col);
+  bool mark_as_outer(Item *left_operand, size_t col);
 
   /**
     In the case of
