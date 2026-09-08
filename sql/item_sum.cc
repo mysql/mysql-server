@@ -1645,6 +1645,18 @@ bool Item_sum_bit::add_bits(const String *s1, ulonglong b1) {
     assert(s1 != nullptr);
     s1_c_p = pointer_cast<const uchar *>(s1->ptr());
     buff_length = s1->length();
+    /*
+      m_digit_cnt was sized at resolve time, from a fabricated length if the
+      argument was still untyped then. Reject a longer runtime value rather
+      than update counters past the end of the array. Only the windowed
+      non-XOR case has a counter array; m_digit_cnt_card is a multiple of 8,
+      so the division avoids overflowing buff_length.
+    */
+    if (m_is_window_function && !m_is_xor &&
+        buff_length > m_digit_cnt_card / 8) {
+      my_error(ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE, MYF(0), func_name());
+      return true;
+    }
     assert(value_buff.length() > 0);
     // See if there has been a non-NULL value in this group/frame:
     const bool non_nulls = value_buff[value_buff.length() - 1];
