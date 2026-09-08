@@ -185,6 +185,13 @@ class Item_subselect : public Item_result_field {
     m_subquery_used_tables |= add_tables;
   }
 
+  /// Return whether this subquery references any tables in the directly
+  /// containing query block, i.e. whether there are outer references to the
+  /// containing block inside the subquery.
+  bool contains_outer_references() const {
+    return (used_tables() & ~PSEUDO_TABLE_BITS) != 0;
+  }
+
   virtual subs_type substype() const { return UNKNOWN_SUBS; }
 
   void cleanup() override;
@@ -600,7 +607,7 @@ class Item_in_subselect : public Item_exists_subselect {
     bool dependent_after;
   } *in2exists_info;
 
-  bool mark_as_outer(Item *left_row, size_t col);
+  bool mark_as_outer(Item *left_operand, size_t col);
 
  public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
