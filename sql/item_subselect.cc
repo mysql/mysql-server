@@ -446,8 +446,13 @@ void Item_singlerow_subselect::cleanup() {
   has been evaluated. By marking it as outer, we prevent it from being read
   when JOIN::optimize() attempts to evaluate constant conditions.
 
-  @param[in] left_row The item that represents the left operand of the IN
-                      operator
+  4) If the left operand is a subquery that references any outer query block.
+  The selected expression may be a basic constant even though the subquery's
+  value depends on an outer reference in a predicate. References beyond the
+  directly containing query block are represented by OUTER_REF_TABLE_BIT.
+
+  @param[in] left_operand The item that represents the left operand of the IN
+                          operator
 
   @param[in] col      The column number of the expression in the left operand
                       to possibly mark as dependent of the outer select
@@ -455,11 +460,17 @@ void Item_singlerow_subselect::cleanup() {
   @returns true if we should mark the injected left expression "outer"
                 relative to the subquery
 */
-bool Item_in_subselect::mark_as_outer(Item *left_row, size_t col) {
-  const Item *left_col = left_row->element_index(col);
-  return !left_col->const_item() ||
-         (process_nulls() && left_col->is_nullable()) ||
-         (left_row->type() == SUBQUERY_ITEM && !left_col->basic_const_item());
+bool Item_in_subselect::mark_as_outer(Item *left_operand, size_t col) {
+  const Item *const left_col = left_operand->element_index(col);
+  const bool subquery_left_expr = left_operand->type() == SUBQUERY_ITEM;
+
+  return !left_col->const_item() ||                                // 1
+         (process_nulls() && left_col->is_nullable()) ||           // 2
+         (subquery_left_expr && !left_col->basic_const_item()) ||  // 3
+         (subquery_left_expr &&                                    // 4
+          (left_operand->is_outer_reference() ||
+           down_cast<const Item_subselect *>(left_operand)
+               ->contains_outer_references()));
 }
 
 bool Item_in_subselect::finalize_exists_transform(THD *thd,
