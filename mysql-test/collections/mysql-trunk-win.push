@@ -1,5 +1,0 @@
-#
-# New component testing.
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=component_mysql_rest_service --vardir=var-component_mysql_rest_service6 --suite=component_mysql_rest_service
-perl mysql-test-run.pl --timer --force --parallel=1 --comment=component_mysql_rest_service --vardir=var-component_mysql_rest_service1 --suite=component_mysql_rest_service
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=router --vardir=var-router --suite=router
