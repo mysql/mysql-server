@@ -22,7 +22,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE(GenerateExportHeader)
-INCLUDE(Plugin)
 
 
 # Generate dynamic_state_schema.cc and configuration_update_schema.cc
