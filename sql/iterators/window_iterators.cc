@@ -38,6 +38,7 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/debug_sync.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -403,6 +404,11 @@ bool bring_back_frame_row(THD *thd, Window *w, int64 rowno,
                           Window_retrieve_cached_row_reason reason,
                           int fno = 0) {
   DBUG_TRACE;
+  // A single output row can require scanning a large buffered frame.
+  if (thd->killed) {
+    thd->send_kill_message();
+    return true;
+  }
   DBUG_PRINT("enter", ("rowno: %" PRId64 " reason: %d fno: %d", rowno,
                        static_cast<int>(reason), fno));
   assert(reason == Window_retrieve_cached_row_reason::MISC_POSITIONS ||
@@ -985,6 +991,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       w.set_first_rowno_in_rows_frame(lower_limit);
     }
     for (rowno = lower_limit; rowno <= upper; rowno++) {
+      DEBUG_SYNC(thd, "window_before_frame_row");
       if (optimizable) optimizable_primed = true;
 
       /*

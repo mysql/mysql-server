@@ -1277,6 +1277,8 @@ class Item_sum_json : public Item_sum {
   longlong val_int() override;
   String *val_str(String *str) override;
   bool val_json(Json_wrapper *wr) override;
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override;
   my_decimal *val_decimal(my_decimal *decimal_buffer) override;
   bool val_date(Date_val *date, my_time_flags_t flags) override;
   bool val_time(Time_val *time) override;

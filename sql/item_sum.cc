@@ -6144,6 +6144,34 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
   return false;
 }
 
+type_conversion_status Item_sum_json::save_in_field_inner(Field *field,
+                                                          bool no_conversions) {
+  if (field->type() != MYSQL_TYPE_JSON)
+    return super::save_in_field_inner(field, no_conversions);
+
+  if (m_is_window_function) {
+    if (wf_common_init()) return set_field_to_null(field);
+    if (add()) return TYPE_ERR_BAD_VALUE;
+  }
+
+  /*
+    Field_json::store_json() serializes m_wrapper before returning and does not
+    retain or modify its DOM. The aggregate therefore keeps ownership
+    of the DOM while the field stores an independent binary value.
+  */
+  assert(!m_wrapper->empty());
+
+  if (m_json_constructor_null_clause ==
+      Json_constructor_null_clause::ABSENT_ON_NULL) {
+    null_value = false;
+  } else if (null_value) {
+    return set_field_to_null(field);
+  }
+
+  field->set_notnull();
+  return down_cast<Field_json *>(field)->store_json(m_wrapper.get());
+}
+
 double Item_sum_json::val_real() {
   if (m_is_window_function) {
     if (wf_common_init()) return 0.0;
