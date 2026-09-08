@@ -1241,6 +1241,8 @@ class Item_sum_json : public Item_sum {
   longlong val_int() override;
   String *val_str(String *str) override;
   bool val_json(Json_wrapper *wr) override;
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override;
   my_decimal *val_decimal(my_decimal *decimal_buffer) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
