@@ -133,6 +133,7 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for library metadata lock", 0, PSI_DOCUMENT_ME},
+    {0, "Waiting for user defined type lock", 0, PSI_DOCUMENT_ME},
 };
 
 #ifdef HAVE_PSI_INTERFACE

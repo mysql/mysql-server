@@ -42,6 +42,7 @@
 #include "sql/dd/impl/tables/spatial_reference_systems.h"
 #include "sql/dd/impl/tables/tables.h"
 #include "sql/dd/impl/tables/tablespaces.h"
+#include "sql/dd/impl/tables/udt_types.h"
 #include "sql/log.h"        // sql_print_warning()
 #include "sql/mdl.h"        // MDL_request
 #include "sql/sql_class.h"  // THD
@@ -691,6 +692,24 @@ template void Shared_multi_map<Resource_group>::put<Resource_group::Aux_key>(
     Cache_element<Resource_group> **);
 template void Shared_multi_map<Resource_group>::drop_if_present<
     Resource_group::Id_key>(const Resource_group::Id_key &);
+
+template class Shared_multi_map<UDT_Type>;
+template bool Shared_multi_map<UDT_Type>::get<const UDT_Type *>(
+    const UDT_Type *const &, Cache_element<UDT_Type> **);
+template bool Shared_multi_map<UDT_Type>::get<UDT_Type::Id_key>(
+    const UDT_Type::Id_key &, Cache_element<UDT_Type> **);
+template bool Shared_multi_map<UDT_Type>::get<UDT_Type::Name_key>(
+    const UDT_Type::Name_key &, Cache_element<UDT_Type> **);
+template bool Shared_multi_map<UDT_Type>::get<UDT_Type::Aux_key>(
+    const UDT_Type::Aux_key &, Cache_element<UDT_Type> **);
+template void Shared_multi_map<UDT_Type>::put<UDT_Type::Id_key>(
+    const UDT_Type::Id_key *, const UDT_Type *, Cache_element<UDT_Type> **);
+template void Shared_multi_map<UDT_Type>::put<UDT_Type::Name_key>(
+    const UDT_Type::Name_key *, const UDT_Type *, Cache_element<UDT_Type> **);
+template void Shared_multi_map<UDT_Type>::put<UDT_Type::Aux_key>(
+    const UDT_Type::Aux_key *, const UDT_Type *, Cache_element<UDT_Type> **);
+template void Shared_multi_map<UDT_Type>::drop_if_present<UDT_Type::Id_key>(
+    const UDT_Type::Id_key &);
 
 }  // namespace cache
 }  // namespace dd

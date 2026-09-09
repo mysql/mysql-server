@@ -92,10 +92,11 @@ SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t11;
 -->sql
 CREATE TABLE t1 ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB ) ;
 #-- "Incorrect data type"
+#-- Note that "col1 INVALID_DATA_TYPE" alone can be a user defined type
 -->endsql
 -->expecterror 1064
 -->sql
-CREATE TABLE t1 ( col1 INVALID_DATA_TYPE , col2 JSON) ;
+CREATE TABLE t1 ( col1 INVALID_DATA_TYPE INTENDED, col2 JSON) ;
 #-- "Incorrect column option"
 -->endsql
 -->expecterror 1171

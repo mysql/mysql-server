@@ -84,6 +84,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_cmd_ddl_type.h"
 #include "sql/sql_component.h"  // Sql_cmd_component
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
@@ -5867,4 +5868,12 @@ Sql_cmd *PT_install_component::make_cmd(THD *thd) {
   }
 
   return new (thd->mem_root) Sql_cmd_install_component(m_urns, m_set_elements);
+}
+
+// -- BEGIN POC
+
+Sql_cmd *PT_create_type_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_TYPE;
+
+  return new (thd->mem_root) Sql_cmd_create_type(m_type_name, m_type);
 }

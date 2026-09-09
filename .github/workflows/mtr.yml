@@ -113,7 +113,7 @@ jobs:
             --report-unstable-tests
             --retry=3
             --retry-failure=2
-            --max-test-fail=3
+            --max-test-fail=30
             "--suite=${MTR_SUITES}"
           )
           ../trusted/scripts/ci/mtr.sh "${args[@]}"

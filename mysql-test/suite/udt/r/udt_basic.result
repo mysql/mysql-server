@@ -1,0 +1,75 @@
+CREATE TYPE test.usbn13 AS CHAR(13);
+Warnings:
+Warning	6914	The following code is not implemented: Sql_cmd_create_type::execute()
+CREATE TYPE test.complex_number AS BINARY(16);
+Warnings:
+Warning	6914	The following code is not implemented: Sql_cmd_create_type::execute()
+SELECT * FROM INFORMATION_SCHEMA.TYPES;
+TYPE_SCHEMA	TYPE_NAME
+test	complex_number
+test	usbn13
+CREATE PROCEDURE test.demo1()
+BEGIN
+DECLARE var CHAR(13);
+SELECT "Demo" as title;
+END$$
+CREATE PROCEDURE test.broken1()
+BEGIN
+DECLARE var broken.usbn13;
+END$$
+ERROR 42Y07: Database 'broken' doesn't exist
+CREATE PROCEDURE test.broken2()
+BEGIN
+DECLARE var test.broken;
+END$$
+ERROR HY000: User defined type 'test.broken' doesn't exist
+CREATE PROCEDURE test.demo2()
+BEGIN
+DECLARE var test.usbn13;
+SET var = "FIXME";
+END$$
+Warnings:
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+SHOW PROCEDURE CODE test.demo1;
+Pos	Instruction
+0	set var@0 NULL
+1	stmt "SELECT "Demo" as title"
+SHOW PROCEDURE CODE test.demo2;
+Pos	Instruction
+0	set var@0 NULL
+1	set var@0 'FIXME'
+Warnings:
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+CALL test.demo1();
+title
+Demo
+CALL test.demo2();
+DROP PROCEDURE test.demo1;
+DROP PROCEDURE test.demo2;
+INSTALL COMPONENT "file://component_udt_example";
+CREATE PROCEDURE test.complex()
+BEGIN
+DECLARE a test.complex_number;
+DECLARE b test.complex_number;
+DECLARE c test.complex_number;
+DECLARE s VARCHAR(80);
+SET a = complex_number_from_string("1+2i");
+SET b = complex_number_from_string("3+4i");
+SET c = complex_number_add(a, b);
+SET s = complex_number_to_string(c);
+SELECT s as "result";
+# SELECT complex_number_to_string(c) as "result 2";
+END$$
+Warnings:
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+call test.complex();
+result
+4.000000+6.000000i
+Warnings:
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+UNINSTALL COMPONENT "file://component_udt_example";
+DROP PROCEDURE test.complex;

@@ -141,8 +141,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of hidden DD/DDSE tables must be as expected.
 ########################################################################
-include/assert.inc [There are 32 hidden DD/DDSE tables.]
-include/assert.inc [There are 34 DD/DDSE tables in total.]
+include/assert.inc [There are 33 hidden DD/DDSE tables.]
+include/assert.inc [There are 35 DD/DDSE tables in total.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################
@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=90200
+DD_VERSION=261000
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -734,5 +734,5 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 90500.
+The schema checksum corresponds to DD version 260700.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

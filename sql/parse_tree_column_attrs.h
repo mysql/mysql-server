@@ -672,6 +672,7 @@ class PT_type : public Parse_tree_node {
   virtual uint get_uint_geom_type() const { return 0; }
   virtual List<String> *get_interval_list() const { return nullptr; }
   virtual bool is_serial_type() const { return false; }
+  virtual const Type_ident *get_type_ident() const { return nullptr; }
 };
 
 /**
@@ -1011,6 +1012,24 @@ class PT_json_type : public PT_type {
  public:
   explicit PT_json_type(const POS &pos) : PT_type(pos, MYSQL_TYPE_JSON) {}
   const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
+};
+
+class PT_user_defined_type : public PT_type {
+  typedef PT_type super;
+
+ public:
+  explicit PT_user_defined_type(const POS &pos, Type_ident *ident)
+      : PT_type(pos, MYSQL_TYPE_INVALID), type_ident(ident) {}
+
+  const Type_ident *get_type_ident() const override { return type_ident; }
+
+  bool do_contextualize(Parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
+    return false;
+  }
+
+ private:
+  Type_ident *type_ident;
 };
 
 /**

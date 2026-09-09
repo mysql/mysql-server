@@ -11067,6 +11067,18 @@ ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
 ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
   eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
 
+ER_WARN_CODE_NOT_IMPLEMENTED
+  eng "The following code is not implemented: %s"
+
+ER_UDT_TYPE_CREATE_EXISTS
+  eng "Can't create user defined type '%-.192s.%-.192s'; user defined type exists"
+
+ER_NO_SUCH_UDT_TYPE
+  eng "User defined type '%-.192s.%-.192s' doesn't exist"
+
+ER_UDT_TYPE_DROP_EXISTS
+  eng "Can't drop user defined type '%-.192s.%-.192s'; user defined type doesn't exist"
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

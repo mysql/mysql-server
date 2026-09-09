@@ -895,6 +895,7 @@ MySQL clients support the protocol:
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_udf.h"
+#include "sql/sql_udt.h"
 #include "sql/ssl_acceptor_context_iterator.h"
 #include "sql/ssl_acceptor_context_operator.h"
 #include "sql/ssl_acceptor_context_status.h"
@@ -4293,6 +4294,9 @@ SHOW_VAR com_status_vars[] = {
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"create_table",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CREATE_TABLE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"create_type",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CREATE_TYPE]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"create_resource_group",
      (char *)offsetof(System_status_var,
@@ -8460,6 +8464,8 @@ static int init_server_components() {
     to register their UDFs at init time and de-register them at deinit time.
   */
   udf_init_globals();
+
+  udt_init_globals();
 
   /*
     Set tc_log to point to TC_LOG_DUMMY early in order to allow plugin_init()

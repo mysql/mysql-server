@@ -1,0 +1,71 @@
+
+CREATE TYPE test.usbn13 AS CHAR(13);
+CREATE TYPE test.complex_number AS BINARY(16);
+
+SELECT * FROM INFORMATION_SCHEMA.TYPES;
+
+delimiter $$;
+
+CREATE PROCEDURE test.demo1()
+BEGIN
+  DECLARE var CHAR(13);
+  SELECT "Demo" as title;
+END$$
+
+--error ER_NO_SUCH_DB
+CREATE PROCEDURE test.broken1()
+BEGIN
+  DECLARE var broken.usbn13;
+END$$
+
+--error ER_NO_SUCH_UDT_TYPE
+CREATE PROCEDURE test.broken2()
+BEGIN
+  DECLARE var test.broken;
+END$$
+
+
+CREATE PROCEDURE test.demo2()
+BEGIN
+  DECLARE var test.usbn13;
+  SET var = "FIXME";
+END$$
+
+delimiter ;$$
+
+SHOW PROCEDURE CODE test.demo1;
+SHOW PROCEDURE CODE test.demo2;
+
+CALL test.demo1();
+CALL test.demo2();
+
+DROP PROCEDURE test.demo1;
+DROP PROCEDURE test.demo2;
+
+INSTALL COMPONENT "file://component_udt_example";
+
+delimiter $$;
+
+CREATE PROCEDURE test.complex()
+BEGIN
+  DECLARE a test.complex_number;
+  DECLARE b test.complex_number;
+  DECLARE c test.complex_number;
+  DECLARE s VARCHAR(80);
+
+  SET a = complex_number_from_string("1+2i");
+  SET b = complex_number_from_string("3+4i");
+  SET c = complex_number_add(a, b);
+  SET s = complex_number_to_string(c);
+  SELECT s as "result";
+  # SELECT complex_number_to_string(c) as "result 2";
+END$$
+
+delimiter ;$$
+
+call test.complex();
+
+UNINSTALL COMPONENT "file://component_udt_example";
+
+DROP PROCEDURE test.complex;
+

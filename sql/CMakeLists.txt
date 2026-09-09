@@ -128,6 +128,7 @@ SET(DD_SOURCES
   dd/dd_table.cc
   dd/dd_tablespace.cc
   dd/dd_trigger.cc
+  dd/dd_udt_type.cc
   dd/dd_view.cc
   dd/dd_utility.cc
   dd/properties.cc
@@ -205,6 +206,7 @@ SET(DD_SOURCES
   dd/impl/system_views/table_constraints_extensions.cc
   dd/impl/system_views/tablespaces_extensions.cc
   dd/impl/system_views/triggers.cc
+  dd/impl/system_views/udt_types.cc
   dd/impl/system_views/view_routine_usage.cc
   dd/impl/system_views/view_table_usage.cc
   dd/impl/system_views/views.cc
@@ -237,6 +239,7 @@ SET(DD_SOURCES
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
   dd/impl/tables/triggers.cc
+  dd/impl/tables/udt_types.cc
   dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
@@ -274,6 +277,7 @@ SET(DD_SOURCES
   dd/impl/types/tablespace_file_impl.cc
   dd/impl/types/tablespace_impl.cc
   dd/impl/types/trigger_impl.cc
+  dd/impl/types/udt_type_impl.cc
   dd/impl/types/view_impl.cc
   dd/impl/types/view_routine_impl.cc
   dd/impl/types/view_table_impl.cc
@@ -564,6 +568,7 @@ SET(SQL_SHARED_SOURCES
   sql_const_folding.cc
   sql_cmd_ddl.cc
   sql_cmd_ddl_table.cc
+  sql_cmd_ddl_type.cc
   sql_cmd_srs.cc
   sql_connect.cc
   sql_constraint.cc
@@ -625,8 +630,10 @@ SET(SQL_SHARED_SOURCES
   sql_trigger.cc
   sql_truncate.cc
   sql_udf.cc
+  sql_udt.cc
   sql_union.cc
   sql_update.cc
+  sql_user_defined_type.cc
   sql_view.cc
   ssl_acceptor_context_iterator.cc
   ssl_acceptor_context_data.cc

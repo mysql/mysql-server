@@ -259,6 +259,12 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='TYPES';
+replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='VIEW_ROUTINE_USAGE';
 replace_regex /(cat|sch|vw).name COLLATE utf8mb3_tolower_ci/\1.name/
               /vru.routine_(catalog|schema) COLLATE utf8mb3_tolower_ci/vru.routine_\1/;

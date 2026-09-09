@@ -41,6 +41,34 @@ class Item;
 class String;
 class Value_generator;
 
+class Type_ident;
+
+struct TypeDescriptor {
+  enum_field_types m_type{MYSQL_TYPE_INVALID};
+  ulong m_type_flags{0};
+  const char *m_length{nullptr};
+  const char *m_dec{nullptr};
+  const CHARSET_INFO *m_charset{nullptr};
+  bool m_has_explicit_collation{false};
+  uint m_geo_type{0};
+  List<String> *m_internal_list{nullptr};
+  const Type_ident *m_type_ident{nullptr};
+};
+
+struct FieldDescriptor {
+  Item *m_default_value{nullptr};
+  Item *m_on_update_value{nullptr};
+  const LEX_CSTRING *m_comment{&NULL_CSTR};
+  const char *m_change{nullptr};
+  Value_generator *m_gcol_info{nullptr};
+  Value_generator *m_default_val_expr{nullptr};
+  LEX_CSTRING m_fld_masking_policy{NULL_CSTR};
+  std::optional<gis::srid_t> m_srid{};
+  dd::Column::enum_hidden_type m_hidden{
+      dd::Column::enum_hidden_type::HT_VISIBLE};
+  bool m_is_array{false};
+};
+
 /// Create_field is a description a field/column that may or may not exists in
 /// a table.
 ///
@@ -216,6 +244,9 @@ class Create_field {
             LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
             dd::Column::enum_hidden_type hidden, bool is_array = false);
 
+  bool init_from_type_descriptor(THD *thd, const char *field_name,
+                                 TypeDescriptor *td, FieldDescriptor *fd);
+
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
   }
@@ -249,6 +280,10 @@ class Create_field {
 
   /// Whether or not the display width was given explicitly by the user.
   bool m_explicit_display_width{false};
+
+ public:
+  bool m_type_is_resolved{false};
+  const Type_ident *m_type_ident{nullptr};
 };
 
 /// @returns whether or not this field is a hidden column that represents a

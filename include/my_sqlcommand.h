@@ -212,6 +212,9 @@ enum enum_sql_command {
   SQLCOM_CREATE_MASKING_POLICY,
   SQLCOM_DROP_MASKING_POLICY,
   SQLCOM_SHOW_CREATE_MASKING_POLICY,
+
+  // POC
+  SQLCOM_CREATE_TYPE,
   /* This should be the last !!! */
   SQLCOM_END
 };
