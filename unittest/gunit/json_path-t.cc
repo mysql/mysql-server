@@ -397,6 +397,9 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
   wrapper.seek(path, path.leg_count(), &only_needs_one_hits, true, true);
   uint expected_onoh_hits = (expected_hits == 0) ? 0 : 1;
   EXPECT_EQ(expected_onoh_hits, only_needs_one_hits.size());
+  if (!all_hits.empty() && !only_needs_one_hits.empty()) {
+    EXPECT_EQ(0, all_hits[0].compare(only_needs_one_hits[0]));
+  }
 }
 
 /**
@@ -1254,6 +1257,21 @@ TEST_F(JsonPathTest, WrapperSeekTest) {
   }
 }
 
+TEST_F(JsonPathTest, EllipsisAfterAutowrap) {
+  for (const char *path :
+       {"$**[0]**[1]", "$**[0 to 0]**[1]", "$**[0]**[0]**[1]", "$**[last]**[1]",
+        "$** **[0]** **[1]"}) {
+    SCOPED_TRACE(path);
+    vet_wrapper_seek(R"({"a":[1,2]})", path, "2", false);
+    vet_only_needs_one(R"({"a":[1,2]})", path, 1, thd());
+
+    // Descendants of the later ellipsis must precede matches reached by
+    // descending from the earlier ellipsis. Repeated matches are eliminated.
+    vet_wrapper_seek(R"({"a":[[1,2],3]})", path, "[3, 2]", false);
+    vet_only_needs_one(R"({"a":[[1,2],3]})", path, 2, thd());
+  }
+}
+
 TEST_F(JsonPathTest, RemoveDomTest) {
   {
     SCOPED_TRACE("");
@@ -1394,6 +1412,7 @@ INSTANTIATE_TEST_SUITE_P(LocationTesting, JsonGoodLocationTestP,
 static const Ono_tuple ono_tuples[] = {
     {"[ { \"a\": 1  }, { \"a\": 2 }  ]", "$[*].a", 2},
     {"[ { \"a\": 1  }, { \"a\": 2 }  ]", "$**.a", 2},
+    {"{ \"a\": { \"a\": 1 } }", "$**.a", 2},
     {"{ \"a\": { \"x\" : { \"b\": { \"y\": { \"b\": "
      "{ \"z\": { \"c\": 100 }, \"c\": 200 } } } } } }",
      "$.a**.b**.c", 2},
