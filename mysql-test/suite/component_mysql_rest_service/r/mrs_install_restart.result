@@ -1,7 +1,7 @@
 # MySQL Rest Service schema created.
 # MySQL REST Service component installed.
 UNINSTALL COMPONENT "file://component_mysql_rest_service";
-INSTALL COMPONENT "file://component_mysql_rest_service";
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
 SELECT mysql_rest_service_restart();
 mysql_rest_service_restart()
 0

@@ -9,7 +9,8 @@
 --source ../include/cmrs/wait_mrs_read_metadata.inc
 UNINSTALL COMPONENT "file://component_mysql_rest_service";
 
-INSTALL COMPONENT "file://component_mysql_rest_service";
+--replace_regex / SET .*/ SET .../
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET $install_component_extras
 
 SELECT mysql_rest_service_restart();
 
