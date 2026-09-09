@@ -36,6 +36,28 @@ Clone Plugin: Server implementation
 /* Namespace for all clone data types */
 namespace myclone {
 
+/** Check whether a storage engine supports source-side clone operations.
+@param[in] hton storage engine handlerton
+@return true if the handlerton provides all source-side clone callbacks */
+static inline bool has_clone_source_callbacks(const handlerton *hton) {
+  if (hton == nullptr) {
+    return false;
+  }
+
+  const auto &clone_interface = hton->clone_interface;
+  return clone_interface.clone_capability != nullptr &&
+         clone_interface.clone_begin != nullptr &&
+         clone_interface.clone_copy != nullptr &&
+         clone_interface.clone_end != nullptr;
+}
+
+/** Check whether a storage engine supports clone ACK processing.
+@param[in] hton storage engine handlerton
+@return true if the handlerton provides the clone ACK callback */
+static inline bool has_clone_ack_callback(const handlerton *hton) {
+  return hton != nullptr && hton->clone_interface.clone_ack != nullptr;
+}
+
 Server::Server(THD *thd, MYSQL_SOCKET socket)
     : m_server_thd(thd),
       m_is_master(false),
@@ -309,7 +331,7 @@ int Server::deserialize_ack_buffer(const uchar *ack_buf, size_t ack_len,
   /* Extract Locator */
   serialized_length = loc->deserialize(get_thd(), ack_buf);
 
-  if (ack_len < serialized_length) {
+  if (ack_len < serialized_length || !has_clone_ack_callback(loc->m_hton)) {
     goto err_end;
   }
   ack_buf += serialized_length;
@@ -376,12 +398,12 @@ int Server::deserialize_init_buffer(const uchar *init_buf, size_t init_len) {
 
     auto serialized_length = loc.deserialize(get_thd(), init_buf);
 
-    init_buf += serialized_length;
-
-    if (init_len < serialized_length) {
+    if (init_len < serialized_length ||
+        !has_clone_source_callbacks(loc.m_hton)) {
       goto err_end;
     }
 
+    init_buf += serialized_length;
     m_storage_vec.push_back(loc);
 
     init_len -= serialized_length;
