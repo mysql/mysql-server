@@ -26,9 +26,11 @@ macro(event_fuzzy_version_from_git)
 	set(EVENT_GIT___VERSION_PATCH 13)
 	set(EVENT_GIT___VERSION_STAGE "stable")
 
-	find_package(Git)
+	# Git-based version discovery is disabled for the embedded copy.
+	# The fixed defaults above identify the vendored release.
+	# find_package(Git)
 
-	if (GIT_FOUND)
+	if (FALSE AND GIT_FOUND)
 		execute_process(
 			COMMAND
 				${GIT_EXECUTABLE} describe --abbrev=0 --always

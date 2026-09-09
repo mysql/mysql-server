@@ -19,7 +19,65 @@
 #       start libevent.sln
 #
 
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+IF(APPLE)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wdangling-pointer" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_MISSING_PROFILE}")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+IF(WIN32)
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
+ENDIF()
+
+IF(WIN32_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-assign-enum")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-cast-align")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-cast-qual")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-covered-switch-default")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-disabled-macro-expansion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-documentation-unknown-command")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-double-promotion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-extra-semi-stmt")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-format-non-iso")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-gnu-redeclared-enum")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-implicit-int-conversion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-implicit-int-float-conversion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-keyword-macro")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-missing-noreturn")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-missing-variable-declarations")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-language-extension-token")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-nonportable-system-include-path")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-pedantic")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-redundant-parens")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-reserved-id-macro")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shadow")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-sign-conversion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-switch-enum")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unreachable-code-return")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-macros")
+ENDIF()
+
+IF(APPLE_XCODE)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
+ENDIF()
+
+# Do not do this here, it will load policies for an older version of cmake.
+# cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
 if (POLICY CMP0054)
     cmake_policy(SET CMP0054 NEW)
@@ -31,15 +89,15 @@ if (POLICY CMP0075)
     cmake_policy(SET CMP0075 NEW)
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release
-        CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
-endif()
+# if(NOT CMAKE_BUILD_TYPE)
+#     set(CMAKE_BUILD_TYPE Release
+#         CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
+# endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
 # get rid of the extra default configurations
 # what? why would you get id of other useful build types? - Ellzey
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
+# set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
     "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
@@ -327,9 +385,12 @@ if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
     add_compiler_flags(
         -Wno-error=deprecated-declarations
+        -Wno-unused-function
         -Qunused-arguments
     )
 endif()
+
+CMAKE_PUSH_CHECK_STATE()
 
 if (MINGW OR CYGWIN)
     set(WIN32 TRUE)
@@ -337,11 +398,11 @@ endif()
 
 # Winsock.
 if(WIN32)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32 shell32 advapi32)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES ws2_32 shell32 advapi32)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h -D_WIN32_WINNT=0x0600)
 endif()
 if (SOLARIS)
-    set(CMAKE_REQUIRED_LIBRARIES socket nsl)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES socket nsl)
 endif()
 
 # Check if _GNU_SOURCE is available.
@@ -419,9 +480,7 @@ else()
     )
 endif()
 
-if (NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
-    list(APPEND FILES_TO_CHECK sys/sysctl.h)
-endif()
+# Do not use sysctl(), which has long been deprecated and fails on some platforms.
 
 if (APPLE)
     list(APPEND FILES_TO_CHECK
@@ -487,11 +546,9 @@ else()
         sendfile
         sigaction
         strsignal
-        sysctl
         accept4
         arc4random
         arc4random_buf
-        arc4random_addrandom
         getrandom
         getegid
         geteuid
@@ -660,7 +717,11 @@ CHECK_TYPE_SIZE("time_t" EVENT__SIZEOF_TIME_T)
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
     if ((CMAKE_CROSSCOMPILING OR APPLE) AND NOT EVENT__FORCE_KQUEUE_CHECK)
-        message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
+        # Native Apple builds are known to support kqueue with pipes, so skip
+        # the runtime test for them but warn only when actually cross-compiling.
+        if (CMAKE_CROSSCOMPILING)
+            message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
+        endif()
         set(EVENT__HAVE_WORKING_KQUEUE 1)
     else()
         message(STATUS "Checking if kqueue works with pipes...")
@@ -739,6 +800,8 @@ endif()
 
 CHECK_TYPE_SIZE("struct linger" EVENT__HAVE_STRUCT_LINGER)
 
+CMAKE_POP_CHECK_STATE()
+
 # Group the source files.
 set(HDR_PRIVATE
     bufferevent-internal.h
@@ -816,6 +879,10 @@ set(SRC_CORE
     signal.c
     strlcpy.c)
 
+IF(EVENT__HAVE_STRLCPY)
+  LIST(REMOVE_ITEM SRC_CORE strlcpy.c)
+ENDIF()
+
 if(EVENT__HAVE_SELECT)
     list(APPEND SRC_CORE select.c)
 endif()
@@ -841,14 +908,9 @@ if(EVENT__HAVE_EVENT_PORTS)
 endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
-    find_package(OpenSSL REQUIRED)
+    # OpenSSL is configured by the parent MySQL build.
 
     set(EVENT__HAVE_OPENSSL 1)
-
-    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
-
-    include_directories(${OPENSSL_INCLUDE_DIR})
 
     list(APPEND SRC_OPENSSL bufferevent_openssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
@@ -870,17 +932,7 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     endif()
 endif()
 
-if (NOT EVENT__DISABLE_TESTS)
-    # Zlib is only used for testing.
-    find_package(ZLIB)
-
-    if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
-        include_directories(${ZLIB_INCLUDE_DIRS})
-
-        set(EVENT__HAVE_LIBZ 1)
-        list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
-    endif()
-endif()
+# Tests are not built by the embedded copy; zlib is therefore not needed.
 
 set(SRC_EXTRA
     event_tagging.c
@@ -910,6 +962,9 @@ if(WIN32)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
+    # Removing WIN32_LEAN_AND_MEAN definition to avoid:
+    # "warning C4005: 'WIN32_LEAN_AND_MEAN': macro redefinition" in several files
+    remove_definitions(-DWIN32_LEAN_AND_MEAN)
 
     include_directories(./WIN32-Code)
 endif()
@@ -946,26 +1001,31 @@ configure_file(
 #
 # Create the libraries.
 #
-include(AddEventLibrary)
-add_event_library(event_core SOURCES ${SRC_CORE})
-add_event_library(event_extra
-    INNER_LIBRARIES event_core
-    SOURCES ${SRC_EXTRA})
+add_library(event_core STATIC ${SRC_CORE})
+add_library(event_extra STATIC ${SRC_EXTRA})
+add_library(event_openssl STATIC ${SRC_OPENSSL})
+target_link_libraries(event_extra event_core)
+target_link_libraries(event_openssl event_core)
 
-if (NOT EVENT__DISABLE_OPENSSL)
-    add_event_library(event_openssl
-        INNER_LIBRARIES event_core
-        OUTER_INCLUDES ${OPENSSL_INCLUDE_DIR}
-        LIBRARIES ${OPENSSL_LIBRARIES}
-        SOURCES ${SRC_OPENSSL})
+if (NOT WIN32)
+  set_target_properties(event_core PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  set_target_properties(event_extra PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  set_target_properties(event_openssl PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
 
 if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads
-        INNER_LIBRARIES event_core
-        SOURCES ${SRC_PTHREADS})
+    add_library(event_pthreads STATIC ${SRC_PTHREADS})
+    set_target_properties(event_pthreads PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
+
+MY_CHECK_C_COMPILER_FLAG("-Warray-parameter" HAVE_ARRAY_PARAMETER)
+IF(HAVE_ARRAY_PARAMETER)
+  TARGET_COMPILE_OPTIONS(event_core PRIVATE "-Wno-array-parameter")
+ENDIF()
+
+# Do not generate the legacy event library, install rules, tests, or benchmarks.
+RETURN()
 
 # library exists for historical reasons; it contains the contents of
 # both libevent_core and libevent_extra. You shouldn’t use it; it may
@@ -1572,4 +1632,3 @@ message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMP
 message(STATUS "CMAKE_AR:                 ${CMAKE_AR}")
 message(STATUS "CMAKE_RANLIB:             ${CMAKE_RANLIB}")
 message(STATUS "")
-
