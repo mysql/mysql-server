@@ -131,8 +131,15 @@ class Handler_interface {
   In case get_capabilities().atomic_write is true, if the caller has called
   create(lsn), it should return Status::WRONG_START_LSN if lsn!=start_lsn.
 
-  If the function return SUCCESS the caller may assume that the `start_lsn` is
-  the most recently written and persisted position.
+  If the function returns SUCCESS, the caller may assume that `start_lsn` is a
+  written and persisted position. For the first start_writing() following a
+  successful create(start_lsn), the handler must not append records, and
+  `start_lsn` remains the current end of the log.
+
+  Otherwise, the handler may append implementation-specific records after
+  `start_lsn` before returning, so callers should use
+  peek_first_unassigned_lsn() and peek_first_nonpersisted_lsn() to learn the
+  resulting positions.
 
   @param[in]  start_lsn  The lsn the caller believes to be the current end of
                          the log and thus the position at which the next write
@@ -656,10 +663,11 @@ class Handler_interface {
       guarantees similar to those described for trx_flush_log_if_needed_low().
 
 
-  Calling it with end_lsn larger than the end_lsn returned by the most recent
-  successful write_mtr(..,start_lsn,end_lsn) (or start_lsn passed to create()
-  or start_writing() in case no write_mtr() was performed yet) should fail with
-  Status::NOT_WRITTEN_YET.
+  Calling it with end_lsn larger than the handler's current log end should fail
+  with Status::NOT_WRITTEN_YET. Usually the current end is the end_lsn returned
+  by the most recent successful write_mtr(..,start_lsn,end_lsn), or the
+  start_lsn passed to create() or start_writing() if no data was appended. A
+  handler may append implementation-specific records in start_writing().
 
   The caller must call start_writing(lsn) before calling this function,
   otherwise it may return Status::WRONG_STATE.

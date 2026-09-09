@@ -212,8 +212,7 @@ log files, InnoDB must run recovery and ensure log files are logically empty.
 @note Note that the redo log system is NOT ready for user writes after this
 call is finished. The proper order of calls looks like this:
         - log_sys_init(),
-        - log_start(),
-        - log_start_background_threads()
+        - ib::redo::Handler::start_writing()
 and this sequence is executed inside srv_start() in srv0start.cc (interleaved
 with remaining logic of the srv_start())
 
@@ -224,16 +223,6 @@ with remaining logic of the srv_start())
                                 proceeding any further
 @return DB_SUCCESS or error */
 [[nodiscard]] dberr_t log_sys_init(bool expect_no_files);
-
-/** Starts the initialized redo log system using a provided
-checkpoint_lsn and current lsn. Block for current_lsn must
-be properly initialized in the log buffer prior to calling
-this function. Therefore a proper value of first_rec_group
-must be set for that block before log_start is called.
-@param[in,out]  log                redo log
-@param[in]      start_lsn          current lsn to start at
-@return DB_SUCCESS or error */
-[[nodiscard]] dberr_t log_start(log_t &log, lsn_t start_lsn);
 
 /** Close the log system and free all the related memory. */
 void log_sys_close();
