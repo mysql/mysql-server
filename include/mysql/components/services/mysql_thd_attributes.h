@@ -42,6 +42,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   - Command String ("command" of the return mysql_cstring_with_length type)
   - SQL Command String ("sql_command" of the return mysql_cstring_with_length
   type)
+  - Is a Server substatement ("is_substatement" of the returned bool type).
+  Stored functions and triggers are substatements; directly invoked stored
+  procedures are not.
   - Query Character Set ("query_charset" of the return mysql_cstring_with_length
   type)
 
@@ -124,6 +127,9 @@ BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
   - Command String ("command" of the return mysql_cstring_with_length type)
   - SQL Command String ("sql_command" of the return mysql_cstring_with_length
   type)
+  - Is a Server substatement ("is_substatement" of the returned bool type).
+  Stored functions and triggers are substatements; directly invoked stored
+  procedures are not.
   - Query Character Set ("query_charset" of the return mysql_cstring_with_length
   type)
   - status variable ("thd_status" of the returned uint16 type). if session is
