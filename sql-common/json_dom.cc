@@ -296,105 +296,129 @@ static inline bool is_seek_done(const Json_dom_vector *hits,
   @param[in,out] result the vector of qualifying children
   @return false on success, true on error
 */
-static bool find_child_doms(Json_dom *dom,
-                            const Json_path_iterator &current_leg,
-                            const Json_path_iterator &last_leg, bool auto_wrap,
+static bool find_child_doms(Json_dom *dom, Json_path_iterator current_leg,
+                            Json_path_iterator last_leg, bool auto_wrap,
                             bool only_need_one, Json_dom_vector *duplicates,
                             Json_dom_vector *result) {
-  if (current_leg == last_leg) return add_if_missing(dom, duplicates, result);
+  enum_json_type dom_type = dom->json_type();
 
-  const enum_json_type dom_type = dom->json_type();
-  const Json_path_leg *const path_leg = *current_leg;
-  const Json_path_iterator next_leg = current_leg + 1;
+  // Continue through non-branching matches without tail recursion.
+  for (; current_leg != last_leg; ++current_leg) {
+    const Json_path_leg *const path_leg = *current_leg;
+    const Json_path_iterator next_leg = current_leg + 1;
 
-  switch (path_leg->get_type()) {
-    case jpl_array_cell:
-      if (dom_type == enum_json_type::J_ARRAY) {
-        const auto array = down_cast<const Json_array *>(dom);
-        const Json_array_index idx = path_leg->first_array_index(array->size());
-        return idx.within_bounds() &&
-               find_child_doms((*array)[idx.position()], next_leg, last_leg,
-                               auto_wrap, only_need_one, duplicates, result);
-      }
-      // Handle auto-wrapping of non-arrays.
-      return auto_wrap && path_leg->is_autowrap() &&
-             find_child_doms(dom, next_leg, last_leg, auto_wrap, only_need_one,
-                             duplicates, result);
-    case jpl_array_range:
-    case jpl_array_cell_wildcard:
-      if (dom_type == enum_json_type::J_ARRAY) {
-        const auto array = down_cast<const Json_array *>(dom);
-        const auto range = path_leg->get_array_range(array->size());
-        for (size_t i = range.m_begin; i < range.m_end; ++i) {
-          if (find_child_doms((*array)[i], next_leg, last_leg, auto_wrap,
-                              only_need_one, duplicates, result))
-            return true; /* purecov: inspected */
-          if (is_seek_done(result, only_need_one)) return false;
+    switch (path_leg->get_type()) {
+      case jpl_array_cell:
+        if (dom_type == enum_json_type::J_ARRAY) {
+          const auto array = down_cast<const Json_array *>(dom);
+          const Json_array_index idx =
+              path_leg->first_array_index(array->size());
+          if (!idx.within_bounds()) return false;
+          dom = (*array)[idx.position()];
+          dom_type = dom->json_type();
+          continue;
         }
+        // Handle auto-wrapping of non-arrays without recursion.
+        if (auto_wrap && path_leg->is_autowrap()) continue;
+        return false;
+      case jpl_array_range:
+      case jpl_array_cell_wildcard:
+        if (dom_type == enum_json_type::J_ARRAY) {
+          const auto array = down_cast<const Json_array *>(dom);
+          const auto range = path_leg->get_array_range(array->size());
+          for (size_t i = range.m_begin; i < range.m_end; ++i) {
+            if (find_child_doms((*array)[i], next_leg, last_leg, auto_wrap,
+                                only_need_one, duplicates, result))
+              return true; /* purecov: inspected */
+            if (is_seek_done(result, only_need_one)) return false;
+          }
+          return false;
+        }
+        // Handle auto-wrapping of non-arrays without recursion.
+        if (auto_wrap && path_leg->is_autowrap()) continue;
+        return false;
+      case jpl_ellipsis: {
+        /*
+          The ellipsis matches the value on which it is called. Consecutive
+          ellipses and auto-wrapping array legs also keep the current value, so
+          consume them iteratively before matching the rest of the path. Such
+          paths need duplicate elimination, so avoid inspecting the following
+          legs in the common case where duplicates is nullptr.
+
+          Resume descendant traversal at the last skipped ellipsis. It matches
+          the current value and all its descendants, so it subsumes the earlier
+          ellipses. Restarting at an earlier ellipsis could lose matches when an
+          intervening array leg stops auto-wrapping on a descendant array.
+        */
+        Json_path_iterator current_value_leg = next_leg;
+        if (duplicates != nullptr) {
+          for (; current_value_leg != last_leg; ++current_value_leg) {
+            const Json_path_leg *leg = *current_value_leg;
+            if (leg->get_type() == jpl_ellipsis) {
+              current_leg = current_value_leg;
+            } else if (!(auto_wrap && dom_type != enum_json_type::J_ARRAY &&
+                         leg->is_autowrap())) {
+              break;
+            }
+          }
+        }
+        if (find_child_doms(dom, current_value_leg, last_leg, auto_wrap,
+                            only_need_one, duplicates, result))
+          return true; /* purecov: inspected */
+
+        // Recurse only when matching the ellipsis against contained values.
+        if (dom_type == enum_json_type::J_ARRAY) {
+          for (const Json_dom_ptr &child :
+               *down_cast<const Json_array *>(dom)) {
+            if (is_seek_done(result, only_need_one)) return false;
+
+            // Now recurse and add the child and values under it.
+            if (find_child_doms(child.get(), current_leg, last_leg, auto_wrap,
+                                only_need_one, duplicates, result))
+              return true; /* purecov: inspected */
+          }                // end of loop through children
+        } else if (dom_type == enum_json_type::J_OBJECT) {
+          for (const auto &member : *down_cast<const Json_object *>(dom)) {
+            if (is_seek_done(result, only_need_one)) return false;
+
+            // Now recurse and add the child and values under it.
+            if (find_child_doms(member.second.get(), current_leg, last_leg,
+                                auto_wrap, only_need_one, duplicates, result))
+              return true; /* purecov: inspected */
+          }                // end of loop through children
+        }
+
         return false;
       }
-      // Handle auto-wrapping of non-arrays.
-      return auto_wrap && path_leg->is_autowrap() &&
-             find_child_doms(dom, next_leg, last_leg, auto_wrap, only_need_one,
-                             duplicates, result);
-    case jpl_ellipsis: {
-      // The ellipsis matches the value on which it is called ...
-      if (find_child_doms(dom, next_leg, last_leg, auto_wrap, only_need_one,
-                          duplicates, result))
-        return true; /* purecov: inspected */
-
-      // ... and, recursively, all the values contained in it.
-      if (dom_type == enum_json_type::J_ARRAY) {
-        for (const Json_dom_ptr &child : *down_cast<const Json_array *>(dom)) {
-          if (is_seek_done(result, only_need_one)) return false;
-
-          // Now recurse and add the child and values under it.
-          if (find_child_doms(child.get(), current_leg, last_leg, auto_wrap,
-                              only_need_one, duplicates, result))
-            return true; /* purecov: inspected */
-        }                // end of loop through children
-      } else if (dom_type == enum_json_type::J_OBJECT) {
-        for (const auto &member : *down_cast<const Json_object *>(dom)) {
-          if (is_seek_done(result, only_need_one)) return false;
-
-          // Now recurse and add the child and values under it.
-          if (find_child_doms(member.second.get(), current_leg, last_leg,
-                              auto_wrap, only_need_one, duplicates, result))
-            return true; /* purecov: inspected */
-        }                // end of loop through children
-      }
-
-      return false;
-    }
-    case jpl_member: {
-      if (dom_type == enum_json_type::J_OBJECT) {
-        const auto object = down_cast<const Json_object *>(dom);
-        Json_dom *child = object->get(path_leg->get_member_name());
-        return child != nullptr &&
-               find_child_doms(child, next_leg, last_leg, auto_wrap,
-                               only_need_one, duplicates, result);
-      }
-
-      return false;
-    }
-    case jpl_member_wildcard: {
-      if (dom_type == enum_json_type::J_OBJECT) {
-        for (const auto &member : *down_cast<const Json_object *>(dom)) {
-          if (find_child_doms(member.second.get(), next_leg, last_leg,
-                              auto_wrap, only_need_one, duplicates, result))
-            return true; /* purecov: inspected */
-          if (is_seek_done(result, only_need_one)) return false;
+      case jpl_member: {
+        if (dom_type == enum_json_type::J_OBJECT) {
+          const auto object = down_cast<const Json_object *>(dom);
+          Json_dom *child = object->get(path_leg->get_member_name());
+          if (child == nullptr) return false;
+          dom = child;
+          dom_type = dom->json_type();
+          continue;
         }
-      }
 
-      return false;
+        return false;
+      }
+      case jpl_member_wildcard: {
+        if (dom_type == enum_json_type::J_OBJECT) {
+          for (const auto &member : *down_cast<const Json_object *>(dom)) {
+            if (find_child_doms(member.second.get(), next_leg, last_leg,
+                                auto_wrap, only_need_one, duplicates, result))
+              return true; /* purecov: inspected */
+            if (is_seek_done(result, only_need_one)) return false;
+          }
+        }
+
+        return false;
+      }
     }
   }
 
-  /* purecov: begin deadcode */
-  assert(false);
-  return true;
-  /* purecov: end */
+  assert(current_leg == last_leg);
+  return add_if_missing(dom, duplicates, result);
 }
 
 /**
@@ -2103,6 +2127,19 @@ static std::function<bool(const json_binary::Value &,
                           const Json_path_iterator &, const Json_seek_params &)>
 get_seek_func(const Json_path_iterator &it, const Json_seek_params &params);
 
+/** Consume consecutive auto-wrapping array legs without recursion. */
+static bool seek_autowrap(const json_binary::Value &value,
+                          Json_path_iterator current_leg,
+                          const Json_seek_params &params) {
+  assert(params.m_auto_wrap);
+  assert(!value.is_array());
+
+  while (current_leg != params.m_last_leg && (*current_leg)->is_autowrap())
+    ++current_leg;
+
+  return get_seek_func(current_leg, params)(value, current_leg, params);
+}
+
 /**
   Helper function for #seek_no_dup_elimination which handles
   #jpl_member path legs.
@@ -2161,7 +2198,7 @@ static bool seek_array_cell(const json_binary::Value &value,
 
   // Possibly auto-wrap non-arrays.
   return params.m_auto_wrap && (*current_leg)->is_autowrap() &&
-         seek_no_dup_elimination(value, current_leg + 1, params);
+         seek_autowrap(value, current_leg + 1, params);
 }
 
 /**
@@ -2177,7 +2214,7 @@ static bool seek_array_range(const json_binary::Value &value,
   if (!value.is_array()) {
     // Possibly auto-wrap non-arrays.
     if (params.m_auto_wrap && (*current_leg)->is_autowrap())
-      return seek_no_dup_elimination(value, current_leg + 1, params);
+      return seek_autowrap(value, current_leg + 1, params);
     return false;
   }
 
