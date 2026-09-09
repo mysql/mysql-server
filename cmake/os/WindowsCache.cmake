@@ -231,7 +231,7 @@ SET(HAVE_NO_BUILTIN_MEMCMP CACHE INTERNAL "")
 
 #
 # libevent
-# ordering below matches extra/libevent/libevent-2.1.11-stable/CMakeLists.txt
+# ordering below matches extra/libevent/libevent-2.1.13-stable/CMakeLists.txt
 #
 SET(_GNU_SOURCE CACHE INTERNAL "")
 SET(EVENT__HAVE_SYS_TYPES_H TRUE CACHE INTERNAL "")
