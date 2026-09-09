@@ -254,7 +254,7 @@ bool ACL_HOST_AND_IP::calc_cidr_mask(const char *ip_arg, long *val) {
     return true;
 
   /* Create IP mask. */
-  *val = UINT_MAX32 << (32 - tmp);
+  *val = (UINT_MAX32 << (32 - tmp)) & UINT_MAX32;
 
   return false;
 }
