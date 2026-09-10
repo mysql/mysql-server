@@ -28,6 +28,7 @@
 #include <string>
 
 #include "my_alloc.h"
+#include "mysql/service_mysql_alloc.h"
 #include "sql/mysqld.h"
 #include "sql/server_component/mysql_command_backend.h"
 #include "sql/server_component/mysql_command_consumer_imp.h"
@@ -108,6 +109,8 @@ class MysqlCommandAuthenticatedOptionsTest : public ::testing::Test {
 
   void TearDown() override {
     if (mysql_handle_.mysql != nullptr) mysql_close(mysql_handle_.mysql);
+    my_free(mysql_handle_.user_name);
+    my_free(mysql_handle_.host_name);
     my_bind_addr_str = saved_bind_address_;
     opt_disable_networking = saved_disable_networking_;
     mysqld_port = saved_mysqld_port_;

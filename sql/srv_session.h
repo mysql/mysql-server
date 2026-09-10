@@ -406,4 +406,9 @@ class Srv_session {
   };
 };
 
+Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
+                                       void *plugin_ctx,
+                                       bool ignore_max_connection_limit,
+                                       bool allow_extra_connection = true);
+
 #endif /* SRV_SESSION_H */
