@@ -1537,6 +1537,14 @@ bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
   }
 
   for (const std::string &column_name : columns) {
+    // A name longer than NAME_LEN cannot name a real column, and would
+    // overflow the fixed-size buffers used by the dictionary helpers below.
+    // Report it as a non-existing column instead.
+    if (column_name.length() > NAME_LEN) {
+      results.emplace(column_name, Message::FIELD_NOT_FOUND);
+      continue;
+    }
+
     if (needs_lock) {
       MDL_key mdl_key;
       dd::Column_statistics::create_mdl_key(
