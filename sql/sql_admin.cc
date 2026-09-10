@@ -321,7 +321,10 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, Table_ref *table,
   for (const auto column : get_histogram_fields())
     fields.emplace(column->ptr(), column->length());
 
-  return histograms::drop_histograms(thd, *table, fields, results);
+  // The column names come straight from the user, so resolve and reject
+  // unknown/over-length names against the table before using them.
+  return histograms::drop_histograms(
+      thd, *table, fields, /*reject_unresolved_columns=*/true, results);
 }
 
 /**

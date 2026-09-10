@@ -2012,15 +2012,29 @@ bool drop_all_histograms(THD *thd, Table_ref &table,
   for (const auto &col : table_definition.columns())
     columns.emplace(col->name().c_str());
 
-  return drop_histograms(thd, table, columns, results);
+  // Column names come from the data dictionary, so they need no resolution.
+  return drop_histograms(thd, table, columns,
+                         /*reject_unresolved_columns=*/false, results);
 }
 
 bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
-                     results_map &results) {
+                     bool reject_unresolved_columns, results_map &results) {
   dd::cache::Dictionary_client *client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(client);
 
   for (const std::string &column_name : columns) {
+    // For user-supplied column names, resolve the name against the table's real
+    // columns and reject names that do not exist - mirroring the UPDATE
+    // HISTOGRAM path (resolve_histogram_fields()). This rejects unknown names,
+    // including any name longer than a valid column identifier, before it
+    // reaches the data dictionary. A column that exists but simply has no
+    // histogram is left to the NO_HISTOGRAM_FOUND handling below.
+    if (reject_unresolved_columns && table.table != nullptr &&
+        find_field_in_table_sef(table.table, column_name.c_str()) == nullptr) {
+      results.emplace(column_name, Message::FIELD_NOT_FOUND);
+      continue;
+    }
+
     dd::String_type dd_name = dd::Column_statistics::create_name(
         {table.db, table.db_length},
         {table.table_name, table.table_name_length}, column_name.c_str());
