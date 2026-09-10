@@ -494,6 +494,10 @@ foreach(FILE ${FILES_TO_CHECK})
 endforeach()
 unset(FILES_TO_CHECK)
 
+# /dev/poll availability is determined by sys/devpoll.h, but the backend uses
+# EVENT__HAVE_DEVPOLL rather than the header-specific result.
+set(EVENT__HAVE_DEVPOLL "${EVENT__HAVE_SYS_DEVPOLL_H}")
+
 # Check if functions exist
 list(APPEND SYMBOLS_TO_CHECK
     getaddrinfo
@@ -1017,6 +1021,10 @@ if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
     add_library(event_pthreads STATIC ${SRC_PTHREADS})
     set_target_properties(event_pthreads PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+endif()
+
+if (WIN32)
+    target_link_libraries(event_core PUBLIC iphlpapi)
 endif()
 
 MY_CHECK_C_COMPILER_FLAG("-Warray-parameter" HAVE_ARRAY_PARAMETER)
