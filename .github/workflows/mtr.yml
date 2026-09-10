@@ -113,7 +113,7 @@ jobs:
             --report-unstable-tests
             --retry=3
             --retry-failure=2
-            --max-test-fail=3
+            --max-test-fail=50
             "--suite=${MTR_SUITES}"
           )
           ../trusted/scripts/ci/mtr.sh "${args[@]}"
@@ -148,13 +148,53 @@ jobs:
             exit "$ctest_result"
           fi
 
+          initial_failures=build/mysql-test/var/ctest-initial-failures.log
+          cp "$failed_tests" "$initial_failures"
+          initial_names=build/mysql-test/var/ctest-initial-failure-names.log
+          sed 's/^[^:]*://' "$initial_failures" | sort -u > "$initial_names"
           echo "::warning::Retrying only the CTest failures from the initial run"
+          set +e
           ctest "${ctest_args[@]}" \
             --rerun-failed \
             --repeat until-pass:2 \
             --output-log build/mysql-test/var/ctest-rerun.log
+          rerun_result=$?
+          set -e
+
+          persistent_names=build/mysql-test/var/ctest-persistent-failures.log
+          recovered_names=build/mysql-test/var/ctest-recovered-failures.log
+          : > "$persistent_names"
+          if (( rerun_result != 0 )) && [[ -s "$failed_tests" ]]; then
+            sed 's/^[^:]*://' "$failed_tests" | sort -u > "$persistent_names"
+          fi
+          comm -23 "$initial_names" "$persistent_names" > "$recovered_names"
+
+          {
+            echo "### CTest retry summary (${{ matrix.shard }})"
+            echo
+            echo "Initial failures:"
+            sed 's/^/- /' "$initial_names"
+            echo
+            echo "Recovered on retry:"
+            if [[ -s "$recovered_names" ]]; then
+              sed 's/^/- /' "$recovered_names"
+            else
+              echo "- None"
+            fi
+            echo
+            echo "Persistent failures:"
+            if [[ -s "$persistent_names" ]]; then
+              sed 's/^/- /' "$persistent_names"
+            elif (( rerun_result == 0 )); then
+              echo "- None"
+            else
+              echo "- CTest did not produce a persistent-failure list."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$rerun_result"
       - name: Publish test report
-        if: ${{ always() && !cancelled() }}
+        if: ${{ always() }}
         # The privileged reporter never downloads or executes this untrusted artifact.
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -162,4 +202,9 @@ jobs:
           path: |
             source/build/mysql-test/var/log/
             source/build/mysql-test/var/ctest*.log
-          retention-days: 5
+            source/build/mysql-test/var/**/log/**
+            source/build/mysql-test/var/**/core*
+            source/build/mysql-test/var/**/mysqld*.err
+            source/build/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 14

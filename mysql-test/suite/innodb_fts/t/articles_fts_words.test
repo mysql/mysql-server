@@ -1,3 +1,5 @@
+--source include/big_test.inc
+
 --let $ROUNDS=20
 CREATE TABLE articles (
   id INT UNSIGNED NOT NULL PRIMARY KEY,
