@@ -288,6 +288,13 @@ ADD_STATIC_LIBRARY(mysql_rest_service_component_impl
   PRIVATE MYSQL_ROUTER_LOG_DOMAIN="mrs_endpoint"
 )
 
+# With Router disabled, its dependencies are loaded before the component exists.
+IF(WIN32 AND
+   (TARGET component_mysql_rest_service OR ROUTER_BUILD_MRS_DEPENDENCIES_ONLY))
+  SET_PROPERTY(TARGET mysql_rest_service_component_impl
+    PROPERTY EXCLUDE_FROM_DEFAULT_BUILD FALSE)
+ENDIF()
+
 ADD_DEPENDENCIES(mysql_rest_service_component_impl GenError)
 
 IF(MRS_JIT_EXECUTOR_LIB)
