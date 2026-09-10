@@ -23,11 +23,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs_component_udfs.h"
+#include <string_view>
 
 #include "mysql/components/services/mysql_runtime_error_service.h"
 
 #include "mrs_component.h"
+#include "mrs_component_udfs.h"
 
 namespace mrs_component {
 
@@ -58,11 +59,31 @@ bool has_mysql_rest_service_admin() {
   return has_grant;
 }
 
-bool require_mysql_rest_service_admin() {
-  if (has_mysql_rest_service_admin()) return true;
+bool validate_lifecycle_udf_call(const char *udf_name) {
+  if (!has_mysql_rest_service_admin()) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), kMysqlRestServiceAdmin);
+    return false;
+  }
 
-  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), kMysqlRestServiceAdmin);
-  return false;
+  MYSQL_THD current_thd = nullptr;
+  mysql_cstring_with_length sql_command{};
+  bool is_substatement = true;
+
+  if (mysql_service_mysql_current_thread_reader->get(&current_thd) != 0 ||
+      current_thd == nullptr ||
+      thd_attributes->get(current_thd, "sql_command", &sql_command) != 0 ||
+      thd_attributes->get(current_thd, "is_substatement", &is_substatement) !=
+          0 ||
+      sql_command.str == nullptr ||
+      std::string_view(sql_command.str, sql_command.length) != "select" ||
+      is_substatement) {
+    my_error(ER_MRS_COMPONENT_UDF_ERROR, MYF(0), udf_name,
+             "This function must be called from a SELECT statement outside a "
+             "stored function or trigger");
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace
@@ -194,7 +215,7 @@ void UDFs::mysql_rest_service_restart_deinit(UDF_INIT *initid
 long long UDFs::mysql_rest_service_restart(UDF_INIT *, UDF_ARGS *,
                                            unsigned char *,
                                            unsigned char *error) {
-  if (!require_mysql_rest_service_admin()) {
+  if (!validate_lifecycle_udf_call(kRestartUdfName)) {
     *error = 1;
     return 1;
   }
@@ -239,7 +260,7 @@ void UDFs::mysql_rest_service_stop_deinit(UDF_INIT *initid [[maybe_unused]]) {}
 */
 long long UDFs::mysql_rest_service_stop(UDF_INIT *, UDF_ARGS *, unsigned char *,
                                         unsigned char *error) {
-  if (!require_mysql_rest_service_admin()) {
+  if (!validate_lifecycle_udf_call(kStopUdfName)) {
     *error = 1;
     return 1;
   }
@@ -284,7 +305,7 @@ void UDFs::mysql_rest_service_start_deinit(UDF_INIT *initid [[maybe_unused]]) {}
 long long UDFs::mysql_rest_service_start(UDF_INIT *, UDF_ARGS *,
                                          unsigned char *is_null,
                                          unsigned char *is_error) {
-  if (!require_mysql_rest_service_admin()) {
+  if (!validate_lifecycle_udf_call(kStartUdfName)) {
     *is_null = 1;
     *is_error = 1;
     return 1;

@@ -1,0 +1,209 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE TABLE mrs_lifecycle_context (value INTEGER);
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+# mysql_rest_service_start: reject non-SELECT commands without changing lifecycle state
+DO mysql_rest_service_start();
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected DO preserves lifecycle state]
+SET @mrs_lifecycle_result = mysql_rest_service_start();
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected SET preserves lifecycle state]
+INSERT INTO mrs_lifecycle_context SELECT mysql_rest_service_start();
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected INSERT SELECT preserves lifecycle state]
+# mysql_rest_service_start: check the invocation context at execution, not preparation
+PREPARE mrs_lifecycle_stmt FROM 'DO mysql_rest_service_start()';
+EXECUTE mrs_lifecycle_stmt;
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+DEALLOCATE PREPARE mrs_lifecycle_stmt;
+include/assert.inc [rejected prepared DO preserves lifecycle state]
+CREATE FUNCTION mrs_lifecycle_function() RETURNS INTEGER READS SQL DATA
+BEGIN
+DECLARE result INTEGER;
+SELECT mysql_rest_service_start() INTO result;
+RETURN result;
+END|
+CREATE TRIGGER mrs_lifecycle_trigger
+BEFORE INSERT ON mrs_lifecycle_context FOR EACH ROW
+SELECT mysql_rest_service_start() INTO @mrs_lifecycle_result|
+# mysql_rest_service_start: reject SELECT inside stored functions and triggers
+SELECT mrs_lifecycle_function();
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected stored function preserves lifecycle state]
+INSERT INTO mrs_lifecycle_context VALUES (0);
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected trigger preserves lifecycle state]
+SELECT COUNT(*) FROM mrs_lifecycle_context;
+COUNT(*)
+0
+DROP TRIGGER mrs_lifecycle_trigger;
+DROP FUNCTION mrs_lifecycle_function;
+# mysql_rest_service_start: allow direct and prepared SELECT
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+PREPARE mrs_lifecycle_stmt FROM 'SELECT mysql_rest_service_start()';
+EXECUTE mrs_lifecycle_stmt;
+mysql_rest_service_start()
+0
+DEALLOCATE PREPARE mrs_lifecycle_stmt;
+# mysql_rest_service_start: allow SELECT inside a directly invoked stored procedure
+CREATE PROCEDURE mrs_lifecycle_procedure() SELECT mysql_rest_service_start() INTO @mrs_lifecycle_result;
+CALL mrs_lifecycle_procedure();
+SELECT @mrs_lifecycle_result;
+@mrs_lifecycle_result
+0
+CREATE FUNCTION mrs_lifecycle_nested_function() RETURNS INTEGER READS SQL DATA
+BEGIN
+CALL mrs_lifecycle_procedure();
+RETURN @mrs_lifecycle_result;
+END|
+SELECT mrs_lifecycle_nested_function();
+ERROR HY000: The function 'mysql_rest_service_start' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected nested stored procedure preserves lifecycle state]
+DROP FUNCTION mrs_lifecycle_nested_function;
+DROP PROCEDURE mrs_lifecycle_procedure;
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+# mysql_rest_service_stop: reject non-SELECT commands without changing lifecycle state
+DO mysql_rest_service_stop();
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected DO preserves lifecycle state]
+SET @mrs_lifecycle_result = mysql_rest_service_stop();
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected SET preserves lifecycle state]
+INSERT INTO mrs_lifecycle_context SELECT mysql_rest_service_stop();
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected INSERT SELECT preserves lifecycle state]
+# mysql_rest_service_stop: check the invocation context at execution, not preparation
+PREPARE mrs_lifecycle_stmt FROM 'DO mysql_rest_service_stop()';
+EXECUTE mrs_lifecycle_stmt;
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+DEALLOCATE PREPARE mrs_lifecycle_stmt;
+include/assert.inc [rejected prepared DO preserves lifecycle state]
+CREATE FUNCTION mrs_lifecycle_function() RETURNS INTEGER READS SQL DATA
+BEGIN
+DECLARE result INTEGER;
+SELECT mysql_rest_service_stop() INTO result;
+RETURN result;
+END|
+CREATE TRIGGER mrs_lifecycle_trigger
+BEFORE INSERT ON mrs_lifecycle_context FOR EACH ROW
+SELECT mysql_rest_service_stop() INTO @mrs_lifecycle_result|
+# mysql_rest_service_stop: reject SELECT inside stored functions and triggers
+SELECT mrs_lifecycle_function();
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected stored function preserves lifecycle state]
+INSERT INTO mrs_lifecycle_context VALUES (0);
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected trigger preserves lifecycle state]
+SELECT COUNT(*) FROM mrs_lifecycle_context;
+COUNT(*)
+0
+DROP TRIGGER mrs_lifecycle_trigger;
+DROP FUNCTION mrs_lifecycle_function;
+# mysql_rest_service_stop: allow direct and prepared SELECT
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+PREPARE mrs_lifecycle_stmt FROM 'SELECT mysql_rest_service_stop()';
+EXECUTE mrs_lifecycle_stmt;
+mysql_rest_service_stop()
+0
+DEALLOCATE PREPARE mrs_lifecycle_stmt;
+# mysql_rest_service_stop: allow SELECT inside a directly invoked stored procedure
+CREATE PROCEDURE mrs_lifecycle_procedure() SELECT mysql_rest_service_stop() INTO @mrs_lifecycle_result;
+CALL mrs_lifecycle_procedure();
+SELECT @mrs_lifecycle_result;
+@mrs_lifecycle_result
+0
+CREATE FUNCTION mrs_lifecycle_nested_function() RETURNS INTEGER READS SQL DATA
+BEGIN
+CALL mrs_lifecycle_procedure();
+RETURN @mrs_lifecycle_result;
+END|
+SELECT mrs_lifecycle_nested_function();
+ERROR HY000: The function 'mysql_rest_service_stop' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected nested stored procedure preserves lifecycle state]
+DROP FUNCTION mrs_lifecycle_nested_function;
+DROP PROCEDURE mrs_lifecycle_procedure;
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+# mysql_rest_service_restart: reject non-SELECT commands without changing lifecycle state
+DO mysql_rest_service_restart();
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected DO preserves lifecycle state]
+SET @mrs_lifecycle_result = mysql_rest_service_restart();
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected SET preserves lifecycle state]
+INSERT INTO mrs_lifecycle_context SELECT mysql_rest_service_restart();
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected INSERT SELECT preserves lifecycle state]
+# mysql_rest_service_restart: check the invocation context at execution, not preparation
+PREPARE mrs_lifecycle_stmt FROM 'DO mysql_rest_service_restart()';
+EXECUTE mrs_lifecycle_stmt;
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+DEALLOCATE PREPARE mrs_lifecycle_stmt;
+include/assert.inc [rejected prepared DO preserves lifecycle state]
+CREATE FUNCTION mrs_lifecycle_function() RETURNS INTEGER READS SQL DATA
+BEGIN
+DECLARE result INTEGER;
+SELECT mysql_rest_service_restart() INTO result;
+RETURN result;
+END|
+CREATE TRIGGER mrs_lifecycle_trigger
+BEFORE INSERT ON mrs_lifecycle_context FOR EACH ROW
+SELECT mysql_rest_service_restart() INTO @mrs_lifecycle_result|
+# mysql_rest_service_restart: reject SELECT inside stored functions and triggers
+SELECT mrs_lifecycle_function();
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected stored function preserves lifecycle state]
+INSERT INTO mrs_lifecycle_context VALUES (0);
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected trigger preserves lifecycle state]
+SELECT COUNT(*) FROM mrs_lifecycle_context;
+COUNT(*)
+0
+DROP TRIGGER mrs_lifecycle_trigger;
+DROP FUNCTION mrs_lifecycle_function;
+# mysql_rest_service_restart: allow direct and prepared SELECT
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+PREPARE mrs_lifecycle_stmt FROM 'SELECT mysql_rest_service_restart()';
+EXECUTE mrs_lifecycle_stmt;
+mysql_rest_service_restart()
+0
+DEALLOCATE PREPARE mrs_lifecycle_stmt;
+# mysql_rest_service_restart: allow SELECT inside a directly invoked stored procedure
+CREATE PROCEDURE mrs_lifecycle_procedure() SELECT mysql_rest_service_restart() INTO @mrs_lifecycle_result;
+CALL mrs_lifecycle_procedure();
+SELECT @mrs_lifecycle_result;
+@mrs_lifecycle_result
+0
+CREATE FUNCTION mrs_lifecycle_nested_function() RETURNS INTEGER READS SQL DATA
+BEGIN
+CALL mrs_lifecycle_procedure();
+RETURN @mrs_lifecycle_result;
+END|
+SELECT mrs_lifecycle_nested_function();
+ERROR HY000: The function 'mysql_rest_service_restart' failed. This function must be called from a SELECT statement outside a stored function or trigger
+include/assert.inc [rejected nested stored procedure preserves lifecycle state]
+DROP FUNCTION mrs_lifecycle_nested_function;
+DROP PROCEDURE mrs_lifecycle_procedure;
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+DROP TABLE mrs_lifecycle_context;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
