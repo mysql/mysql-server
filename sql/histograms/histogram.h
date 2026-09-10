@@ -870,6 +870,9 @@ bool drop_all_histograms(THD *thd, Table_ref &table,
   @param thd Thread handler.
   @param table The table where we should look for the columns.
   @param columns Columns specified by the user.
+  @param reject_unresolved_columns If enabled, checks whether each supplied
+  column exists in the table and reports Message::FIELD_NOT_FOUND for names that
+  are not found, before accessing the dictionary.
   @param results A map where the result of each operation is stored.
 
   @note Assumes that the caller has the appropriate metadata locks on both the
@@ -880,7 +883,7 @@ bool drop_all_histograms(THD *thd, Table_ref &table,
   @return false on success, true on error.
 */
 bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
-                     results_map &results);
+                     bool reject_unresolved_columns, results_map &results);
 
 /**
   Rename histograms for all columns in a given table.
