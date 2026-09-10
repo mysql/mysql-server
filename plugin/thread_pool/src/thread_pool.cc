@@ -1901,9 +1901,9 @@ static inline bool handle_connect_thread_sleep(tp_group_t *my_tp_group,
 
     DBUG_EXECUTE_IF("wait_before_handling_connection_nolock", {
       tpds::wait_for_signal<tpds::END_CONNECT_WAIT>();
-      LogErr(INFORMATION_LEVEL, ER_CONDITIONAL_DEBUG,
-             "Detected END_CONNECT_WAIT signal in "
-             "'wait_before_handling_connection_nolock'");
+      DBUG_LOG("tp_conrep",
+               "Detected END_CONNECT_WAIT signal in "
+               "'wait_before_handling_connection_nolock'");
     });
 
     // Both the queue empty check and the action of sleeping should
@@ -2584,9 +2584,8 @@ class Conn_snapshot {
       tpds::send_signal<tpds::END_CONNECT_WAIT>();
       for (auto ex = connections_exiting_auth.load(); ex < exit_auth + 2;
            ex = connections_exiting_auth.load()) {
-        LogErr(INFORMATION_LEVEL, ER_CONDITIONAL_DEBUG,
-               std::format("Waiting for connections to exit auth, ex:{}", ex)
-                   .c_str());
+        DBUG_LOG("tp_conrep",
+                 "Waiting for connections to exit auth, ex:" << ex);
         connections_exiting_auth.wait(ex);
       }
       tpds::send_signal<tpds::NO_SIGNAL>();
@@ -3572,10 +3571,9 @@ static bool create_thd_and_authenticate_conn(
 
   DBUG_EXECUTE_IF("wait_before_auth", {
     tpds::wait_for_signal<tpds::END_CONNECT_WAIT>();
-    LogErr(INFORMATION_LEVEL, ER_CONDITIONAL_DEBUG,
-           std::format("Detected END_CONNECT_WAIT signal "
-                       "in 'wait_before_auth'")
-               .c_str());
+    DBUG_LOG("tp_conrep",
+             "Detected END_CONNECT_WAIT signal "
+             "in 'wait_before_auth'");
   });
 
   auto channel_info = conn_cntx->m_channel_info;
