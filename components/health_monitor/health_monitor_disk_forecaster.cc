@@ -193,11 +193,13 @@ void Disk_Forecaster::process() {
 }
 
 /**
-  Apply pending settings unless a Forecaster processing cycle is active.
+  Apply pending settings unless a Disk Forecaster processing cycle is active.
 
-  The Forecaster signals the Supervisor after the active cycle completes, so
-  leaving the pending notification set defers this work without blocking
-  updates for other collectors.
+  This method is called from the Supervisor thread.
+
+  If a cycle is active, leave the settings pending and return so the Supervisor
+  can update other collectors. The Disk Forecaster thread signals the Supervisor
+  after the cycle completes.
 
   @return true if settings were applied, false if processing is active
 */
@@ -207,15 +209,17 @@ bool Disk_Forecaster::update_settings() {
       std::unique_lock<std::mutex>(m_processing_mutex, std::try_to_lock);
   if (!processing_guard.owns_lock()) return false;
 
+  // Clear notification being processed.
   consume_settings_pending();
 
   if (settings_changed() || static_settings_changed()) {
-    // Set the stop predicate while the processing gate is held. A worker that
-    // is already waiting for the gate will observe it before starting a cycle.
+    // Request shutdown of the Disk Forecaster while holding the processing
+    // mutex. If the Disk Forecaster is waiting for this mutex, it will see the
+    // stop request before starting another forecasting cycle.
     request_thread_stop();
     processing_guard.unlock();
     // A concurrent SET can change the run state while join_thread() waits for
-    // the worker to exit.
+    // the Disk Forecaster thread to exit.
     join_thread();
     set_params();
     // Use the run state applied by set_params(). A later SET will remain

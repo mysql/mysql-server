@@ -272,15 +272,9 @@ std::string fmt::format_ms(uint64_t ms, bool units) {
 */
 std::string fmt::format_time(time_t time_value) {
   std::tm ti{};
-#ifdef _WIN32
-  if (localtime_s(&ti, &time_value) != 0) {
-    return {};
-  }
-#else
   if (localtime_r(&time_value, &ti) == nullptr) {
     return {};
   }
-#endif
   char buffer[20];  // "YYYY-MM-DD HH:MM:SS" + null fits (19 + 1)
   const size_t n =
       std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &ti);

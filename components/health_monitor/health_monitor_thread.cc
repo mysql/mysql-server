@@ -95,27 +95,11 @@ void Thread::cleanup() { PSI_THREAD_CALL(delete_current_thread)(); }
 void Thread::signal() { mysql_cond_signal(&m_wait); }
 
 int Thread::join(my_thread_handle *thread, void **value_ptr) {
-#ifndef _WIN32
   return pthread_join(thread->thread, value_ptr);
-#else
-  int result{0};
-  DWORD ret = WaitForSingleObject(thread->handle, INFINITE);
-  if (ret != WAIT_OBJECT_0) {
-    result = 1;
-  }
-  if (thread->handle) CloseHandle(thread->handle);
-  thread->thread = 0;
-  thread->handle = nullptr;
-  return result;
-#endif
 }
 
 bool Thread::joinable(const my_thread_handle &thread) {
-#ifndef _WIN32
   return thread.thread != 0;
-#else
-  return thread.handle != INVALID_HANDLE_VALUE;
-#endif
 }
 
 /**
