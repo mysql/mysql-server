@@ -1944,6 +1944,7 @@ DROP TABLE t1,t2;
 
 CREATE TABLE t (a INT, b INT, c INT, KEY (c));
 INSERT INTO t VALUES (1, 1, 1);
+ANALYZE TABLE t;
 
 # An assertion failure was seen in debug builds. In release builds, a
 # join plan was chosen. Now we expect the entire join to be optimized
@@ -2534,6 +2535,7 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 (col1, col2, data)
   VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
+ANALYZE TABLE t1;
 
 let $query = SELECT * FROM t1 ORDER BY id;
 --replace_regex $elide_costs
@@ -2717,6 +2719,7 @@ DROP TABLE t5;
 --echo #
 
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f2));
+ANALYZE TABLE t1;
 let $query = SELECT 1 FROM t1
              WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
                                  WHERE t2.f1 = t1.f1 AND
@@ -3131,6 +3134,7 @@ CREATE TABLE t_natural (
   col86 INT, col87 INT, col88 INT, col89 INT, col90 INT,
   col91 INT, col92 INT, col93 INT, col94 INT, col95 INT,
   col96 INT, col97 INT, col98 INT, col99 INT, col100 INT);
+ANALYZE TABLE t_natural;
 
 --disable_result_log
 EXPLAIN FORMAT=TREE
@@ -3180,6 +3184,7 @@ DROP TABLE t1, t2;
 # RAND() in ORDER BY
 CREATE TABLE t3 (x INT);
 INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t3;
 
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
@@ -3207,6 +3212,7 @@ CREATE TABLE t5 (a INT);
 INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
 CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
 INSERT INTO t6 VALUES (1, 0);
+ANALYZE TABLE t5, t6;
 
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
@@ -3322,6 +3328,7 @@ DROP TABLE t_union;
 --echo #
 
 CREATE TABLE t1 (f1 integer);
+ANALYZE TABLE t1;
 --replace_regex $elide_costs
 --disable_warnings
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) AS dt WHERE f1 > 10;

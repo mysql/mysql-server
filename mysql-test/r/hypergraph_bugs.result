@@ -2517,6 +2517,9 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t (a INT, b INT, c INT, KEY (c));
 INSERT INTO t VALUES (1, 1, 1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE
 SELECT 1
 FROM t AS t1 JOIN t AS t2 ON t1.c = t2.b AND t1.c = t2.c
@@ -3108,6 +3111,9 @@ KEY idx_col2 (col2)
 );
 INSERT INTO t1 (col1, col2, data)
 VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY id;
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (rows=1)
@@ -3374,6 +3380,9 @@ DROP TABLE t5;
 #               failed.
 #
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f2));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1
 WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
 WHERE t2.f1 = t1.f1 AND
@@ -3865,6 +3874,9 @@ col81 INT, col82 INT, col83 INT, col84 INT, col85 INT,
 col86 INT, col87 INT, col88 INT, col89 INT, col90 INT,
 col91 INT, col92 INT, col93 INT, col94 INT, col95 INT,
 col96 INT, col97 INT, col98 INT, col99 INT, col100 INT);
+ANALYZE TABLE t_natural;
+Table	Op	Msg_type	Msg_text
+test.t_natural	analyze	status	OK
 EXPLAIN FORMAT=TREE
 SELECT 1 FROM
 t_natural t1
@@ -3907,6 +3919,9 @@ DROP FUNCTION f1;
 DROP TABLE t1, t2;
 CREATE TABLE t3 (x INT);
 INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
 EXPLAIN
 -> Sort: r  (rows=5)
@@ -3942,6 +3957,10 @@ CREATE TABLE t5 (a INT);
 INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
 CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
 INSERT INTO t6 VALUES (1, 0);
+ANALYZE TABLE t5, t6;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
 EXPLAIN FORMAT=TREE
 DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
 EXPLAIN
@@ -4118,6 +4137,9 @@ DROP TABLE t_union;
 #.               transformed query like TRADITIONAL format
 #
 CREATE TABLE t1 (f1 integer);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) AS dt WHERE f1 > 10;
 EXPLAIN
 -> Filter: (t1.f1 > 10)  (rows=0.333)
