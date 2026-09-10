@@ -78,11 +78,7 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-/**
-  Shallow clone the list of ORDER objects using mem_root and return
-  the cloned list.
-*/
-static ORDER *clone(THD *thd, ORDER *order) {
+ORDER *clone(THD *thd, ORDER *order) {
   ORDER *clone = nullptr;
   ORDER **prev_next = &clone;
   for (; order != nullptr; order = order->next) {

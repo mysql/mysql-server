@@ -900,6 +900,7 @@ sql security definer view v2 as select 1;
 connect (con16681,localhost,mysqltest_1,,test);
 connection con16681;
 
+--sorted_result
 select * from information_schema.views
 where table_name='v1' or table_name='v2';
 connection default;

@@ -1376,3 +1376,62 @@ FROM t WHERE x IN (
   SELECT NULL FROM t AS t1, t AS t2 STRAIGHT_JOIN t AS t3 ON t2.x = t3.x
 ) OR x = 1;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36578613: Hypergraph result difference when querying I_S.TABLES
+--echo #
+
+# Create a table with a LONGTEXT column, to ensure that filesort uses
+# row IDs, and with enough rows to make a hash join look more
+# attractive than a nested loop join.
+CREATE TABLE t(x INT, y LONGTEXT);
+INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e'), (6, 'f');
+ANALYZE TABLE t;
+
+let $query =
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2 WHERE t1.x = t2.x
+ORDER BY -t1.x;
+
+# To reproduce the bug, the plan should have two SORT nodes (one for
+# ORDER BY and one for DISTINCT) on top of a HASH_JOIN node.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#36678321: Hypergraph: Sort-ahead doesn't provide row IDs to later
+--echo #               sort that needs them.
+--echo #
+
+CREATE TABLE t1(int_col1 INT, int_col2 INT);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+
+CREATE TABLE t2 (int_col_key INT, longtext_col LONGTEXT, KEY (int_col_key));
+INSERT INTO t2
+  WITH RECURSIVE src(n) AS (
+    SELECT 1 UNION ALL SELECT n + 1 FROM src WHERE n < 50
+  )
+  SELECT n, n FROM src;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+SELECT SQL_BIG_RESULT DISTINCT t1.int_col2
+FROM t1, t2 WHERE t1.int_col1 = t2.int_col_key
+ORDER BY ANY_VALUE(t2.longtext_col);
+
+# To reproduce the problem, we need to have a nested loop join with a
+# sort-ahead on t1.int_col2 on the left side of the join, whose
+# ordering is used for removing duplicates after the join, and a new
+# sort for the ORDER BY clause on top. The query used to return the
+# same value for all rows.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t1, t2;

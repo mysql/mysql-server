@@ -34,6 +34,7 @@
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
 #include "prealloced_array.h"
+#include "scope_guard.h"
 #include "sql/filesort.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
@@ -447,17 +448,6 @@ static void UpdateReferencesToMaterializedItems(
 
     assert(!OrderItemsReferenceUnavailableTables(
         path, used_tables_before_replacement));
-
-    // Set up a Filesort object for this sort.
-    path->sort().filesort = new (thd->mem_root)
-        Filesort(thd, CollectTables(thd, path),
-                 /*keep_buffers=*/false, path->sort().order, path->sort().limit,
-                 path->sort().remove_duplicates, path->sort().force_sort_rowids,
-                 path->sort().unwrap_rollup);
-    join->filesorts_to_cleanup.push_back(path->sort().filesort);
-    if (!path->sort().filesort->using_addon_fields()) {
-      FindTablesToGetRowidFor(path);
-    }
   } else if (path->type == AccessPath::FILTER) {
     // Only really relevant for in2exists filters that run after windowing, and
     // for some cases of HAVING clauses.
@@ -615,6 +605,35 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
   }
 }
 
+/// Create Filesort objects for all SORT access paths in a query block. This is
+/// done in a top-down fashion, in contrast to the bottom-up processing in
+/// FinalizePlanForQueryBlock(). It is done top-down because a Filesort that
+/// requires row IDs may need to enable row IDs on SORT paths further down in
+/// the tree, so it is not known whether a SORT path should use row IDs or not
+/// until the SORT paths above it has had their Filesort objects created.
+static void FinalizeSortPaths(THD *thd, AccessPath *root_path, JOIN *join) {
+  WalkAccessPaths(
+      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [&](AccessPath *path, JOIN *) {
+        if (path->type == AccessPath::SORT) {
+          assert(path->sort().filesort == nullptr);
+          path->sort().filesort = new (thd->mem_root) Filesort(
+              thd, CollectTables(thd, path),
+              /*keep_buffers=*/false, path->sort().order, path->sort().limit,
+              path->sort().remove_duplicates, path->sort().force_sort_rowids,
+              path->sort().unwrap_rollup);
+          join->filesorts_to_cleanup.push_back(path->sort().filesort);
+          if (!path->sort().filesort->using_addon_fields()) {
+            // This Filesort uses row IDs. Make sure row IDs are made available
+            // in the paths below.
+            FindTablesToGetRowidFor(path);
+          }
+        }
+        return false;
+      },
+      /*post_order_traversal=*/false);
+}
+
 /*
   Do the final touchups of the access path tree, once we have selected a final
   plan (ie., there are no more alternatives). There are currently two major
@@ -661,10 +680,11 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
     - Join conditions.
  */
 bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
-  assert(query_block->join->needs_finalize);
-  query_block->join->needs_finalize = false;
+  JOIN *const join = query_block->join;
+  assert(join->needs_finalize);
+  join->needs_finalize = false;
 
-  AccessPath *const root_path = query_block->join->root_access_path();
+  AccessPath *const root_path = join->root_access_path();
   assert(root_path != nullptr);
   if (root_path->type == AccessPath::EQ_REF) {
     // None of the finalization below is relevant to point selects, so just
@@ -680,13 +700,16 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   }
 
   Query_block *old_query_block = thd->lex->current_query_block();
+  const auto query_block_guard = create_scope_guard([thd, old_query_block]() {
+    thd->lex->set_current_query_block(old_query_block);
+  });
   thd->lex->set_current_query_block(query_block);
 
   // We might have stacked multiple FILTERs on top of each other.
   // Combine these into a single FILTER:
   WalkAccessPaths(
-      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [](AccessPath *path, JOIN *join [[maybe_unused]]) {
+      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [](AccessPath *path, const JOIN *) {
         if (path->type == AccessPath::FILTER) {
           AccessPath *child = path->filter().child;
           if (child->type == AccessPath::FILTER &&
@@ -706,16 +729,18 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
       },
       /*post_order_traversal=*/true);
 
+  // Finalize materializations. Create temporary tables and rewrite items so
+  // that they reference the columns in the temporary tables.
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   TABLE *last_window_temp_table = nullptr;
   unsigned num_windows_seen = 0;
   bool error = false;
   bool after_aggregation = false;
   WalkAccessPaths(
-      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, query_block, &applied_replacements, &last_window_temp_table,
+      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [thd, query_block, join, &applied_replacements, &last_window_temp_table,
        &num_windows_seen, &error,
-       &after_aggregation](AccessPath *path, JOIN *join) {
+       &after_aggregation](AccessPath *path, const JOIN *) {
         if (error) return true;
         DelayedCreateTemporaryTable(thd, query_block, path, after_aggregation,
                                     &last_window_temp_table, &num_windows_seen);
@@ -762,8 +787,9 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
       },
       /*post_order_traversal=*/true);
 
-  if (query_block->join->push_to_engines()) return true;
+  if (error) return true;
 
-  thd->lex->set_current_query_block(old_query_block);
-  return error;
+  FinalizeSortPaths(thd, root_path, join);
+
+  return join->push_to_engines();
 }

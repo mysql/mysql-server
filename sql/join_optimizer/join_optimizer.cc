@@ -7267,8 +7267,8 @@ static AccessPathArray ApplyWindowFunctions(
       Bounds_checked_array<bool> windows_this_iteration;
       root_path = MakeSortPathAndApplyWindows(
           thd, join, root_path, join->m_windows[window_idx]->m_ordering_idx,
-          join->m_windows[window_idx]->sorting_order(thd), orderings,
-          windows_this_iteration, fd_set, num_where_predicates,
+          clone(thd, join->m_windows[window_idx]->sorting_order(thd)),
+          orderings, windows_this_iteration, fd_set, num_where_predicates,
           need_rowid_for_window, window_idx, finished_windows,
           &num_windows_left);
     }

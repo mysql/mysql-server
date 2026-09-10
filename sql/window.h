@@ -1600,4 +1600,10 @@ struct Window_evaluation_requirements {
         range_optimizable(true) {}
 };
 
+/**
+  Shallow clone the list of ORDER objects using mem_root and return
+  the cloned list.
+*/
+ORDER *clone(THD *thd, ORDER *order);
+
 #endif /* WINDOWS_INCLUDED */
