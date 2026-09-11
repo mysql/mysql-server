@@ -200,7 +200,7 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   OUTPUT_NAME "mysqlrouter_routing"
 
 
-  DEPENDENCIES GenLiteProtos
+  DEPENDENCIES GenLiteProtos GenServerSource
 
   INCLUDE_DIRECTORIES_IF
   ${CMAKE_CURRENT_SOURCE_DIR}/

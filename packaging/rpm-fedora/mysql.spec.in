@@ -716,6 +716,11 @@ install -d -m 0755 %{buildroot}/run/mysqlrouter
 pushd $MBD/release
 make DESTDIR=%{buildroot} install
 
+%if 0%{?with_router} == 0
+install -d -m 0755 %{buildroot}%{_prefix}/libexec
+mv %{buildroot}%{_bindir}/mysqlrouter_mrs_client %{buildroot}%{_prefix}/libexec/
+%endif # !with_router
+
 # Install config and logrotate
 install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 packaging/rpm-common/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
@@ -1204,6 +1209,10 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
 %endif # commercial
+
+%if 0%{?with_router} == 0
+%{_prefix}/libexec/mysqlrouter_mrs_client
+%endif # !with_router
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
