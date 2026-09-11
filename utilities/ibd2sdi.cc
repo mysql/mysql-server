@@ -1350,19 +1350,17 @@ class ibd2sdi {
                                       byte *buf, page_no_t page_num);
 
   /** Read the uncompressed blob stored in off-pages to the buffer.
-  @param[in]	ts			tablespace structure
-  @param[in]	first_blob_page_num	first blob page number
-                                          of the chain
-  @param[in]	total_off_page_length	total length of blob stored
-                                          in record
-  @param[in,out]	dest_buf		blob will be copied to this
-                                          buffer
-  @return 0 if blob is not read, else the total length of blob read from
-  off-pages */
-  uint64_t copy_uncompressed_blob(ib_tablespace *ts,
-                                  page_no_t first_blob_page_num,
-                                  uint64_t total_off_page_length,
-                                  byte *dest_buf);
+  @param[in]   ts                      tablespace structure
+  @param[in]   first_blob_page_num     first blob page number of the chain
+  @param[in]   total_off_page_length   total length of blob stored in record
+  @param[out]  dest_buf                buffer receiving BLOB data; may contain
+                                       a partial result when an error is
+                                       returned
+  @return DB_SUCCESS on success, else error code */
+  dberr_t copy_uncompressed_blob(ib_tablespace *ts,
+                                 page_no_t first_blob_page_num,
+                                 uint64_t total_off_page_length,
+                                 byte *dest_buf);
 
   /** Read the compressed blob stored in off-pages to the buffer.
   @param[in]	ts			tablespace structure
@@ -1527,6 +1525,9 @@ bool ibd2sdi::dump_all_recs_in_leaf_level(ib_tablespace *ts,
 
       free(sdi_data);
       sdi_data = nullptr;
+    } else {
+      corrupt = true;
+      break;
     }
 
     if (explicit_sdi_rec_found) {
@@ -1573,33 +1574,32 @@ uint64_t ibd2sdi::read_page_and_return_level(ib_tablespace *ts,
   return page_level;
 }
 
-/** Read the uncompressed blob stored in off-pages to the buffer.
-@param[in]	ts			tablespace structure
-@param[in]	first_blob_page_num	first blob page number of the chain
-@param[in]	total_off_page_length	total length of blob stored in record
-@param[in,out]	dest_buf		blob will be copied to this buffer
-@return 0 if blob is not read, else the total length of blob read from
-off-pages */
-uint64_t ibd2sdi::copy_uncompressed_blob(ib_tablespace *ts,
-                                         page_no_t first_blob_page_num,
-                                         uint64_t total_off_page_length,
-                                         byte *dest_buf) {
+dberr_t ibd2sdi::copy_uncompressed_blob(ib_tablespace *ts,
+                                        page_no_t first_blob_page_num,
+                                        uint64_t total_off_page_length,
+                                        byte *dest_buf) {
   DBUG_TRACE;
 
+  if (first_blob_page_num == FIL_NULL ||
+      first_blob_page_num < SDI_BLOB_ALLOWED) {
+    ib::error() << "Invalid first BLOB page number " << first_blob_page_num;
+    return DB_CORRUPTION;
+  }
+
   byte page_buf[UNIV_PAGE_SIZE_MAX];
-  uint64_t calc_length = 0;
-  uint64_t part_len;
+  uint64_t copied_len = 0;
   page_no_t next_page_num = first_blob_page_num;
-  bool error = false;
+  const size_t blob_payload_offset = FIL_PAGE_DATA + lob::LOB_HDR_SIZE;
 
   do {
     ib::dbug() << "Reading blob from page no " << next_page_num;
 
-    if (fetch_page(ts, next_page_num, UNIV_PAGE_SIZE_MAX, page_buf) ==
-        IB_ERROR) {
+    const size_t bytes_read =
+        fetch_page(ts, next_page_num, UNIV_PAGE_SIZE_MAX, page_buf);
+
+    if (bytes_read == IB_ERROR) {
       ib::error() << "Reading blob page " << next_page_num << " failed";
-      error = true;
-      break;
+      return DB_CORRUPTION;
     }
 
     if (fil_page_get_type(page_buf) != FIL_PAGE_SDI_BLOB) {
@@ -1607,36 +1607,55 @@ uint64_t ibd2sdi::copy_uncompressed_blob(ib_tablespace *ts,
                   << " found."
                      " Expected BLOB page type is "
                   << FIL_PAGE_SDI_BLOB;
-      error = true;
-      break;
+      return DB_CORRUPTION;
     }
 
-    part_len =
-        mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_PART_LEN);
+    if (bytes_read < blob_payload_offset + FIL_PAGE_DATA_END) {
+      ib::error() << "Truncated BLOB page " << next_page_num;
+      return DB_CORRUPTION;
+    }
 
-    memcpy(dest_buf + calc_length, page_buf + FIL_PAGE_DATA + lob::LOB_HDR_SIZE,
+    if (copied_len >= total_off_page_length) {
+      ib::error() << "Unexpected extra BLOB page " << next_page_num;
+      return DB_CORRUPTION;
+    }
+
+    uint64_t part_len =
+        mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_PART_LEN);
+    const uint64_t remaining_len = total_off_page_length - copied_len;
+    const size_t available_payload =
+        bytes_read - blob_payload_offset - FIL_PAGE_DATA_END;
+
+    if (part_len == 0 || part_len > remaining_len ||
+        part_len > available_payload) {
+      ib::error() << "Invalid BLOB part length " << part_len << " on page "
+                  << next_page_num << ". Remaining length is " << remaining_len
+                  << ", available payload is " << available_payload;
+      return DB_CORRUPTION;
+    }
+
+    memcpy(dest_buf + copied_len, page_buf + blob_payload_offset,
            static_cast<size_t>(part_len));
 
-    calc_length += part_len;
+    copied_len += part_len;
 
     next_page_num =
         mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_NEXT_PAGE_NO);
 
-    if (next_page_num <= SDI_BLOB_ALLOWED) {
-      ib::error() << "Unexpected next BLOB page number. "
-                     " The first blob page number cannot start "
-                     " before page number "
-                  << SDI_BLOB_ALLOWED;
-      error = true;
-      break;
+    if (next_page_num != FIL_NULL && next_page_num < SDI_BLOB_ALLOWED) {
+      ib::error() << "Invalid next BLOB page number " << next_page_num;
+      return DB_CORRUPTION;
     }
 
   } while (next_page_num != FIL_NULL);
 
-  if (!error) {
-    ut_ad(calc_length == total_off_page_length);
+  if (copied_len != total_off_page_length) {
+    ib::error() << "Invalid total BLOB length " << copied_len
+                << ". Expected length is " << total_off_page_length;
+    return DB_CORRUPTION;
   }
-  return calc_length;
+
+  return DB_SUCCESS;
 }
 
 /** Read the compressed blob stored in off-pages to the buffer.
@@ -1917,24 +1936,33 @@ dberr_t ibd2sdi::parse_fields_in_rec(ib_tablespace *ts, byte *rec,
         mach_read_from_4(rec + REC_OFF_DATA_VARCHAR + rec_data_in_page_len +
                          lob::BTR_EXTERN_PAGE_NO);
 
-    uint64_t blob_len_retrieved;
+    const uint64_t blob_len_expected = rec_data_length - rec_data_in_page_len;
+
     if (page_size.is_compressed()) {
-      blob_len_retrieved = copy_compressed_blob(
-          ts, first_blob_page_num, rec_data_length - rec_data_in_page_len,
-          str + rec_data_in_page_len);
+      const uint64_t blob_len_retrieved =
+          copy_compressed_blob(ts, first_blob_page_num, blob_len_expected,
+                               str + rec_data_in_page_len);
+
+      if (blob_len_retrieved != blob_len_expected) {
+        ib::error() << "Invalid total compressed BLOB length "
+                    << blob_len_retrieved << ". Expected length is "
+                    << blob_len_expected;
+        free(str);
+        return DB_CORRUPTION;
+      }
     } else {
-      blob_len_retrieved = copy_uncompressed_blob(
-          ts, first_blob_page_num, rec_data_length - rec_data_in_page_len,
-          str + rec_data_in_page_len);
+      const dberr_t error =
+          copy_uncompressed_blob(ts, first_blob_page_num, blob_len_expected,
+                                 str + rec_data_in_page_len);
+
+      if (error != DB_SUCCESS) {
+        free(str);
+        return error;
+      }
     }
-    *sdi_data_len = rec_data_in_page_len + blob_len_retrieved;
   } else {
     memcpy(str, rec_data_origin, static_cast<size_t>(rec_data_length));
-    *sdi_data_len = rec_data_length;
   }
-
-  *sdi_data_len = rec_data_length;
-  *sdi_data = str;
 
   ut_ad(rec_data_length == sdi_comp_len);
 
@@ -1942,7 +1970,7 @@ dberr_t ibd2sdi::parse_fields_in_rec(ib_tablespace *ts, byte *rec,
     /* Record Corruption */
     ib::error() << "Record corruption";
     free(str);
-    return (DB_CORRUPTION);
+    return DB_CORRUPTION;
   }
 
   byte *uncompressed_sdi = static_cast<byte *>(calloc(sdi_uncomp_len + 1, 1));
