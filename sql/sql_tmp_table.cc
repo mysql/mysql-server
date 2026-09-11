@@ -641,7 +641,7 @@ uint Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS = 0;
 void init_cache_tmp_engine_properties() {
   assert(!current_thd);
   THD *thd = new THD();
-  thd->thread_stack = pointer_cast<char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   Cache_temp_engine_properties::init(thd);
   delete thd;

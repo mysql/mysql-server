@@ -904,7 +904,7 @@ static inline bool thread_attach(THD *thd, tp_thread_t *my_thread_data,
     Finally we set-up the thd object properly for execution in this thread.
     This method also performs some cleanup on failures.
   */
-  thd_set_thread_stack(thd, my_thread_data->stack_start);
+  thd_set_thread_stack_base(thd, my_thread_data->stack_start);
   set_user_psi_env(thd);
   thd_store_globals(thd);
   thd_clear_errors(thd);
@@ -2238,7 +2238,7 @@ extern "C" void *tp_worker_thread_main(void *arg) {
 #endif
   tp_group_t *my_tp_group = &(tp_group_list[my_thread_data->thread_tp_group]);
 
-  my_thread_data->stack_start = (char *)&thd;
+  my_thread_data->stack_start = resolve_stack_pointer(&thd);
   mysql_mutex_lock(&my_tp_group->LOCK_group);
 
   /* Count how many threads are initialized for this group */

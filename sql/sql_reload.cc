@@ -160,7 +160,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
       allocate temporary THD for execution of acl_reload()/grant_reload().
     */
     if (!thd && (thd = (tmp_thd = new THD))) {
-      thd->thread_stack = (char *)&tmp_thd;
+      thd->capture_stack_base(reinterpret_cast<const void *>(&tmp_thd));
       thd->store_globals();
     }
 
@@ -224,7 +224,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
      */
     THD *tmp_thd = nullptr;
     if (!thd && (thd = (tmp_thd = new THD))) {
-      thd->thread_stack = (char *)(&tmp_thd);
+      thd->capture_stack_base(reinterpret_cast<const void *>(&tmp_thd));
       thd->store_globals();
     }
 

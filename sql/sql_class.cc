@@ -776,7 +776,7 @@ THD::THD(bool enable_plugins)
   set_psi(nullptr);
   mdl_context.init(this);
   stmt_arena = this;
-  thread_stack = nullptr;
+  set_stack_base(nullptr);
   m_catalog.str = "std";
   m_catalog.length = 3;
   password = 0;
@@ -929,7 +929,7 @@ void THD::store_cached_properties(cached_properties prop_mask) {
 }
 
 void THD::copy_table_access_properties(THD *thd) {
-  thread_stack = thd->thread_stack;
+  set_stack_base(thd->stack_base());
   variables.option_bits = thd->variables.option_bits & OPTION_BIN_LOG;
   skip_readonly_check = thd->skip_readonly_check;
   tx_isolation = thd->tx_isolation;
@@ -1800,10 +1800,10 @@ void THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
 
 void THD::store_globals() {
   /*
-    Assert that thread_stack is initialized: it's necessary to be able
+    Assert that the stack base is initialized: it's necessary to be able
     to track stack overrun.
   */
-  assert(thread_stack);
+  assert(stack_base());
 
   current_thd = this;
   THR_MALLOC = &mem_root;
@@ -1833,10 +1833,10 @@ void THD::restore_globals() {
   // Remove reference to specific OS thread.
   real_id = null_thread_initializer;
   /*
-    Assert that thread_stack is initialized: it's necessary to be able
+    Assert that the stack base is initialized: it's necessary to be able
     to track stack overrun.
   */
-  assert(thread_stack);
+  assert(stack_base());
 
   /* Undocking the thread specific data. */
   current_thd = nullptr;

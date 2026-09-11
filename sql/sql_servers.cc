@@ -212,7 +212,7 @@ bool servers_init(THD *thd) {
     /* To be able to run this from boot, we allocate a temporary THD. */
     thd = new (std::nothrow) THD;
     if (thd == nullptr) return true;
-    thd->thread_stack = (char *)&thd;
+    thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
     thd->store_globals();
     /*
       It is safe to call servers_reload() since servers_* arrays and hashes

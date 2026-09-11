@@ -119,7 +119,8 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
   THD *current = current_thd;
   THD *stack_thd = session->get_thd();
 
-  session->get_thd()->thread_stack = reinterpret_cast<char *>(&stack_thd);
+  session->get_thd()->capture_stack_base(
+      reinterpret_cast<const void *>(&stack_thd));
   session->get_thd()->store_globals();
 
   const bool result = session->open();

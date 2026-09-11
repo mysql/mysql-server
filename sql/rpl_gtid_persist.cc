@@ -82,7 +82,7 @@ const LEX_CSTRING Gtid_table_access_context::DB_NAME = {
 static void init_thd(THD **p_thd) {
   DBUG_TRACE;
   THD *thd = *p_thd;
-  thd->thread_stack = reinterpret_cast<char *>(p_thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(p_thd));
   thd->set_command(COM_DAEMON);
   thd->security_context()->skip_grants();
   thd->system_thread = SYSTEM_THREAD_COMPRESS_GTID_TABLE;

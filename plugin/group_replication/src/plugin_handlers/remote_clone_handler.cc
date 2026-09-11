@@ -674,7 +674,7 @@ void Remote_clone_handler::gr_clone_debug_point() {
   m_clone_thd = thd;
   my_thread_init();
   thd->set_new_thread_id();
-  thd->thread_stack = reinterpret_cast<const char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   thd->security_context()->skip_grants();
   global_thd_manager_add_thd(thd);

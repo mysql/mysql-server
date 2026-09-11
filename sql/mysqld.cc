@@ -7357,7 +7357,7 @@ static int generate_server_uuid() {
     LogErr(ERROR_LEVEL, ER_NO_THD_NO_UUID);
     return 1;
   }
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   /*

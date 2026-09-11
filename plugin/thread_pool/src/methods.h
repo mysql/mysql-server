@@ -222,8 +222,8 @@ struct tp_thread_t {
   */
   bool stalled = false;
 
-  /** Start of stack for thread, used to set thd->thread_stack */
-  char *stack_start{nullptr};
+  /** Start of stack for thread, used to set the THD stack base. */
+  const char *stack_start{nullptr};
   /** Reference to thread pool low level context representing the connection */
   tp_client_low_level_t *client_low_level_cntx{nullptr};
   /**

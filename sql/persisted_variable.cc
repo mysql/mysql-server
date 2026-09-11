@@ -1011,7 +1011,7 @@ bool Persisted_variables_cache::set_persisted_options(
       LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
       return true;
     }
-    thd->thread_stack = (char *)&thd;
+    thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
     thd->set_new_thread_id();
     thd->store_globals();
     lex_start(thd);

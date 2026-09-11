@@ -1225,7 +1225,7 @@ bool my_tz_full_init(const char *default_tzname, bool opt_init) {
   THD thd_object;
   THD *thd = &thd_object;
 
-  thd->thread_stack = pointer_cast<char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   assert(tz_names.contains("SYSTEM"));

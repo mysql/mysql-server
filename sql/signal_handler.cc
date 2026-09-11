@@ -318,9 +318,10 @@ static void print_fatal_signal(int sig, siginfo_t *info [[maybe_unused]]) {
         "information to find out\n"
         "where mysqld died. If you see no messages after this, something went\n"
         "terribly wrong...\n");
-    my_print_stacktrace(
-        thd ? pointer_cast<const uchar *>(thd->thread_stack) : nullptr,
-        my_thread_stack_size);
+    my_print_stacktrace(thd != nullptr
+                            ? pointer_cast<const uchar *>(thd->stack_base())
+                            : nullptr,
+                        my_thread_stack_size);
   }
   if (thd) {
     const char *kreason = "UNKNOWN";

@@ -120,7 +120,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
   THD *thd = args->m_thd;
   int rc;
 
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
   thd->security_context()->skip_grants("", "");
 
@@ -317,7 +317,7 @@ static void *handle_bootstrap(void *arg) {
   mysql_thread_set_psi_id(thd->thread_id());
 
   /* The following must be called before DBUG_TRACE */
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   if (my_thread_init()) {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     args->m_bootstrap_error = true;

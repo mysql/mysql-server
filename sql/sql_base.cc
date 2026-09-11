@@ -3905,7 +3905,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry) {
         implicitly empties the in-memory table.
       */
       THD new_thd;
-      new_thd.thread_stack = (char *)&thd;
+      new_thd.capture_stack_base(reinterpret_cast<const void *>(&thd));
       new_thd.set_new_thread_id();
       new_thd.store_globals();
       new_thd.set_db(thd->db());
@@ -10494,7 +10494,7 @@ bool mysql_rm_tmp_tables(void) {
   DBUG_TRACE;
 
   if (!(thd = new THD)) return true; /* purecov: inspected */
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   MEM_ROOT files_root(PSI_NOT_INSTRUMENTED, 32768);

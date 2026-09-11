@@ -66,7 +66,7 @@ bool One_thread_connection_handler::add_connection(Channel_info *channel_info) {
     need to know the start of the stack so that we could check for
     stack overruns.
   */
-  thd_set_thread_stack(thd, (char *)&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   mysql_thread_set_psi_id(thd->thread_id());

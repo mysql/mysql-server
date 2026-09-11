@@ -188,7 +188,7 @@ int Group_partition_handling::partition_thread_handler() {
   THD *ph_thd = new THD;
   my_thread_init();
   ph_thd->set_new_thread_id();
-  ph_thd->thread_stack = reinterpret_cast<const char *>(&ph_thd);
+  ph_thd->capture_stack_base(reinterpret_cast<const void *>(&ph_thd));
   ph_thd->store_globals();
   global_thd_manager_add_thd(ph_thd);
 

@@ -110,7 +110,7 @@ bool Rpl_sys_table_access::open(enum thr_lock_type lock_type) {
 
   THD *thd = nullptr;
   thd = new THD;
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   thd->security_context()->skip_grants();
   thd->system_thread = SYSTEM_THREAD_BACKGROUND;

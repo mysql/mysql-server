@@ -603,7 +603,7 @@ Table_access_impl::Table_access_impl(THD *thd, size_t count)
     m_child_thd->copy_table_access_properties(m_parent_thd);
   else {
     void *dummy_p = nullptr;
-    m_child_thd->thread_stack = (char *)&dummy_p;
+    m_child_thd->capture_stack_base(reinterpret_cast<const void *>(&dummy_p));
     m_child_thd->security_context()->assign_user(
         STRING_WITH_LEN("table_access"));
     m_child_thd->security_context()->skip_grants("", "");

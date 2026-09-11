@@ -1351,7 +1351,8 @@ THD_instance_guard::THD_instance_guard(THD *thd)
     : m_is_locally_initialized{thd == nullptr} {
   if (this->m_is_locally_initialized) {
     this->m_target = new THD;
-    this->m_target->thread_stack = (char *)&this->m_target;
+    this->m_target->capture_stack_base(
+        reinterpret_cast<char *>(&this->m_target));
     this->m_target->store_globals();
     this->m_target->security_context()->skip_grants();
   } else {
