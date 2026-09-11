@@ -440,10 +440,11 @@ SharedServer::user_connection_ids(MysqlClient &cli,
   }
 
   auto ids_res = cli.query(
-      "SELECT id FROM performance_schema.processlist "
-      "WHERE id != CONNECTION_ID() "
-      "  AND state NOT LIKE 'Group Replication%%' "
-      "  AND User IN (" +
+      "SELECT processlist_id "
+      "FROM performance_schema.threads "
+      "WHERE processlist_id != CONNECTION_ID() "
+      "  AND name = 'thread/sql/one_connection' "
+      "  AND processlist_user IN (" +
       oss.str() + ")");
   if (!ids_res) return stdx::unexpected(ids_res.error());
 
