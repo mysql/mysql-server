@@ -1,0 +1,96 @@
+# ==== Purpose ====
+#
+# The in-memory relay log (IMR) is incompatible with semi-synchronous
+# replication: semisync acknowledges a transaction to the source only after it
+# is durably written to the relay log, which the memory path never does. The
+# server therefore rejects starting the receiver (IO thread) on an IMR-enabled
+# CSA channel while the semisync replica plugin is enabled.
+#
+# ==== Requirements ====
+#
+# R1. With IMR enabled on a CSA channel and the replica-side semisync enabled,
+#     START REPLICA IO_THREAD is rejected with
+#     ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION.
+# R2. START REPLICA (both threads) is rejected for the same reason (the gate is
+#     on the receiver and is evaluated before any thread starts).
+# R3. Disabling IMR clears the incompatibility: the channel then starts normally
+#     even with the semisync replica plugin still enabled.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with the applier stopped; install and enable the
+#      replica-side semisync plugin (threads stopped).
+#   2. Enable IMR on the channel.
+#   3. START REPLICA IO_THREAD is rejected (R1).
+#   4. START REPLICA (both) is rejected (R2).
+#   5. Disable IMR; the channel starts normally (R3).
+#   6. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+# The semisync replica plugin must be available (needs the plugin dir set by the
+# companion -master.opt / -slave.opt files).
+--source include/have_semisync_plugin.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+# Step 5 starts a semisync-enabled replica against a non-semisync source, which
+# logs a benign fallback-to-async warning.
+CALL mtr.add_suppression("Plugin semisync reported.*Source server does not support semi-sync.*");
+
+--echo
+--echo # 1. Install and enable the replica-side semisync plugin (threads stopped).
+--echo
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN'
+SET GLOBAL rpl_semi_sync_replica_enabled = 1;
+
+--echo
+--echo # 2. Enable IMR on the CSA channel.
+--echo
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+--echo
+--echo # 3. START REPLICA IO_THREAD is rejected (R1).
+--echo
+
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION
+START REPLICA IO_THREAD;
+
+--echo
+--echo # 4. START REPLICA (both threads) is rejected for the same reason (R2).
+--echo
+
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION
+START REPLICA;
+
+--echo
+--echo # 5. Disabling IMR clears the incompatibility: the channel starts even
+--echo #    with the semisync replica plugin still enabled (R3).
+--echo
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+SET GLOBAL rpl_semi_sync_replica_enabled = 0;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+
+--source include/rpl/deinit.inc

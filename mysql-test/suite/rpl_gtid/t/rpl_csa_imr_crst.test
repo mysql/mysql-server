@@ -1,0 +1,218 @@
+# ==== Purpose ====
+#
+# Test CHANGE REPLICATION SOURCE TO validation and persistence for the
+# in-memory relay log (IMR) options on a CSA (Change Stream Applier) channel:
+#
+#   IN_MEMORY_RELAYLOG_ENABLED
+#   IN_MEMORY_RELAYLOG_LIMIT
+#   IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+#
+# ==== Requirements ====
+#
+# R1. The IMR options are CSA-only. Enabling IMR, or setting the limit /
+#     spill-threshold, on a non-CSA channel is rejected with
+#     ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA.
+# R2. On a CSA channel, invalid ranges / ordering are rejected with
+#     ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG:
+#       - IN_MEMORY_RELAYLOG_LIMIT           in [32 MiB, 4 GiB]
+#       - IN_MEMORY_RELAYLOG_SPILL_THRESHOLD in [8 MiB, IN_MEMORY_RELAYLOG_LIMIT)
+#     A single option is validated against the persisted value of its peer.
+# R3. Defaults: ENABLED = NO, LIMIT = 134217728 (128 MiB),
+#     SPILL_THRESHOLD = 16777216 (16 MiB).
+# R4. The IMR options can only be changed while replication is stopped
+#     (ER_REPLICA_CHANNEL_MUST_STOP).
+# R5. A valid configuration is persisted in mysql.slave_relay_log_info and
+#     performance_schema.replication_applier_configuration, survives a server
+#     restart, is kept by RESET REPLICA, and cleared by RESET REPLICA ALL.
+#
+# ==== Implementation ====
+#
+#   1. Assert IMR metadata defaults on the freshly created channel (R3).
+#   2. Reject IMR options on the non-CSA (MTA) channel (R1).
+#   3. Switch the channel to CSA and reject invalid ranges / ordering (R2).
+#   4. Apply a valid IMR configuration and assert it is persisted (R5).
+#   5. Assert the options cannot be changed while a thread is running (R4).
+#   6. Restart the replica and assert the configuration survived (R5).
+#   7. RESET REPLICA keeps the configuration; RESET REPLICA ALL clears it (R5).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+# This test must start on a non-CSA (MTA) channel so it can check that the IMR
+# options are rejected there, then it switches the channel to CSA itself.
+# have_mta.inc runs it only under the default (MTA) collection and skips it
+# under the CSA collection, where the channel would already be CSA.
+--source include/have_mta.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+--source include/rpl/start_replica.inc
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo # 1. IMR metadata defaults on a freshly created channel: the feature is
+--echo #    OFF, and the limit / spill-threshold columns carry their default
+--echo #    values (inert while the feature is disabled).
+--echo
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog = 0`
+--let $assert_text= IN_MEMORY_RELAYLOG is OFF by default in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog_limit = 134217728`
+--let $assert_text= IN_MEMORY_RELAYLOG_LIMIT defaults to 134217728 in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog_spill_threshold = 16777216`
+--let $assert_text= IN_MEMORY_RELAYLOG_SPILL_THRESHOLD defaults to 16777216 in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--echo # PFS view of the IMR defaults:
+SELECT IN_MEMORY_RELAYLOG_ENABLED, IN_MEMORY_RELAYLOG_LIMIT, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+  FROM performance_schema.replication_applier_configuration;
+
+--echo
+--echo # 2. IMR options are rejected on a non-CSA (MTA) channel (R1).
+--echo
+
+--error ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+--error ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 67108864;
+
+--error ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 12582912;
+
+--echo # Disabling IMR on a non-CSA channel is allowed (only enabling is gated).
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+
+--echo
+--echo # 3. Switch the channel to CSA, then reject invalid ranges / ordering (R2).
+--echo
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+
+--echo # LIMIT below the 32 MiB floor.
+--error ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554431;
+
+--echo # LIMIT above the 4 GiB ceiling.
+--error ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 4294967297;
+
+--echo # SPILL_THRESHOLD below the 8 MiB floor.
+--error ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388607;
+
+--echo # SPILL_THRESHOLD alone >= persisted LIMIT (default 134217728).
+--error ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 134217728;
+
+--echo # Both together, valid individual ranges but SPILL_THRESHOLD == LIMIT.
+--error ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554432, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+
+--echo # Both together, SPILL_THRESHOLD > LIMIT.
+--error ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554432, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 67108864;
+
+--echo
+--echo # 4. Apply a valid IMR configuration and assert it is persisted (R5).
+--echo
+
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_LIMIT = 268435456,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog = 1`
+--let $assert_text= IN_MEMORY_RELAYLOG is ON in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog_limit = 268435456`
+--let $assert_text= IN_MEMORY_RELAYLOG_LIMIT is 268435456 in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog_spill_threshold = 33554432`
+--let $assert_text= IN_MEMORY_RELAYLOG_SPILL_THRESHOLD is 33554432 in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--echo # PFS view of the applied IMR configuration:
+SELECT IN_MEMORY_RELAYLOG_ENABLED, IN_MEMORY_RELAYLOG_LIMIT, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+  FROM performance_schema.replication_applier_configuration;
+
+--echo
+--echo # 5. IMR options cannot be changed while replication is running (R4).
+--echo
+
+--source include/rpl/start_replica.inc
+
+--error ER_REPLICA_CHANNEL_MUST_STOP
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 134217728;
+
+--error ER_REPLICA_CHANNEL_MUST_STOP
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo # 6. The valid configuration survives a server restart (R5).
+--echo
+
+--let $rpl_server_number= 2
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog = 1 AND In_memory_relaylog_limit = 268435456 AND In_memory_relaylog_spill_threshold = 33554432`
+--let $assert_text= IN_MEMORY_RELAYLOG survived restart in mysql.slave_relay_log_info
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $count= `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE IN_MEMORY_RELAYLOG_ENABLED = 'YES' AND IN_MEMORY_RELAYLOG_LIMIT = 268435456 AND IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432`
+--let $assert_text= IN_MEMORY_RELAYLOG survived restart in replication_applier_configuration
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--echo
+--echo # 7. RESET REPLICA keeps the configuration; RESET REPLICA ALL clears it (R5).
+--echo
+
+RESET REPLICA;
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE In_memory_relaylog = 1 AND In_memory_relaylog_limit = 268435456 AND In_memory_relaylog_spill_threshold = 33554432`
+--let $assert_text= RESET REPLICA keeps the IN_MEMORY_RELAYLOG configuration
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+RESET REPLICA ALL;
+
+--let $count= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`
+--let $assert_text= RESET REPLICA ALL clears the channel row from mysql.slave_relay_log_info
+--let $assert_cond= $count = 0
+--source include/assert.inc
+
+# Cleanup.
+--disable_warnings
+--disable_query_log
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--enable_query_log
+--enable_warnings
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

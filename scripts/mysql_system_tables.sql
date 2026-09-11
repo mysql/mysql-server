@@ -384,6 +384,9 @@ SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Applier_version INTEGER UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Version of the applier used (either 1 or 2)',
   Applier_worker_count INTEGER UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of worker threads utilized by the applier',
   Applier_event_memory_limit INTEGER UNSIGNED NOT NULL DEFAULT 1073741824 COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
+  In_memory_relaylog BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Indicates whether the channel uses the in-memory relay log instead of writing relay log files to disk.',
+  In_memory_relaylog_limit BIGINT UNSIGNED NOT NULL DEFAULT 134217728 COMMENT 'The hard memory bound (in bytes) of the in-memory relay-log queue for the channel.',
+  In_memory_relaylog_spill_threshold BIGINT UNSIGNED NOT NULL DEFAULT 16777216 COMMENT 'The transaction size (in bytes) above which the in-memory relay log spills the transaction instead of keeping it in memory.',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));

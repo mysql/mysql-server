@@ -1,0 +1,41 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Plugin semisync reported.*Source server does not support semi-sync.*");
+
+# 1. Install and enable the replica-side semisync plugin (threads stopped).
+
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'semisync_replica.so';
+SET GLOBAL rpl_semi_sync_replica_enabled = 1;
+
+# 2. Enable IMR on the CSA channel.
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+# 3. START REPLICA IO_THREAD is rejected (R1).
+
+START REPLICA IO_THREAD;
+ERROR HY000: The in-memory relay log is incompatible with semi-synchronous replication and cannot be used while it is active.
+
+# 4. START REPLICA (both threads) is rejected for the same reason (R2).
+
+START REPLICA;
+ERROR HY000: The in-memory relay log is incompatible with semi-synchronous replication and cannot be used while it is active.
+
+# 5. Disabling IMR clears the incompatibility: the channel starts even
+#    with the semisync replica plugin still enabled (R3).
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+
+# 6. Cleanup.
+
+SET GLOBAL rpl_semi_sync_replica_enabled = 0;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+include/rpl/deinit.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
