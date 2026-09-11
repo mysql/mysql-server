@@ -401,3 +401,34 @@ UPDATE t1 SET col1 = 50;
 DELETE FROM t1;
 DROP TABLE t1;
 SET @@sql_mode=@org_mode;
+#
+# BUG#39593341: InnoDB crashes with assertion failure when UPDATE touches
+#               a table with many secondary indexes
+#
+CREATE TABLE t1 (
+c0 INT,
+v1 BIGINT GENERATED ALWAYS AS (c0 + 1) VIRTUAL,
+v2 BIGINT GENERATED ALWAYS AS (c0 + 2) VIRTUAL,
+v3 BIGINT GENERATED ALWAYS AS (c0 + 3) VIRTUAL,
+v4 BIGINT GENERATED ALWAYS AS (c0 + 4) VIRTUAL,
+v5 BIGINT GENERATED ALWAYS AS (c0 + 5) VIRTUAL,
+v6 BIGINT GENERATED ALWAYS AS (c0 + 6) VIRTUAL,
+v7 BIGINT GENERATED ALWAYS AS (c0 + 7) VIRTUAL,
+v8 BIGINT GENERATED ALWAYS AS (c0 + 8) VIRTUAL,
+KEY k1 (v1),
+KEY k2 (v2),
+KEY k3 (v3),
+KEY k4 (v4),
+KEY k5 (v5),
+KEY k6 (v6),
+KEY k7 (v7),
+KEY k8 (v8)
+) ENGINE=InnoDB;
+INSERT INTO t1 (c0) VALUES (2758);
+UPDATE t1 SET c0 = 2096364476 WHERE c0 = 2758;
+SELECT COUNT(*) AS updated_row_count_using_k8
+FROM t1 FORCE INDEX(k8)
+WHERE v8 = 2096364484;
+updated_row_count_using_k8
+1
+DROP TABLE t1;
