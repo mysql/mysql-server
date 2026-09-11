@@ -789,6 +789,18 @@ ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=copy;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#121124 - An unrelated CHECK constraint on DATETIME should not
+--echo # prevent an online ENUM extension.
+--echo #
+CREATE TABLE t1 (e ENUM('a','b') NOT NULL, d DATETIME(6),
+                 CONSTRAINT ck CHECK (d IS NULL));
+ALTER TABLE t1 MODIFY e ENUM('a','b','c') NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 MODIFY e ENUM('a','b','c','d') NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 MODIFY d DATETIME(6) DEFAULT NULL, ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+
 --echo #-----------------------------------------------------------------------
 --echo # Test case to verify check constraint with CHANGE COLUMN syntax.
 --echo #-----------------------------------------------------------------------

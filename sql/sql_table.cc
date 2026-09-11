@@ -20916,9 +20916,10 @@ static bool is_any_check_constraints_evaluation_required(
             continue;
 
           // Check if data type is changed.
-          if (!my_strcasecmp(system_charset_info, itm_fld->field_name,
+          if (fld.change &&
+              !my_strcasecmp(system_charset_info, itm_fld->field_name,
                              fld.field_name) &&
-              (itm_fld->data_type() != fld.sql_type))
+              (itm_fld->data_type() != real_type_to_type(fld.sql_type)))
             return true;
         }
 
