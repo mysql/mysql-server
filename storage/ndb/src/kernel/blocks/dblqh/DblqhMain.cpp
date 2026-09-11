@@ -22275,7 +22275,10 @@ void Dblqh::execFSREADCONF(Signal *signal) {
   LogPageRecordPtr logPagePtr;
   LogFileRecordPtr logFilePtr;
   LogPartRecordPtr logPartPtr;
-  initFsrwconf(signal, false, lfoPtr, logPagePtr, logFilePtr, logPartPtr);
+  if (unlikely(!initFsrwconf(signal, false, lfoPtr, logPagePtr, logFilePtr,
+                             logPartPtr))) {
+    ndbabort();
+  }
 
   switch (lfoPtr.p->lfoState) {
     case LogFileOperationRecord::READ_SR_LAST_MBYTE:
@@ -22391,7 +22394,12 @@ void Dblqh::execFSWRITECONF(Signal *signal) {
   LogPageRecordPtr logPagePtr;
   LogFileRecordPtr logFilePtr;
   LogPartRecordPtr logPartPtr;
-  initFsrwconf(signal, true, lfoPtr, logPagePtr, logFilePtr, logPartPtr);
+  if (!unlikely(initFsrwconf(signal, true, lfoPtr, logPagePtr, logFilePtr,
+                             logPartPtr))) {
+    /* Error insertion path */
+    return;
+  }
+
   switch (lfoPtr.p->lfoState) {
     case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
       jam();
@@ -22553,7 +22561,7 @@ void Dblqh::initFsopenconf(Signal *signal, LogFileRecordPtr &logFilePtr,
 /* =======       INITIATE WHEN RECEIVING FSREADCONF AND FSWRITECONF  ======= */
 /*                                                                           */
 /* ========================================================================= */
-void Dblqh::initFsrwconf(Signal *signal, bool write,
+bool Dblqh::initFsrwconf(Signal *signal, bool write,
                          LogFileOperationRecordPtr &lfoPtr,
                          LogPageRecordPtr &logPagePtr,
                          LogFileRecordPtr &logFilePtr,
@@ -22583,6 +22591,20 @@ void Dblqh::initFsrwconf(Signal *signal, bool write,
     lock_log_part(logPartPtr.p);
   }
   ndbrequire(logPartPtr.p->my_block == this);
+  if (ERROR_INSERTED(5113) &&
+      lfoPtr.p->lfoState == LogFileOperationRecord::LAST_WRITE_IN_FILE) {
+    jam();
+    g_eventLogger->info(
+        "LQH %u delaying LAST_WRITE_IN_FILE CONF on part %u file %u",
+        instance(), lfoPtr.p->logPartPtrI, lfoPtr.p->logFileRec);
+    sendSignalWithDelay(cownref, GSN_FSWRITECONF, signal, 10000,
+                        signal->getLength());
+
+    ndbrequire(write);
+    unlock_log_part(logPartPtr.p);
+
+    return false;
+  }
   totPages = lfoPtr.p->noPagesRw;
   logFilePtr.i = lfoPtr.p->logFileRec;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
@@ -22601,7 +22623,7 @@ void Dblqh::initFsrwconf(Signal *signal, bool write,
   for (;;) {
     logP.p->logPageWord[ZPOS_IN_WRITING] = 0;
     logP.p->logPageWord[ZPOS_IN_FREE_LIST] = 0;
-    if (noPages == totPages) return;
+    if (noPages == totPages) return true;
     if (write)
       logP.i = logP.p->logPageWord[ZNEXT_PAGE];
     else
@@ -22610,7 +22632,7 @@ void Dblqh::initFsrwconf(Signal *signal, bool write,
                   logPartPtr.p->logPageRecord);
     noPages++;
   }
-
+  return true;
 }  // Dblqh::initFsrwconf()
 
 /* ######################################################################### */
@@ -23890,7 +23912,9 @@ void Dblqh::writeSinglePage(Signal *signal, Uint32 pageNo, Uint32 wordWritten,
   /*       SET TIMER ON THIS LOG PART TO SIGNIFY THAT A */
   /*       LOG RECORD HAS BEEN SENT AT THIS TIME.       */
   /* -------------------------------------------------- */
-  logPartPtrP->logPartTimer = logPartPtrP->logTimer;
+  /* Do not set logPartTimer for metapage writes */
+  const bool metaPage = (pageNo == 0);
+  if (!metaPage) logPartPtrP->logPartTimer = logPartPtrP->logTimer;
 
   FsReadWriteReq *req = (FsReadWriteReq *)signal->getDataPtrSend();
   req->filePointer = logFilePtr.p->fileRef;
@@ -28430,10 +28454,10 @@ void Dblqh::completedLogPage(Signal *signal, Uint32 clpType, Uint32 place,
     twlpNoPages++;
     ptrCheckGuard(wlpLogPagePtr, logPartPtrP->logPageFileSize,
                   logPartPtrP->logPageRecord);
-
+    const Uint32 pageNo = logFilePtr.p->filePosition + twlpNoPages - 1;
+    ndbrequire(pageNo != 0); /* Not file metapage */
     writeDbgInfoPageHeader(wlpLogPagePtr, logFilePtr.p, logPartPtrP, place,
-                           logFilePtr.p->filePosition + twlpNoPages - 1,
-                           ZPAGE_SIZE);
+                           pageNo, ZPAGE_SIZE);
     // Calculate checksum for page
     wlpLogPagePtr.p->logPageWord[ZPOS_CHECKSUM] =
         calcPageCheckSum(wlpLogPagePtr);
