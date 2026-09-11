@@ -3334,8 +3334,7 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
 
   flag = 0;
   start = str;
-  while (*str++ == ' ')
-    ;
+  while (*str++ == ' ');
   if (*--str == '-' || *str == '+') str++;
   while (my_isdigit(files_charset_info, *str) ||
          (allow_wildcards && (*str == wild_many || *str == wild_one))) {
@@ -3345,8 +3344,7 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
   if (*str == '.') {
     for (str++; my_isdigit(files_charset_info, *str) ||
                 (allow_wildcards && (*str == wild_many || *str == wild_one));
-         str++, flag = 1)
-      ;
+         str++, flag = 1);
   }
   if (*str != 0 || flag == 0) return false;
   if (res) *res = atol(start);
