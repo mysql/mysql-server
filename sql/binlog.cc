@@ -1376,6 +1376,8 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
     log).
   */
   ulonglong immediate_commit_timestamp = my_micro_time();
+  DBUG_EXECUTE_IF("sql_delay_dec_master_clock_10s",
+                  immediate_commit_timestamp -= 10 * 1000000ULL;);
 
   /*
     When the original_commit_timestamp session variable is set to a value
@@ -3332,8 +3334,7 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
 
   flag = 0;
   start = str;
-  while (*str++ == ' ')
-    ;
+  while (*str++ == ' ');
   if (*--str == '-' || *str == '+') str++;
   while (my_isdigit(files_charset_info, *str) ||
          (allow_wildcards && (*str == wild_many || *str == wild_one))) {
@@ -3343,8 +3344,7 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
   if (*str == '.') {
     for (str++; my_isdigit(files_charset_info, *str) ||
                 (allow_wildcards && (*str == wild_many || *str == wild_one));
-         str++, flag = 1)
-      ;
+         str++, flag = 1);
   }
   if (*str != 0 || flag == 0) return false;
   if (res) *res = atol(start);
