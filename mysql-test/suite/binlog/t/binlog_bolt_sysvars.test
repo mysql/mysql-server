@@ -1,0 +1,395 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT threshold and binlog-cache normalization during runtime SETs and
+# server restart.
+#
+# === Requirements ===
+# R1. The optimization threshold is never below binlog_cache_size.
+# R2. BOLT-on normalization is reported to the client and error log.
+# R3. BOLT-off normalization preserves the invariant without BOLT warnings.
+# R4. Both the knob and the threshold are captured at the transaction's first
+#     event, so changing either mid-transaction does not affect it.
+# R5. A rollback that empties the transaction cache discards what it captured,
+#     so the next transaction in the session reads the configuration again.
+#
+# === Implementation ===
+# Cases 1 to 6 exercise the threshold/binlog_cache_size normalization rules,
+# with BOLT on and off, after a runtime SET and after a restart.
+#
+# Cases 7 to 9 commit real transactions and change the configuration from a
+# second session while each one is open, to check when the values are read.
+#
+# Cases 10 and 11 cover the other end of that lifetime. The captured values are
+# cleared only when the cache is reset, and a rollback can truncate the cache
+# back to empty without ending the transaction. Each case empties the cache
+# that way, turns the knob off, and commits a large transaction in the same
+# session: promoting it would mean the stale capture was reused.
+#
+--source include/have_log_bin.inc
+
+# Preserve the caller's configuration and restore it after the assertions.
+--let $save_enabled=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_cache_size=query_get_value(SELECT @@GLOBAL.binlog_cache_size, @@GLOBAL.binlog_cache_size, 1)
+
+# Setup
+# Start all BOLT-on runtime cases from a default server configuration.
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+--disable_query_log
+--disable_warnings
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_cache_size = 10485760;
+--enable_query_log
+--enable_warnings
+
+--echo # Case 1: BOLT is ON; binlog_cache_size > binlog_large_transaction_optimization_threshold.
+# Verify normalization after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 20971520;
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= Increasing binlog_cache_size raises the optimization threshold.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+# Verify normalization during restart recovery.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--source include/assert_error_log.inc
+
+--echo # Case 2: BOLT is ON; binlog_large_transaction_optimization_threshold < binlog_cache_size.
+# Verify normalization after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A lower optimization threshold is raised to match binlog_cache_size.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+--echo # Case 3: BOLT is ON; binlog_large_transaction_optimization_threshold > binlog_cache_size.
+# Verify the valid relationship is unchanged after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 22020096;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A threshold above binlog_cache_size is unchanged.
+--let $assert_cond= $threshold = 22020096
+--source include/assert.inc
+
+# Verify lowering binlog_cache_size does not lower the threshold.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 10485760;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $cache_size=query_get_value(SELECT @@GLOBAL.binlog_cache_size, @@GLOBAL.binlog_cache_size, 1)
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= Lowering binlog_cache_size does not lower the threshold.
+--let $assert_cond= $cache_size = 10485760 AND $threshold = 22020096
+--source include/assert.inc
+
+# Verify the valid configuration restarts without adjustment.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=ON --binlog-cache-size=20M --binlog-large-transaction-optimization-threshold=21M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+
+# Start all BOLT-off runtime cases from a default server configuration.
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+--disable_query_log
+--disable_warnings
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_cache_size = 10485760;
+--enable_query_log
+--enable_warnings
+
+--echo # Case 4: BOLT is OFF; binlog_cache_size > binlog_large_transaction_optimization_threshold.
+# Verify normalization remains silent after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_cache_size = 20971520;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= Increasing binlog_cache_size raises the threshold while BOLT is off.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+# Verify startup normalization remains silent while BOLT is off.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=OFF --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+
+--echo # Case 5: BOLT is OFF; binlog_large_transaction_optimization_threshold < binlog_cache_size.
+# Verify normalization remains silent after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A lower threshold is raised while BOLT is off.
+--let $assert_cond= $threshold = 20971520
+--source include/assert.inc
+
+--echo # Case 6: BOLT is OFF; binlog_large_transaction_optimization_threshold > binlog_cache_size.
+# Verify the valid relationship remains unchanged after a runtime SET.
+--source include/save_error_log_position.inc
+SET GLOBAL binlog_large_transaction_optimization_threshold = 22020096;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+--let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $assert_text= A threshold above binlog_cache_size is unchanged while BOLT is off.
+--let $assert_cond= $threshold = 22020096
+--source include/assert.inc
+
+# Verify the valid configuration restarts silently while BOLT is off.
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=OFF --binlog-cache-size=20M --binlog-large-transaction-optimization-threshold=21M
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
+--let $error_pattern=NONE
+--source include/assert_error_log.inc
+
+############################################################################
+# Cases 7 to 9: when the knob and the threshold are read.
+#
+# Both are captured at the transaction's first event, not at commit. Each case
+# below starts a transaction, changes one value from a second session, and
+# checks the transaction still behaves the way it started.
+#
+# binlog_cache_size is at its minimum so the transactions certainly spill,
+# which promotion requires. binlog_format is set per session rather than by
+# sourcing have_binlog_format_row.inc, so cases 1 to 6 keep running in all
+# three format combinations.
+############################################################################
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+RESET BINARY LOGS AND GTIDS;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+connect (bolt_switch, localhost, root,,);
+connection default;
+
+--echo # Case 7: Turning the knob off mid-transaction does not affect it.
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('f', 4000000));
+--enable_result_log
+--enable_query_log
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+connection default;
+--disable_query_log
+--disable_result_log
+INSERT INTO t1 VALUES (3, REPEAT('g', 4000000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_count_after=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text= A transaction latched with the knob on still promotes after it is turned off.
+--let $assert_cond= $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text= The knob-off promotion commits all rows.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+--echo # Case 8: Turning the knob on mid-transaction does not affect it either.
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+# The knob is still OFF from case 7, so this transaction latches "disabled".
+--let $bolt_count_before=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('i', 4000000));
+--enable_result_log
+--enable_query_log
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+connection default;
+--disable_query_log
+--disable_result_log
+INSERT INTO t1 VALUES (3, REPEAT('j', 4000000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_count_after=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text= A transaction latched with the knob off does not promote after it is turned on.
+--let $assert_cond= $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text= A transaction latched with the knob off is not a missed optimization.
+--let $assert_cond= $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text= The knob-on transaction still commits all rows.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+--echo # Case 9: Raising the threshold mid-transaction does not affect it.
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('l', 4000000));
+--enable_result_log
+--enable_query_log
+# Far above this transaction's size, so a threshold read at commit time would
+# disqualify it.
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 1073741824;
+connection default;
+--disable_query_log
+--disable_result_log
+INSERT INTO t1 VALUES (3, REPEAT('m', 4000000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_count_after=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text= A transaction latched below the threshold still promotes after it is raised.
+--let $assert_cond= $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text= The raised-threshold promotion commits all rows.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+# Case 9 left the threshold above anything the cases below commit. Restore a
+# threshold they can exceed, and the knob on so they capture "enabled".
+--disable_query_log
+--disable_warnings
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+connection default;
+TRUNCATE t1;
+--enable_warnings
+--enable_query_log
+
+--echo # Case 10: a cache emptied by a statement rollback re-reads the knob.
+# The 4 MB row exceeds binlog_row_event_max_size, so the pending rows event is
+# written into the cache, and that write is what captures the configuration.
+# The duplicate key then rolls the statement back, and it is the transaction's
+# first statement, so the cache truncates to empty rather than to a prefix.
+BEGIN;
+--disable_query_log
+--disable_result_log
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000)), (1, REPEAT('b', 4000000));
+--enable_result_log
+--enable_query_log
+COMMIT;
+--let $assert_text= The rolled-back statement left the cache empty.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+connection default;
+--let $bolt_count_before=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('c', 4000000));
+INSERT INTO t1 VALUES (11, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_count_after=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text= A cache emptied by a statement rollback does not promote the next transaction after the knob is turned off.
+--let $assert_cond= $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+
+--disable_query_log
+--disable_warnings
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+connection default;
+TRUNCATE t1;
+--enable_warnings
+--enable_query_log
+
+--echo # Case 11: a cache emptied by a savepoint rollback re-reads the knob.
+# Reaches the empty cache through the savepoint path instead. The savepoint is
+# taken before any event is cached, so rolling back to it empties the cache.
+BEGIN;
+SAVEPOINT s1;
+--disable_query_log
+--disable_result_log
+INSERT INTO t1 VALUES (1, REPEAT('f', 4000000));
+--enable_result_log
+--enable_query_log
+ROLLBACK TO SAVEPOINT s1;
+COMMIT;
+--let $assert_text= The savepoint rollback left the cache empty.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+connection bolt_switch;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+connection default;
+--let $bolt_count_before=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (20, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (21, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (22, REPEAT('i', 4000000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_count_after=query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text= A cache emptied by a savepoint rollback does not promote the next transaction after the knob is turned off.
+--let $assert_cond= $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+
+connection default;
+disconnect bolt_switch;
+connection default;
+DROP TABLE t1;
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+# Restore the caller's variable-dependent configuration without recording
+# environment-specific values in the result file.
+--disable_query_log
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--enable_query_log

@@ -11067,6 +11067,9 @@ ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
 ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
   eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
 
+ER_BINLOG_BOLT_THRESHOLD_ADJUSTED_SQL_WARNING
+  eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes to match binlog_cache_size."
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

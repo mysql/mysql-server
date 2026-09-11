@@ -42,6 +42,7 @@ SET(TARGET_HEADERS
   debug_vars.h
   event_reader_macros.h
   event_reader.h
+  large_transaction_header_event.h
   load_data_events.h
   rows_event.h
   statement_events.h
@@ -65,6 +66,7 @@ SET(TARGET_SRCS
   binlog_event.cpp
   control_events.cpp
   event_reader.cpp
+  large_transaction_header_event.cpp
   load_data_events.cpp
   rows_event.cpp
   statement_events.cpp

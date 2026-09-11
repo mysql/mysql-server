@@ -307,6 +307,7 @@ SET(SERVER_TESTS
   ha_info_iterator
   xid_extract
   log_event_status_size
+  binlog_bolt
 )
 # Hangs forever.
 IF(LINUX_ARM AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")

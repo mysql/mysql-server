@@ -1,0 +1,26 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# An uncompressed cache promotes a binary log.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+include/assert.inc [An uncompressed cache promotes a binary log.]
+include/assert.inc [An uncompressed cache does not increment the missed counter.]
+include/assert.inc [The promoted commit opens its promoted binary log.]
+include/assert.inc [The promoted transaction commits all rows.]
+# A compressed cache uses the standard commit path.
+SET @old_debug = @@SESSION.debug;
+SET SESSION debug = "+d,force_large_trx_compression_fallback";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+SET SESSION debug = @old_debug;
+include/assert.inc [A compressed cache does not promote a binary log.]
+include/assert.inc [A compressed cache increments the missed counter once.]
+include/assert.inc [A compression fallback stays in the active binary log.]
+include/assert.inc [A compression fallback commits all rows.]
+include/assert.inc [A compression fallback preserves the full payload.]
+DROP TABLE t1;

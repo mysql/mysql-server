@@ -47,8 +47,9 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
 #include "sql/binlog/binlog_tc_log_processing.h"
-#include "sql/binlog_index.h"   // Log_info, Binlog_index
-#include "sql/binlog_reader.h"  // Binlog_file_reader
+#include "sql/binlog/large_trx_commit.h"  // Large_trx_fallback_reason
+#include "sql/binlog_index.h"             // Log_info, Binlog_index
+#include "sql/binlog_reader.h"            // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"            // TC_LOG
@@ -67,8 +68,11 @@ class Tsid_map;
 class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
+class binlog_cache_mngr;
 class user_var_entry;
 class Binlog_cache_storage;
+
+binlog_cache_mngr *thd_get_cache_mngr(const THD *thd);
 
 struct Gtid;
 
@@ -111,6 +115,39 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
+
+  /**
+    Which THD performs the mysql.gtid_executed write.
+  */
+  enum class Gtid_persist_thd {
+    /**
+      A dedicated internal THD, created and dropped for the write. Required
+      when the caller is itself part-way through a commit: the write ends in
+      ha_commit_trans() on whichever THD performs it, which on the committing
+      session would commit that session's transaction early.
+    */
+    kDedicated,
+    /**
+      The current THD. Only safe when no transaction is in flight on it, as
+      during an ordinary binary log rotation.
+    */
+    kCurrent
+  };
+
+  /**
+    Whether open() creates a new binary log file or attaches to one that
+    already holds its header events.
+  */
+  enum class Binlog_file_mode {
+    /** Create a fresh, empty file. */
+    kCreateNew,
+    /**
+      The file already exists: open it and position at its end so that
+      subsequent transactions append. Used when a spilled temporary file is
+      promoted into the binary log sequence.
+    */
+    kOpenExisting
+  };
 
   /* LOCK_log is inited by init_pthread_objects() */
   mysql_mutex_t LOCK_log;
@@ -249,8 +286,111 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int new_file_impl(bool need_lock,
                     Format_description_log_event *extra_description_event);
 
+  /**
+    Persist the current binary log's GTIDs before starting a new binary log.
+    The caller must hold LOCK_log and the binlog-index lock.
+
+    @param thd_mode  Which THD performs the mysql.gtid_executed write. A caller
+                     that is itself inside a commit must pass kDedicated.
+
+    @return {error, keep_current_binlog}. error is 0 on success, otherwise the
+            GTID persistence error. keep_current_binlog is meaningful only when
+            error is ER_RPL_GTID_TABLE_CANNOT_OPEN, where it reports that the
+            current binary log may stay in use.
+  */
+  [[nodiscard]] std::pair<int, bool> persist_gtids_on_rotate(
+      Gtid_persist_thd thd_mode);
+
   bool open(PSI_file_key log_file_key, const char *log_name,
-            const char *new_name, uint32 new_index_number);
+            const char *new_name, uint32 new_index_number,
+            Binlog_file_mode mode = Binlog_file_mode::kCreateNew);
+
+  /**
+    Writes the file header of a promoted binary log file into the reserved
+    region at the head of a spilled temporary file: the binlog magic, a
+    Format_description event, a Previous_gtids event, a
+    Large_transaction_header event sized to fill the region exactly, and
+    the transaction's Gtid event, which ends precisely where the
+    transaction's first event was placed at spill time.
+
+    Rotates the dependency tracker (the promoted file starts a new binlog
+    file) and assigns the transaction's GTID and logical timestamps, but
+    only after the reserved region is known to fit the header events.
+    Called with LOCK_log held.
+
+    @param thd         The committing session.
+    @param cache_data  The transaction's (spilled) binlog cache.
+    @param file        Descriptor of the temporary file.
+
+    @return {error, fits}. error is true on serialization or I/O failure; fits
+            is false when the reserved region can no longer hold the header
+            events, which is a clean fallback rather than an error and leaves no
+            side effects. fits is meaningless when error is true.
+  */
+  [[nodiscard]] std::pair<bool, bool> write_promoted_binlog_header(
+      THD *thd, binlog_cache_data *cache_data, File file);
+
+  /**
+    The possible outcome of promote_spilled_file().
+  */
+  enum class Promote_result {
+    kPromoted,  ///< The file is in the binary log sequence and is active.
+    kFallback,  ///< Nothing irreversible happened; use the standard path.
+    kError,     ///< Fail the transaction per binlog_error_action.
+  };
+
+  struct Promote_outcome {
+    Promote_result result;
+    /// Valid only when result == kFallback; kNone otherwise.
+    Large_trx_fallback_reason reason;
+    /// True once the temporary file has been renamed to a binary log name, so
+    /// the cache must not delete it.
+    bool file_renamed;
+  };
+
+  /**
+    Promotes the transaction's spilled temporary file into the binary log
+    sequence as the next binary log file, so the transaction body is never
+    copied.
+
+    In order:
+
+    1. Name the next binary log file.
+    2. Take the binlog-index lock, and hold it for steps 3 to 8 so no rotation
+       or purge can interleave with them.
+    3. Persist the current binary log's GTIDs into mysql.gtid_executed, as an
+       ordinary rotation does.
+    4. Write the promoted file's header events -- Format_description,
+       Previous_gtids, Large_transaction_header and Gtid -- into the region
+       reserved at the front of the spilled file. The transaction body already
+       sits past that region, untouched.
+    5. Record the new name in the purge index. That record owns the file until
+       step 8 puts it in the main index, including across a crash.
+    6. Rename the spilled file to its binary log name and sync it. The cache
+       keeps its open descriptor across the rename.
+    7. Write a Rotate event into the active binary log pointing at the
+       promoted file, sync it, then close the active binary log file.
+    8. Open the promoted file as the active binary log, which adds it to the
+       main index. Ownership of the purge-index cleanup passes to open_binlog()
+       here, on success and on failure.
+    9. Release the index lock, then publish the transaction's position and run
+       the after_flush hook.
+
+    Steps 3 and 4 can decline rather than fail: neither has assigned a GTID or
+    written to the file yet, so the transaction can still commit through the
+    standard path. Step 5 onward is visible outside this session, so a failure
+    there deletes the renamed file and its purge-index entry instead.
+
+    Called with LOCK_log and LOCK_commit held. Both are still held on return;
+    the caller releases them according to the outcome.
+
+    @param thd         The committing session.
+    @param cache_data  The transaction's spilled binlog cache.
+
+    @return the outcome; see Promote_outcome.
+  */
+  [[nodiscard]] Promote_outcome promote_spilled_file(
+      THD *thd, binlog_cache_data *cache_data);
   bool init_and_set_log_file_name(const char *log_name, const char *new_name,
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
@@ -511,19 +651,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool change_stage(THD *thd, Commit_stage_manager::StageID stage, THD *queue,
                     mysql_mutex_t *leave_mutex, mysql_mutex_t *enter_mutex);
 
-  /**
-    Set thread variables used while flushing a transaction.
-
-    @param[in] thd  thread whose variables need to be set
-    @param[in] all   This is @c true if this is a real transaction commit, and
-                 @c false otherwise.
-    @param[in] skip_commit
-                 This is @c true if the call to @c ha_commit_low should
-                 be skipped (it is handled by the caller somehow) and @c
-                 false otherwise (the normal case).
-  */
-  void init_thd_variables(THD *thd, bool all, bool skip_commit);
-
   [[nodiscard]] int flush_cache_to_file(my_off_t *flush_end_pos);
   [[nodiscard]] std::pair<int, my_off_t> flush_thread_caches(THD *thd);
   void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
@@ -716,12 +843,20 @@ class MYSQL_BIN_LOG : public TC_LOG {
     binary log files.
     @param new_index_number The binary log file index number to start from
     after the RESET BINARY LOGS AND GTIDS command is called.
+    @param promoted_log_name When a spilled large transaction commits by
+    promoting its temporary file into the binary log sequence, the name of
+    that file. It is opened at its end instead of a fresh file being created
+    because its header events are already in place. A non-NULL value also
+    means the caller has already renamed the file and registered it in the
+    durable purge index, so the recovery record stays in place until the
+    main-index update completes. This should be NULL otherwise.
   */
   bool open_binlog(const char *log_name, const char *new_name,
                    ulong max_size_arg, bool null_created_arg,
                    bool need_lock_index, bool need_tsid_lock,
                    Format_description_log_event *extra_description_event,
-                   uint32 new_index_number = 0);
+                   uint32 new_index_number = 0,
+                   const char *promoted_log_name = nullptr);
   bool open_index_file(const char *index_file_name_arg, const char *log_name,
                        bool need_lock_index);
   /* Use this to start writing a new log file */
@@ -741,6 +876,32 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool write_transaction(THD *thd, binlog_cache_data *cache_data,
                          Binlog_event_writer *writer,
                          bool parallelization_barrier);
+
+  /**
+    Commit a large transaction by promoting its spilled temporary file into
+    the binary log sequence: the file header events are written into the
+    reserved region at the head of the file, the file is renamed to become
+    the next binary log file, and the transaction is committed in the
+    engines. The commit work is constant regardless of the transaction
+    size: the transaction body, already in final binary log form in the
+    file, is never copied.
+
+    If the reserved region cannot fit the header events, the transaction
+    falls back to ordered_commit().
+
+    @param thd          The committing session.
+    @param all          Is set in case of explicit commit
+                        (COMMIT statement), or implicit commit issued by
+                        a DDL.
+    @param skip_commit  Is set in case of XA PREPARE, in which case the
+                        commit in the engines is skipped.
+    @param cache_data   The transaction's (spilled) binlog cache.
+
+    @retval 0    Success.
+    @retval !=0  Error.
+  */
+  int commit_large_transaction(THD *thd, bool all, bool skip_commit,
+                               binlog_cache_data *cache_data);
 
   /**
      Write a dml into statement cache and then flush it into binlog. It writes
@@ -828,6 +989,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int remove_logs_outside_range_from_index(const std::string &first,
                                            const std::string &last);
   int rotate(bool force_rotate, bool *check_purge);
+
+  /**
+    Acquires LOCK_log and rotates the active binary log if it has grown past
+    max_binlog_size, then purges if the rotation asked for it.
+
+    @return 0 on success, including when no rotation was needed; otherwise the
+            error from rotate().
+  */
+  int rotate_if_needed();
 
   /**
     @brief This function runs automatic purge if the conditions to meet
@@ -1035,6 +1205,16 @@ struct LOAD_FILE_INFO {
 };
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
+
+/**
+  Return the lock-free reservation based on the most recently serialized
+  Previous_gtids event size.
+*/
+my_off_t get_binlog_temp_file_reserved_bytes();
+
+/** Publish a newly serialized Previous_gtids event size for cache opens. */
+void update_binlog_temp_file_previous_gtids_size_estimate(
+    my_off_t previous_gtids_size);
 
 /**
   Check if the the transaction is empty.

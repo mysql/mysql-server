@@ -1,0 +1,493 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT crash recovery follows the binary-log 2PC decision.
+#
+# === Requirements ===
+# R1. A crash before the main-index update rolls the transaction back.
+# R2. A crash after the main-index update recovers the transaction once.
+# R3. A post-main-index XA PREPARE remains prepared until XA COMMIT.
+#
+# === Implementation ===
+# 1. Initialize BOLT and a clean test table.
+# 2. Crash at each durable decision boundary around promotion.
+# 3. Restart and verify rollback or rollforward according to the boundary.
+# 4. Verify the same post-main-index decision for XA PREPARE.
+#
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
+--let $save_sync_binlog = query_get_value(SELECT @@GLOBAL.sync_binlog, @@GLOBAL.sync_binlog, 1)
+
+# Setup
+--let $BOLT_RESTART = restart:
+--let $BOLT_RESTART = $BOLT_RESTART --binlog-large-transaction-optimization-enabled=ON
+--let $BOLT_RESTART = $BOLT_RESTART --binlog-large-transaction-optimization-threshold=10M
+--let $BOLT_RESTART = $BOLT_RESTART --max-binlog-size=1G
+--let $BOLT_RESTART = $BOLT_RESTART --sync-binlog=1
+--let $BOLT_RESTART = $BOLT_RESTART --innodb-flush-log-at-trx-commit=1
+# REPEAT() payloads compress to almost nothing, so a compressed cache would
+# never reach the threshold and the transaction would never be promoted.
+--let $BOLT_RESTART = $BOLT_RESTART --binlog-transaction-compression=OFF
+
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+
+############################################################################
+# Case 1: Crash before TC prepare.
+# Expected behavior: rollback.
+############################################################################
+--echo # Pre-TC-prepare crash rolls back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG="+d,crash_before_tc_prepare";
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A pre-TC-prepare crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 2: Crash after TC prepare before TC commit.
+# Expected behavior: rollback.
+############################################################################
+--echo # Post-TC-prepare crash rolls back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG="+d,crash_after_tc_prepare";
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-TC-prepare crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 3: Crash during binlog commit after durable header in promoted file.
+# Expected behavior: rollback.
+############################################################################
+--echo # Post-header-sync crash rolls back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_header_sync";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-header-sync crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 4: Crash during binlog commit after writing to purge_index_file.
+# Expected behavior: rollback.
+############################################################################
+--echo # Post-purge-index-sync crash rolls back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_purge_index_sync";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-purge-index-sync crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 5: Crash during binlog commit after promoting the file.
+# Expected behavior: rollback.
+############################################################################
+--echo # Post-promote-rename crash rolls back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_promote_rename";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-promote-rename crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 6: Crash after syncing the predecessor's Rotate event, before the
+# main-index update.
+# Expected behavior: rollback.
+#
+# At this instant the promoted file exists under its final name and the
+# predecessor's Rotate event points at it, but only the purge record owns it:
+# the main index does not list it yet. Recovery must delete the file and roll
+# the transaction back.
+#
+# Resets the binary log first so the file count is deterministic. Afterwards
+# there must be just the predecessor and the file opened at startup; a third
+# would mean the orphan was kept.
+############################################################################
+--echo # Post-rotate-event-sync crash rolls back and destroys the orphan.
+--disable_query_log
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_rotate_event_sync";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-rotate-event-sync crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_third_log = query_get_value(SHOW BINARY LOGS, Log_name, 3)
+--let $assert_text = Recovery leaves no third binary log from the deleted orphan.
+--let $assert_cond = "$bolt_third_log" = "No such row"
+--source include/assert.inc
+# The orphan's slot holds a freshly opened log, not the 12 MB promoted file.
+--let $bolt_second_log_size = query_get_value(SHOW BINARY LOGS, File_size, 2)
+--let $assert_text = The orphan's slot holds a freshly opened binary log.
+--let $assert_cond = $bolt_second_log_size < 1000000
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 7: Crash during binlog commit after writing to main index.
+# Expected behavior: rollforward.
+############################################################################
+--echo # Post-main-index-update crash commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_main_index_update";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-main-index-update crash commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A post-main-index-update crash preserves the original rows.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 8: Crash during binlog commit after removing entry from purge_index_file.
+# Expected behavior: rollforward.
+############################################################################
+--echo # Post-purge-index-removal crash commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_purge_index_remove";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-purge-index-removal crash commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A post-purge-index-removal crash preserves the original rows.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 9: Crash after binlog commit before innodb commit.
+# Expected behavior: commit.
+############################################################################
+--echo # Pre-engine-commit crash commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_before_engine_commit";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A pre-engine-commit crash commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A pre-engine-commit crash preserves the original rows.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 10: XA PREPARE crash after main-index update.
+# Expected behavior: remain prepared, then commit.
+############################################################################
+--echo # Post-main-index XA PREPARE crash remains prepared and commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_main_index_update";
+XA START 'bolt_post_index';
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+XA END 'bolt_post_index';
+--error 2013
+XA PREPARE 'bolt_post_index';
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+# Case 10 intentionally leaves one XA transaction prepared for recovery.
+--exec echo "$BOLT_RESTART --log-error-suppression-list=MY-010225" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_query_log
+--disable_result_log
+XA RECOVER;
+XA COMMIT 'bolt_post_index';
+--enable_result_log
+--enable_query_log
+--let $assert_text = A post-main-index XA PREPARE remains prepared until XA COMMIT.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = XA COMMIT commits the recovered promoted rows exactly once.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 11: Crash after the whole BOLT commit returned.
+# Expected behavior: commit.
+#
+# This is past every 2PC boundary: the promoted file is in the index and the
+# engines are committed, so the crash only proves nothing later can undo it.
+# The crash point is gated on used_bolt_promotion, so reaching it is itself
+# evidence the optimized path ran.
+############################################################################
+--echo # Post-binlog-commit crash commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_binlog_commit";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-binlog-commit crash commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A post-binlog-commit crash preserves the original rows.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Cases 11 and 12: crash around the post-promotion max_binlog_size rotation.
+#
+# rotate_if_needed() runs after the transaction is already committed in both
+# the binary log and the engines, so neither crash may lose it. These cases
+# need max_binlog_size below the promoted file's size to reach the rotation at
+# all, so they restart with a small limit; everything above uses 1G precisely
+# so that no rotation interferes.
+############################################################################
+--let $BOLT_RESTART_SMALL_MAX = restart:
+--let $BOLT_RESTART_SMALL_MAX = $BOLT_RESTART_SMALL_MAX --binlog-large-transaction-optimization-enabled=ON
+--let $BOLT_RESTART_SMALL_MAX = $BOLT_RESTART_SMALL_MAX --binlog-large-transaction-optimization-threshold=10M
+--let $BOLT_RESTART_SMALL_MAX = $BOLT_RESTART_SMALL_MAX --max-binlog-size=4096
+--let $BOLT_RESTART_SMALL_MAX = $BOLT_RESTART_SMALL_MAX --sync-binlog=1
+--let $BOLT_RESTART_SMALL_MAX = $BOLT_RESTART_SMALL_MAX --innodb-flush-log-at-trx-commit=1
+
+--let $restart_parameters = $BOLT_RESTART_SMALL_MAX
+--source include/restart_mysqld_no_echo.inc
+
+############################################################################
+# Case 12: Crash before the post-promotion rotation.
+# Expected behavior: commit; the rotation simply never happened.
+############################################################################
+--echo # Pre-rotation crash commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_before_max_size_rotate";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART_SMALL_MAX" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A pre-rotation crash commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A pre-rotation crash preserves the original rows.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 13: Crash after the post-promotion rotation.
+# Expected behavior: commit; the rotation completed before the crash.
+############################################################################
+--echo # Post-rotation crash commits exactly once.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_max_size_rotate";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART_SMALL_MAX" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = A post-rotation crash commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A post-rotation crash preserves the original rows.
+--let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+DROP TABLE t1;
+--disable_query_log
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL max_binlog_size = $save_max_binlog_size
+--eval SET GLOBAL sync_binlog = $save_sync_binlog
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--enable_query_log

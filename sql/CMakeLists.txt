@@ -1142,8 +1142,11 @@ SET(BINLOG_SOURCE
   basic_ostream.cc
   binlog/binlog_ofile.cc
   binlog/binlog_tc_log.cc
+  binlog/cache_data.cc
   binlog/thd_backup_and_restore.cc
   binlog/global.cc
+  binlog/large_trx_commit.cc
+  binlog/transaction_commit_helper.cc
   binlog/log_sanitizer.cc
   binlog/recovery.cc
   binlog/group_commit/bgc_ticket_manager.cc

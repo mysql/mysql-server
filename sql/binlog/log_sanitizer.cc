@@ -22,6 +22,8 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 #include "sql/binlog/log_sanitizer.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysqld_error.h"
 #include "sql/binlog.h"
 #include "sql/binlog/decompressing_event_object_istream.h"  // Decompressing_event_object_istream
 #include "sql/psi_memory_key.h"
@@ -60,6 +62,78 @@ std::string const &Log_sanitizer::get_failure_message() const {
 
 bool Log_sanitizer::is_log_truncation_needed() const {
   return m_is_log_truncation_needed;
+}
+
+void Log_sanitizer::process_large_trx_header_event(
+    Large_transaction_header_log_event const &ev,
+    IBasic_binlog_file_reader &reader) {
+  const my_off_t xid_offset =
+      static_cast<my_off_t>(ev.get_terminating_event_offset());
+  const uint8_t xid_type = ev.get_terminating_event_type();
+
+  const bool valid_xid_type =
+      xid_type == mysql::binlog::event::QUERY_EVENT ||
+      xid_type == mysql::binlog::event::XID_EVENT ||
+      xid_type == mysql::binlog::event::XA_PREPARE_LOG_EVENT;
+
+  const bool valid_xid_offset =
+      xid_offset != 0 && xid_offset >= BIN_LOG_HEADER_SIZE &&
+      xid_offset <= m_last_file_size && xid_offset > reader.position() &&
+      m_last_file_size - xid_offset >= LOG_EVENT_HEADER_LEN;
+
+  if (!valid_xid_offset || !valid_xid_type) {
+    m_is_malformed = true;
+    m_failure_message.assign(
+        "Large_transaction_header_log_event holds an invalid terminal event");
+    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER,
+           m_valid_file.c_str());
+    return;
+  }
+
+  if (reader.is_checksum_verification_enabled()) {
+    // The binlog large transaction optimization's recovery shortcut, which
+    // skips the transaction body, is not applicable when source checksum
+    // verification is enabled.
+    LogErr(WARNING_LEVEL,
+           ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION);
+    return;
+  }
+
+  m_large_trx_xid_offset = xid_offset;
+  m_large_trx_xid_type = xid_type;
+  if (reader.seek(xid_offset)) {
+    m_is_malformed = true;
+    m_failure_message.assign(
+        "Large_transaction_header_log_event holds an invalid terminal event");
+    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER,
+           m_valid_file.c_str());
+    return;
+  }
+
+  LogErr(INFORMATION_LEVEL, ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP,
+         static_cast<ulonglong>(xid_offset), m_valid_file.c_str());
+  m_in_transaction = true;
+}
+
+bool Log_sanitizer::validate_large_trx_terminal_event(Log_event const &ev) {
+  const my_off_t event_start_pos = static_cast<my_off_t>(
+      ev.common_header->log_pos - ev.common_header->data_written);
+  if (event_start_pos != m_large_trx_xid_offset) return true;
+
+  if (static_cast<uint8_t>(ev.get_type_code()) == m_large_trx_xid_type) {
+    // Terminal event validated. Clear the recorded metadata so a later event
+    // can never be re-matched against this (already-consumed) transaction.
+    m_large_trx_xid_offset = 0;
+    m_large_trx_xid_type = 0;
+    return true;
+  }
+
+  m_is_malformed = true;
+  m_failure_message.assign(
+      "Large_transaction_header_log_event holds an invalid terminal event");
+  LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER,
+         m_valid_file.c_str());
+  return false;
 }
 
 void Log_sanitizer::process_query_event(Query_log_event const &ev) {

@@ -9,7 +9,19 @@ CALL mtr.add_suppression('Unsafe statement written to the binary log using state
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT, pos INT);
 # Inserting 100 random transaction
 # Asserting we can show binlog events from each transaction
-DROP TABLE t1;
+# Binlog encryption forces a qualifying row transaction to use the standard path.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+CREATE TABLE t_large (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t_large VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t_large VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t_large VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+include/assert.inc [An encrypted binary log uses the standard path.]
+include/assert.inc [An encrypted binary log increments the missed counter once.]
+include/assert.inc [The encrypted fallback transaction commits all rows.]
+DROP TABLE t_large, t1;
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

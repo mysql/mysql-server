@@ -1,0 +1,197 @@
+# === Purpose ===
+# Verify that a replica applier committing through the BOLT path still honours
+# replica_preserve_commit_order, so the replica's own binary log lists
+# transactions in the source's order.
+#
+# The optimized commit path bypasses the group-commit stages, and with them the
+# two calls that enforce commit order: Commit_order_manager::wait() before the
+# flush stage, and Commit_order_manager::finish_one() once the session is
+# enqueued. Nothing downstream compensates -- finish_commit() has no
+# commit-order handling, and ha_commit_low()'s hook is gated by
+# is_ha_commit_low_invoking_commit_order(), which is never true for a
+# transaction that logged something. So without those calls a worker applying a
+# large transaction can write its local binary log out of turn.
+#
+# === Requirements ===
+# R1. With replica_preserve_commit_order=ON, log_replica_updates=ON and several
+#     applier workers, the replica's binary log records transactions in source
+#     order even when the larger ones commit through the BOLT path.
+# R2. At least one transaction really did take the BOLT path on the replica, so
+#     that R1 is not vacuously satisfied.
+# R3. The promoted transactions keep their full contents.
+#
+# === Implementation ===
+# GTID mode is ON, so every transaction the replica applies keeps the GTID it
+# was assigned on the source. The source is the only thing generating GTIDs
+# here, so its sequence numbers are exactly the source's commit order. Reading
+# the replica's binary logs front to back and collecting those sequence numbers
+# therefore yields the order in which the replica logged them, and the order
+# check is simply that the numbers ascend.
+#
+# All of the replica's binary logs are read, not just the current one: promotion
+# *is* a rotation, since the spilled file becomes the next binary log file, so a
+# run with promotions spreads the transactions over several files and the newest
+# file holds only the last promoted transaction.
+#
+# The source keeps BOLT disabled, so its transactions are ordinary and are not
+# marked as parallelization barriers -- a promoted transaction sets that flag,
+# which would serialize the appliers and hide the very interleaving this test
+# needs. The replica enables BOLT with a low threshold, so the large
+# transactions are promoted locally, on the applier, which is the path under
+# test.
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_replica_preserve_commit_order.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--source include/rpl/init_source_replica.inc
+
+# A LONGBLOB payload sized so the replica's applier crosses the threshold,
+# while the source, with BOLT disabled, logs the transaction the ordinary way.
+# The threshold's minimum is 10 MiB (VALID_RANGE in sys_vars.cc), so the payload
+# has to exceed that rather than the 1 MiB binlog_cache_size.
+--let $bolt_payload_bytes = 12000000
+
+--source include/rpl/connection_source.inc
+--let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $source_uuid = query_get_value(SELECT @@GLOBAL.server_uuid AS uuid, uuid, 1)
+
+# The source must NOT promote: a promoted transaction is written as a
+# parallelization barrier, which would stop the replica applying neighbouring
+# transactions concurrently.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+CREATE TABLE t1 (a INT, payload LONGBLOB) ENGINE = InnoDB;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $replica_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $replica_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# 10 MiB is the lowest value the server accepts, so the payload above has to be
+# larger than that to be promoted on the applier.
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--let $replica_bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+
+--echo #
+--echo # Verify the replica logs promoted transactions in source order
+--echo #
+--source include/rpl/connection_source.inc
+# Give the following transactions the same commit parent so the replica may
+# apply them in parallel.
+SET @save_debug = @@GLOBAL.debug;
+SET GLOBAL debug = "+d,set_commit_parent_100";
+
+# Six transactions, alternating small and large. The large ones exceed the
+# replica's threshold and take the BOLT path there.
+# Block the appliers so that all six transactions are queued, and therefore all
+# registered with the commit-order manager, before any of them commits.
+--source include/rpl/connection_replica.inc
+LOCK TABLE t1 WRITE;
+--source include/rpl/connection_source.inc
+
+--let $value = 1
+while ($value <= 6)
+{
+  if (`SELECT $value % 2 = 0`)
+  {
+    --disable_query_log
+    --eval INSERT INTO t1(a, payload) VALUES ($value, REPEAT('x', $bolt_payload_bytes))
+    --enable_query_log
+  }
+  if (`SELECT $value % 2 = 1`)
+  {
+    --disable_query_log
+    --eval INSERT INTO t1(a, payload) VALUES ($value, NULL)
+    --enable_query_log
+  }
+  --inc $value
+}
+--source include/rpl/save_server_position.inc
+
+--source include/rpl/connection_replica.inc
+# Wait until every applier is blocked on the metadata lock, which means all six
+# transactions are registered in the commit-order queue.
+let $wait_condition = SELECT count(*) = 6 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+UNLOCK TABLES;
+--source include/rpl/sync_with_saved.inc
+
+--let $replica_bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R2: the replica applier promoted at least one transaction, so the order check is meaningful.
+--let $assert_cond = $replica_bolt_after > $replica_bolt_before
+--source include/assert.inc
+
+--let $assert_text = R3: every row arrived on the replica.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
+--source include/assert.inc
+--let $assert_text = R3: the promoted transactions kept their full payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(payload)) AS total FROM t1, total, 1] = 36000000
+--source include/assert.inc
+
+#
+# R1. Decode every one of the replica's binary logs, in order, and check that
+# the source's GTID sequence numbers ascend. The shell glob supplies the files
+# in name order, which is also their creation order because the numeric suffix
+# is zero padded, and mysqlbinlog concatenates them in the order given.
+#
+# The awk program avoids `$` field syntax because mysqltest expands it, and
+# reads with getline for the same reason.
+#
+--let $SLAVE_MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_order_dump = $MYSQL_TMP_DIR/bolt_replica_commit_order_dump.txt
+--let $bolt_order_script = $MYSQL_TMP_DIR/bolt_replica_commit_order.awk
+--exec $MYSQL_BINLOG --force-if-open $SLAVE_MYSQLD_DATADIR/slave-bin.0* > $bolt_order_dump
+
+--write_file $bolt_order_script END_OF_SCRIPT
+# Collect the sequence numbers of the source's GTIDs in the order the replica
+# logged them, and fail if any of them is not larger than the one before it.
+BEGIN {
+  previous = 0
+  count = 0
+  observed = ""
+  while ((getline line) > 0) {
+    if (line !~ /SET @@SESSION.GTID_NEXT= /) continue
+    value = line
+    sub(/^.*GTID_NEXT= '/, "", value)
+    sub(/'.*/, "", value)
+    split(value, parts, ":")
+    if (parts[1] != uuid) continue
+    sequence = parts[2] + 0
+    count = count + 1
+    if (sequence <= previous) {
+      printf "GTID %d logged after %d: the replica logged out of source order\n", sequence, previous
+      exit 1
+    }
+    previous = sequence
+    observed = observed " " sequence
+  }
+  # The six test transactions plus the CREATE TABLE must all be present. A
+  # smaller count means the files were not all read, which would make the
+  # ascending check vacuous.
+  if (count < 7) {
+    printf "only %d GTIDs found, expected at least 7\n", count
+    exit 1
+  }
+  printf "GTID sequence numbers in replica binlog order:%s\n", observed
+}
+END_OF_SCRIPT
+--exec awk -v uuid=$source_uuid -f $bolt_order_script $bolt_order_dump
+--remove_file $bolt_order_dump
+--remove_file $bolt_order_script
+
+# Cleanup
+--source include/rpl/connection_source.inc
+SET GLOBAL debug = @save_debug;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $source_save_enabled
+--enable_query_log
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $replica_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $replica_save_threshold
+--enable_query_log
+--source include/rpl/deinit.inc

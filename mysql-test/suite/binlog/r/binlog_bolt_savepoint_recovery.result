@@ -1,0 +1,10 @@
+Warnings:
+Note	1051	Unknown table 'test.t1'
+# Post-main-index-update crash after a savepoint rollback rolls forward.
+include/assert.inc [A post-main-index-update crash commits the kept rows.]
+include/assert.inc [The rolled-back row is not recovered.]
+include/assert.inc [The last kept row survived the chsize trim intact.]
+# Post-promote-rename crash after a savepoint rollback rolls back.
+include/assert.inc [A post-promote-rename crash rolls back all rows.]
+include/assert.inc [Recovery left no third, orphaned binary log.]
+DROP TABLE t1;
