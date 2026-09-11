@@ -100,6 +100,7 @@ THD *Binlog_tc_log::fetch_and_process_flush_stage_queue(
       flushing them to binary log.
     */
     ha_flush_logs(true);
+    DEBUG_SYNC(first_seen, "after_flush_engine_log");
   }
 
   /*
