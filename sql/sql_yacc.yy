@@ -1366,7 +1366,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM 996 /* MYSQL */
 %token<lexer.keyword> STREAM_SYM 997                    /* MYSQL */
 %token<lexer.keyword> OFF_SYM 998                       /* SQL-1999-R */
-%token<lexer.keyword> RETURNING_SYM 999                 /* SQL-2016-N */
+%token  RETURNING_SYM 999                               /* SQL-2016-N */
 /*
   Here is an intentional gap in token numbers.
 
@@ -1722,6 +1722,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         fields_or_vars
         opt_field_or_var_spec
         row_value_explicit
+        opt_delete_returning
 
 %type <var_type>
         option_type opt_var_type opt_rvalue_system_variable_type
@@ -14087,8 +14088,9 @@ delete_stmt:
           opt_where_clause
           opt_order_clause
           opt_simple_limit
+          opt_delete_returning
           {
-            $$= NEW_PTN PT_delete(@$, $1, $2, $3, $5, $6, $7, $8, $9, $10);
+            $$= NEW_PTN PT_delete(@$, $1, $2, $3, $5, $6, $7, $8, $9, $10, $11);
           }
         | opt_with_clause
           DELETE_SYM
@@ -14110,6 +14112,14 @@ delete_stmt:
           opt_where_clause
           {
             $$= NEW_PTN PT_delete(@$, $1, $2, $3, $5, $7, $8);
+          }
+        ;
+
+opt_delete_returning:
+          %empty { $$ = nullptr; }
+        | RETURNING_SYM select_item_list
+          {
+            $$ = $2;
           }
         ;
 
@@ -16412,7 +16422,6 @@ ident_keywords_unambiguous:
         | RESUME_SYM
         | RETAIN_SYM
         | RETURNED_SQLSTATE_SYM
-        | RETURNING_SYM
         | RETURNS_SYM
         | REUSE_SYM
         | REVERSE_SYM

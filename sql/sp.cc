@@ -82,6 +82,7 @@
 #include "sql/sp_head.h"      // Stored_program_creation_ctx
 #include "sql/sp_pcontext.h"  // sp_pcontext
 #include "sql/sql_class.h"
+#include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
 #include "sql/sql_const.h"
 #include "sql/sql_db.h"  // get_default_db_collation
 #include "sql/sql_digest_stream.h"
@@ -2841,6 +2842,13 @@ uint sp_get_flags_for_command(LEX *lex) {
       break;
     default:
       flags = lex->is_explain() ? sp_head::MULTI_RESULTS : 0;
+      // A DML statement with a RETURNING clause produces a result set.
+      // This branch also covers commands with no Sql_cmd object at all,
+      // hence the null check.
+      if (lex->m_sql_cmd != nullptr &&
+          lex->m_sql_cmd->sql_cmd_type() == SQL_CMD_DML &&
+          down_cast<Sql_cmd_dml *>(lex->m_sql_cmd)->has_returning())
+        flags |= sp_head::MULTI_RESULTS;
       break;
   }
   return flags;
