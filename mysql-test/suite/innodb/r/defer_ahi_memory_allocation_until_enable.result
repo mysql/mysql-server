@@ -1,0 +1,104 @@
+#
+# AHI starts disabled with minimal hash tables.
+#
+include/assert.inc [AHI hash tables are minimal at startup when AHI is disabled]
+#
+# Prepare a multi-page table while AHI remains disabled.
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY
+);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+CREATE TABLE t2 (
+id INT PRIMARY KEY,
+c1 CHAR(250) NOT NULL DEFAULT 'a',
+c2 CHAR(250) NOT NULL DEFAULT 'a',
+c3 CHAR(250) NOT NULL DEFAULT 'a',
+c4 CHAR(250) NOT NULL DEFAULT 'a',
+c5 CHAR(250) NOT NULL DEFAULT 'a',
+c6 CHAR(250) NOT NULL DEFAULT 'a',
+c7 CHAR(250) NOT NULL DEFAULT 'a',
+c8 CHAR(250) NOT NULL DEFAULT 'a',
+c9 CHAR(250) NOT NULL DEFAULT 'a'
+);
+INSERT INTO t2 (id) SELECT id FROM t1;
+#
+# Enabling AHI allocates full-sized hash tables.
+#
+SET GLOBAL innodb_adaptive_hash_index = ON;
+include/assert.inc [AHI hash tables expand when AHI is enabled]
+#
+# Enabling AHI again leaves the full-sized hash tables unchanged.
+#
+SET GLOBAL innodb_adaptive_hash_index = ON;
+include/assert.inc [AHI hash tables remain full-sized after repeated enable]
+#
+# Restored hash tables accept entries and serve point lookups.
+#
+SELECT id FROM t2 WHERE id = 8;
+id
+8
+include/assert.inc [Restored AHI hash tables contain hash entries]
+#
+# Disabling a populated AHI releases its node heaps and hash buckets.
+#
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+include/assert.inc [Disabling the populated AHI releases all hash node heaps]
+include/assert.inc [Disabling the populated AHI minimizes its hash tables]
+#
+# Re-enabling AHI after the functional cycle restores its hash tables.
+#
+SET GLOBAL innodb_adaptive_hash_index = ON;
+include/assert.inc [AHI hash tables expand after the functional test cycle]
+#
+# Resizing the buffer pool while AHI is enabled resizes the hash tables.
+#
+SET GLOBAL innodb_buffer_pool_size =
+@@innodb_buffer_pool_size * 2 + @@innodb_buffer_pool_chunk_size;
+include/assert.inc [AHI hash tables resize with the buffer pool when AHI is enabled]
+#
+# Disabling AHI releases the hash table buckets.
+#
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+include/assert.inc [AHI hash tables shrink when AHI is disabled]
+#
+# Disabling AHI again leaves the minimal hash tables unchanged.
+#
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+include/assert.inc [AHI hash tables remain minimal after repeated disable]
+#
+# Repeated AHI state assignments do not report resize failures.
+#
+include/assert_grep.inc [Repeated AHI state assignments do not report resize failures]
+#
+# Resizing the buffer pool while AHI is disabled keeps minimal tables.
+#
+SET GLOBAL innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+include/assert.inc [AHI hash tables remain minimal after buffer pool resize]
+#
+# Enabling AHI during buffer pool resize restores the hash tables after resize.
+#
+SET GLOBAL debug = '+d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_buffer_pool_size =
+@@innodb_buffer_pool_size * 2 + @@innodb_buffer_pool_chunk_size;
+SET GLOBAL innodb_adaptive_hash_index = ON;
+include/assert.inc [AHI is requested to be enabled during buffer pool resize]
+include/assert.inc [AHI hash tables remain minimal while buffer pool resize is in progress]
+SET GLOBAL debug = '-d,ib_buf_pool_resize_after_disable_ahi';
+include/assert.inc [AHI hash tables are restored after buffer pool resize completes]
+#
+# Disabling AHI during buffer pool resize minimizes the hash tables after resize.
+#
+SET GLOBAL debug = '+d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+include/assert.inc [AHI is requested to be disabled during buffer pool resize]
+include/assert.inc [AHI hash tables remain full-sized while buffer pool resize is in progress]
+SET GLOBAL debug = '-d,ib_buf_pool_resize_after_disable_ahi';
+include/assert.inc [AHI hash tables are minimized after buffer pool resize completes]
+DROP TABLE t1;
+DROP TABLE t2;
