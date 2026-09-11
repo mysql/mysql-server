@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+# Avoid exhaustion
+LongMessageBuffer=20M
+# Make it interesting
+NoOfFragmentLogParts=12
