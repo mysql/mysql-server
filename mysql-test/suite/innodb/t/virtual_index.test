@@ -326,3 +326,53 @@ DELETE FROM t1;
 DROP TABLE t1;
 
 SET @@sql_mode=@org_mode;
+
+--echo #
+--echo # BUG#39593341: InnoDB crashes with assertion failure when UPDATE touches
+--echo #               a table with many secondary indexes
+--echo #
+
+# Eight separately indexed BIGINT virtual columns are required to exceed the
+# old update-buffer capacity. TABLE_SHARE::reclength accounts for one packed
+# copy of every SQL column value, including virtual columns. For this schema it
+# is 62 bytes with seven virtual columns and 70 bytes with eight virtual columns
+# (4 bytes for c0, 8 bytes for each BIGINT virtual column, and 2 bytes for the
+# null bitmap/preamble).
+#
+# The old update buffer was reclength + max_key_length + MAX_REF_PARTS * 3.
+# max_key_length is 9 bytes for one nullable BIGINT index and does not grow with
+# the number of secondary indexes, so the old buffer was 119 bytes for seven
+# virtual indexes and 127 bytes for eight. Updating c0 changes every indexed
+# virtual column, and calc_row_difference() keeps both new and old packed BIGINT
+# values for each one: 4 + (N * 2 * 8) bytes. Seven virtual indexes need 116
+# bytes and still leave 3 bytes free, while eight need 132 bytes and overflow
+# the old allocation by 5 bytes.
+CREATE TABLE t1 (
+  c0 INT,
+  v1 BIGINT GENERATED ALWAYS AS (c0 + 1) VIRTUAL,
+  v2 BIGINT GENERATED ALWAYS AS (c0 + 2) VIRTUAL,
+  v3 BIGINT GENERATED ALWAYS AS (c0 + 3) VIRTUAL,
+  v4 BIGINT GENERATED ALWAYS AS (c0 + 4) VIRTUAL,
+  v5 BIGINT GENERATED ALWAYS AS (c0 + 5) VIRTUAL,
+  v6 BIGINT GENERATED ALWAYS AS (c0 + 6) VIRTUAL,
+  v7 BIGINT GENERATED ALWAYS AS (c0 + 7) VIRTUAL,
+  v8 BIGINT GENERATED ALWAYS AS (c0 + 8) VIRTUAL,
+  KEY k1 (v1),
+  KEY k2 (v2),
+  KEY k3 (v3),
+  KEY k4 (v4),
+  KEY k5 (v5),
+  KEY k6 (v6),
+  KEY k7 (v7),
+  KEY k8 (v8)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (c0) VALUES (2758);
+
+UPDATE t1 SET c0 = 2096364476 WHERE c0 = 2758;
+
+SELECT COUNT(*) AS updated_row_count_using_k8
+FROM t1 FORCE INDEX(k8)
+WHERE v8 = 2096364484;
+
+DROP TABLE t1;
