@@ -4957,6 +4957,13 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       need force to compute checkpoint.
     */
     bool force = rli->rli_checkpoint_seqno >= rli->checkpoint_group;
+    DBUG_EXECUTE_IF("sbm_force_checkpoint", {
+      if (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT) {
+        force = true;
+        DBUG_SET_INITIAL("-d,sbm_force_checkpoint");
+        DBUG_SET_INITIAL("-d,sbm_block_checkpoint");
+      }
+    });
     if (force || rli->is_time_for_mta_checkpoint()) {
       mysql_mutex_unlock(&rli->data_lock);
       if (mta_checkpoint_routine(rli, force)) {
@@ -5004,8 +5011,22 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
           ev->get_type_code() ==
               mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
           ev->server_id == 0)) {
-      rli->last_master_timestamp =
-          ev->common_header->when.tv_sec + (time_t)ev->exec_time;
+      // Prefer immediate_commit_timestamp from GTID event for more precise
+      // SBM calculation. Fall back to when+exec_time for old masters that
+      // do not send commit timestamps, or for non-GTID events.
+      if (is_any_gtid_event(ev)) {
+        auto *gtid_ev = static_cast<Gtid_log_event *>(ev);
+        if (gtid_ev->has_commit_timestamps) {
+          rli->last_master_timestamp = static_cast<time_t>(
+              gtid_ev->immediate_commit_timestamp / 1000000);
+        } else {
+          rli->last_master_timestamp =
+              ev->common_header->when.tv_sec + (time_t)ev->exec_time;
+        }
+      } else {
+        rli->last_master_timestamp =
+            ev->common_header->when.tv_sec + (time_t)ev->exec_time;
+      }
       assert(rli->last_master_timestamp >= 0);
     }
 
@@ -6636,6 +6657,7 @@ bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
   DBUG_EXECUTE_IF("mta_checkpoint", {
     rpl_replica_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_START, rli->info_thd);
   };);
+  DBUG_EXECUTE_IF("sbm_block_checkpoint", return error;);
 #endif
 
   /*
