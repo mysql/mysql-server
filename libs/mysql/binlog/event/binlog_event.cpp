@@ -194,10 +194,10 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
       flags = le16toh(flags);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-        /*
-           The only algorithm currently is CRC32. Zero indicates
-           the binlog file is checksum-free *except* the FD-event.
-        */
+      /*
+         The only algorithm currently is CRC32. Zero indicates
+         the binlog file is checksum-free *except* the FD-event.
+      */
 #ifndef NDEBUG
       BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
 #endif
@@ -232,7 +232,12 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 }
 
 Log_event_header::Log_event_header(Event_reader &reader)
-    : data_written(0), log_pos(0), m_is_valid(false) {
+    : type_code(ENUM_END_EVENT),
+      unmasked_server_id(0),
+      data_written(0),
+      log_pos(0),
+      flags(0),
+      m_is_valid(false) {
   BAPI_ENTER("Log_event_header::Log_event_header(Event_reader &)");
 
   /*
