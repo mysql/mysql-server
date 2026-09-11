@@ -169,6 +169,12 @@ ulonglong my_timer_cycles() {
     __asm __volatile__("mrs %[rt],cntvct_el0" : [rt] "=r"(result));
     return result;
   }
+#elif defined(__GNUC__) && defined(__loongarch_lp64)
+  {
+    ulonglong result;
+    __asm__ __volatile__("rdtime.d %0, $zero" : "=r"(result) : :);
+    return result;
+  }
 #elif defined(__GNUC__) && defined(__s390x__)
   {
     uint64_t result;
@@ -504,6 +510,8 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__aarch64__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
+#elif defined(__GNUC__) && defined(__loongarch_lp64)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_LOONGARCH64;
 #elif defined(__GNUC__) && defined(__s390x__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_S390X;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
