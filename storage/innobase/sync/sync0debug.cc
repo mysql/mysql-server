@@ -1495,6 +1495,14 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(DBLWR, SYNC_DBLWR, dblwr_mutex_key);
 
+  LATCH_ADD_RWLOCK(VECTOR_INDEX_REGISTRY, SYNC_NO_ORDER_CHECK,
+                   vector_index_registry_key);
+
+  LATCH_ADD_RWLOCK(VECTOR_INDEX, SYNC_NO_ORDER_CHECK,
+                   vector_index_key);
+
+  // LATCH_ADD_MUTEX(DUMMY_INDEX_POOL, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
   LATCH_ADD_MUTEX(TEST_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
   latch_id_t id = LATCH_ID_NONE;

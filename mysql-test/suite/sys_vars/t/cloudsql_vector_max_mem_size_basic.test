@@ -1,0 +1,52 @@
+# Copyright 2026 Google LLC
+
+#
+# show the global and session values;
+#
+set @start_global_value = @@global.cloudsql_vector_max_mem_size;
+select @start_global_value;
+
+select @@global.cloudsql_vector_max_mem_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.cloudsql_vector_max_mem_size;
+show global variables like 'cloudsql_vector_max_mem_size';
+show session variables like 'cloudsql_vector_max_mem_size';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='cloudsql_vector_max_mem_size';
+select * from performance_schema.session_variables where variable_name='cloudsql_vector_max_mem_size';
+--enable_warnings
+
+set global cloudsql_vector_max_mem_size=268435456;
+select @@global.cloudsql_vector_max_mem_size;
+
+# show it is global
+--error ER_GLOBAL_VARIABLE
+set session cloudsql_vector_max_mem_size=134217728;
+
+set @@global.cloudsql_vector_max_mem_size=@start_global_value;
+select @@global.cloudsql_vector_max_mem_size;
+#
+# show the global and session values;
+#
+set @start_global_value = @@global.cloudsql_vector_max_mem_size;
+select @start_global_value;
+
+select @@global.cloudsql_vector_max_mem_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.cloudsql_vector_max_mem_size;
+show global variables like 'cloudsql_vector_max_mem_size';
+show session variables like 'cloudsql_vector_max_mem_size';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='cloudsql_vector_max_mem_size';
+select * from performance_schema.session_variables where variable_name='cloudsql_vector_max_mem_size';
+--enable_warnings
+
+set global cloudsql_vector_max_mem_size=268435456;
+select @@global.cloudsql_vector_max_mem_size;
+
+# show it is global
+--error ER_GLOBAL_VARIABLE
+set session cloudsql_vector_max_mem_size=134217728;
+
+set @@global.cloudsql_vector_max_mem_size=@start_global_value;
+select @@global.cloudsql_vector_max_mem_size;

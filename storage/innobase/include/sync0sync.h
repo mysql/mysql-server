@@ -211,6 +211,9 @@ extern mysql_pfs_key_t trx_sys_rw_lock_key;
 extern mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
 
+extern mysql_pfs_key_t vector_index_key;
+extern mysql_pfs_key_t vector_index_registry_key;
+
 #ifdef HAVE_PSI_INTERFACE
 /* There are mutexes/rwlocks that we want to exclude from instrumentation
 even if their corresponding performance schema define is set. And this

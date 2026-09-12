@@ -727,6 +727,10 @@ int ha_init_errors(void) {
   SETMSG(HA_ERR_TOO_LONG_PATH, ER_DEFAULT(ER_TABLE_NAME_CAUSES_TOO_LONG_PATH));
   SETMSG(HA_ERR_FTS_TOO_MANY_NESTED_EXP,
          "Too many nested sub-expressions in a full-text search");
+  SETMSG(HA_ERR_ANN_FAILED,
+         "Vector ANN search failed");
+  SETMSG(HA_ERR_ANN_EXHAUSTED,
+         "Vector ANN search exhausted all data points");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -3232,6 +3236,46 @@ int handler::ha_sample_next(void *scan_ctx, uchar *buf) {
   table->set_row_status_from_handler(result);
 
   return result;
+}
+
+int handler::ha_cloudsql_vector_ann_search(std::vector<float> &&query,
+                                           VectorSearchOptions search_options,
+                                           VectorSearchResults *results) {
+  // force turn the query into a stream query in test mode
+  DBUG_EXECUTE_IF(
+    "vector_force_stream_query", {
+      if (search_options.stream_id == 0) {
+        search_options.stream_id = 1;
+      }
+      auto ret = cloudsql_vector_ann_search(
+                   std::move(query), search_options, results);
+      cloudsql_vector_ann_cleanup(search_options.stream_id, nullptr);
+      return ret;
+    });
+
+  // simulate the infinite stream query in test mode
+  DBUG_EXECUTE_IF(
+    "vector_infinite_stream_query", {
+      search_options.stream_id = 1;
+      int ret = 0;
+      do {
+        auto query_copy = query;
+        ret = cloudsql_vector_ann_search(
+                std::move(query_copy), search_options, results);
+      } while(ret != HA_ERR_ANN_EXHAUSTED);
+      cloudsql_vector_ann_cleanup(search_options.stream_id, nullptr);
+      return 0;
+    });
+
+  return cloudsql_vector_ann_search(std::move(query), search_options, results);
+}
+
+int handler::ha_cloudsql_vector_ann_cleanup(int64_t stream_id) {
+  return cloudsql_vector_ann_cleanup(stream_id, 0);
+}
+
+bool handler::ha_cloudsql_ann_index_usable() {
+  return cloudsql_ann_index_usable();
 }
 
 int handler::sample_init(void *&scan_ctx [[maybe_unused]], double, int,

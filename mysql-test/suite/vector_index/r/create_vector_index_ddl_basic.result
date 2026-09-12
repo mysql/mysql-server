@@ -1,0 +1,168 @@
+call mtr.add_suppression("vector_index operation unsuccessful: base table size 0 is smaller than 1000");
+call mtr.add_suppression("Failed to train vector index: not enough data points");
+SET SESSION debug='+d,skip_dd_table_access_check';
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT i, vector_to_string(j) from t1 LIMIT 4;
+i	vector_to_string(j)
+1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	[3.00000e+00,4.00000e+00,5.00000e+00]
+4	[4.00000e+00,5.00000e+00,6.00000e+00]
+SELECT i, vector_to_string(j) from t1 FORCE INDEX(t1_j) LIMIT 4;
+i	vector_to_string(j)
+1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	[3.00000e+00,4.00000e+00,5.00000e+00]
+4	[4.00000e+00,5.00000e+00,6.00000e+00]
+SELECT name, type, algorithm, options FROM mysql.indexes WHERE NAME LIKE '%t1%';
+name	type	algorithm	options
+t1_j	MULTIPLE	SE_SPECIFIC	flags=0;gcp_distance_measure=L2_SQUARED;gcp_idx_algorithm=TREE;gcp_num_partitions=10;gcp_quantizer=SQ8;gcp_version=1;
+SELECT name, type FROM information_schema.innodb_indexes WHERE NAME LIKE '%t1%';
+name	type
+t1_j	1024
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=L2_SQUARED;gcp_idx_algorithm=TREE;gcp_num_partitions=10;gcp_quantizer=SQ8;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j ON t1(j) DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=UNSPECIFIED;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=SQ8;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j ON t1(j) DISTANCE_MEASURE=COSINE;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=COSINE;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=UNSPECIFIED;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j ON t1(j) DISTANCE_MEASURE=DOT_PRODUCT;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=UNSPECIFIED;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j ON t1(j);
+ERROR HY000: Operation Create Index failed with error, Reason: Distance measure must be specified for VECTOR keys.
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) DISTANCE_MEASURE=dot_product quantizer=sq8;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=SQ8;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=AH DISTANCE_MEASURE=dot_product;
+ERROR HY000: Unknown vector index option value AH for option quantizer
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=ah DISTANCE_MEASURE=dot_product;
+ERROR HY000: Unknown vector index option value ah for option quantizer
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=BRUTE_FORCE DISTANCE_MEASURE=dot_product;
+ERROR HY000: Unknown vector index option value BRUTE_FORCE for option quantizer
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=dummy DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+ERROR HY000: Unknown vector index option value dummy for option quantizer
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=dummy NUM_LEAVES=10;
+ERROR HY000: Unknown vector index option value dummy for option distance_measure
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) NUM_LEAVES=-1 DISTANCE_MEASURE=dot_product;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1 DISTANCE_MEASURE=dot_product' at line 1
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) NUM_LEAVES=0 DISTANCE_MEASURE=dot_product;
+ERROR HY000: Number of leaves specified for the vector index should be greater than 0
+CREATE VECTOR INDEX t1_j USING BTREE ON t1(j) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Feature not supported with vector columns, Only TREE algorithm is supported for VECTOR keys.
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ERROR 42000: Duplicate key name 't1_j'
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=L2_SQUARED;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=SQ8;gcp_version=1;
+DROP INDEX t1_j ON t1;
+CREATE VECTOR INDEX t1_i ON t1(i) USING TREE DISTANCE_MEASURE=dot_product;
+ERROR HY000: Column 'i' cannot be part of Vector index. Please use a vector column instead.
+CREATE VECTOR INDEX t1_i ON t1(i) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Column 'i' cannot be part of Vector index. Please use a vector column instead.
+CREATE INDEX t1_j USING TREE ON t1(j);
+ERROR HY000: Feature not supported with vector columns, TREE algorithm is only supported for VECTOR keys.
+CREATE INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10' at line 1
+CREATE INDEX t1_j ON t1(j) QUANTIZER=SQ8;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUANTIZER=SQ8' at line 1
+CREATE INDEX t1_j ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DISTANCE_MEASURE=l2_squared' at line 1
+CREATE INDEX t1_j ON t1(j) NUM_LEAVES=10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NUM_LEAVES=10' at line 1
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=L2_SQUARED;gcp_idx_algorithm=TREE;gcp_num_partitions=10;gcp_quantizer=SQ8;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=UNSPECIFIED;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=SQ8;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) DISTANCE_MEASURE=COSINE;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=COSINE;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=UNSPECIFIED;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) DISTANCE_MEASURE=DOT_PRODUCT;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=UNSPECIFIED;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j);
+ERROR HY000: Operation Create Index failed with error, Reason: Distance measure must be specified for VECTOR keys.
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE DISTANCE_MEASURE=dot_product quantizer=sq8;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=DOT_PRODUCT;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=SQ8;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=AH DISTANCE_MEASURE=dot_product;
+ERROR HY000: Unknown vector index option value AH for option quantizer
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=ah DISTANCE_MEASURE=dot_product;
+ERROR HY000: Unknown vector index option value ah for option quantizer
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=BRUTE_FORCE DISTANCE_MEASURE=dot_product;
+ERROR HY000: Unknown vector index option value BRUTE_FORCE for option quantizer
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=dummy DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+ERROR HY000: Unknown vector index option value dummy for option quantizer
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE DISTANCE_MEASURE=dummy NUM_LEAVES=10;
+ERROR HY000: Unknown vector index option value dummy for option distance_measure
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE NUM_LEAVES=-1 DISTANCE_MEASURE=dot_product;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1 DISTANCE_MEASURE=dot_product' at line 1
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE NUM_LEAVES=0 DISTANCE_MEASURE=dot_product;
+ERROR HY000: Number of leaves specified for the vector index should be greater than 0
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING BTREE DISTANCE_MEASURE=dot_product;
+ERROR HY000: Feature not supported with vector columns, Only TREE algorithm is supported for VECTOR keys.
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ERROR 42000: Duplicate key name 't1_j'
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+OPTIONS
+flags=0;gcp_distance_measure=L2_SQUARED;gcp_idx_algorithm=TREE;gcp_num_partitions=0;gcp_quantizer=SQ8;gcp_version=1;
+ALTER TABLE t1 DROP INDEX t1_j;
+ALTER TABLE t1 ADD VECTOR INDEX t1_i(i) USING TREE DISTANCE_MEASURE=dot_product;
+ERROR HY000: Column 'i' cannot be part of Vector index. Please use a vector column instead.
+ALTER TABLE t1 ADD VECTOR INDEX t1_i(i) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Column 'i' cannot be part of Vector index. Please use a vector column instead.
+ALTER TABLE t1 ADD INDEX t1_j(j) USING TREE;
+ERROR HY000: Feature not supported with vector columns, TREE algorithm is only supported for VECTOR keys.
+ALTER TABLE t1 ADD INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10' at line 1
+ALTER TABLE t1 ADD INDEX t1_j(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared' at line 1
+ALTER TABLE t1 ADD INDEX t1_j(j) DISTANCE_MEASURE=l2_squared;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DISTANCE_MEASURE=l2_squared' at line 1
+ALTER TABLE t1 ADD INDEX t1_j(j) NUM_LEAVES=10 DISTANCE_MEASURE=l2_squared;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NUM_LEAVES=10 DISTANCE_MEASURE=l2_squared' at line 1
+DROP TABLE t1;
+CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j VECTOR(3) USING VARBINARY, VECTOR KEY t1_j (j));
+ERROR HY000: Creation of vector index is not supported during CREATE TABLE statement
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY);
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Not enough data to train. The number of non-NULL embedding rows must be at least 1000 or the value of num_leaves (if specified), whichever is greater.
+DROP TABLE t1;

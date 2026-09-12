@@ -2445,6 +2445,68 @@ static Sys_var_bool Sys_sha256_password_proxy_users(
     "check_proxy_users is enabled.",
     GLOBAL_VAR(sha256_password_proxy_users), CMD_LINE(OPT_ARG), DEFAULT(false));
 
+/* Vector Flags */
+static Sys_var_bool Sys_cloudsql_vector(
+    "cloudsql_vector",
+    "If true, then MySQL will allow you to use vector functionality.",
+    READ_ONLY GLOBAL_VAR(opt_cloudsql_vector), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_bool Sys_cloudsql_vector_test_mode(
+    "cloudsql_vector_test_mode",
+    "If true, then MySQL will run in test mode. Only used for testing.",
+    READ_ONLY GLOBAL_VAR(opt_cloudsql_vector_test_mode), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_bool Sys_cloudsql_vector_iterative_filtering(
+    "cloudsql_vector_iterative_filtering",
+    "If true, MySQL will use iterative filtering for vector index searches.",
+    HINT_UPDATEABLE SESSION_VAR(cloudsql_vector_iterative_filtering),
+    CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_uint Sys_cloudsql_vector_iterative_filtering_max_neighbors(
+    "cloudsql_vector_iterative_filtering_max_neighbors",
+    "The maximum number of neighbors to scan for iterative filtering.",
+    HINT_UPDATEABLE SESSION_VAR(cloudsql_vector_iterative_filtering_max_neighbors),
+    CMD_LINE(OPT_ARG), VALID_RANGE(10, 1000), DEFAULT(500), BLOCK_SIZE(1),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static constexpr const unsigned long MIN_VECTOR_MAX_MEM_SIZE{128 * 1024 * 1024};
+static constexpr const unsigned long DEFAULT_VECTOR_MAX_MEM_SIZE{1024 * 1024 * 1024};
+static constexpr const unsigned long MAX_VECTOR_MAX_MEM_SIZE{ULONG_MAX};
+
+namespace ib_vector {
+extern void update_vector_max_mem_size();
+}
+
+static bool fix_vector_mem_size(sys_var *, THD *, enum_var_type) {
+  ib_vector::update_vector_max_mem_size();
+  return false;
+}
+
+static Sys_var_ulong Sys_cloudsql_vector_max_mem_size(
+    "cloudsql_vector_max_mem_size",
+    "Specify the maximum memory allocation (in bytes) for all vector indexes "
+    "on the instance",
+    GLOBAL_VAR(opt_cloudsql_vector_max_mem_size), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1024, MAX_VECTOR_MAX_MEM_SIZE),
+#else
+    VALID_RANGE(MIN_VECTOR_MAX_MEM_SIZE, MAX_VECTOR_MAX_MEM_SIZE),
+#endif
+    DEFAULT(DEFAULT_VECTOR_MAX_MEM_SIZE), BLOCK_SIZE(1024), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_vector_mem_size));
+
+static Sys_var_bool Sys_cloudsql_vector_parallel_search(
+    "cloudsql_vector_parallel_search",
+    "This flag enables multi-threaded ANN search",
+    HINT_UPDATEABLE SESSION_VAR(cloudsql_vector_parallel_search),
+    CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr);
+
+/* End of Vector flags */
+
 static Sys_var_charptr Sys_log_error(
     "log_error", "Error log file",
     READ_ONLY NON_PERSIST GLOBAL_VAR(log_error_dest),

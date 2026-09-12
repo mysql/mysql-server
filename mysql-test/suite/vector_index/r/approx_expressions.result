@@ -1,0 +1,74 @@
+use test;
+use test;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+declare i int default 1;
+declare d1 float default 1.0;
+declare d2 float default 2.0;
+declare d3 float default 3.0;
+while i <= n_rows do
+set @s = concat("insert into ", tname, " (id, emb, name, next_id)values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'), name, ", i+1, ")");
+prepare stmt from @s;
+execute stmt;
+set i = i + 1;
+set d1 = d1 + 1;
+set d2 = d2 + 1;
+set d3 = d3 + 1;
+end while;
+end |
+use test;
+CREATE TABLE t1(
+id int, name VARCHAR(20), emb vector(3) USING varbinary, next_id int auto_increment, PRIMARY KEY(id, name), INDEX n (next_id));
+CREATE TABLE t2(
+id int, name VARCHAR(20), emb vector(3) USING varbinary, next_id int, PRIMARY KEY(id, name), INDEX n (name));
+create vector index
+create vector index vecIndex1 on t1(emb)distance_measure=l2_squared;
+create vector index vecIndex1 on t2(emb)distance_measure=l2_squared;
+"b/382528291 - ANN should not crash when using multiple approx_distance calls in a single query on multiple tables"
+explain format=tree SELECT (t1.id * approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) - approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Inner hash join (no condition)  (rows=10)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t2  (rows=10)
+            -> Single-row index lookup on t2 using PRIMARY (id = t2.id, name = t2.`name`)  (rows=1)
+        -> Hash
+            -> Index lookup on t1 using PRIMARY (id = 10)  (rows=1)
+
+SELECT (t1.id * approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) - approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+(t1.id * approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) - approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+2416
+2401.0902
+2370.4936
+2324.2415
+2324.2415
+2324.2415
+2324.2415
+2324.2415
+2324.2415
+2184.835
+explain format=tree SELECT approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Inner hash join (no condition)  (rows=10)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t2  (rows=10)
+            -> Single-row index lookup on t2 using PRIMARY (id = t2.id, name = t2.`name`)  (rows=1)
+        -> Hash
+            -> Index lookup on t1 using PRIMARY (id = 10)  (rows=1)
+
+SELECT approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')	approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+243	14
+243	28.9098
+243	59.5064
+243	105.7585
+243	105.7585
+243	105.7585
+243	105.7585
+243	105.7585
+243	105.7585
+243	245.165
+"Drop procedure and tables"
+drop procedure fill_vector_table;
+drop table t1, t2;

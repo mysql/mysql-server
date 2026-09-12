@@ -55,7 +55,51 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
+  ${CMAKE_SOURCE_DIR}/extra/abseil/abseil-cpp-20250814.1
+  ${CMAKE_SOURCE_DIR}/kmeans_interface/genproto
 )
+
+file(GLOB_RECURSE SCANN_PROTO_FILES "${CMAKE_SOURCE_DIR}/kmeans_interface/genproto/*.proto")
+
+set(GENERATED_CC_FILES)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/scann_genproto")
+set(LOCAL_PROTOBUF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-24.4/src")
+foreach(PROTO ${SCANN_PROTO_FILES})
+  get_filename_component(REL_PATH ${PROTO} PATH)
+  string(REPLACE "${CMAKE_SOURCE_DIR}/kmeans_interface/genproto" "" REL_DIR "${REL_PATH}")
+  get_filename_component(WE "${PROTO}" NAME_WE)
+  set(PB_CC "${CMAKE_CURRENT_BINARY_DIR}/scann_genproto${REL_DIR}/${WE}.pb.cc")
+  set(PB_H "${CMAKE_CURRENT_BINARY_DIR}/scann_genproto${REL_DIR}/${WE}.pb.h")
+
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/scann_genproto${REL_DIR}")
+
+  add_custom_command(
+    OUTPUT "${PB_CC}" "${PB_H}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/scann_genproto${REL_DIR}"
+    COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+    ARGS --experimental_editions
+         --cpp_out "${CMAKE_CURRENT_BINARY_DIR}/scann_genproto"
+         -I "${LOCAL_PROTOBUF_INCLUDE_DIR}"
+         -I "${CMAKE_SOURCE_DIR}/kmeans_interface/genproto"
+         ${PROTO}
+    DEPENDS ${PROTO} ${PROTOBUF_PROTOC_EXECUTABLE}
+  )
+  list(APPEND GENERATED_CC_FILES "${PB_CC}")
+endforeach()
+
+add_library(scann_proto_lib STATIC ${GENERATED_CC_FILES})
+set_property(TARGET scann_proto_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
+target_include_directories(scann_proto_lib SYSTEM BEFORE PUBLIC "${LOCAL_PROTOBUF_INCLUDE_DIR}")
+target_include_directories(scann_proto_lib SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/scann_genproto)
+if(WITH_PROTOBUF STREQUAL "bundled")
+  target_include_directories(scann_proto_lib SYSTEM BEFORE PUBLIC "${BUNDLED_ABSEIL_SRCDIR}")
+endif()
+target_compile_options(scann_proto_lib PRIVATE 
+  -Wno-ignored-qualifiers -Wno-sign-compare -Wno-undef 
+  -Wno-unused-parameter -Wno-unused-variable)
+add_dependencies(protobuf_generated_all scann_proto_lib)
+
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/scann_genproto)
 
 # Conflicting YYSTYPE, because we have multiple Bison grammars.
 # WL#11100 Migrate to Bison 3.x should fix this.
@@ -127,6 +171,7 @@ SET(INNOBASE_SOURCES
   ddl/ddl0fts.cc
   ddl/ddl0file-reader.cc
   ddl/ddl0loader.cc
+  ddl/ddl0sub_table.cc
   ddl/ddl0merge.cc
   ddl/ddl0rtree.cc
   ddl/ddl0par-scan.cc
@@ -230,6 +275,7 @@ SET(INNOBASE_SOURCES
   row/row0purge.cc
   row/row0pread-adapter.cc
   row/row0pread-histogram.cc
+  row/row0pread-range.cc
   row/row0row.cc
   row/row0sel.cc
   row/row0uins.cc
@@ -238,6 +284,18 @@ SET(INNOBASE_SOURCES
   row/row0upd.cc
   row/row0quiesce.cc
   row/row0vers.cc
+  vector/vector0build.cc
+  vector/vector0cfg.cc
+  vector/vector0dd.cc
+  vector/vector0persist.cc
+  vector/vector0pk.cc
+  vector/vector0quantizer.cc
+  vector/vector0subtable.cc
+  vector/vector0vector.cc
+  vector/tree/kmeans0index.cc
+  vector/tree/kmeans0partitioner.cc
+  vector/tree/kmeans0searcher.cc
+  vector/tree/kmeans0table.cc
   srv/srv0conc.cc
   srv/srv0mon.cc
   srv/srv0srv.cc
@@ -343,17 +401,26 @@ IF(HAS_MISSING_PROFILE)
 ENDIF()
 
 
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/kmeans_interface
+  ${CMAKE_SOURCE_DIR}/vector-common
+  ${CMAKE_SOURCE_DIR}/storage/innobase/include
+  ${CMAKE_SOURCE_DIR}/storage/innobase/vector/include
+)
+
 UNSET(NUMA_LIBRARY)
 IF(HAVE_LIBNUMA)
   SET(NUMA_LIBRARY "numa")
 ENDIF()
+
+SET(SCANN_LIB "${CMAKE_SOURCE_DIR}/kmeans_interface/libscann.so")
 
 MYSQL_ADD_PLUGIN(innobase
   ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES sql_dd sql_gis ext::zlib ext::lz4 ${NUMA_LIBRARY}
-                 extra::rapidjson library_mysys)
+                 extra::rapidjson library_mysys ${SCANN_LIB} scann_proto_lib ext::libprotobuf)
 
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024

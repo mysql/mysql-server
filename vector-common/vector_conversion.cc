@@ -93,21 +93,25 @@ bool from_string_to_vector(const CHARSET_INFO *cs, const char *input,
       break;
     }
     memcpy(temp_output.ptr() + dim * sizeof(float), &fnum, sizeof(float));
+    dim++;
 
-    input +=
+    // Count the number of trailing spaces to determine if number is followed by
+    // a valid delimiter.
+    auto spaces =
         process_cs->cset->scan(process_cs, input, input_end, MY_SEQ_SPACES);
+    input += spaces;
 
     if (*input == ',') {
-      // Check that we have delimiter with ','
       input = input + 1;
-      dim++;
     } else if (*input == ']') {
       // Check that we end with ']'
       input += 1;
       with_success = true;
-      dim++;
       break;
-    } else {
+    } else if (spaces == 0) {
+      // If we don't see a comma or ']' and there were no spaces,
+      // then we don't have a valid delimiter. This handles cases like [1.2.3]
+      dim = 0;
       break;
     }
   }

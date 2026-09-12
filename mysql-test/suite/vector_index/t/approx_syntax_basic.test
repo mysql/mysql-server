@@ -1,0 +1,340 @@
+# Copyright 2026 Google LLC
+
+--source include/elide_costs.inc
+--source include/have_debug.inc
+use test;
+
+# reset status for KNN fallback counters
+flush status;
+
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+--echo Initial Data inserted
+
+--echo # verify fallback to KNN before index is created
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') app FROM t1 ORDER BY app LIMIT 10;
+SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') app FROM t1 ORDER BY app LIMIT 10;
+SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 WHERE i BETWEEN 3 and 6 LIMIT 10;
+
+--echo # create vector index
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+
+--echo # KNN fallback warning in the event of ANN failure from the storage layer
+SET SESSION debug='+d,vector_index_unusable';
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+# TODO b/382075409 this does not push a warning
+--replace_regex $elide_costs_and_time_and_row_estimate
+explain analyze SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+SET SESSION debug='-d,vector_index_unusable';
+
+# test bad query vector
+--error ER_VECTOR_QUERY_DIMENSION_MISMATCH
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') dist1, APPROX_DISTANCE(j, string_to_vector('[10, 60,1000]'), 'distance_measure=l2_squared') dist2  FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 10,60]'), 'distance_measure=l2_squared') LIMIT 2;
+
+--echo # missing limit (using outer limit to prevent long results)
+SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')) as sub LIMIT 10;
+--replace_regex $elide_costs_and_time_and_row_estimate
+explain analyze SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')) as sub LIMIT 10;
+
+--echo # too large limit (using outer limit to prevent long results)
+SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10001) as sub LIMIT 10;
+
+show global status like '%cloudsql_vector_knn_fallback%';
+
+--echo # verify NEAREST TO no longer works
+-- error ER_PARSE_ERROR
+explain format=tree SELECT i FROM t1 WHERE NEAREST(j) TO (string_to_vector('[60,60,60]'), 'distance_measure=l2_squared');
+
+--echo # verify num_neighbors is not supported
+-- error ER_INVALID_OPTION_KEY
+SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_neighbors=2,distance_measure=l2_squared') FROM t1 LIMIT 10;
+
+-- echo "Positive test cases"
+
+-- echo "Verify distance measure is required"
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+explain format=tree SELECT i,
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+       APPROX_DISTANCE(j, string_to_vector('[60, 60,60]')) approx_dist FROM t1 LIMIT 10;
+
+--error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i,
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+       APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10') approx_dist FROM t1 LIMIT 10;
+
+# explain SELECT list
+--replace_regex $elide_costs
+explain format=tree SELECT i,
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+       APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10, distance_measure=l2_squared') approx_dist FROM t1 LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i,
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+       APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10, DISTANCE_MEASURE=l2_squared') approx_dist FROM t1 LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i,
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+       APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10, DISTANCE_MEASURE=L2_SQUARED') approx_dist FROM t1 LIMIT 10;
+
+--echo "Verify ANN with different distance measures falls back to KNN"
+--replace_regex $elide_costs
+explain format=tree SELECT i,
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+       APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=cosine') approx_dist FROM t1 LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 10;
+
+# WHERE condition
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 15 LIMIT 10;
+
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 15 LIMIT 10;
+
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 15 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 10;
+
+# ORDER BY clause
+--replace_regex $elide_costs
+explain format=tree SELECT i, vector_to_string(j),
+       vector_distance(j, string_to_vector('[60, 60,60]')) dist FROM t1
+ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 WHERE i < 60 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 WHERE i = 59 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 20;
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+
+--echo "other column in order by"
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), i LIMIT 10;
+
+--echo "other column in order by with DESC"
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), i DESC LIMIT 10;
+
+--echo "DESC order by"
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') DESC LIMIT 10;
+
+# aggregations
+--replace_regex $elide_costs
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT COUNT(*), APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i, j LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree SELECT COUNT(*), APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i, j LIMIT 10;
+
+--echo "select list and order by, same ANN search"
+--replace_regex $elide_costs
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "select list and order by, different ANN search"
+--replace_regex $elide_costs
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[900,900,900]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "select list and where, same ANN search"
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+
+--echo "select list, where, and order by, same ANN search"
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "where and order by, same ANN search"
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "where and order by, different ANN search (seems like where takes precendence)"
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 ORDER BY APPROX_DISTANCE(j, string_to_vector('[160, 160,160]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--let $table_name=t2
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+--echo Initial Data inserted
+
+--echo # create vector index
+create vector index vec_index2 on t2(j) distance_measure=l2_squared;
+
+--echo "order by with join"
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1, t2 where t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1, t2 where t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "order by with join"
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1 INNER JOIN t2 on t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1 INNER JOIN t2 on t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "order by with join"
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1 LEFT OUTER JOIN t2 ON t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "order by with join"
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1 RIGHT JOIN t2 ON t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree select t1.i, t2.i from t1 RIGHT JOIN t2 ON t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+
+--echo "join on ANN condition"
+--error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree select t1.i, t2.i from t1 INNER JOIN t2 ON APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') = APPROX_DISTANCE(t2.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "selecting ANN with join"
+--replace_regex $elide_costs
+explain format=tree select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), APPROX_DISTANCE(t2.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1 INNER JOIN t2 ON t1.i = t2.i LIMIT 10;
+
+--echo "Equality on primary key"
+--replace_regex $elide_costs
+explain format=tree select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 LIMIT 10;
+select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree select vector_to_string(t1.j) from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+select vector_to_string(t1.j) from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+--replace_regex $elide_costs
+explain format=tree select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo "join with where clause"
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree select t1.i, t2.i from t1, t2 where APPROX_DISTANCE(t2.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') > 0 LIMIT 10;
+
+--echo "subquery with order by"
+--replace_regex $elide_costs
+explain format=tree SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 5) as t;
+
+
+--replace_regex $elide_costs
+explain format=tree SELECT (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 1) as sub1, (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 10,60]'), 'distance_measure=l2_squared') LIMIT 1) as sub2 FROM t1;
+--replace_regex $elide_costs
+explain format=tree SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10) as t LIMIT 5;
+
+--echo "query with second table as query vector (not supported)"
+--error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT *
+FROM t1 AS q, LATERAL (
+    SELECT *, approx_distance(t2.j, q.j, 'distance_measure=l2_squared') AS dist
+FROM t2
+WHERE t2.i != 4
+LIMIT 2) as dist;
+
+--echo "subquery with select list"
+--replace_regex $elide_costs
+explain format=tree SELECT * FROM (SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 10) as t;
+--replace_regex $elide_costs
+explain format=tree SELECT ((SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 1));
+--echo "subquery with where condition"
+
+-- error ER_UNABLE_TO_EXECUTE_ANN
+SELECT * FROM (SELECT i FROM t1 where APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10) as t LIMIT 10;
+
+-- error ER_UNABLE_TO_EXECUTE_ANN
+SELECT (SELECT i FROM t1 where APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 1);
+
+--error ER_UNABLE_TO_EXECUTE_ANN
+CREATE TABLE t3 as SELECT * FROM t1 WHERE i < 60 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+
+-- echo "Negative test cases"
+
+--echo # KNN fallback warning in the event of ANN failure from the storage layer
+SET SESSION debug='+d,vector_index_unusable';
+--replace_regex $elide_costs
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+SET SESSION debug='-d,vector_index_unusable';
+
+# HAVING condition
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i, j FROM t1 GROUP BY i HAVING APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+
+# GROUP BY list
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT sum(t2.i), t2.j, approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') as app from t2, t1 GROUP BY t2.j, app LIMIT 4;
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') + APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 10;
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT sum(t2.i), t2.j, ceil(approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) as app from t2, t1 GROUP BY t2.j, app LIMIT 4;
+
+
+# Non-select statement
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+
+# Non-column first argument
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(string_to_vector('[60, 60,60]'), string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(string_to_vector('[60, 60,60]'), j, 'distance_measure=l2_squared') LIMIT 2;
+
+# Non-vector type first argument
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(i, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+
+# Wrong vector dimensions
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60]'), 'distance_measure=l2_squared') LIMIT 2;
+
+# NULL query vector
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, NULL, 'distance_measure=l2_squared') LIMIT 2;
+
+# NULL search options
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), NULL) LIMIT 2;
+
+# Incorrect search options
+-- ERROR ER_UNABLE_TO_EXECUTE_ANN
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'foo=bar') LIMIT 2;
+
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+
+-- error ER_UNABLE_TO_EXECUTE_ANN
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+
+--echo # cleanup
+drop index vec_index on t1;
+drop index vec_index2 on t2;
+DROP TABLE t1;
+DROP TABLE t2;

@@ -105,10 +105,21 @@ enum ha_key_alg {
           SEs default algorithm for keys in mysql_prepare_create_table().
   */
   HA_KEY_ALG_SE_SPECIFIC = 0,
-  HA_KEY_ALG_BTREE = 1,   /* B-tree. */
-  HA_KEY_ALG_RTREE = 2,   /* R-tree, for spatial searches */
-  HA_KEY_ALG_HASH = 3,    /* HASH keys (HEAP, NDB). */
-  HA_KEY_ALG_FULLTEXT = 4 /* FULLTEXT. */
+  HA_KEY_ALG_BTREE = 1,    /* B-tree. */
+  HA_KEY_ALG_RTREE = 2,    /* R-tree, for spatial searches */
+  HA_KEY_ALG_HASH = 3,     /* HASH keys (HEAP, NDB). */
+  HA_KEY_ALG_FULLTEXT = 4, /* FULLTEXT. */
+  HA_KEY_ALG_KMEANS = 5    /* TREE vector keys. */
+};
+
+/* Key sub algorithm types for vector keys */
+
+enum ha_key_sub_alg {
+  /**
+    Used to specify the sub algorithm for vector keys.
+  */
+  HA_KEY_SUB_ALG_UNSPECIFIED = 0, /* Unspecified */
+  HA_KEY_SUB_ALG_TREE_SQ = 1,     /* TREE_SQ. */
 };
 
 /* Storage media types */
@@ -525,7 +536,7 @@ enum ha_base_keytype {
 /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK                                                       \
   (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | HA_BINARY_PACK_KEY | HA_FULLTEXT | \
-   HA_UNIQUE_CHECK | HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
+   HA_UNIQUE_CHECK | HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY | HA_VECTOR)
 
 /** Fulltext index uses [pre]parser */
 #define HA_USES_PARSER (1 << 14)
@@ -560,6 +571,8 @@ enum ha_base_keytype {
 
 constexpr const ulong HA_INDEX_USES_ENGINE_ATTRIBUTE{1UL << 20};
 constexpr const ulong HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE{1UL << 21};
+
+constexpr const ulong HA_VECTOR{1UL << 22};
 
 /* These flags can be added to key-seg-flag */
 
@@ -1081,8 +1094,12 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_SAMPLING_INIT_FAILED 208
 /** Too many sub-expression in search string */
 #define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
+/** Vector ANN search failed */
+#define HA_ERR_ANN_FAILED 210
+/** Vector ANN search exhausted all data points */
+#define HA_ERR_ANN_EXHAUSTED 211
 /** Copy of last error number */
-#define HA_ERR_LAST 209
+#define HA_ERR_LAST 211
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

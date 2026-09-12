@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0impl-builder.h"
 #include "ddl0impl-cursor.h"
 #include "ddl0impl-loader.h"
+#include "ddl0sub_table.h"
 #include "handler0alter.h"
 #include "os0thread-create.h"
 #include "ut0stage.h"
@@ -367,7 +368,8 @@ dberr_t Loader::prepare() noexcept {
   ut_a(m_builders.empty());
   ut_a(!srv_read_only_mode);
   ut_a(!m_ctx.m_add_cols || m_ctx.m_col_map != nullptr);
-  ut_a((m_ctx.m_old_table == m_ctx.m_new_table) == !m_ctx.m_col_map);
+  ut_a((m_ctx.m_old_table == m_ctx.m_new_table) == !m_ctx.m_col_map ||
+       m_ctx.m_vec_index_build);
 
   /* Allocate memory for merge file data structure and initialize fields */
 
@@ -378,8 +380,15 @@ dberr_t Loader::prepare() noexcept {
   }
 
   for (size_t i = 0; i < m_ctx.m_indexes.size(); ++i) {
-    auto builder = ut::new_withkey<Builder>(
-        ut::make_psi_memory_key(mem_key_ddl), m_ctx, *this, i);
+    Builder *builder{nullptr};
+    if (m_ctx.m_vec_index_build) {
+      builder = ut::new_withkey<VectorIndexBuilder>(
+          ut::make_psi_memory_key(mem_key_ddl), m_ctx, *this, i,
+          i == 0 ? nullptr : static_cast<VectorIndexBuilder*>(m_builders[0]));
+    } else {
+      builder = ut::new_withkey<Builder>(ut::make_psi_memory_key(mem_key_ddl),
+                                         m_ctx, *this, i);
+    }
 
     if (builder == nullptr) {
       return DB_OUT_OF_MEMORY;

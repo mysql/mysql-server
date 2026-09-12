@@ -148,6 +148,7 @@
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql/val_int_compare.h"  // Integer_value
+#include "sql/vector_opts.h"
 #include "sql_string.h"
 #include "storage/perfschema/terminology_use_previous_enum.h"
 #include "string_with_len.h"
@@ -1093,6 +1094,20 @@ bool contains_function_of_type(Item *item, Item_func::Functype type) {
   return WalkItem(item, enum_walk::PREFIX, [type](Item *inner_item) {
     return is_function_of_type(inner_item, type);
   });
+}
+
+std::vector<Item *> get_functions_of_type(Item *item,
+                                          Item_func::Functype type) {
+  std::vector<Item *> found_items;
+
+  WalkItem(item, enum_walk::PREFIX, [type, &found_items](Item *inner_item) {
+    if (is_function_of_type(inner_item, type)) {
+      found_items.push_back(inner_item);  // Capture each found item
+    }
+    return false;  // Continue traversal
+  });
+
+  return found_items;
 }
 
 /**

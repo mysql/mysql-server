@@ -1,0 +1,74 @@
+use test;
+# We can create a simple table
+create table t1 (id int primary key, embeddings vector(4) using varbinary);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `embeddings` vector(4) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# We can do DMLs on table with conversion functions
+insert into t1 values (1, string_to_vector('[1.2, 2.0, -0.8, 54]'));
+select vector_to_string(embeddings) from t1;
+vector_to_string(embeddings)
+[1.20000e+00,2.00000e+00,-8.00000e-01,5.40000e+01]
+update t1 set embeddings = string_to_vector('[0, 0, 0, 0]');
+select vector_to_string(embeddings) from t1;
+vector_to_string(embeddings)
+[0.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
+delete from t1;
+select vector_to_string(embeddings) from t1;
+vector_to_string(embeddings)
+# test if dimension mismatch is caught
+insert into t1 values (1, string_to_vector('[1.2, 2.0, -0.8]'));
+ERROR HY000: Provided vector dimensions (3) do not match the defined column dimensions (4).
+insert into t1 values (1, string_to_vector('[blah, blah]'));
+ERROR HY000: Data cannot be converted to a valid vector: '[blah, blah]'
+# test if we can add and change comment to vector column
+ALTER TABLE t1 MODIFY COLUMN embeddings vector(3) using varbinary COMMENT '';
+ALTER TABLE t1 MODIFY COLUMN embeddings vector(3) using varbinary COMMENT 'test';
+# test if we can add a constraint to a vector column
+ALTER TABLE t1 ADD CONSTRAINT vector_dimensions CHECK (VECTOR_DIM(embeddings) = 3);
+ERROR HY000: Incorrect type for argument embeddings in function CHECK CONSTRAINT.
+ALTER TABLE t1 ADD CONSTRAINT vector_dimensions CHECK (VECTOR_DIM(embeddings) = 4);
+ERROR HY000: Incorrect type for argument embeddings in function CHECK CONSTRAINT.
+# two vector columns are allowed
+create table t2 (id int primary key, c1 vector(3) using varbinary, c2 vector(7) using varbinary);
+create vector index v_idx on t2 (c1) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Vector index: vector indexes on tables with multiple vector columns is not supported yet.
+drop table t2;
+# table without PK and without index is allowed
+create table t2 (id int, c1 vector(3) using varbinary);
+alter table t1 drop primary key;
+create vector index v_idx on t1 (c1) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+create vector index v_idx on t2 (c1) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+drop table t2;
+# partitioned tables with vector column and without index are allowed
+create table t2 (id int primary key, c1 vector(3) using varbinary)
+partition by key () partitions 4;
+create vector index v_idx on t2 (c1) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Vector index: vector indexes with partitioned tables is not supported yet.
+drop table t2;
+create table t2 (id int primary key, c1 vector(3) using varbinary)
+partition by hash (id) partitions 100;
+create vector index v_idx on t2 (c1) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Vector index: vector indexes with partitioned tables is not supported yet.
+drop table t2;
+create table t2 (id int primary key, c1 vector(3) using varbinary)
+partition by range (id) (
+partition p0 values less than (10000),
+partition p1 values less than (20000)
+);
+create vector index v_idx on t2 (c1) DISTANCE_MEASURE=dot_product;
+ERROR HY000: Vector index: vector indexes with partitioned tables is not supported yet.
+drop table t2;
+# alter and rename should work as long as we don't have any active index
+rename table t1 to t2;
+rename table t2 to t1;
+alter table t1 add column c_new varchar(25);
+alter table t1 add column c_second vector(8) using varbinary;
+# cleanup
+drop table t1;

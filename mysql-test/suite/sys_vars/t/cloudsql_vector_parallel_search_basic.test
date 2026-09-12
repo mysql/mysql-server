@@ -1,0 +1,344 @@
+# Copyright 2026 Google LLC
+
+############## mysql-test\t\cloudsql_vector_parallel_search_basic.test ########
+#                                                                             #
+# Variable Name: cloudsql_vector_parallel_search                              #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: NA                                                           #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases System Variable cloudsql_vector_parallel_search     #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+############################################################################
+#                    START OF cloudsql_vector_parallel_search TESTS        #
+############################################################################
+
+
+####################################################################################
+# Saving initial value of cloudsql_vector_parallel_search in a temporary variable  #
+####################################################################################
+
+SET @session_start_value = @@session.cloudsql_vector_parallel_search;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_032_01------------------------#'
+#############################################################################
+#           Display the DEFAULT value of cloudsql_vector_parallel_search    #
+#############################################################################
+
+SET @@session.cloudsql_vector_parallel_search = 1;
+SET @@session.cloudsql_vector_parallel_search = DEFAULT;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+
+--echo '#---------------------FN_DYNVARS_032_02-------------------------#'
+########################################################################################
+# Check if cloudsql_vector_parallel_search can be accessed with and without @@ sign    #
+########################################################################################
+
+SET cloudsql_vector_parallel_search = 1;
+SELECT @@cloudsql_vector_parallel_search;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.cloudsql_vector_parallel_search;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.cloudsql_vector_parallel_search;
+
+SET session cloudsql_vector_parallel_search = 0;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+
+--echo '#--------------------FN_DYNVARS_032_03------------------------#'
+########################################################################
+# change the value of cloudsql_vector_parallel_search to a valid value #
+########################################################################
+
+SET @@session.cloudsql_vector_parallel_search = 0;
+SELECT @@session.cloudsql_vector_parallel_search;
+SET @@session.cloudsql_vector_parallel_search = 1;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+
+--echo '#--------------------FN_DYNVARS_032_04-------------------------#'
+###########################################################################
+#   Change the value of cloudsql_vector_parallel_search to invalid value  #
+###########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = ÕN;
+--error ER_PARSE_ERROR
+SET @@session.cloudsql_vector_parallel_search = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = ÓFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = '¹';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = NO;
+
+
+--echo '#-------------------FN_DYNVARS_032_05----------------------------#'
+###########################################################################
+# Test if accessing global cloudsql_vector_parallel_search gives error    #
+###########################################################################
+
+SET @@global.cloudsql_vector_parallel_search = 1;
+SELECT @@global.cloudsql_vector_parallel_search;
+SET @@global.cloudsql_vector_parallel_search = 0;
+
+--echo '#----------------------FN_DYNVARS_032_06------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='cloudsql_vector_parallel_search';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_032_07------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable     #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@session.cloudsql_vector_parallel_search, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_parallel_search';
+--enable_warnings
+SELECT @@session.cloudsql_vector_parallel_search;
+--disable_warnings
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_parallel_search';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_032_08-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+SET @@session.cloudsql_vector_parallel_search = OFF;
+SELECT @@session.cloudsql_vector_parallel_search;
+SET @@session.cloudsql_vector_parallel_search = ON;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+--echo '#---------------------FN_DYNVARS_032_09----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@session.cloudsql_vector_parallel_search = TRUE;
+SELECT @@session.cloudsql_vector_parallel_search;
+SET @@session.cloudsql_vector_parallel_search = FALSE;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@session.cloudsql_vector_parallel_search = @session_start_value;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+###############################################################
+#       END OF cloudsql_vector_parallel_search TESTS          #
+###############################################################
+############## mysql-test\t\cloudsql_vector_parallel_search_basic.test ########
+#                                                                             #
+# Variable Name: cloudsql_vector_parallel_search                              #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: NA                                                           #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases System Variable cloudsql_vector_parallel_search     #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+############################################################################
+#                    START OF cloudsql_vector_parallel_search TESTS        #
+############################################################################
+
+
+####################################################################################
+# Saving initial value of cloudsql_vector_parallel_search in a temporary variable  #
+####################################################################################
+
+SET @session_start_value = @@session.cloudsql_vector_parallel_search;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_032_01------------------------#'
+#############################################################################
+#           Display the DEFAULT value of cloudsql_vector_parallel_search    #
+#############################################################################
+
+SET @@session.cloudsql_vector_parallel_search = 1;
+SET @@session.cloudsql_vector_parallel_search = DEFAULT;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+
+--echo '#---------------------FN_DYNVARS_032_02-------------------------#'
+########################################################################################
+# Check if cloudsql_vector_parallel_search can be accessed with and without @@ sign    #
+########################################################################################
+
+SET cloudsql_vector_parallel_search = 1;
+SELECT @@cloudsql_vector_parallel_search;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.cloudsql_vector_parallel_search;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.cloudsql_vector_parallel_search;
+
+SET session cloudsql_vector_parallel_search = 0;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+
+--echo '#--------------------FN_DYNVARS_032_03------------------------#'
+########################################################################
+# change the value of cloudsql_vector_parallel_search to a valid value #
+########################################################################
+
+SET @@session.cloudsql_vector_parallel_search = 0;
+SELECT @@session.cloudsql_vector_parallel_search;
+SET @@session.cloudsql_vector_parallel_search = 1;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+
+--echo '#--------------------FN_DYNVARS_032_04-------------------------#'
+###########################################################################
+#   Change the value of cloudsql_vector_parallel_search to invalid value  #
+###########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = ÕN;
+--error ER_PARSE_ERROR
+SET @@session.cloudsql_vector_parallel_search = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = ÓFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = '¹';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_parallel_search = NO;
+
+
+--echo '#-------------------FN_DYNVARS_032_05----------------------------#'
+###########################################################################
+# Test if accessing global cloudsql_vector_parallel_search gives error    #
+###########################################################################
+
+SET @@global.cloudsql_vector_parallel_search = 1;
+SELECT @@global.cloudsql_vector_parallel_search;
+SET @@global.cloudsql_vector_parallel_search = 0;
+
+--echo '#----------------------FN_DYNVARS_032_06------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='cloudsql_vector_parallel_search';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_032_07------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable     #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@session.cloudsql_vector_parallel_search, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_parallel_search';
+--enable_warnings
+SELECT @@session.cloudsql_vector_parallel_search;
+--disable_warnings
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_parallel_search';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_032_08-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+SET @@session.cloudsql_vector_parallel_search = OFF;
+SELECT @@session.cloudsql_vector_parallel_search;
+SET @@session.cloudsql_vector_parallel_search = ON;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+--echo '#---------------------FN_DYNVARS_032_09----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@session.cloudsql_vector_parallel_search = TRUE;
+SELECT @@session.cloudsql_vector_parallel_search;
+SET @@session.cloudsql_vector_parallel_search = FALSE;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@session.cloudsql_vector_parallel_search = @session_start_value;
+SELECT @@session.cloudsql_vector_parallel_search;
+
+###############################################################
+#       END OF cloudsql_vector_parallel_search TESTS          #
+###############################################################

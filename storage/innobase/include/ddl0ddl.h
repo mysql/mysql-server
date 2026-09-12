@@ -54,6 +54,7 @@ struct Merge_file_sort;
 struct Load_cursor;
 struct Btree_cursor;
 struct Parallel_cursor;
+struct VectorIndexBuilder;
 
 /** Innodb B-tree index fill factor for bulk load. */
 extern long fill_factor;
@@ -446,14 +447,15 @@ struct Context {
   @param[in] eval_table         MySQL table used to evaluate virtual column
                                 value, see innobase_get_computed_value().
   @param[in] max_buffer_size    Memory use upper limit.
-  @param[in] max_threads        true if DDL should use multiple threads. */
+  @param[in] max_threads        true if DDL should use multiple threads.
+  @param[in] vec_index_build    true if we are building vector indexes. */
   Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
           bool online, dict_index_t **indexes, const ulint *key_numbers,
           size_t n_indexes, TABLE *table, const dtuple_t *add_cols,
           const ulint *col_map, size_t add_autoinc, ddl::Sequence &sequence,
           bool skip_pk_sort, Alter_stage *stage, const dict_add_v_col_t *add_v,
           TABLE *eval_table, size_t max_buffer_size,
-          size_t max_threads) noexcept;
+          size_t max_threads, bool vec_index_build) noexcept;
 
   /** Destructor. */
   ~Context() noexcept;
@@ -487,7 +489,14 @@ struct Context {
 
     if (m_err.compare_exchange_strong(expected, err)) {
       ut_ad(m_err_key_number == std::numeric_limits<size_t>::max());
-      m_err_key_number = m_key_numbers[id];
+      if (!m_vec_index_build) {
+        m_err_key_number = m_key_numbers[id];
+      } else {
+        /* In case of vector index build, we have two indexes to build on the
+        sub_table and the third key number is the vector index key number. */
+        ut_a(m_key_numbers.size() == 3);
+        m_err_key_number = m_key_numbers[2];
+      }
       return true;
     }
 
@@ -704,6 +713,9 @@ struct Context {
   /** Heap for copies of m_add_cols. */
   mem_heap_t *m_dtuple_heap{};
 
+  /** true if we are building vector indexes. */
+  const bool m_vec_index_build{};
+
   friend struct Row;
   friend class Loader;
   friend struct Cursor;
@@ -713,6 +725,7 @@ struct Context {
   friend struct Btree_cursor;
   friend struct Merge_file_sort;
   friend struct Parallel_cursor;
+  friend struct VectorIndexBuilder;
 };
 
 }  // namespace ddl

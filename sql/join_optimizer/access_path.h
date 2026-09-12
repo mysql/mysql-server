@@ -37,6 +37,7 @@
 #include "my_base.h"
 #include "my_table_map.h"
 #include "sql/item.h"
+#include "sql/iterators/cloudsql_vector_iterators.h"
 // IWYU suggests removing row_iterator.h, but then the inlined short form of
 // CreateIteratorFromAccessPath() fails to compile. So use a pragma to keep it.
 #include "sql/iterators/row_iterator.h"  // IWYU pragma: keep
@@ -45,10 +46,12 @@
 #include "sql/join_optimizer/node_map.h"
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_type.h"
+#include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/olap.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
+#include "sql/iterators/cloudsql_vector_iterators.h"
 
 class Cost_model_server;
 class Filesort;
@@ -241,6 +244,7 @@ struct AccessPath {
     // NOTE: When adding more paths to this section, also update GetBasicTable()
     // to handle them.
     TABLE_SCAN,
+    VECTOR_INDEX_SCAN,
     SAMPLE_SCAN,
     INDEX_SCAN,
     INDEX_DISTANCE_SCAN,
@@ -269,6 +273,7 @@ struct AccessPath {
     UNQUALIFIED_COUNT,
 
     // Joins.
+    VECTOR_INDEX_JOIN,
     NESTED_LOOP_JOIN,
     NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL,
     BKA_JOIN,
@@ -563,6 +568,14 @@ struct AccessPath {
     assert(type == TABLE_SCAN);
     return u.table_scan;
   }
+  auto &vector_index_scan() {
+    assert(type == VECTOR_INDEX_SCAN);
+    return u.vector_index_scan;
+  }
+  const auto &vector_index_scan() const {
+    assert(type == VECTOR_INDEX_SCAN);
+    return u.vector_index_scan;
+  }
   auto &sample_scan() {
     assert(type == SAMPLE_SCAN);
     return u.sample_scan;
@@ -779,6 +792,14 @@ struct AccessPath {
     assert(type == NESTED_LOOP_JOIN);
     return u.nested_loop_join;
   }
+  auto &vector_index_join() {
+    assert(type == VECTOR_INDEX_JOIN);
+    return u.vector_index_join;
+  }
+  const auto &vector_index_join() const {
+    assert(type == VECTOR_INDEX_JOIN);
+    return u.vector_index_join;
+  }
   auto &nested_loop_semijoin_with_duplicate_removal() {
     assert(type == NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL);
     return u.nested_loop_semijoin_with_duplicate_removal;
@@ -974,6 +995,20 @@ struct AccessPath {
     struct {
       TABLE *table;
     } table_scan;
+    struct {
+      TABLE *table;
+      float *query_vector;
+      uint query_vector_size;
+      enum distance_measure dist_measure;
+      VectorSearchOptions search_options;
+      VectorSearchResults *results;
+      VectorSearchQueryStatus *vector_query_status;
+    } vector_index_scan;
+
+    struct {
+      AccessPath *outer, *inner;
+      const JoinPredicate *join_predicate;
+    } vector_index_join;
     struct {
       TABLE *table;
       double sampling_percentage;
@@ -1362,10 +1397,10 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 152,
+static_assert(sizeof(AccessPath) <= 160,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(104 bytes for the base, 52 bytes for the variant.)");
+              "(104 bytes for the base, 56 bytes for the variant.)");
 
 inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->set_num_output_rows(from.num_output_rows());
@@ -1390,6 +1425,23 @@ inline AccessPath *NewTableScanAccessPath(THD *thd, TABLE *table,
   path->type = AccessPath::TABLE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->table_scan().table = table;
+  return path;
+}
+
+inline AccessPath *NewVectorIndexScanAccessPath(
+    THD *thd, TABLE *table, float *query, uint query_vector_size,
+    VectorSearchOptions search_options,
+    VectorSearchResults *results,
+    VectorSearchQueryStatus *vector_query_status) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::VECTOR_INDEX_SCAN;
+  path->count_examined_rows = true;
+  path->vector_index_scan().table = table;
+  path->vector_index_scan().query_vector = query;
+  path->vector_index_scan().query_vector_size = query_vector_size;
+  path->vector_index_scan().search_options = search_options;
+  path->vector_index_scan().results = results;
+  path->vector_index_scan().vector_query_status = vector_query_status;
   return path;
 }
 

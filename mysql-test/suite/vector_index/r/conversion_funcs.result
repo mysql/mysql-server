@@ -1,0 +1,196 @@
+# string_to_vector: valid cases
+select vector_to_string(string_to_vector('[1.0, -2.0, 3]'))
+select vector_to_string(string_to_vector(' [1.0, -2.0, 3]'));
+vector_to_string(string_to_vector(' [1.0, -2.0, 3]'))
+[1.00000e+00,-2.00000e+00,3.00000e+00]
+select vector_to_string(string_to_vector(' [1.0, -2.0, 3]         '));
+vector_to_string(string_to_vector(' [1.0, -2.0, 3]         '))
+[1.00000e+00,-2.00000e+00,3.00000e+00]
+select vector_to_string(string_to_vector(' [1.0,-2.0,          3]         '));
+vector_to_string(string_to_vector(' [1.0,-2.0,          3]         '))
+[1.00000e+00,-2.00000e+00,3.00000e+00]
+select string_to_vector(NULL);
+string_to_vector(NULL)
+NULL
+select string_to_vector(JSON_VALUE(JSON_OBJECT('emb', '[1, 2]'), '$.emb' RETURNING CHAR(100)));
+string_to_vector(JSON_VALUE(JSON_OBJECT('emb', '[1, 2]'), '$.emb' RETURNING CHAR(100)))
+0x0000803F00000040
+select string_to_vector(JSON_VALUE(JSON_OBJECT('emb', '[1, 2]'), '$.emb'));
+string_to_vector(JSON_VALUE(JSON_OBJECT('emb', '[1, 2]'), '$.emb'))
+0x0000803F00000040
+# malformed string_to_vector
+select string_to_vector('');
+ERROR HY000: Data cannot be converted to a valid vector: ''
+select string_to_vector('xyz');
+ERROR HY000: Data cannot be converted to a valid vector: 'xyz'
+select string_to_vector('abc[1]');
+ERROR HY000: Data cannot be converted to a valid vector: 'abc[1]'
+select string_to_vector('[1, 2]xyz');
+ERROR HY000: Data cannot be converted to a valid vector: '[1, 2]xyz'
+select string_to_vector('1, 2]');
+ERROR HY000: Data cannot be converted to a valid vector: '1, 2]'
+select string_to_vector('[1, 2');
+ERROR HY000: Data cannot be converted to a valid vector: '[1, 2'
+select string_to_vector('[1, 2, 3; 4]');
+ERROR HY000: Data cannot be converted to a valid vector: '[1, 2, 3; 4]'
+select string_to_vector('[1.2.3]');
+ERROR HY000: Data cannot be converted to a valid vector: '[1.2.3]'
+select string_to_vector(JSON_OBJECT('emb', '[1, 2]'));
+ERROR HY000: Incorrect arguments to to_vector
+select string_to_vector(JSON_OBJECT('emb', '[1, 2]'));
+ERROR HY000: Incorrect arguments to to_vector
+select string_to_vector(JSON_EXTRACT(JSON_OBJECT('emb', 'xyz'), '$.emb'));
+ERROR HY000: Incorrect arguments to to_vector
+# vector_to_string: valid case
+select vector_to_string(string_to_vector('[1.0, -2.0, 3]'))
+select vector_to_string(NULL);
+vector_to_string(NULL)
+NULL
+# malformed vector_to_string
+select vector_to_string('');
+ERROR HY000: Incorrect arguments to from_vector
+select vector_to_string(0xDEAD);
+ERROR HY000: Data cannot be converted to a valid vector: 'ޭ'
+# vector_distance: valid case
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'))
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'distance_measure=l2_squared');
+vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'distance_measure=l2_squared')
+67
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'DISTANCE_MEASURE=cosine');
+vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'DISTANCE_MEASURE=cosine')
+0.6345130576760964
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'Distance_Measure=dot_product');
+vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'Distance_Measure=dot_product')
+-12
+select vector_distance(NULL, NULL);
+vector_distance(NULL, NULL)
+NULL
+select vector_distance(NULL, string_to_vector('[1, -2, 3]'));
+vector_distance(NULL, string_to_vector('[1, -2, 3]'))
+NULL
+select vector_distance(string_to_vector('[1, -2, 3]'), NULL);
+vector_distance(string_to_vector('[1, -2, 3]'), NULL)
+NULL
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), NULL);
+vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), NULL)
+67
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), CAST(NULL AS CHAR));
+vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), CAST(NULL AS CHAR))
+67
+select vector_distance(NULL, NULL, NULL);
+vector_distance(NULL, NULL, NULL)
+NULL
+select concat('dist: ', vector_distance(NULL, NULL));
+concat('dist: ', vector_distance(NULL, NULL))
+NULL
+select cosine_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+cosine_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'))
+0.6345130576760964
+select dot_product(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+dot_product(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'))
+-12
+select l2_squared_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+l2_squared_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'))
+67
+select cosine_distance(NULL, NULL);
+cosine_distance(NULL, NULL)
+NULL
+select cosine_distance(NULL, string_to_vector('[1, -2, 3]'));
+cosine_distance(NULL, string_to_vector('[1, -2, 3]'))
+NULL
+select cosine_distance(string_to_vector('[1, -2, 3]'), NULL);
+cosine_distance(string_to_vector('[1, -2, 3]'), NULL)
+NULL
+select dot_product(NULL, NULL);
+dot_product(NULL, NULL)
+NULL
+select dot_product(NULL, string_to_vector('[1, -2, 3]'));
+dot_product(NULL, string_to_vector('[1, -2, 3]'))
+NULL
+select dot_product(string_to_vector('[1, -2, 3]'), NULL);
+dot_product(string_to_vector('[1, -2, 3]'), NULL)
+NULL
+select l2_squared_distance(NULL, NULL);
+l2_squared_distance(NULL, NULL)
+NULL
+select l2_squared_distance(NULL, string_to_vector('[1, -2, 3]'));
+l2_squared_distance(NULL, string_to_vector('[1, -2, 3]'))
+NULL
+select l2_squared_distance(string_to_vector('[1, -2, 3]'), NULL);
+l2_squared_distance(string_to_vector('[1, -2, 3]'), NULL)
+NULL
+# malformed vector_distance
+select vector_distance('', string_to_vector('[1, -2, 3]'));
+ERROR HY000: Input vector is not valid. Please provide string in [double1,double2,double3...,doublen] format
+select vector_distance(string_to_vector('[1, -2, 3, 4]'), string_to_vector('[1, -2, 3]'));
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select vector_distance(string_to_vector('[1, -2]'), string_to_vector('[1, -2, 3]'));
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select vector_distance(0xabcdefaa, 0xabcd);
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select vector_distance(0xabcd, 0xabcdefaa);
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select cosine_distance(0xabcd, 0xabcdefaa);
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select dot_product(0xabcd, 0xabcdefaa);
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select l2_squared_distance(0xabcd, 0xabcdefaa);
+ERROR HY000: Unable to calculate vector distance Reason: input vector dimensions must be same
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'),'garbage=value');
+ERROR 22023: Invalid option key 'garbage' in function vector_distance.
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'),'num_partitions=10');
+ERROR 22023: Invalid option key 'num_partitions' in function vector_distance.
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'),'distance_measure=garbage');
+ERROR 22023: Invalid value 'garbage' for option 'distance_measure' in function 'vector_distance'.
+CREATE TABLE t1(k varchar(10) PRIMARY KEY, j VECTOR(5) USING VARBINARY);
+INSERT INTO t1 VALUES ('word1', string_to_vector('[1,2,3,4,5]'));
+INSERT INTO t1 VALUES ('word2', NULL);
+INSERT INTO t1 VALUES ('word3', string_to_vector('[3,2,3,9,2]'));
+INSERT INTO t1 VALUES ('word4', NULL);
+INSERT INTO t1 VALUES ('word5', NULL);
+INSERT INTO t1 VALUES ('word6', string_to_vector('[3,2,3,9,2]'));
+INSERT INTO t1 VALUES ('word7', string_to_vector('[3,2,3,9,2]'));
+INSERT INTO t1 VALUES ('word8', NULL);
+SELECT vector_to_string(j) FROM t1;
+vector_to_string(j)
+[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,5.00000e+00]
+NULL
+[3.00000e+00,2.00000e+00,3.00000e+00,9.00000e+00,2.00000e+00]
+NULL
+NULL
+[3.00000e+00,2.00000e+00,3.00000e+00,9.00000e+00,2.00000e+00]
+[3.00000e+00,2.00000e+00,3.00000e+00,9.00000e+00,2.00000e+00]
+NULL
+SELECT string_to_vector(vector_to_string(j)) FROM t1;
+string_to_vector(vector_to_string(j))
+0x0000803F0000004000004040000080400000A040
+NULL
+0x0000404000000040000040400000104100000040
+NULL
+NULL
+0x0000404000000040000040400000104100000040
+0x0000404000000040000040400000104100000040
+NULL
+SELECT vector_distance(j, string_to_vector('[10,12,13,14,15]')) FROM t1;
+vector_distance(j, string_to_vector('[10,12,13,14,15]'))
+481
+NULL
+443
+NULL
+NULL
+443
+443
+NULL
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT k, j, vector_to_string(j), vector_distance(j, string_to_vector('[10,12,13,14,15]')) FROM t2;
+k	j	vector_to_string(j)	vector_distance(j, string_to_vector('[10,12,13,14,15]'))
+word1	0x0000803F0000004000004040000080400000A040	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,5.00000e+00]	481
+word2	NULL	NULL	NULL
+word3	0x0000404000000040000040400000104100000040	[3.00000e+00,2.00000e+00,3.00000e+00,9.00000e+00,2.00000e+00]	443
+word4	NULL	NULL	NULL
+word5	NULL	NULL	NULL
+word6	0x0000404000000040000040400000104100000040	[3.00000e+00,2.00000e+00,3.00000e+00,9.00000e+00,2.00000e+00]	443
+word7	0x0000404000000040000040400000104100000040	[3.00000e+00,2.00000e+00,3.00000e+00,9.00000e+00,2.00000e+00]	443
+word8	NULL	NULL	NULL
+DROP TABLE t1,t2;

@@ -1,0 +1,936 @@
+use test;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+declare i int default 1;
+declare d1 float default 1.0;
+declare d2 float default 2.0;
+declare d3 float default 3.0;
+while i <= n_rows do
+set @s = concat("insert into ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+prepare stmt from @s;
+execute stmt;
+set i = i + 1;
+#set d1 = d1 + 1;
+#set d2 = d2 + 1;
+set d3 = d3 + 1;
+end while;
+end |
+# create connections
+######## Testing READ COMMITTED isolation level ########
+CREATE TABLE t1 (id int PRIMARY KEY, emb vector(3));
+CREATE VECTOR INDEX vec_index ON t1(emb) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=cosine NUM_LEAVES=10;
+# isolation level SERIALIZABLE is not supported with ANN
+SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE functions are not supported with SERIALIZABLE transaction isolation level
+SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET GLOBAL TRANSACTION_ISOLATION=SERIALIZABLE;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE functions are not supported with SERIALIZABLE transaction isolation level
+SET GLOBAL TRANSACTION_ISOLATION="REPEATABLE-READ";
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE functions are not supported with SERIALIZABLE transaction isolation level
+# isolation level READ COMMITTED for default connection
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+# isolation level READ COMMITTED for other connection
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+# -- Inserting a row in t1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001, string_to_vector('[1.0, 2.0, 3.0]'));
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+# Verify we can't see the uncommitted change
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+COMMIT;
+# Verify we can see the change in APPROX now that txn is committed
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+# -- Update multiple rows in t1
+START TRANSACTION;
+UPDATE t1 SET emb = string_to_vector('[1.0, 2.0, 3.0]') WHERE id > 990;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+991
+992
+993
+994
+995
+996
+997
+998
+999
+1000
+1001
+2
+3
+4
+# Verify we can't see the uncommitted change
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+COMMIT;
+# Verify we can see the change in APPROX now that txn is committed
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+991
+992
+993
+994
+995
+996
+997
+998
+999
+1000
+1001
+2
+3
+4
+# -- delete multiple rows in t1
+START TRANSACTION;
+DELETE FROM t1 where id > 990 and id < 1000;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+# Verify we can't see the uncommitted change
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+991
+992
+993
+994
+995
+996
+997
+998
+999
+1000
+1001
+2
+3
+4
+COMMIT;
+# Verify we can see the change in APPROX now that txn is committed
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+######## Testing READ UNCOMMITTED isolation level ########
+# isolation level READ UNCOMMITTED for default connection
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+# isolation level READ UNCOMMITTED for other connection
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+# -- Inserting a row in t1
+START TRANSACTION;
+INSERT INTO t1 VALUES (2000, string_to_vector('[1.0, 2.0, 3.0]'));
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Verify we can see the uncommitted change
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+ROLLBACK;
+# Verify we can't see the change after rollback
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+# -- Update multiple rows in t1
+START TRANSACTION;
+UPDATE t1 SET emb = string_to_vector('[1.0, 2.0, 3.0]') WHERE id > 200 and id < 210;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+201
+202
+203
+204
+205
+206
+207
+208
+209
+1000
+1001
+2
+3
+4
+# Verify we can see the uncommitted change
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+201
+202
+203
+204
+205
+206
+207
+208
+209
+1000
+1001
+2
+3
+4
+ROLLBACK;
+# Verify we can't see the change after rollback
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+# -- delete multiple rows in t1
+START TRANSACTION;
+DELETE FROM t1 where id > 999;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+# Verify we can see the uncommitted change
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+ROLLBACK;
+# Verify we can't see the change after rollback
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+######## Testing REPEATABLE READ (default) isolation level ########
+# We'll work with three connections: con_2, con_3, con_4
+# con_3: where DMLs will happen and will be committed
+# con_2: which will have a transaction started before con_3
+# con_4: which will have a transaction started after con_3
+# Neither con_2 nor con_4 should be able to see the changes in con_3
+# even after the transaction is committed in default
+# Once we start a new transaction in con_2 and con_4 these changes should
+# be visible in those connections.
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+# -- Inserting a row in t1
+INSERT INTO t1 VALUES (5000, string_to_vector('[1.0, 2.0, 3.0]'));
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Verify we can't see the change in con_2 and con_4
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+# Commit changes
+COMMIT;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Verify we can't see the change in con_2 and con_4
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+# Start new transactions in con_2 and con_4
+# we should be able to see the changes in these connections
+COMMIT;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+COMMIT;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+5000
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+5000
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+5000
+# -- updating multiple rows in t1
+UPDATE t1 SET emb = string_to_vector('[1.0, 2.0, 3.0]') WHERE id > 980;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+# Verify we can't see the change in con_2 and con_4
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Commit changes
+COMMIT;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+# Verify we can't see the change in con_2 and con_4
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Start new transactions in con_2 and con_4
+# we should be able to see the changes in these connections
+COMMIT;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+COMMIT;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+5000
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+5000
+START TRANSACTION;
+SELECT id from t1 where id > 2500;
+id
+5000
+# -- delete multiple rows in t1
+DELETE FROM t1 where id > 980 and id < 1000;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Verify we can't see the change in con_2 and con_4
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+# Commit changes
+COMMIT;
+# changes should be visible in modifying transaction
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+# Verify we can't see the change in con_2 and con_4
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+1000
+1001
+5000
+2
+# Start new transactions in con_2 and con_4
+# we should be able to see the changes in these connections
+COMMIT;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+COMMIT;
+SELECT id FROM t1 ORDER BY approx_distance(emb, string_to_vector('[1.0, 2.0, 3.0]'), 'distance_measure=cosine'), id LIMIT 15;
+id
+1
+1000
+1001
+5000
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+select queries from information_schema.innodb_vector_indexes where index_name = 'vec_index';
+queries
+45
+# cleanup
+DROP TABLE t1;
+DROP procedure fill_vector_table;

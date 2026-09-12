@@ -1,0 +1,35 @@
+--let $rpl_topology= 1->2->3
+--let $masters= 1
+
+--source include/rpl/init.inc
+--source include/rpl/sync.inc
+
+--connection server_1
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+UPDATE t1 SET j = string_to_vector("[2.0, 2.0, 2.0]") WHERE i = 1;
+
+--echo # check vector index on server_2
+--let $sync_slave_connection= server_2
+--source include/rpl/sync_to_replica.inc
+--connection server_2
+SELECT * FROM information_schema.innodb_vector_indexes;
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1.0,2.0,3.0]'), 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # check vector index on server_3
+--let $sync_slave_connection= server_3
+--source include/rpl/sync_to_replica.inc
+--connection server_3
+SELECT * FROM information_schema.innodb_vector_indexes;
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1.0,2.0,3.0]'), 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # cleanup
+--connection server_1
+DROP TABLE t1;
+
+--source include/rpl/deinit.inc

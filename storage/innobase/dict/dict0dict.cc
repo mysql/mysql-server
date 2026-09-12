@@ -124,6 +124,8 @@ extern uint ibuf_debug;
 #include "ut0new.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include "vector0dd.h"
+
 static_assert(DATA_ROW_ID == 0, "DATA_ROW_ID != 0");
 static_assert(DATA_TRX_ID == 1, "DATA_TRX_ID != 1");
 static_assert(DATA_ROLL_PTR == 2, "DATA_ROLL_PTR != 2");
@@ -1609,6 +1611,17 @@ dberr_t dict_table_rename_in_cache(
   /* Update the table_name field in indexes */
   for (index = table->first_index(); index != nullptr; index = index->next()) {
     index->table_name = table->name.m_name;
+    if (dict_index_is_vector(index)) {
+      auto vec_index = ib_vector::dict_table_get_vector_index_ptr(index->table);
+      if (vec_index != nullptr) {
+        vec_index->set_base_table_name(table->name.m_name);
+      }
+    }
+  }
+
+  /* Update name field in vector index metadata */
+  if (table->vector_col_info) {
+    table->vector_col_info->set_table_name(table->name.m_name);
   }
 
   if (!rename_also_foreigns) {
@@ -2137,7 +2150,9 @@ void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
   length. This is why we don't need to check if the field is the first field of
   the spatial index once we see it is DATA_GEOMETRY. We can't check this anyway,
   because the field might be a dummy object not yet added to the index. */
-  if (dict_index_is_spatial(index) && col->mtype == DATA_GEOMETRY) {
+
+  if ((dict_index_is_spatial(index) && col->mtype == DATA_GEOMETRY) ||
+      dict_index_is_vector(index)) {
     rec_max_size += DATA_MBR_LEN + 1;
     return;
   }
@@ -2485,6 +2500,29 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
     }
   }
 
+  if (dict_index_is_vector(new_index)) {
+    if (!opt_cloudsql_vector) {
+      ib::error() << "Attempting to load a vector index on table '"
+                  << table->name.m_name
+                  << "' when 'cloudsql_vector' is disabled.";
+      ut_ad(!ib_vector::table_has_vector_col(table));
+      /* Currently, it is a crashing error if we have a vector in DD and
+      cloudsql_vector is off. */
+      ut_error;
+    } else if (!ib_vector::table_has_vector_col(table)) {
+      /* We have a bug in our code. This should never happen. */
+      ib::error() << "Trying to load a vector index on table '"
+                  << table->name.m_name
+                  << "' when there is no vector column.";
+      ut_error;
+    }
+
+    ut_a(!ib_vector::dict_table_has_vector_index(table));
+    new_index->vec_index_info = index->vec_index_info;
+    new_index->disable_ahi = true;
+    table->vector_col_info->persistent_vec_index_ = new_index;
+  }
+
   n_ord = new_index->n_uniq;
 
   /* Flag the ordering columns and also set column max_prefix */
@@ -2541,7 +2579,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   still met, and clear the rec_cache.offsets when they change. */
   if (dict_table_is_comp(table) && !dict_index_has_virtual(index) &&
       (!table->has_instant_cols() && !table->has_row_versions()) &&
-      !dict_index_is_spatial(index)) {
+      !dict_index_is_spatial(index) && !dict_index_is_vector(index)) {
     dict_index_try_cache_rec_offsets(new_index);
   } else {
     /* The rules should not prevent caching for intrinsic tables */
@@ -2650,6 +2688,8 @@ static void dict_index_remove_from_cache_low(
 
   /* Remove the index from the list of indexes of the table */
   UT_LIST_REMOVE(table->indexes, index);
+
+  ib_vector::index_vector_cleanup(index);
 
   /* Remove the index from affected virtual column index list */
   if (dict_index_has_virtual(index)) {
@@ -3171,10 +3211,18 @@ static dict_index_t *dict_index_build_internal_non_clust(
   ut_ad(clust_index->is_clustered());
   ut_ad(!dict_index_is_ibuf(clust_index));
 
+  /* In case of vector index, we just follow the regular code path for secondary
+  indexes. However, we don't really need to add any extra PK columns */
+  ulint num_fields = index->n_fields;
+  if (index->type == DICT_VECTOR) {
+    ut_a(num_fields == 1);
+  } else {
+    num_fields += (1 + clust_index->n_uniq);
+  }
+
   /* Create a new index */
   new_index = dict_mem_index_create(table->name.m_name, index->name,
-                                    index->space, index->type,
-                                    index->n_fields + 1 + clust_index->n_uniq);
+                                    index->space, index->type, num_fields);
 
   /* Copy other relevant data from the old index
   struct to the new struct: it inherits the values */
@@ -3185,6 +3233,10 @@ static dict_index_t *dict_index_build_internal_non_clust(
 
   /* Copy fields from index to new_index */
   dict_index_copy(new_index, index, table, 0, index->n_fields);
+
+  if (index->type == DICT_VECTOR) {
+    goto skip_pk_columns;
+  }
 
   /* Remember the table columns already contained in new_index */
   indexed = static_cast<bool *>(ut::zalloc_withkey(
@@ -3225,8 +3277,11 @@ static dict_index_t *dict_index_build_internal_non_clust(
 
   ut::free(indexed);
 
+skip_pk_columns:
   if (dict_index_is_unique(index)) {
     new_index->n_uniq = index->n_fields;
+  } else if (index->type == DICT_VECTOR) {
+    new_index->n_uniq = 0;
   } else {
     new_index->n_uniq = new_index->n_def;
   }
@@ -3237,6 +3292,10 @@ static dict_index_t *dict_index_build_internal_non_clust(
   new_index->n_fields = new_index->n_def;
 
   new_index->cached = true;
+
+  ut_a(!dict_index_is_vector(new_index) ||
+       (new_index->n_fields == 1 && new_index->n_uniq == 0 &&
+        new_index->n_def == 1));
 
   return (new_index);
 }
@@ -3370,7 +3429,8 @@ NOT NULL */
 
   while (index != nullptr) {
     if (types_idx != index && !(index->type & DICT_FTS) &&
-        !dict_index_is_spatial(index) && !index->to_be_dropped &&
+        !dict_index_is_spatial(index) && !dict_index_is_vector(index) &&
+        !index->to_be_dropped &&
         (!(index->uncommitted &&
            ((index->online_status == ONLINE_INDEX_ABORTED_DROPPED) ||
             (index->online_status == ONLINE_INDEX_ABORTED)))) &&

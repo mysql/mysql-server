@@ -1,0 +1,167 @@
+call mtr.add_suppression("Failed to allocate memory for training");
+call mtr.add_suppression("Not enough memory to collect training dataset");
+call mtr.add_suppression("Failed to scan table and build index");
+call mtr.add_suppression("Not enough memory to continue collecting training data");
+call mtr.add_suppression("Failed to train vector index: not enough data points");
+call mtr.add_suppression("Failed to create partitioner");
+call mtr.add_suppression("Failed to train vector index: KMeans internal error");
+call mtr.add_suppression("KMeans code: UNKNOWN message: simulated kmeans error");
+call mtr.add_suppression("Error encountered during index build: KMeans internal error");
+set @start_value = @@global.cloudsql_vector_max_mem_size;
+create table t1(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t1(j) values(string_to_vector('[1,2,3]'));
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+insert into t1(j) select j from t1;
+create table t2(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t2(j) select j from t1 where i <= 20000;
+create table t3(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t3(j) select j from t2 where i <= 2000;
+create vector index v1 on t1(j) distance_measure=cosine;
+create vector index v2 on t2(j) distance_measure=cosine;
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v3	INDEX_READY_TO_USE
+v2	INDEX_READY_TO_USE
+v1	INDEX_READY_TO_USE
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+53681	0
+drop index v1 on t1;
+drop index v2 on t2;
+drop index v3 on t3;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+set global cloudsql_vector_max_mem_size = 184320;
+create vector index v1 on t1(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v2 on t2(j) distance_measure=cosine;
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v3	INDEX_READY_TO_USE
+v2	INDEX_READY_TO_USE
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+5724	0
+drop index v2 on t2;
+drop index v3 on t3;
+set global cloudsql_vector_max_mem_size = 122880;
+create vector index v1 on t1(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v2 on t2(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v3	INDEX_READY_TO_USE
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+853	0
+drop index v3 on t3;
+set global cloudsql_vector_max_mem_size = 24576;
+create vector index v1 on t1(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v2 on t2(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v3 on t3(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+set global cloudsql_vector_max_mem_size = 24576;
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=500;
+create vector index v2 on t2(j) distance_measure=cosine num_leaves=500;
+create vector index v3 on t3(j) distance_measure=cosine num_leaves=500;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v3	INDEX_READY_TO_USE
+v2	INDEX_PENDING_LOAD
+v1	INDEX_PENDING_LOAD
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+20909	0
+drop index v1 on t1;
+drop index v2 on t2;
+drop index v3 on t3;
+set global cloudsql_vector_max_mem_size = 6144;
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=500;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v2 on t2(j) distance_measure=cosine num_leaves=500;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+create vector index v3 on t3(j) distance_measure=cosine num_leaves=500;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+set global cloudsql_vector_max_mem_size = 102400000;
+create table t4(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t4(j) select j from t3 where i < 1000;
+create vector index v4 on t4(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Not enough data to train. The number of non-NULL embedding rows must be at least 1000 or the value of num_leaves (if specified), whichever is greater.
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+create vector index v4 on t4(j) distance_measure=cosine num_leaves=100;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Not enough data to train. The number of non-NULL embedding rows must be at least 1000 or the value of num_leaves (if specified), whichever is greater.
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+set global cloudsql_vector_max_mem_size = 102400000;
+set session debug='+d,simulate_kmeans_training_error';
+create vector index v1 on t1(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: training failed
+create vector index v2 on t2(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: training failed
+create vector index v3 on t3(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: training failed
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+set session debug='-d,simulate_kmeans_training_error';
+set global debug='+d,simulate_kmeans_add_dp_error';
+create vector index v1 on t1(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: building failed
+create vector index v2 on t2(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: building failed
+create vector index v3 on t3(j) distance_measure=cosine;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: building failed
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+index_memory	training_memory
+0	0
+set global debug='-d,simulate_kmeans_add_dp_error';
+set @@global.cloudsql_vector_max_mem_size=@start_value;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;

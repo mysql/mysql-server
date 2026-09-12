@@ -364,6 +364,7 @@ class Item_func : public Item_result_field {
     ETAG_FUNC,
     CURRENT_USER_IN_FUNC,
     CURRENT_ROLE_IN_FUNC,
+    CLOUDSQL_APPROX_DISTANCE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -4246,5 +4247,9 @@ bool is_function_of_type(const Item *item, Item_func::Functype type);
 
 /// Checks if "item" contains a function of the specified type.
 bool contains_function_of_type(Item *item, Item_func::Functype type);
+
+// Same as contains_function_of_type, but returns a vector of the items of the
+// specified type found in the item tree.
+std::vector<Item *> get_functions_of_type(Item *item, Item_func::Functype type);
 
 #endif /* ITEM_FUNC_INCLUDED */

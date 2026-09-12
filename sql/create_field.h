@@ -199,6 +199,9 @@ class Create_field {
   bool is_virtual_gcol() const {
     return gcol_info && !gcol_info->get_field_stored();
   }
+  bool is_vector_col() const {
+    return sql_type == MYSQL_TYPE_VECTOR;
+  }
 
   /* Init for a tmp table field. To be extended if need be. */
   void init_for_tmp_table(enum_field_types sql_type_arg, uint32 max_length,

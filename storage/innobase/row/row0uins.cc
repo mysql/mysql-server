@@ -405,7 +405,7 @@ static dberr_t row_undo_ins_remove_multi_sec(dict_index_t *index,
   while (index != nullptr) {
     dtuple_t *entry;
 
-    if (index->type & DICT_FTS) {
+    if (index->type & DICT_FTS || dict_index_is_vector(index)) {
       dict_table_next_uncorrupted_index(index);
       continue;
     }
