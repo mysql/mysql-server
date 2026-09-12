@@ -37,6 +37,8 @@
 
 #include "sql/ssl_acceptor_context_data.h"
 
+#include "vio/vio_sigalgs.h"
+
 /* Helpers */
 /* Function to report SSL library errors
  */
@@ -266,6 +268,7 @@ static std::string Ssl_acceptor_context_propert_type_names[] = {
     "Ssl_session_cache_timeouts",
     "Ssl_used_session_cache_entries",
     "Ssl_session_cache_timeout",
+    "Ssl_sigalgs_list",
     ""};
 
 std::string Ssl_ctx_property_name(
@@ -388,6 +391,16 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
 
 void Ssl_acceptor_context_data::report_tls_channel_without_force_pqc() const {
   log_tls_channel_without_force_pqc(channel_, current_tls_force_pqc_);
+}
+
+void Ssl_acceptor_context_data::report_dropped_sigalgs() const {
+  if (ssl_acceptor_fd_ == nullptr ||
+      ssl_acceptor_fd_->dropped_sigalgs[0] == '\0')
+    return;
+  for (const auto &token :
+       vio_sigalgs::split(ssl_acceptor_fd_->dropped_sigalgs))
+    LogErr(WARNING_LEVEL, ER_WARN_TLS_SIGALG_UNSUPPORTED, token.c_str(),
+           channel_.c_str());
 }
 
 Ssl_acceptor_context_data::~Ssl_acceptor_context_data() {
@@ -581,6 +594,11 @@ std::string Ssl_acceptor_context_data::show_property(
     }
     case Ssl_acceptor_context_property_type::session_cache_timeout: {
       output += std::to_string(c == nullptr ? 0 : SSL_CTX_get_timeout(c));
+      break;
+    }
+    case Ssl_acceptor_context_property_type::ssl_sigalgs_list: {
+      if (ssl_acceptor_fd_ != nullptr)
+        output.assign(ssl_acceptor_fd_->effective_sigalgs);
       break;
     }
     case Ssl_acceptor_context_property_type::last:

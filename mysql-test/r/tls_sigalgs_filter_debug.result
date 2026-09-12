@@ -1,0 +1,15 @@
+call mtr.add_suppression("Signature algorithm .* is not supported by the TLS library and was removed from the preference list");
+# restart: --debug=+d,tls_sigalgs_reject_pss_pss
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	CIPHER
+include/assert.inc [Effective sigalgs list does not contain rsa_pss_pss_]
+include/assert.inc [MTI token ECDSA+SHA256 kept (hook removes only rsa_pss_pss_*)]
+include/assert.inc [MTI token rsa_pss_rsae_sha256 kept (hook removes only rsa_pss_pss_*)]
+include/assert.inc [Debug restart logged three rsa_pss_pss warnings for mysql_main]
+# restart:
+SET SESSION debug='+d,tls_sigalgs_reject_pss_pss';
+ALTER INSTANCE RELOAD TLS;
+SET SESSION debug='-d,tls_sigalgs_reject_pss_pss';
+include/assert.inc [TLS reload logged three rsa_pss_pss warnings]
+ALTER INSTANCE RELOAD TLS;

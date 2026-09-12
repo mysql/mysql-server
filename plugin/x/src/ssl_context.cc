@@ -26,6 +26,7 @@
 #include <memory>
 #include <string>
 
+#include "vio/vio_sigalgs.h"
 #include "violite.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/ngs/log.h"
@@ -110,6 +111,11 @@ bool Ssl_context::setup(const iface::Ssl_context_config &config,
   if (m_ssl_acceptor) free_vio_ssl_acceptor_fd(m_ssl_acceptor);
   m_ssl_acceptor = new_ssl_acceptor;
   m_options = std::move(new_options);
+  // Same per-token warning the main and admin channels log when their
+  // context is installed (Ssl_acceptor_context_data::report_dropped_sigalgs).
+  for (const auto &token :
+       vio_sigalgs::split(new_ssl_acceptor->dropped_sigalgs))
+    log_warning(ER_WARN_TLS_SIGALG_UNSUPPORTED, token.c_str(), "mysqlx");
   if (warn_without_force_pqc) warn_tls_channel_without_force_pqc(tls_force_pqc);
 
   return true;
