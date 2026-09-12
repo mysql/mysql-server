@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=90500
+Current I_S_VERSION=261000
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -615,11 +615,12 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   columns.allow_insert AS ALLOW_INSERT,
   columns.allow_update AS ALLOW_UPDATE,
   columns.allow_delete AS ALLOW_DELETE,
+  columns.allow_check AS ALLOW_CHECK,
   columns.read_only AS READ_ONLY FROM 
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_COLUMNS'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     is_root_table TINYINT PATH '$.is_root_table',     referenced_column_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_column_name',     json_key_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.json_key_name',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     read_only TINYINT PATH '$.read_only'   ) ) AS columns WHERE 
+  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_COLUMNS'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     is_root_table TINYINT PATH '$.is_root_table',     referenced_column_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_column_name',     json_key_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.json_key_name',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     allow_check  TINYINT PATH '$.allow_check',    read_only TINYINT PATH '$.read_only'   ) ) AS columns WHERE 
   CAN_ACCESS_VIEW(sch.name, tbl.name, tbl.view_definer, tbl.options)
   AND CAN_ACCESS_COLUMN(columns.referenced_table_schema, columns.referenced_table_name, columns.referenced_column_name)
   AND tbl.type = 'VIEW'
@@ -639,11 +640,12 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   columns.allow_insert AS ALLOW_INSERT,
   columns.allow_update AS ALLOW_UPDATE,
   columns.allow_delete AS ALLOW_DELETE,
+  columns.allow_check AS ALLOW_CHECK,
   columns.read_only AS READ_ONLY FROM 
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_COLUMNS'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     is_root_table TINYINT PATH '$.is_root_table',     referenced_column_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_column_name',     json_key_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.json_key_name',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     read_only TINYINT PATH '$.read_only'   ) ) AS columns WHERE 
+  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_COLUMNS'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     is_root_table TINYINT PATH '$.is_root_table',     referenced_column_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_column_name',     json_key_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.json_key_name',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     allow_check  TINYINT PATH '$.allow_check',    read_only TINYINT PATH '$.read_only'   ) ) AS columns WHERE 
   CAN_ACCESS_VIEW(sch.name, tbl.name, tbl.view_definer, tbl.options)
   AND CAN_ACCESS_COLUMN(columns.referenced_table_schema, columns.referenced_table_name, columns.referenced_column_name)
   AND tbl.type = 'VIEW'
@@ -708,6 +710,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   tables.allow_insert AS ALLOW_INSERT,
   tables.allow_update AS ALLOW_UPDATE,
   tables.allow_delete AS ALLOW_DELETE,
+  tables.allow_check AS ALLOW_CHECK,
   tables.read_only AS READ_ONLY,
   tables.is_root_table AS IS_ROOT_TABLE,
   tables.referenced_table_id AS REFERENCED_TABLE_ID,
@@ -716,7 +719,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_TABLES'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_parent_id INT PATH '$.referenced_table_parent_id',     referenced_table_parent_relationship VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_parent_relationship',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     where_clause VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.where_clause',     is_root_table TINYINT PATH '$.is_root_table',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     read_only TINYINT PATH '$.read_only'   ) ) AS tables WHERE 
+  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_TABLES'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_parent_id INT PATH '$.referenced_table_parent_id',     referenced_table_parent_relationship VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_parent_relationship',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     where_clause VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.where_clause',     is_root_table TINYINT PATH '$.is_root_table',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     allow_check TINYINT PATH '$.allow_check',     read_only TINYINT PATH '$.read_only'   ) ) AS tables WHERE 
   CAN_ACCESS_VIEW(sch.name, tbl.name, tbl.view_definer, tbl.options)
   AND CAN_ACCESS_TABLE(tables.referenced_table_schema, tables.referenced_table_name)
   AND tbl.type = 'VIEW'
@@ -733,6 +736,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   tables.allow_insert AS ALLOW_INSERT,
   tables.allow_update AS ALLOW_UPDATE,
   tables.allow_delete AS ALLOW_DELETE,
+  tables.allow_check AS ALLOW_CHECK,
   tables.read_only AS READ_ONLY,
   tables.is_root_table AS IS_ROOT_TABLE,
   tables.referenced_table_id AS REFERENCED_TABLE_ID,
@@ -741,7 +745,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_TABLES'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_parent_id INT PATH '$.referenced_table_parent_id',     referenced_table_parent_relationship VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_parent_relationship',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     where_clause VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.where_clause',     is_root_table TINYINT PATH '$.is_root_table',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     read_only TINYINT PATH '$.read_only'   ) ) AS tables WHERE 
+  JOIN JSON_TABLE(GET_JDV_PROPERTY_KEY_VALUE(sch.name, tbl.name, GET_DD_PROPERTY_KEY_VALUE(tbl.options, 'view_valid'), 'JSON_DUALITY_VIEW_TABLES'), '$.entries[*]'   COLUMNS (     referenced_table_id INT PATH '$.referenced_table_id',     referenced_table_parent_id INT PATH '$.referenced_table_parent_id',     referenced_table_parent_relationship VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_parent_relationship',     referenced_table_catalog VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_catalog',     referenced_table_schema VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_schema',     referenced_table_name VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.referenced_table_name',     where_clause VARCHAR(64) CHARACTER SET utf8mb4 PATH '$.where_clause',     is_root_table TINYINT PATH '$.is_root_table',     allow_insert TINYINT PATH '$.allow_insert',     allow_update TINYINT PATH '$.allow_update',     allow_delete TINYINT PATH '$.allow_delete',     allow_check TINYINT PATH '$.allow_check',     read_only TINYINT PATH '$.read_only'   ) ) AS tables WHERE 
   CAN_ACCESS_VIEW(sch.name, tbl.name, tbl.view_definer, tbl.options)
   AND CAN_ACCESS_TABLE(tables.referenced_table_schema, tables.referenced_table_name)
   AND tbl.type = 'VIEW'
@@ -1915,8 +1919,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 90500.
+The schema checksum corresponds to I_S version 261000.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 90500 stored on disk.]
+IS_VERSION 261000 stored on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]
