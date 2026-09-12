@@ -1,0 +1,121 @@
+STEPS TO GENERATE THE FOLLOWING CHAINED CERTIFICATES WHICH IS USED IN THE TEST CASE :
+
+                      +---------+
+                      | Root CA |
+                      +---------+
+                           |
+              /------------+-----------\
+              |                        |
+     +------------------+     +------------------+
+     | Intermediate CA1 |     | Intermediate CA2 |
+     +------------------+     +------------------+
+              |                        |
+       +-------------+          +-------------+
+       |   Server    |          |   Client    |
+       | certificate |          | certificate |
+       +-------------+          +-------------+
+
+mkdir ca
+mkdir server
+mkdir clients
+
+mkdir ca/intermediate_ca1.certs
+touch ca/intermediate_ca1.index.txt
+touch ca/intermediate_ca1.index.txt.attr
+echo '00' > ca/intermediate_ca1.serial
+openssl genrsa -out ca/intermediate_ca1.key 2048
+
+openssl genrsa -out ca/root.key 2048
+openssl req -new -x509 '-sha256' -key ca/root.key -out ca/root.crt -days 7200 -subj "/O=Oracle/OU=MySQL/CN=Root CA"
+
+mkdir ca/root.certs
+touch ca/root.index.txt
+touch ca/root.index.txt.attr
+echo '00' > ca/root.serial
+
+openssl req -new '-sha256' -key ca/intermediate_ca1.key -out ca/intermediate_ca1.csr -subj "/O=Oracle/OU=MySQL/CN=Intermediate CA1"
+
+echo '[ ca ]'                                     >  ca/root.cfg
+echo 'default_ca = CA_default'                    >> ca/root.cfg
+echo '[ CA_default ]'                             >> ca/root.cfg
+echo 'dir = '$PWD'/ca' >> ca/root.cfg
+echo 'certs = $dir/certs'                        >> ca/root.cfg
+echo 'database = $dir/root.index.txt'            >> ca/root.cfg
+echo 'serial   = $dir/root.serial'               >> ca/root.cfg
+echo 'policy= policy_match'                       >> ca/root.cfg
+echo '[ policy_match ]'                           >> ca/root.cfg
+echo 'organizationName = match'                   >> ca/root.cfg
+echo 'organizationalUnitName = optional'          >> ca/root.cfg
+echo 'commonName = supplied'                      >> ca/root.cfg
+echo 'emailAddress = optional'                    >> ca/root.cfg
+echo '[ v3_ca ]'                                  >> ca/root.cfg
+echo 'subjectKeyIdentifier=hash'                  >> ca/root.cfg
+echo 'authorityKeyIdentifier=keyid:always,issuer' >> ca/root.cfg
+echo 'basicConstraints = CA:true'                 >> ca/root.cfg
+
+openssl ca -batch -days 7200 -notext -md sha256 -in ca/intermediate_ca1.csr -out ca/intermediate_ca1.crt -keyfile ca/root.key -cert ca/root.crt -outdir ca/root.certs/ -config ca/root.cfg -extensions v3_ca
+
+openssl genrsa -out server/server.key 4096
+openssl req -new '-sha256' -key server/server.key -out server/server.csr -subj "/CN=localhost"
+
+echo '[ ca ]'                            >  ca/intermediate_ca1.cfg
+echo 'default_ca = CA_default'           >> ca/intermediate_ca1.cfg
+echo '[ CA_default ]'                    >> ca/intermediate_ca1.cfg
+echo 'dir = '$PWD'/ca' >> ca/intermediate_ca1.cfg
+echo 'certs = $dir/intermediate_ca1.certs'        >> ca/intermediate_ca1.cfg
+echo 'database = $dir/intermediate_ca1.index.txt' >> ca/intermediate_ca1.cfg
+echo 'serial   = $dir/intermediate_ca1.serial'    >> ca/intermediate_ca1.cfg
+echo 'policy= policy_match'              >> ca/intermediate_ca1.cfg
+echo '[ policy_match ]'                  >> ca/intermediate_ca1.cfg
+echo 'commonName = supplied'             >> ca/intermediate_ca1.cfg
+
+openssl ca -batch -days 7200 -notext -md sha256 -in server/server.csr -out server/server.crt -keyfile ca/intermediate_ca1.key -cert ca/intermediate_ca1.crt -outdir ca/intermediate_ca1.certs/ -config ca/intermediate_ca1.cfg
+
+cat server/server.crt ca/intermediate_ca1.crt > server/server.cachain
+
+mkdir ca/intermediate_ca2.certs
+touch ca/intermediate_ca2.index.txt
+touch ca/intermediate_ca2.index.txt.attr
+echo '00' > ca/intermediate_ca2.serial
+openssl genrsa -out ca/intermediate_ca2.key 2048
+
+openssl req -new '-sha256' -key ca/intermediate_ca2.key -out ca/intermediate_ca2.csr -subj "/O=Oracle/OU=MySQL/CN=Intermediate CA2"
+openssl ca -batch -days 7200 -notext -md sha256 -in ca/intermediate_ca2.csr -out ca/intermediate_ca2.crt -keyfile ca/root.key -cert ca/root.crt -outdir ca/root.certs/ -config ca/root.cfg -extensions v3_ca
+
+openssl genrsa -out clients/client.key 2048
+openssl req -new '-sha256' -key clients/client.key -out clients/client.csr -subj "/CN=client"
+
+echo '[ ca ]'                            >  ca/intermediate_ca2.cfg
+echo 'default_ca = CA_default'           >> ca/intermediate_ca2.cfg
+echo '[ CA_default ]'                    >> ca/intermediate_ca2.cfg
+echo 'dir = '$PWD'/ca' >> ca/intermediate_ca2.cfg
+echo 'certs = $dir/intermediate_ca2.certs'        >> ca/intermediate_ca2.cfg
+echo 'database = $dir/intermediate_ca2.index.txt' >> ca/intermediate_ca2.cfg
+echo 'serial   = $dir/intermediate_ca2.serial'    >> ca/intermediate_ca2.cfg
+echo 'policy= policy_match'              >> ca/intermediate_ca2.cfg
+echo '[ policy_match ]'                  >> ca/intermediate_ca2.cfg
+echo 'commonName = supplied'             >> ca/intermediate_ca2.cfg
+
+openssl ca -batch -days 7200 -notext -md sha256 -in clients/client.csr -out clients/client.crt -keyfile ca/intermediate_ca2.key -cert ca/intermediate_ca2.crt -outdir ca/intermediate_ca2.certs/ -config ca/intermediate_ca2.cfg
+
+cat clients/client.crt ca/intermediate_ca2.crt > clients/client.cachain
+
+cat server/server.crt ca/intermediate_ca1.crt ca/root.crt > server/server_to_root.cachain
+cat clients/client.crt ca/intermediate_ca2.crt ca/root.crt > clients/client_to_root.cachain
+cat ca/root.crt ca/intermediate_ca1.crt > ca/root_intermediate_ca1.crt
+
+openssl genrsa -out ca/unrelated_root.key 2048
+openssl req -new -x509 '-sha256' -key ca/unrelated_root.key -out ca/unrelated_root.crt -days 7200 -subj "/O=Oracle/OU=MySQL/CN=Root CA"
+
+
+Below files are needed for the mtr test and are moved to a directory named "bug27491518" under std_data :
+
+ca/root.crt
+ca/root_intermediate_ca1.crt
+ca/unrelated_root.crt
+server/server.key
+server/server.cachain
+server/server_to_root.cachain
+clients/client.key
+clients/client.cachain
+clients/client_to_root.cachain

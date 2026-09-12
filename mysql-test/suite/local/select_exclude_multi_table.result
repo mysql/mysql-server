@@ -1,0 +1,24 @@
+CREATE TABLE a_exclude (
+id INT PRIMARY KEY,
+a_val VARCHAR(20),
+secret VARCHAR(16)
+) ENGINE=InnoDB;
+CREATE TABLE b_exclude (
+id INT PRIMARY KEY,
+b_val VARCHAR(20),
+secret VARCHAR(16)
+) ENGINE=InnoDB;
+INSERT INTO a_exclude VALUES (1, 'A1', 'AS1');
+INSERT INTO a_exclude VALUES (2, 'A2', 'AS2');
+INSERT INTO b_exclude VALUES (1, 'B1', 'BS1');
+INSERT INTO b_exclude VALUES (2, 'B2', 'BS2');
+SELECT a.* EXCLUDE (secret), b.* EXCLUDE (secret) FROM a_exclude a JOIN b_exclude b USING (id) ORDER BY a.id;
+id	a_val	id	b_val
+1	A1	1	B1
+2	A2	2	B2
+SELECT * EXCLUDE (secret) FROM a_exclude a JOIN b_exclude b USING (id) ORDER BY a.id;
+id	a_val	b_val
+1	A1	B1
+2	A2	B2
+DROP TABLE a_exclude;
+DROP TABLE b_exclude;

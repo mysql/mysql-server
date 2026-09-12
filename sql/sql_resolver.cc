@@ -1524,8 +1524,9 @@ bool Query_block::setup_wild(THD *thd) {
                            MY_INT64_NUM_DECIMAL_DIGITS);
       } else {
         assert(item_field->context == &this->context);
-        if (insert_fields(thd, this, item_field->db_name,
-                          item_field->table_name, &fields, &it, any_privileges))
+  if (insert_fields(thd, this, item_field->db_name,
+    item_field->table_name, &fields, &it, any_privileges,
+    down_cast<Item_asterisk *>(item_field)->m_exclude_list))
           return true;
       }
 
@@ -1842,6 +1843,8 @@ bool Query_block::simplify_joins(THD *thd,
   */
   for (Table_ref *table : *join_list) {
     table_map used_tables;
+    const char *tbl_alias = (table->alias ? table->alias : (table->table_name ? table->table_name : "(unknown)"));
+    fprintf(stderr, "[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='%s' outer_join=%d nested_join=%d\n", tbl_alias, (int)table->outer_join, (int)(table->nested_join != nullptr));
     table_map not_null_tables = table_map(0);
 
     NESTED_JOIN *nested_join = table->nested_join;
@@ -1907,8 +1910,49 @@ bool Query_block::simplify_joins(THD *thd,
         that reject nulls => the outer join can be replaced by an inner join.
       */
       if (table->outer_join) {
-        *changelog |= OUTER_JOIN_TO_INNER;
-        table->outer_join = false;
+        // If this table is part of a nested join where the sibling is also
+        // marked outer, that corresponds to a FULL join. In that case we
+        // should not convert the outer join to an inner join here, as that
+        // would drop FULL semantics. Detect the sibling and skip clearing
+        // outer_join for FULL joins.
+        bool sibling_is_outer = false;
+        if (table->embedding && table->embedding->nested_join) {
+          int sib_idx = 0;
+          for (Table_ref *sibling : table->embedding->nested_join->m_tables) {
+            const char *s_alias = (sibling->alias ? sibling->alias : (sibling->table_name ? sibling->table_name : "(unknown)"));
+            fprintf(stderr, "[FULL_JOIN_DEBUG] resolver: embedding sibling[%d] alias='%s' outer_join=%d\n", sib_idx++, s_alias, (int)sibling->outer_join);
+            if (sibling != table && sibling->outer_join) {
+              sibling_is_outer = true;
+              break;
+            }
+          }
+          if (sib_idx == 0) {
+            fprintf(stderr, "[FULL_JOIN_DEBUG] resolver: embedding->nested_join has no siblings\n");
+          }
+        } else {
+          fprintf(stderr, "[FULL_JOIN_DEBUG] resolver: table has no embedding->nested_join\n");
+        }
+
+        if (sibling_is_outer) {
+          DBUG_PRINT("resolver",
+                    ("OUTER_JOIN_TO_INNER: skipping clearing outer_join for FULL join table alias='%s'\n",
+                     (table->alias ? table->alias
+                                   : (table->table_name ? table->table_name
+                                                       : "(unknown)"))));
+          fprintf(stderr,
+                  "[FULL_JOIN_DEBUG] resolver: OUTER_JOIN_TO_INNER skipping clear for FULL join alias='%s'\n",
+                  (table->alias ? table->alias
+                                : (table->table_name ? table->table_name
+                                                    : "(unknown)")));
+        } else {
+          *changelog |= OUTER_JOIN_TO_INNER;
+          DBUG_PRINT("resolver",
+                    ("OUTER_JOIN_TO_INNER: clearing outer_join for table alias='%s'\n",
+                     (table->alias ? table->alias : (table->table_name ? table->table_name : "(unknown)"))));
+          fprintf(stderr, "[FULL_JOIN_DEBUG] resolver: OUTER_JOIN_TO_INNER clearing outer_join for alias='%s'\n",
+                  (table->alias ? table->alias : (table->table_name ? table->table_name : "(unknown)")));
+          table->outer_join = false;
+        }
       }
       if (table->join_cond() != nullptr) {
         *changelog |= JOIN_COND_TO_WHERE;

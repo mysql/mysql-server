@@ -1,0 +1,11 @@
+<!-- utf8_hugeid_ci will be rejected -->
+<charsets>
+  <charset name="utf8mb3">
+   <collation name="utf8_hugeid_ci" id="2047000000">
+      <rules>
+        <reset>a</reset>
+        <s>b</s>
+      </rules>
+   </collation>
+  </charset>
+</charsets>

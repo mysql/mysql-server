@@ -225,7 +225,7 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
 
   /* SELECT <star> */
   Item_asterisk *ident_star =
-      new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr);
+  new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr, nullptr);
   if (ident_star == nullptr) return true;
 
   PT_select_item_list *item_list1 =

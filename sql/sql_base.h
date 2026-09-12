@@ -219,7 +219,8 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
 bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
                    const char *table_name, mem_root_deque<Item *> *fields,
-                   mem_root_deque<Item *>::iterator *it, bool any_privileges);
+                   mem_root_deque<Item *>::iterator *it, bool any_privileges,
+                   List<String> *exclude_list = nullptr);
 bool setup_fields(THD *thd, Access_bitmask want_privilege, bool allow_sum_func,
                   bool split_sum_funcs, bool column_update,
                   const mem_root_deque<Item *> *typed_items,

@@ -1101,6 +1101,7 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
     SetReadingProbeRowState();
 
     if (return_null_complemented_row) {
+      fprintf(stderr, "[DEBUG] HashJoinIterator: returning NULL-complemented row (join_type=%d)\n", static_cast<int>(m_join_type));
       m_build_input->SetNullRowFlag(true);
       return 0;
     }

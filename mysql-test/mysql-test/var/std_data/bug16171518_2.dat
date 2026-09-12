@@ -1,0 +1,12 @@
+<test_rows>
+  <row>
+    <col1>ABC</col1>
+    <col2>DEF</col2>
+    <col3 />
+  </row>
+  <row>
+    <col1>GHI</col1>
+    <col2 />
+    <col3>123</col3>
+  </row>
+</test_rows>

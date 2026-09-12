@@ -1,0 +1,5 @@
+start-error-number 10000
+
+ER_ERRLOG_HI
+	eng "Starting error log. Hooray!"
+

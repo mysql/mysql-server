@@ -1,0 +1,403 @@
+
+CURRENT_TEST: local.full_join_parsing
+mysqld: Can't open shared library '/Users/hlosukwakha/Development/mysql-server/lib/plugin/component_reference_cache.so' (errno: 2 dlopen(/Users/hlosukwakha/Development/mysql-server/lib/plugin/component_reference_cache.so, 0x0002): tried: '/Users/hlosukwakha/)
+mysqld: Cannot load component from specified URN: 'file://component_reference_cache'.
+2026-02-26T21:33:40.456947Z 0 [Note] [MY-013667] [Server] Error-log destination "stderr" is not a file. Can not restore error log messages from previous run.
+2026-02-26T21:33:40.325117Z 0 [System] [MY-015015] [Server] MySQL Server - start.
+2026-02-26T21:33:40.454586Z 0 [Warning] [MY-013711] [Server] Manifest file '/Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld.my' is not read-only. For better security, please make sure that the file is read-only.
+2026-02-26T21:33:40.455705Z 0 [Warning] [MY-010099] [Server] Insecure configuration for --secure-file-priv: Data directory is accessible through --secure-file-priv. Consider choosing a different directory.
+2026-02-26T21:33:40.455710Z 0 [Warning] [MY-010101] [Server] Insecure configuration for --secure-file-priv: Location is accessible to all OS users. Consider choosing a different directory.
+2026-02-26T21:33:40.455766Z 0 [Note] [MY-010949] [Server] Basedir set to /Users/hlosukwakha/Development/mysql-server/.
+2026-02-26T21:33:40.455768Z 0 [System] [MY-010116] [Server] /Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld (mysqld 9.6.0) starting as process 36673
+2026-02-26T21:33:40.455776Z 0 [System] [MY-015590] [Server] MySQL Server has access to 10 logical CPUs.
+2026-02-26T21:33:40.455783Z 0 [System] [MY-015590] [Server] MySQL Server has access to 34359738368 bytes of physical memory.
+2026-02-26T21:33:40.455836Z 0 [ERROR] [MY-010338] [Server] Can't find error-message file '/Users/hlosukwakha/Development/mysql-server/share/english/errmsg.sys'. Check error-message file location and 'lc-messages-dir' configuration directive.
+2026-02-26T21:33:40.456744Z 0 [Warning] [MY-010159] [Server] Setting lower_case_table_names=2 because file system for /Users/hlosukwakha/Development/mysql-server/mysql-test/var/mysqld.1/data/ is case insensitive
+2026-02-26T21:33:40.458363Z 0 [Warning] [MY-010075] [Server] No existing UUID has been found, so we assume that this is the first time that this server has been started. Generating a new UUID: d14bc17a-135a-11f1-a2b0-63483f6232d2.
+2026-02-26T21:33:40.459237Z 0 [Note] [MY-015140] [InnoDB] Using innodb_flush_method=fsync
+2026-02-26T21:33:40.459378Z 0 [Note] [MY-010747] [Server] Plugin 'FEDERATED' is disabled.
+2026-02-26T21:33:40.459446Z 0 [Note] [MY-010747] [Server] Plugin 'ndbcluster' is disabled.
+2026-02-26T21:33:40.459459Z 0 [Note] [MY-010747] [Server] Plugin 'ndbinfo' is disabled.
+2026-02-26T21:33:40.459467Z 0 [Note] [MY-010747] [Server] Plugin 'ndb_transid_mysql_connection_map' is disabled.
+2026-02-26T21:33:40.460222Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+2026-02-26T21:33:40.460235Z 1 [Note] [MY-013546] [InnoDB] Atomic write enabled
+2026-02-26T21:33:40.460280Z 1 [Note] [MY-012944] [InnoDB] Uses event mutexes
+2026-02-26T21:33:40.460289Z 1 [Note] [MY-012945] [InnoDB] GCC builtin __atomic_thread_fence() is used for memory barrier
+2026-02-26T21:33:40.460295Z 1 [Note] [MY-012948] [InnoDB] Compressed tables use zlib 1.3.1
+2026-02-26T21:33:40.461143Z 1 [Note] [MY-012951] [InnoDB] Using hardware accelerated crc32 and polynomial multiplication.
+2026-02-26T21:33:40.461518Z 1 [Note] [MY-012203] [InnoDB] Directories to scan './'
+2026-02-26T21:33:40.461551Z 1 [Note] [MY-012204] [InnoDB] Scanning './'
+2026-02-26T21:33:40.463730Z 1 [Note] [MY-012208] [InnoDB] Completed space ID check of 8 files.
+2026-02-26T21:33:40.463986Z 1 [Note] [MY-012955] [InnoDB] Initializing buffer pool, total size = 24.000000M, instances = 1, chunk size =24.000000M 
+2026-02-26T21:33:40.467909Z 1 [Note] [MY-012957] [InnoDB] Completed initialization of buffer pool
+2026-02-26T21:33:40.469416Z 1 [Note] [MY-013532] [InnoDB] Using './#ib_16384_0.dblwr' for doublewrite
+2026-02-26T21:33:40.471524Z 1 [Note] [MY-013532] [InnoDB] Using './#ib_16384_1.dblwr' for doublewrite
+2026-02-26T21:33:40.477572Z 1 [Note] [MY-013566] [InnoDB] Double write buffer files: 2, --innodb-doublewrite-files=2, segments_per_file=2
+2026-02-26T21:33:40.477596Z 1 [Note] [MY-013565] [InnoDB] Double write buffer pages per instance: 128
+2026-02-26T21:33:40.477660Z 1 [Note] [MY-013532] [InnoDB] Using './#ib_16384_0.dblwr' for doublewrite
+2026-02-26T21:33:40.477714Z 1 [Note] [MY-013532] [InnoDB] Using './#ib_16384_1.dblwr' for doublewrite
+2026-02-26T21:33:40.486916Z 1 [Note] [MY-013883] [InnoDB] The latest found checkpoint is at lsn = 19259154 in redo log file ./#innodb_redo/#ib_redo59.
+2026-02-26T21:33:40.487015Z 1 [Note] [MY-013086] [InnoDB] Starting to parse redo log at lsn = 19258939, whereas checkpoint_lsn = 19259154 and start_lsn = 19258880
+2026-02-26T21:33:40.487043Z 1 [Note] [MY-012532] [InnoDB] Applying a batch of 0 redo log records ...
+2026-02-26T21:33:40.487085Z 1 [Note] [MY-012535] [InnoDB] Apply batch completed!
+2026-02-26T21:33:40.490601Z 1 [Note] [MY-013083] [InnoDB] Log background threads are being started...
+2026-02-26T21:33:40.491243Z 1 [Note] [MY-013252] [InnoDB] Using undo tablespace './undo_001'.
+2026-02-26T21:33:40.491543Z 1 [Note] [MY-013252] [InnoDB] Using undo tablespace './undo_002'.
+2026-02-26T21:33:40.492047Z 1 [Note] [MY-012910] [InnoDB] Opened 2 existing undo tablespaces.
+2026-02-26T21:33:40.492063Z 1 [Note] [MY-011980] [InnoDB] GTID recovery trx_no: 1089
+2026-02-26T21:33:40.495315Z 1 [Note] [MY-013776] [InnoDB] Parallel initialization of rseg complete
+2026-02-26T21:33:40.495371Z 1 [Note] [MY-013777] [InnoDB] Time taken to initialize rseg using 4 thread: 3 ms.
+2026-02-26T21:33:40.495503Z 1 [Note] [MY-012923] [InnoDB] Creating shared tablespace for temporary tables
+2026-02-26T21:33:40.495681Z 1 [Note] [MY-012265] [InnoDB] Setting file './ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-02-26T21:33:40.498473Z 1 [Note] [MY-012266] [InnoDB] File './ibtmp1' size is now 12 MB.
+2026-02-26T21:33:40.498684Z 1 [Note] [MY-013627] [InnoDB] Scanning temp tablespace dir:'./#innodb_temp/'
+2026-02-26T21:33:40.501645Z 1 [Note] [MY-013018] [InnoDB] Created 128 and tracked 128 new rollback segment(s) in the temporary tablespace. 128 are now active.
+2026-02-26T21:33:40.501773Z 1 [Note] [MY-012976] [InnoDB] 9.6.0 started; log sequence number 19259164
+2026-02-26T21:33:40.501991Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+2026-02-26T21:33:40.504118Z 1 [Note] [MY-011089] [Server] Data dictionary restarting version '90200'.
+2026-02-26T21:33:40.536920Z 1 [Note] [MY-012357] [InnoDB] Reading DD tablespace files
+2026-02-26T21:33:40.538095Z 1 [Note] [MY-012356] [InnoDB] Scanned 10 tablespaces. Validated 10.
+2026-02-26T21:33:40.541990Z 1 [Note] [MY-010006] [Server] Using data dictionary with version '90200'.
+2026-02-26T21:33:40.544780Z 0 [Note] [MY-011332] [Server] Plugin mysqlx reported: 'IPv6 is available'
+2026-02-26T21:33:40.545325Z 0 [Note] [MY-011323] [Server] Plugin mysqlx reported: 'X Plugin ready for connections. bind-address: '::' port: 13020'
+2026-02-26T21:33:40.545336Z 0 [Note] [MY-011323] [Server] Plugin mysqlx reported: 'X Plugin ready for connections. socket: '/Users/hlosukwakha/Development/mysql-server/mysql-test/var/tmp/mysqlx.1.sock''
+2026-02-26T21:33:40.571520Z 0 [Note] [MY-013911] [Server] Crash recovery finished in binlog engine. No attempts to commit, rollback or prepare any transactions.
+2026-02-26T21:33:40.571563Z 0 [Note] [MY-013911] [Server] Crash recovery finished in InnoDB engine. No attempts to commit, rollback or prepare any transactions.
+2026-02-26T21:33:40.572375Z 0 [Note] [MY-012487] [InnoDB] DDL log recovery : begin
+2026-02-26T21:33:40.572424Z 0 [Note] [MY-012488] [InnoDB] DDL log recovery : end
+2026-02-26T21:33:40.572580Z 0 [Note] [MY-011946] [InnoDB] Loading buffer pool(s) from /Users/hlosukwakha/Development/mysql-server/mysql-test/var/mysqld.1/data/ib_buffer_pool
+2026-02-26T21:33:40.573990Z 0 [Note] [MY-011946] [InnoDB] Buffer pool(s) load completed at 260227  0:33:40
+2026-02-26T21:33:40.574033Z 0 [Note] [MY-012922] [InnoDB] Waiting for purge to start
+2026-02-26T21:33:40.641958Z 0 [Note] [MY-010303] [Server] Skipping generation of SSL certificates as options related to SSL are specified.
+2026-02-26T21:33:40.654924Z 0 [Warning] [MY-010068] [Server] CA certificate /Users/hlosukwakha/Development/mysql-server/mysql-test/std_data/cacert.pem is self signed.
+2026-02-26T21:33:40.654968Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+2026-02-26T21:33:40.654978Z 0 [Note] [MY-010310] [Server] Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF.
+2026-02-26T21:33:40.654983Z 0 [Note] [MY-010310] [Server] Skipping generation of RSA key pair as --caching_sha2_password_auto_generate_rsa_keys is set to OFF.
+2026-02-26T21:33:40.656047Z 0 [Note] [MY-010252] [Server] Server hostname (bind-address): '*'; port: 13000
+2026-02-26T21:33:40.656100Z 0 [Note] [MY-010253] [Server] IPv6 is available.
+2026-02-26T21:33:40.656109Z 0 [Note] [MY-010264] [Server]   - '::' resolves to '::';
+2026-02-26T21:33:40.656119Z 0 [Note] [MY-010251] [Server] Server socket created on IP: '::'.
+2026-02-26T21:33:40.658111Z 0 [Warning] [MY-000067] [Server] unknown variable 'loose-mysqlx-ssl=DISABLED'.
+2026-02-26T21:33:40.658138Z 0 [Warning] [MY-000067] [Server] unknown variable 'loose-debug-sync-timeout=600'.
+2026-02-26T21:33:40.666429Z 0 [Note] [MY-011025] [Repl] Failed to start replica threads for channel ''.
+2026-02-26T21:33:40.667014Z 5 [Note] [MY-010051] [Server] Event Scheduler: scheduler thread started with id 5
+2026-02-26T21:33:40.667047Z 0 [Note] [MY-011240] [Server] Plugin mysqlx reported: 'Using SSL configuration from MySQL Server'
+2026-02-26T21:33:40.667607Z 0 [Note] [MY-011243] [Server] Plugin mysqlx reported: 'Using OpenSSL for TLS connections'
+2026-02-26T21:33:40.667655Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 13020, socket: /Users/hlosukwakha/Development/mysql-server/mysql-test/var/tmp/mysqlx.1.sock
+2026-02-26T21:33:40.667666Z 0 [System] [MY-010931] [Server] /Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld: ready for connections. Version: '9.6.0'  socket: '/Users/hlosukwakha/Development/mysql-server/mysql-test/var/tmp/mysqld.1.sock'  port: 13000  Source distribution.
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='session_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='session_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ENGINES' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='session_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='session_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='file_tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='engines' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='setup_instruments' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='setup_consumers' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='setup_actors' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='setup_objects' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='prepared_statements_instances' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='user_defined_functions' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='engines' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='global_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='persisted_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='SCHEMATA' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[DEBUG] Creating HashJoinIterator join_type=0 allow_spill=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='FILES' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tsf' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ts' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='TABLES' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='stat' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ts' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='stat' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ts' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=3 first_inner=3 tables=8 const_tables=0 join_cond=0xc358fe0e0
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=3 last_inner=3
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=3 last_tab=3 tables=8 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=3 last_inner=3 prefix_tables=0x600000000000000f added_tables=0x8
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=4 first_inner=4 tables=8 const_tables=0 join_cond=0xc358fe2b0
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=4 last_inner=4
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=4 last_tab=4 tables=8 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=4 last_inner=4 prefix_tables=0x600000000000001f added_tables=0x10
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=5 first_inner=5 tables=8 const_tables=0 join_cond=0xc358f9db8
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=5 last_inner=5
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=5 last_tab=5 tables=8 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=5 last_inner=5 prefix_tables=0xe00000000000003f added_tables=0x8000000000000020
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='TABLES' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='stat' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ts' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='stat' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ts' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=3 first_inner=3 tables=8 const_tables=0 join_cond=0xc3c90cce0
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=3 last_inner=3
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=3 last_tab=3 tables=8 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=3 last_inner=3 prefix_tables=0x600000000000000f added_tables=0x8
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=4 first_inner=4 tables=8 const_tables=0 join_cond=0xc3c90ceb0
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=4 last_inner=4
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=4 last_tab=4 tables=8 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=4 last_inner=4 prefix_tables=0x600000000000001f added_tables=0x10
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=5 first_inner=5 tables=8 const_tables=0 join_cond=0xc3c908758
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=5 last_inner=5
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=5 last_tab=5 tables=8 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=5 last_inner=5 prefix_tables=0xe00000000000003f added_tables=0x8000000000000020
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='COLUMNS' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='col' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='EVENTS' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_db' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_conn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='evt' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_db' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_conn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='evt' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='TRIGGERS' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_db' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_conn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='trg' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_db' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_conn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='tbl' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='trg' outer_join=0 nested_join=0
+[DEBUG] Creating HashJoinIterator join_type=0 allow_spill=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ROUTINES' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_result' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_result' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_db' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_conn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='rtn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_result' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_result' outer_join=1 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_db' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_conn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='coll_client' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='rtn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=7 first_inner=7 tables=11 const_tables=0 join_cond=0xc3c927b98
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=7 last_inner=7
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=7 last_tab=7 tables=11 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=7 last_inner=7 prefix_tables=0x60000000000000ff added_tables=0x80
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[FULL_JOIN_DEBUG] attach_join_conditions: last_tab=8 first_inner=8 tables=11 const_tables=0 join_cond=0xc3c927d68
+[FULL_JOIN_DEBUG] attach_join_conditions: best_ref[first_inner]->first_inner=8 last_inner=8
+[FULL_JOIN_DEBUG] JOIN::attach_join_condition_to_nest: first_inner=8 last_tab=8 tables=11 const_tables=0
+[FULL_JOIN_DEBUG] best_ref[first_inner] exists: first_inner->first_inner=8 last_inner=8 prefix_tables=0xe0000000000001ff added_tables=0x8000000000000100
+[FULL_JOIN_DEBUG] join_cond is non-NULL
+[DEBUG] Creating HashJoinIterator join_type=0 allow_spill=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='VIEWS' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='client_coll' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='conn_coll' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='vw' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cs' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='client_coll' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='conn_coll' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='vw' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='PLUGINS' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='INNODB_METRICS' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='global_status' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='global_status' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='PROCESSLIST' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='LIBRARIES' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='rtn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='rtn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='ROUTINE_LIBRARIES' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='lib' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='(nest_last_join)' outer_join=0 nested_join=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='rtn' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='lib' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='cat' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='sch' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='rtn' outer_join=0 nested_join=0
+[DEBUG] Creating HashJoinIterator join_type=0 allow_spill=1
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='threads' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='session_variables' outer_join=0 nested_join=0
+[FULL_JOIN_DEBUG] resolver: simplify_joins visiting table alias='session_variables' outer_join=0 nested_join=0
+2026-02-26T21:33:40.901494Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 9.6.0).
+2026-02-26T21:33:40.901854Z 0 [Note] [MY-015023] [Server] MySQL Server: Closing Connections - start.
+2026-02-26T21:33:40.902033Z 0 [Note] [MY-010067] [Server] Giving 1 client threads a chance to die gracefully
+2026-02-26T21:33:40.902049Z 0 [Note] [MY-010117] [Server] Shutting down replica threads
+2026-02-26T21:33:40.902292Z 0 [Note] [MY-010054] [Server] Event Scheduler: Killing the scheduler thread, thread id 5
+2026-02-26T21:33:40.902307Z 0 [Note] [MY-010050] [Server] Event Scheduler: Waiting for the scheduler thread to reply
+2026-02-26T21:33:40.902350Z 0 [Note] [MY-010048] [Server] Event Scheduler: Stopped
+2026-02-26T21:33:40.902365Z 0 [Note] [MY-010118] [Server] Forcefully disconnecting 0 remaining clients
+2026-02-26T21:33:40.902372Z 0 [Note] [MY-010043] [Server] Event Scheduler: Purging the queue. 0 events
+2026-02-26T21:33:40.902401Z 0 [Note] [MY-015024] [Server] MySQL Server: Closing Connections - end.
+2026-02-26T21:33:40.903714Z 0 [Note] [MY-012330] [InnoDB] FTS optimize thread exiting.
+2026-02-26T21:33:41.581484Z 0 [Note] [MY-010120] [Server] Binlog end
+2026-02-26T21:33:41.582330Z 0 [Note] [MY-015019] [Server] MySQL Server: Plugins Shutdown - start.
+2026-02-26T21:33:41.582344Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'mysqlx'
+2026-02-26T21:33:41.582574Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'mysqlx_cache_cleaner'
+2026-02-26T21:33:41.582601Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'ngram'
+2026-02-26T21:33:41.582607Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'BLACKHOLE'
+2026-02-26T21:33:41.582613Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'ARCHIVE'
+2026-02-26T21:33:41.582618Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'TempTable'
+2026-02-26T21:33:41.582623Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'PERFORMANCE_SCHEMA'
+2026-02-26T21:33:41.582637Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'MRG_MYISAM'
+2026-02-26T21:33:41.582642Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'MyISAM'
+2026-02-26T21:33:41.582653Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_SESSION_TEMP_TABLESPACES'
+2026-02-26T21:33:41.582658Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CACHED_INDEXES'
+2026-02-26T21:33:41.582662Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_VIRTUAL'
+2026-02-26T21:33:41.582666Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_COLUMNS'
+2026-02-26T21:33:41.582670Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_TABLESPACES'
+2026-02-26T21:33:41.582674Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_INDEXES'
+2026-02-26T21:33:41.582677Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_TABLESTATS'
+2026-02-26T21:33:41.582681Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_TABLES'
+2026-02-26T21:33:41.582685Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_FT_INDEX_TABLE'
+2026-02-26T21:33:41.582689Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_FT_INDEX_CACHE'
+2026-02-26T21:33:41.582692Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_FT_CONFIG'
+2026-02-26T21:33:41.582696Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_FT_BEING_DELETED'
+2026-02-26T21:33:41.582699Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_FT_DELETED'
+2026-02-26T21:33:41.582703Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_FT_DEFAULT_STOPWORD'
+2026-02-26T21:33:41.582707Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_METRICS'
+2026-02-26T21:33:41.582711Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_TEMP_TABLE_INFO'
+2026-02-26T21:33:41.582714Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_BUFFER_POOL_STATS'
+2026-02-26T21:33:41.582718Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_BUFFER_PAGE_LRU'
+2026-02-26T21:33:41.582721Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_BUFFER_PAGE'
+2026-02-26T21:33:41.582725Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CMP_PER_INDEX_RESET'
+2026-02-26T21:33:41.582728Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CMP_PER_INDEX'
+2026-02-26T21:33:41.582732Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CMPMEM_RESET'
+2026-02-26T21:33:41.582736Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CMPMEM'
+2026-02-26T21:33:41.582739Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CMP_RESET'
+2026-02-26T21:33:41.582743Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_CMP'
+2026-02-26T21:33:41.582746Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'INNODB_TRX'
+2026-02-26T21:33:41.582750Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'InnoDB'
+2026-02-26T21:33:41.582763Z 0 [Note] [MY-013072] [InnoDB] Starting shutdown...
+2026-02-26T21:33:41.583074Z 0 [Note] [MY-011944] [InnoDB] Dumping buffer pool(s) to /Users/hlosukwakha/Development/mysql-server/mysql-test/var/mysqld.1/data/ib_buffer_pool
+2026-02-26T21:33:41.583386Z 0 [Note] [MY-011944] [InnoDB] Buffer pool(s) dump completed at 260227  0:33:41
+2026-02-26T21:33:41.588134Z 0 [Note] [MY-013084] [InnoDB] Log background threads are being closed...
+2026-02-26T21:33:41.597023Z 0 [Note] [MY-013854] [InnoDB] Bytes written to disk by DBLWR (ON): 4472832
+2026-02-26T21:33:41.597092Z 0 [Note] [MY-012980] [InnoDB] Shutdown completed; log sequence number 19750341
+2026-02-26T21:33:41.597520Z 0 [Note] [MY-012255] [InnoDB] Removed temporary tablespace data file: "ibtmp1"
+2026-02-26T21:33:41.597537Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'MEMORY'
+2026-02-26T21:33:41.597547Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'CSV'
+2026-02-26T21:33:41.597553Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'daemon_keyring_proxy_plugin'
+2026-02-26T21:33:41.597603Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'caching_sha2_password'
+2026-02-26T21:33:41.597613Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'sha256_password'
+2026-02-26T21:33:41.597741Z 0 [Note] [MY-010733] [Server] Shutting down plugin 'binlog'
+2026-02-26T21:33:41.597749Z 0 [Note] [MY-015020] [Server] MySQL Server: Plugins Shutdown - end.
+2026-02-26T21:33:41.598458Z 0 [Note] [MY-015021] [Server] MySQL Server: Components Shutdown - start.
+2026-02-26T21:33:41.598636Z 0 [Note] [MY-015022] [Server] MySQL Server: Components Shutdown - end (with return value = 0).
+2026-02-26T21:33:41.598757Z 0 [System] [MY-010910] [Server] /Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld: Shutdown complete (mysqld 9.6.0)  Source distribution.
+2026-02-26T21:33:41.598766Z 0 [System] [MY-015016] [Server] MySQL Server - end.

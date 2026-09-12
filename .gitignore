@@ -31,3 +31,37 @@ scalability_jobs_*
 
 # Cache directory used by e.g. clangd.
 .cache/
+build/
+out/
+dist/
+target/
+.gradle/
+*.log
+*.o
+*.a
+*.so
+*.dll
+*.exe
+# MySQL test/runtime artifacts
+mysql-test/**/var/
+mysql-test/var/
+
+# InnoDB runtime files
+*.ibd
+ibdata*
+#innodb_redo/
+*.dblwr
+
+# Logs
+*.log
+*.CSV
+*.CSM
+
+# Generated SDI/runtime metadata
+*.sdi
+
+# ICU binaries
+lib/private/icudt*.dat
+lib/private/icudt*
+runtime_output_directory
+syntax_errors.txt

@@ -1,0 +1,63 @@
+/Users/hlosukwakha/Development/mysql-server/runtime_output_directory/mysqld, Version: 9.6.0 (Source distribution). started with:
+Tcp port: 13000  Unix socket: /Users/hlosukwakha/Development/mysql-server/mysql-test/var/tmp/mysqld.1.sock
+Time                 Id Command    Argument
+2026-02-26T21:33:40.629549Z	    0 Execute	CREATE TABLE performance_schema.innodb_redo_log_files(
+`FILE_ID` BIGINT NOT NULL COMMENT 'Id of the file.',
+`FILE_NAME` VARCHAR(2000) NOT NULL COMMENT 'Path to the file.',
+`START_LSN` BIGINT NOT NULL COMMENT 'LSN of the first block in the file.',
+`END_LSN` BIGINT NOT NULL COMMENT 'LSN after the last block in the file.',
+`SIZE_IN_BYTES` BIGINT NOT NULL COMMENT 'Size of the file (in bytes).',
+`IS_FULL` TINYINT NOT NULL COMMENT '1 iff file has no free space inside.',
+`CONSUMER_LEVEL` INT NOT NULL COMMENT 'All redo log consumers registered on smaller levels than this value, have already consumed this file.'
+)engine = 'performance_schema'
+2026-02-26T21:33:40.724929Z	    9 Connect	root@localhost on  using Socket
+2026-02-26T21:33:40.725076Z	    9 Query	SHOW VARIABLES LIKE 'optimizer_switch'
+2026-02-26T21:33:40.728560Z	    9 Query	SELECT @@server_id
+2026-02-26T21:33:40.728922Z	    9 Query	SELECT CONVERT(@@version_compile_os using latin1) IN ('Win32', 'Win64', 'Windows')
+2026-02-26T21:33:40.729116Z	    9 Query	SHOW REPLICA STATUS
+2026-02-26T21:33:40.729343Z	    9 Query	SELECT 'No such row' = 'No such row'
+2026-02-26T21:33:40.729785Z	    9 Query	SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.ENGINES
+       WHERE engine = 'ndbcluster' AND
+                    support IN ('YES', 'DEFAULT', 'ENABLED')
+2026-02-26T21:33:40.729959Z	    9 Query	SELECT CONCAT('/Users/hlosukwakha/Development/mysql-server/mysql-test/var/file_list_', @@server_id, '.flist')
+2026-02-26T21:33:40.730082Z	    9 Query	SELECT @@global.secure_file_priv
+2026-02-26T21:33:40.730158Z	    9 Query	SELECT @@global.innodb_force_recovery = 0 AND '/Users/hlosukwakha/Development/mysql-server/mysql-test/var/' = '/Users/hlosukwakha/Development/mysql-server/mysql-test/var/'
+2026-02-26T21:33:40.730241Z	    9 Query	SET @sql_log_bin_save = @@sql_log_bin
+2026-02-26T21:33:40.730285Z	    9 Query	SET SESSION sql_log_bin = 0
+2026-02-26T21:33:40.730341Z	    9 Query	SET SESSION sql_require_primary_key = 0
+2026-02-26T21:33:40.730380Z	    9 Query	SET SESSION sql_generate_invisible_primary_key = 0
+2026-02-26T21:33:40.730415Z	    9 Query	USE test
+2026-02-26T21:33:40.731098Z	    9 Query	CREATE TEMPORARY TABLE file_tbl (filename varchar(1024))
+2026-02-26T21:33:40.732203Z	    9 Query	SHOW VARIABLES LIKE 'debug'
+2026-02-26T21:33:40.732917Z	    9 Query	SELECT 'No such row' <> ''
+2026-02-26T21:33:40.732990Z	    9 Query	LOAD DATA INFILE '/Users/hlosukwakha/Development/mysql-server/mysql-test/var/file_list_1.flist' INTO TABLE file_tbl
+2026-02-26T21:33:40.733539Z	    9 Query	SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ filename FROM file_tbl
+WHERE filename NOT LIKE 'check-mysqld_%'
+      AND filename NOT LIKE 'mysql%.sock%'
+      AND filename NOT LIKE 'file_list_%.flist'
+      AND filename NOT LIKE 'mysqld%.expect'
+      AND filename NOT LIKE 'bootstrap.log'
+      AND filename NOT LIKE 'test_%.log'
+      AND filename NOT LIKE '%.coverage.%'
+2026-02-26T21:33:40.733814Z	    9 Query	DROP TABLE test.file_tbl
+2026-02-26T21:33:40.734015Z	    9 Query	SET @@sql_log_bin = @sql_log_bin_save
+2026-02-26T21:33:40.734073Z	    9 Query	SET @use_secondary_engine_saved = @@use_secondary_engine
+2026-02-26T21:33:40.734133Z	    9 Query	SET @@use_secondary_engine = OFF
+2026-02-26T21:33:40.734184Z	    9 Query	CALL mtr.check_testcase()
+2026-02-26T21:33:40.758016Z	    9 Query	SET @@use_secondary_engine = @use_secondary_engine_saved
+2026-02-26T21:33:40.759129Z	    9 Quit	
+2026-02-26T21:33:40.789401Z	   10 Connect	root@localhost on test using Socket
+2026-02-26T21:33:40.789532Z	   10 Query	SHOW VARIABLES LIKE 'optimizer_switch'
+2026-02-26T21:33:40.790436Z	   10 Query	CREATE TABLE t1_full (
+id INT PRIMARY KEY,
+v1 VARCHAR(10)
+) ENGINE=InnoDB
+2026-02-26T21:33:40.792742Z	   10 Query	CREATE TABLE t2_full (
+id INT PRIMARY KEY,
+v2 VARCHAR(10)
+) ENGINE=InnoDB
+2026-02-26T21:33:40.794642Z	   10 Query	INSERT INTO t1_full VALUES (1,'a'), (2,'b')
+2026-02-26T21:33:40.796305Z	   10 Query	INSERT INTO t2_full VALUES (2,'B'), (3,'C')
+2026-02-26T21:33:40.796661Z	   10 Query	SET optimizer_switch='hypergraph_optimizer=on'
+2026-02-26T21:33:40.797452Z	   10 Query	SHOW WARNINGS
+2026-02-26T21:33:40.797488Z	   10 Quit	

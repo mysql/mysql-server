@@ -1,0 +1,31 @@
+<person p="1">
+  <address a="1" />
+</person>
+
+<person p="2">
+  <s><![CDATA[ABC]]></s>
+  <address a="2" />
+</person>
+
+<person p="3">
+  <s><![CDATA[ABC]]> + <![CDATA[XYZ]]></s>
+  <address a="3" />
+</person>
+
+<address a="4" />
+
+<address a="5">
+  <s> ABC + <![CDATA[KLM]]> + <![CDATA[XYZ]]> + the end</s>
+</address>
+
+<address a="6">
+  <s>ABC + <![CDAT[KLM]]> + <![CDATA[XYZ]]> + the end</s>
+</address>
+
+<address a="7">
+  <s><![CDATA[A<L>Z]]></s>
+</address>
+
+<address a="8">
+  <s>ABC + <![CDATA[KLM]]> + <![CDATA[XYZ]> + the end</s>
+</address>

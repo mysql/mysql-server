@@ -1,0 +1,59 @@
+<test_rows>
+  <row>
+    <col1>0bc</col1>
+    <col2>def</col2>
+    <col3>ghi</col3>
+    <col4>jkl</col4>
+  </row>
+  <row>
+    <col1>1no</col1>
+    <col2/>
+    <col3>pqr</col3>
+    <col4>stu</col4>
+  </row>
+
+  <row>
+    <col1>2BC</col1>
+    <col2>DEF</col2>
+    <col3>GHI</col3>
+    <col4>JKL</col4>
+  </row>
+  <row>
+    <col1>3NO</col1>
+    <col2 />
+    <col3>PQR</col3>
+    <col4>STU</col4>
+  </row>
+
+  <row col1="4bc" col2="def" col3="ghi" col4="jkl"/>
+  <row col1="5no"   col2="pqr"   col3="stu"   col4="vwx"   />
+
+  <row>
+    <field name='col1'>6BC</field>
+    <field name='col2'>DEF</field>
+    <field name='col3'></field>
+    <field name='col4'>JKL</field>
+  </row>
+  <row>
+    <field name='col1'>7NO</field>
+    <field name='col2'>PQR</field>
+    <field name='col3'>STU</field>
+    <field name='col4'>VWX</field>
+  </row>
+
+  <row>
+    <col1>8bc</col1>
+    <col2>def</col2>
+    <col3>ghi</col3>
+    <col4 />
+  </row>
+  <row>
+    <col1>9kl</col1>
+    <col2/>
+    <col3>mno</col3>
+    <col4>pqr</col4>
+  </row>
+
+  <row col1="ABC" col2="DEF" col3="" col4="JKL"/>
+  <row col1="MNO" col2="" col3="STU" col4="VWX"/>
+</test_rows>
