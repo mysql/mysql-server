@@ -4841,8 +4841,7 @@ bool CostingReceiver::evaluate_secondary_engine_optimizer_state_request() {
       m_subgraph_pair_limit = restart_parameters.subgraph_pair_limit;
       DBUG_EXECUTE_IF("verify_hyp_opt_sg_pair_requested", {
         if (TraceStarted(m_thd) && m_subgraph_pair_limit > 0) {
-          Trace(m_thd) << "Hypergraph non zero SG pairs requested"
-                       << "\n";
+          Trace(m_thd) << "Hypergraph non zero SG pairs requested" << "\n";
         }
       });
       return true;
@@ -7406,6 +7405,14 @@ bool IsImmediateDeleteCandidate(const Table_ref *table_ref,
     return false;
   }
 
+  // Cannot delete from the table immediately if the delete cascades to another
+  // table in the query, as the cascade would remove rows that the query still
+  // reads and deletes itself. See Bug#80821 and Bug#102586.
+  if (fk_actions_affect_queried_table(table_ref, query_block,
+                                      /*is_delete=*/true)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -7432,6 +7439,14 @@ bool IsImmediateUpdateCandidate(const Table_ref *table_ref, int node_idx,
   // Cannot update the table immediately if it's joined with itself.
   if (unique_table(table_ref, graph.query_block()->leaf_tables,
                    /*check_alias=*/false) != nullptr) {
+    return false;
+  }
+
+  // Cannot update the table immediately if its referential actions can
+  // modify rows of another table in the query. See Bug#80821 and
+  // Bug#102586.
+  if (fk_actions_affect_queried_table(table_ref, graph.query_block(),
+                                      /*is_delete=*/false)) {
     return false;
   }
 
@@ -10115,8 +10130,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       DBUG_EXECUTE_IF("verify_hyp_opt_sg_pair_requested", {
         if (TraceStarted(thd) &&
             root_path_quality_status.subgraph_pair_limit > 0) {
-          Trace(thd) << "Hypergraph non zero SG pairs reset requested"
-                     << "\n";
+          Trace(thd) << "Hypergraph non zero SG pairs reset requested" << "\n";
         }
       });
       return nullptr;

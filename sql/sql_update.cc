@@ -188,8 +188,8 @@ bool Sql_cmd_update::precheck(THD *thd) {
           if (chk(SELECT_ACL)) return true;
         }
       }  // else
-    }    // for
-  }      // else
+    }  // for
+  }  // else
   return false;
 }
 
@@ -2130,6 +2130,12 @@ static bool safe_update_on_fly(const QEP_TAB *join_tab,
 
   // Check that the table is not joined to itself:
   if (unique_table(table_ref, all_tables, false)) return false;
+  // Check that updating the table cannot, through referential actions,
+  // modify rows of another table in the query. See Bug#80821 and
+  // Bug#102586.
+  if (fk_actions_affect_queried_table(table_ref, join_tab->join()->query_block,
+                                      /*is_delete=*/false))
+    return false;
   if (table->part_info &&
       // if there is risk for a row to move in a next partition, in which case
       // it may be read twice:
