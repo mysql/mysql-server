@@ -452,6 +452,9 @@ ulint srv_lock_table_size = ULINT_MAX;
 const ulong srv_idle_flush_pct_default = 100;
 ulong srv_idle_flush_pct = srv_idle_flush_pct_default;
 
+/** Switch off vector index memory regulation */
+bool srv_innodb_cloudsql_vector_mem_regulation = true;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 ulong srv_n_read_io_threads;

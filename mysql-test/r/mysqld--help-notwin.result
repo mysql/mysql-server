@@ -715,6 +715,25 @@ The following options may be given as the first argument:
  --max-length-for-sort-data=# 
  This variable is deprecated and will be removed in a
  future release.
+ Valid values :   0 - disabled, 1 - enable only for undo
+ scan in startup recovery,    2 - enabled always (for
+ startup recovery and transaction rollback).
+ --cloudsql-vector   If true, then MySQL will allow you to use vector
+ functionality.
+ --cloudsql-vector-iterative-filtering 
+ If true, MySQL will use iterative filtering for vector
+ index searches.
+ --cloudsql-vector-iterative-filtering-max-neighbors[=#] 
+ The maximum number of neighbors to scan for iterative
+ filtering.
+ --cloudsql-vector-max-mem-size=# 
+ Specify the maximum memory allocation (in bytes) for all
+ vector indexes on the instance
+ --cloudsql-vector-parallel-search 
+ This flag enables multi-threaded ANN search
+ --cloudsql-vector-test-mode 
+ If true, then MySQL will run in test mode. Only used for
+ testing.
  --max-points-in-geometry[=#] 
  Maximum number of points in a geometry
  --max-prepared-stmt-count=# 
@@ -1697,6 +1716,12 @@ character-sets-dir MYSQL_CHARSETSDIR/
 check-proxy-users FALSE
 check-table-functions ABORT
 chroot (No default value)
+cloudsql-vector FALSE
+cloudsql-vector-iterative-filtering FALSE
+cloudsql-vector-iterative-filtering-max-neighbors 500
+cloudsql-vector-max-mem-size 1073741824
+cloudsql-vector-parallel-search FALSE
+cloudsql-vector-test-mode FALSE
 collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN
 concurrent-insert AUTO

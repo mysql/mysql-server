@@ -1,0 +1,1177 @@
+"Setup database, tables and vector indexes"
+CREATE DATABASE csqlvectorddls;
+USE csqlvectorddls;
+"CREATE TABLE test"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE ADD COLUMN with DEFAULT NULL"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN embeddings vector (3) using varbinary;
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE ADD COLUMN with DEFAULT NOT NULL"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', NULL);
+ERROR 23000: Column 'embeddings' cannot be null
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NULL after inserting DATA"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1');
+INSERT INTO t1 VALUES (2, 'Book 2');
+SELECT * FROM t1;
+id	title
+1	Book 1
+2	Book 2
+ALTER TABLE t1 ADD COLUMN embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, title, vector_to_string(embeddings) FROM t1;
+id	title	vector_to_string(embeddings)
+1	Book 1	NULL
+2	Book 2	NULL
+INSERT INTO t1 VALUES (3, 'Book 3', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (4, 'Book 4', NULL);
+INSERT INTO t1 (id, title) VALUES (5, 'Book 5');
+SELECT id, title, vector_to_string(embeddings) FROM t1;
+id	title	vector_to_string(embeddings)
+1	Book 1	NULL
+2	Book 2	NULL
+3	Book 3	[1.00000e+00,2.00000e+00,3.00000e+00]
+4	Book 4	NULL
+5	Book 5	NULL
+DROP TABLE t1;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NOT NULL after inserting DATA"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1');
+INSERT INTO t1 VALUES (2, 'Book 2');
+SELECT * FROM t1;
+id	title
+1	Book 1
+2	Book 2
+ALTER TABLE t1 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE DROP COLUMN"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN embeddings;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE DROP COLUMN with DATA"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', NULL);
+SELECT id, title, vector_to_string(embeddings) FROM t1;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	NULL
+ALTER TABLE t1 DROP COLUMN embeddings;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	title
+1	Book 1
+2	Book 2
+DROP TABLE t1;
+"ALTER TABLE DROP COLUMN after creating index"
+CREATE TABLE t1 (
+id BIGINT NOT NULL AUTO_INCREMENT,
+title varchar(100),
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) DEFAULT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', string_to_vector('[2,3,4]'));
+INSERT INTO t1 VALUES (3, 'Book 3', NULL);
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+ALTER TABLE t1 add constraint chk check (title IS NOT NULL);
+CREATE VECTOR INDEX t1_vector_index ON t1(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+include/assert.inc [CHECK THAT SUB TABLE EXISTS]
+# verify we can create constraint on vector column and show create table works
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) DEFAULT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+  /* VECTOR KEY `t1_vector_index` (`embeddings`(12)) */,
+  CONSTRAINT `chk` CHECK ((`title` is not null))
+) ENGINE=InnoDB AUTO_INCREMENT=4086 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN embeddings;
+include/assert.inc [CHECK THAT SUB TABLE EXISTS DROPPED]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `chk` CHECK ((`title` is not null))
+) ENGINE=InnoDB AUTO_INCREMENT=4086 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE DROP COLUMN after dropping index"
+CREATE TABLE t1 (
+id BIGINT NOT NULL AUTO_INCREMENT,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', string_to_vector('[2,3,4]'));
+INSERT INTO t1 VALUES (3, 'Book 3', NULL);
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+CREATE VECTOR INDEX t1_vector_index ON t1(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+SELECT id, title, vector_to_string(embeddings) FROM t1 LIMIT 10;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	Book 3	NULL
+4	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+5	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+6	Book 3	NULL
+7	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+8	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+9	Book 3	NULL
+10	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+DROP INDEX t1_vector_index ON t1;
+ALTER TABLE t1 DROP COLUMN embeddings;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4086 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE CHANGE COLUMN"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings new_embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `new_embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN new_embeddings varchar_embeddings varchar(50);
+ALTER TABLE t1 CHANGE COLUMN varchar_embeddings embeddings vector(3);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (100) using varbinary;
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary comment '';
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary comment 'Changing the comment';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL COMMENT 'Changing the comment',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"ALTER TABLE CHANGE COLUMN with DATA"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', string_to_vector('[2,3,4]'));
+INSERT INTO t1 VALUES (3, 'Book 3', NULL);
+ALTER TABLE t1 CHANGE COLUMN embeddings new_embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `new_embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN new_embeddings varchar_embeddings varbinary(50);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `varchar_embeddings` varbinary(50) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN varchar_embeddings embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (100) using varbinary;
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary comment '';
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary comment 'Changing the comment';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL COMMENT 'Changing the comment',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, title, vector_to_string(embeddings) FROM t1;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	Book 3	NULL
+DROP TABLE t1;
+"ALTER TABLE CHANGE COLUMN with DATA and INDEX"
+CREATE TABLE t1 (
+id BIGINT NOT NULL AUTO_INCREMENT,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t1 VALUES (2, 'Book 2', string_to_vector('[2,3,4]'));
+INSERT INTO t1 VALUES (3, 'Book 3', NULL);
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+INSERT INTO t1(title, embeddings) SELECT title, embeddings FROM t1;
+CREATE VECTOR INDEX t1_vector_index ON t1(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ALTER TABLE t1 CHANGE COLUMN embeddings new_embeddings vector (3) using varbinary;
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+  /* VECTOR KEY `t1_vector_index` (`embeddings`(12)) */
+) ENGINE=InnoDB AUTO_INCREMENT=2039 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings varchar_embeddings varbinary(50);
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+  /* VECTOR KEY `t1_vector_index` (`embeddings`(12)) */
+) ENGINE=InnoDB AUTO_INCREMENT=2039 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary;
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+  /* VECTOR KEY `t1_vector_index` (`embeddings`(12)) */
+) ENGINE=InnoDB AUTO_INCREMENT=2039 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (100) using varbinary;
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary comment '';
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+ALTER TABLE t1 CHANGE COLUMN embeddings embeddings vector (3) using varbinary comment 'Changing the comment';
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+  /* VECTOR KEY `t1_vector_index` (`embeddings`(12)) */
+) ENGINE=InnoDB AUTO_INCREMENT=2039 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, title, vector_to_string(embeddings) FROM t1 LIMIT 10;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	Book 3	NULL
+4	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+5	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+6	Book 3	NULL
+7	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+8	Book 2	[2.00000e+00,3.00000e+00,4.00000e+00]
+9	Book 3	NULL
+10	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+DROP INDEX t1_vector_index ON t1;
+DROP TABLE t1;
+"ALTER TABLE MODIFY COLUMN"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN embeddings varchar(50);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN embeddings vector (100) using varbinary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"CREATE TABLE with NO PK"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE VECTOR INDEX t1_vector_index ON t1(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+DROP TABLE t1;
+"DROP PK"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP PRIMARY KEY;
+DROP TABLE t1;
+"DROP PK with DATA"
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY i INT;
+CREATE VECTOR INDEX t1_vector_index ON t1(j) DISTANCE_MEASURE=L2_SQUARED;
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+DROP TABLE t1;
+"ADD PK AND INDEX WITH DATA"
+ALTER TABLE t1 MODIFY i INT;
+ALTER TABLE t1 DROP PRIMARY KEY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL,
+  `j` vector(3) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD PRIMARY KEY (i);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL,
+  `j` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE VECTOR INDEX t1_vector_index ON t1(j) DISTANCE_MEASURE=L2_SQUARED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL,
+  `j` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+  /* VECTOR KEY `t1_vector_index` (`j`(12)) */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+DROP INDEX t1_vector_index ON t1;
+ALTER TABLE t1 DROP PRIMARY KEY;
+DROP TABLE t1;
+"ADD multiple columns"
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD PRIMARY KEY (id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN (embeddings vector (3) using varbinary, id2 int);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+"DROP Vector and PK"
+ALTER TABLE t1 MODIFY i INT;
+CREATE VECTOR INDEX t1_vector_index ON t1(j) DISTANCE_MEASURE=L2_SQUARED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL,
+  `j` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+  /* VECTOR KEY `t1_vector_index` (`j`(12)) */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN j;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP PRIMARY KEY;
+DROP TABLE t1;
+"Tests with BIT column as PK"
+"CREATE TABLE test"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN with DEFAULT NULL"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN with DEFAULT NOT NULL"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NULL after inserting DATA"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bit(4) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NOT NULL after inserting DATA"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bit(4) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bit(4) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 MODIFY COLUMN id INT;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN after inserting DATA"
+CREATE TABLE t2 (
+id BIT(4) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bit(4) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 MODIFY COLUMN id INT;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+INSERT INTO t2 VALUES (3, 'Book 3', string_to_vector('[3,4,5]'));
+INSERT INTO t2 VALUES (4, 'Book 4', NULL);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN"
+CREATE VECTOR INDEX v3 ON t2(j) DISTANCE_MEASURE=L2_SQUARED;
+ALTER TABLE t2 MODIFY COLUMN i BIT(4);
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK"
+CREATE TABLE t2 (
+id INT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t2 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t2 VALUES (2, 'Book 2', NULL);
+SELECT id, title, vector_to_string(embeddings) FROM t2;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	NULL
+ALTER TABLE t2 MODIFY COLUMN id BIT(4);
+DROP TABLE t2;
+"Tests with BINARY column as PK"
+"CREATE TABLE test"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN with DEFAULT NULL"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN with DEFAULT NOT NULL"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NULL after inserting DATA"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` binary(15) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NOT NULL after inserting DATA"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` binary(15) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` binary(15) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 MODIFY COLUMN id INT;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN after inserting DATA"
+CREATE TABLE t2 (
+id BINARY(15) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` binary(15) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 MODIFY COLUMN id VARCHAR(25);
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+INSERT INTO t2 VALUES (3, 'Book 3', string_to_vector('[3,4,5]'));
+INSERT INTO t2 VALUES (4, 'Book 4', NULL);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` varchar(25) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN"
+CREATE TABLE t2 (
+id VARCHAR(25) NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 MODIFY COLUMN id BINARY(15);
+DROP TABLE t2;
+CREATE VECTOR INDEX v7 ON t2(j) DISTANCE_MEASURE=L2_SQUARED;
+ALTER TABLE t2 MODIFY COLUMN i BINARY(15);
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK"
+CREATE TABLE t2 (
+id VARCHAR(25) NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t2 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t2 VALUES (2, 'Book 2', NULL);
+SELECT id, title, vector_to_string(embeddings) FROM t2;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	NULL
+ALTER TABLE t2 MODIFY COLUMN id BINARY(15);
+DROP TABLE t2;
+"Tests with VARBINARY column as PK"
+"CREATE TABLE test"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN with DEFAULT NULL"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN with DEFAULT NOT NULL"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NULL after inserting DATA"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` varbinary(28) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+CREATE VECTOR INDEX t2_vector_index ON t2(embeddings) DISTANCE_MEASURE=L2_SQUARED;
+ERROR HY000: Feature not supported with vector columns, Vector column specified with unsupported primary key datatype
+DROP TABLE t2;
+"ALTER TABLE ADD COLUMN WITH DEFAULT NOT NULL after inserting DATA"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` varbinary(28) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary NOT NULL;
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` varbinary(28) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 MODIFY COLUMN id BIGINT;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `embeddings` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN after inserting DATA"
+CREATE TABLE t2 (
+id VARBINARY(28) NOT NULL,
+title varchar(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` varbinary(28) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (1, 'Book 1');
+INSERT INTO t2 VALUES (2, 'Book 2');
+ALTER TABLE t2 MODIFY COLUMN id BIGINT;
+ALTER TABLE t2 ADD COLUMN embeddings vector (3) using varbinary;
+INSERT INTO t2 VALUES (3, 'Book 3', string_to_vector('[3,4,5]'));
+INSERT INTO t2 VALUES (4, 'Book 4', NULL);
+ALTER TABLE t2 MODIFY COLUMN id BIGINT;
+DROP TABLE t2;
+INSERT INTO t2 VALUES (1001, string_to_vector('[3,4,5]'));
+CREATE VECTOR INDEX v10 ON t2(j) DISTANCE_MEASURE=L2_SQUARED;
+ALTER TABLE t2 MODIFY COLUMN i BIGINT;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+  /* VECTOR KEY `v10` (`j`(12)) */
+) ENGINE=InnoDB AUTO_INCREMENT=1002 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN"
+CREATE TABLE t2 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE t2 MODIFY COLUMN id VARBINARY(28);
+DROP TABLE t2;
+"ALTER TABLE MODIFY PK and ADD Vector COLUMN after inserting DATA"
+CREATE TABLE t2 (
+id BIGINT NOT NULL,
+title varchar(100) NOT NULL,
+embeddings vector (3) using varbinary,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t2 VALUES (1, 'Book 1', string_to_vector('[1,2,3]'));
+INSERT INTO t2 VALUES (2, 'Book 2', NULL);
+SELECT id, title, vector_to_string(embeddings) FROM t2;
+id	title	vector_to_string(embeddings)
+1	Book 1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	Book 2	NULL
+ALTER TABLE t2 MODIFY COLUMN id VARBINARY(28);
+DROP TABLE t2;
+"Vector column as generated column"
+CREATE TABLE t2(id int PRIMARY KEY, embeddings vector(3) USING varbinary GENERATED ALWAYS AS (string_to_vector('[1,2,3]')) STORED);
+CREATE TABLE t1(id int PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN embeddings vector(3) USING varbinary GENERATED ALWAYS AS (string_to_vector('[1,2,3]')) STORED;
+DROP TABLE t1, t2;
+CREATE TABLE t1(id int PRIMARY KEY, embeddings vector(3) USING varbinary GENERATED ALWAYS AS (string_to_vector('[1,2,3]')) VIRTUAL);
+CREATE TABLE t2(id int PRIMARY KEY);
+ALTER TABLE t2 ADD COLUMN embeddings vector(3) USING varbinary GENERATED ALWAYS AS (string_to_vector('[1,2,3]')) VIRTUAL;
+DROP TABLE t1, t2;
+"Vector column on Non Innodb tables/Temp tables are not allowed"
+CREATE TABLE t1(id int PRIMARY KEY, embeddings vector(3) USING varbinary) engine=MyISAM;
+CREATE VECTOR INDEX t1_idx ON t1(embeddings) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Vector index: vector indexes on non innodb tables is not supported yet.
+DROP TABLE t1;
+CREATE TABLE t1(id int PRIMARY KEY) engine=MyISAM;
+ALTER TABLE t1 add embeddings vector(3) USING varbinary;
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(id int PRIMARY KEY, embeddings vector(3) USING varbinary);
+CREATE VECTOR INDEX t1_idx ON t1(embeddings) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Vector index: vector indexes on temporary tables is not supported yet.
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(id int PRIMARY KEY);
+ALTER TABLE t1 add embeddings vector(3) USING varbinary;
+DROP TABLE t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=FIXED;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=COMPRESSED;
+CREATE VECTOR INDEX t1_idx ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+DROP TABLE t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=REDUNDANT;
+CREATE VECTOR INDEX t1_idx ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+DROP TABLE t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=COMPACT;
+CREATE VECTOR INDEX t1_idx ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+DROP TABLE t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=DEFAULT;
+DROP TABLE t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+CREATE TABLE t1(i int PRIMARY KEY AUTO_INCREMENT) ROW_FORMAT=COMPRESSED;
+ALTER TABLE t1 ADD COLUMN j VECTOR(3) USING VARBINARY;
+CREATE VECTOR INDEX t1_idx ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+DROP TABLE t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=DYNAMIC;
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+CREATE VECTOR INDEX t1_idx ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY) ROW_FORMAT=DYNAMIC;
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE VECTOR INDEX t1_idx ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported when tablespace is not file per table
+ALTER TABLE t1 ADD VECTOR INDEX t1_idx(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported when tablespace is not file per table
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE quantizer(tree INT);
+CREATE TABLE tree(distance_measure INT);
+CREATE TABLE distance_measure(num_leaves INT);
+CREATE TABLE num_leave(quantizer INT);
+CREATE TABLE vector(i INT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'vector(i INT)' at line 1
+CREATE TABLE not_allowed(vector INT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INT)' at line 1
+CREATE TABLE `vector`(i INT);
+CREATE TABLE not_allowed(`vector` INT);
+"Cleanup"
+DROP DATABASE csqlvectorddls;

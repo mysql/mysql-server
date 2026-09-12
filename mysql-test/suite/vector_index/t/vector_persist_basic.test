@@ -1,0 +1,32 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.vector_persist_basic :
+# Test the persistence of vector index
+#
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--let $table_name=t3
+--source suite/vector_index/include/vector_data.inc
+
+set global log_error_verbosity = 3;
+
+CREATE VECTOR INDEX l2_sq ON t1(j) DISTANCE_MEASURE=l2_squared NUM_LEAVES=5;
+CREATE VECTOR INDEX cos ON t2(j) DISTANCE_MEASURE=cosine NUM_LEAVES=20;
+CREATE VECTOR INDEX dot ON t3(j) DISTANCE_MEASURE=dot_product NUM_LEAVES=50;
+
+select * from information_schema.innodb_vector_indexes;
+
+--source include/restart_mysqld.inc
+# To load the index after restart
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+select * from information_schema.innodb_vector_indexes;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

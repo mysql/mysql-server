@@ -1,0 +1,70 @@
+# Copyright 2026 Google LLC
+
+--source include/elide_costs.inc
+--source include/have_debug.inc
+use test;
+
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+--echo Initial Data inserted
+
+--echo # create vector index with generated PK
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+
+--echo # verify PK order is honored with APPROX
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t1 order by i LIMIT 12;
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t1 order by i DESC LIMIT 12;
+
+--echo # verify without ANN, query still uses index-based order
+--replace_regex $elide_costs_and_rows
+explain format=tree select i from t1 order by i;
+
+--echo # verify PK order is honored with function of PK in order by
+select i, 3*(i-55), APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t1 order by 3*(i-55) LIMIT 12;
+
+--echo # verify PK order is honored with APPROX & PK in order by
+select i, vector_to_string(j) FROM t1 order by i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') LIMIT 12;
+
+--echo # verify same behavior with PK in non-first position & non-ascending order
+
+create table t2 (i int, i2 int primary key, j vector(3) using varbinary, index (i));
+insert into t2 select i, -1*i, j from t1;
+create vector index vec_index on t2(j) distance_measure=l2_squared;
+
+--echo # order by secondary index
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i LIMIT 12;
+
+--echo # order by PK not first in table definition
+select i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i2 LIMIT 12;
+
+--echo # order by function of PK not first in table definition
+select i2, 3*(i2-55), APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by 3*(i2-55) LIMIT 12;
+
+--echo # order by APPROX & PK not first in table definition
+select i, i2, vector_to_string(j) FROM t2 order by i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') LIMIT 12;
+
+create table t3 (i int, i2 int, j vector(3) using varbinary, primary key (i, i2));
+
+--echo # order by part of the composite PK
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i LIMIT 12;
+
+--echo # order by other part of the composite PK
+select i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i2 LIMIT 12;
+
+--echo # order by the composite PK
+select i, i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i, i2 LIMIT 12;
+
+--echo # order by function of the composite PK
+select i2, (3*i - i2*0.5), APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by (3*i - i2*0.5) LIMIT 12;
+
+--echo # order by the composite PK & APPROX
+select i, i2, vector_to_string(j) FROM t2 order by i, i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') LIMIT 12;
+
+--echo # cleanup
+drop index vec_index on t1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

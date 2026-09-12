@@ -503,10 +503,28 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->m_flush_tickets.clear();
 }
 
+/**
+  Remove vector indexes found in a TABLE_SHARE from a given Key_map
+
+  @param share   Share used to find vector indexes
+  @param indexes Key_map to remove vector indexes from
+*/
+void remove_vector_indexes(const TABLE_SHARE *share, Key_map *indexes) {
+  Key_map m;
+  for (uint i = 0; i < share->keys; i++) {
+    if (share->key_info[i].flags & HA_VECTOR) {
+      m.set_bit(i);
+    }
+  }
+  indexes->subtract(m);
+}
+
 Key_map TABLE_SHARE::usable_indexes(const THD *thd) const {
   Key_map usable_indexes(keys_in_use);
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))
     usable_indexes.intersect(visible_indexes);
+  remove_vector_indexes(this, &usable_indexes);
+
   return usable_indexes;
 }
 
@@ -684,7 +702,8 @@ inline bool is_system_table_name(const char *name, size_t length) {
 
 void KEY_PART_INFO::init_flags() {
   assert(field);
-  if (field->type() == MYSQL_TYPE_BLOB || field->type() == MYSQL_TYPE_GEOMETRY)
+  if (field->type() == MYSQL_TYPE_BLOB || field->type() == MYSQL_TYPE_GEOMETRY
+      || field->type() == MYSQL_TYPE_VECTOR)
     key_part_flag |= HA_BLOB_PART;
   else if (field->real_type() == MYSQL_TYPE_VARCHAR)
     key_part_flag |= HA_VAR_LENGTH_PART;
@@ -711,7 +730,8 @@ void KEY_PART_INFO::init_from_field(Field *fld) {
   if (field->is_nullable()) store_length += HA_KEY_NULL_LENGTH;
   if (field->type() == MYSQL_TYPE_BLOB ||
       field->real_type() == MYSQL_TYPE_VARCHAR ||
-      field->type() == MYSQL_TYPE_GEOMETRY) {
+      field->type() == MYSQL_TYPE_GEOMETRY ||
+      field->type() == MYSQL_TYPE_VECTOR) {
     store_length += HA_KEY_BLOB_LENGTH;
   }
   init_flags();
@@ -2142,7 +2162,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
             field->real_type() == MYSQL_TYPE_VARCHAR ||
-            field->type() == MYSQL_TYPE_GEOMETRY) {
+            field->type() == MYSQL_TYPE_GEOMETRY
+            || field->type() == MYSQL_TYPE_VECTOR) {
           key_part->store_length += HA_KEY_BLOB_LENGTH;
           if (i + 1 <= keyinfo->user_defined_key_parts)
             keyinfo->key_length += HA_KEY_BLOB_LENGTH;

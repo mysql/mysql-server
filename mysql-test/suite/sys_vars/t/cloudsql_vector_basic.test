@@ -1,0 +1,76 @@
+# Copyright 2026 Google LLC
+
+# Display default value
+SELECT @@GLOBAL.cloudsql_vector;
+
+
+# Check if value can be set dynamically
+--echo Expected error 'Read only variable'
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.cloudsql_vector=1;
+
+
+# Check if the value in GLOBAL Table matches value in variable  #
+--disable_warnings
+SELECT @@GLOBAL.cloudsql_vector = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector';
+--enable_warnings
+
+
+# Check if accessing variable with and without GLOBAL point to same variable
+SELECT @@cloudsql_vector = @@GLOBAL.cloudsql_vector;
+
+--echo 1 Expected
+SELECT COUNT(@@cloudsql_vector);
+
+
+# Check if local/session variable access does not work
+--echo Expected error 'Variable is a GLOBAL variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.cloudsql_vector);
+
+--echo Expected error 'Variable is a GLOBAL variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.cloudsql_vector);
+
+--echo Expected error 'Variable is a GLOBAL variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT cloudsql_vector = @@SESSION.cloudsql_vector;
+# Display default value
+SELECT @@GLOBAL.cloudsql_vector;
+
+
+# Check if value can be set dynamically
+--echo Expected error 'Read only variable'
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.cloudsql_vector=1;
+
+
+# Check if the value in GLOBAL Table matches value in variable  #
+--disable_warnings
+SELECT @@GLOBAL.cloudsql_vector = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector';
+--enable_warnings
+
+
+# Check if accessing variable with and without GLOBAL point to same variable
+SELECT @@cloudsql_vector = @@GLOBAL.cloudsql_vector;
+
+--echo 1 Expected
+SELECT COUNT(@@cloudsql_vector);
+
+
+# Check if local/session variable access does not work
+--echo Expected error 'Variable is a GLOBAL variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.cloudsql_vector);
+
+--echo Expected error 'Variable is a GLOBAL variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.cloudsql_vector);
+
+--echo Expected error 'Variable is a GLOBAL variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT cloudsql_vector = @@SESSION.cloudsql_vector;

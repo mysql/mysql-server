@@ -1,0 +1,60 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+Initial Data inserted
+SELECT vector_to_string(j) FROM test.t1 WHERE i = 133;
+vector_to_string(j)
+[4.00360e-01,5.53851e-01,8.90115e-01]
+SET AUTOCOMMIT=0;
+START TRANSACTION;
+DROP INDEX vec_index ON test.t1;
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=cosine;
+SET @new_embedding = string_to_vector('[7.0, 8.0, 9.0]') ;
+UPDATE t1 SET j = @new_embedding WHERE i = 133;
+# checking values on the slave before commit with implicit commit
+include/rpl/sync_to_replica.inc
+SET @new_embedding = string_to_vector('[7.0, 8.0, 9.0]') ;
+include/assert.inc [with implicit commit, vector values on slave doesn't change before commit]
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index	TREE_SQ	COSINE	Ready
+[connection master]
+COMMIT;
+include/assert.inc [with implicit commit, vector values on master changes after commit]
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index	TREE_SQ	COSINE	Ready
+# checking values on the slave after commit with implicit commit
+include/rpl/sync_to_replica.inc
+include/assert.inc [with implicit commit, vector values on slave changes after commit]
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index	TREE_SQ	COSINE	Ready
+[connection master]
+SET AUTOCOMMIT=1;
+START TRANSACTION;
+DROP INDEX vec_index ON test.t1;
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SET @new_embedding_2 = string_to_vector('[8.0, 8.0, 8.0]');
+UPDATE t1 SET j = @new_embedding_2 WHERE i = 122;
+# checking values on the slave before commit with auto commit
+include/rpl/sync_to_replica.inc
+SET @new_embedding_2 = string_to_vector('[8.0, 8.0, 8.0]');
+include/assert.inc [with auto commit, vector values on master changes without commit]
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+COMMIT;
+include/rpl/sync_to_replica.inc
+include/assert.inc [with auto commit, vector values on slave changes without commit]
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+# cleanup
+DROP TABLE test.t1;
+include/rpl/deinit.inc

@@ -49,6 +49,7 @@
 #include "sql/dd/properties.h"
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/dd/types/column.h"
+#include "sql/dd/types/index.h"
 #include "sql/dd/types/index_element.h"
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
@@ -66,6 +67,8 @@ class Table;
 
 static const std::set<String_type> default_valid_option_keys = {
     "block_size", "flags", "parser_name",
+    "gcp_quantizer", "gcp_num_partitions", "gcp_distance_measure",
+    "gcp_version", "gcp_idx_algorithm",
     "gipk" /* generated implicit primary key */};
 
 ///////////////////////////////////////////////////////////////////////////
@@ -188,7 +191,11 @@ bool Index_impl::restore_attributes(const Raw_record &r) {
     m_secondary_engine_attribute =
         r.read_str(Indexes::FIELD_SECONDARY_ENGINE_ATTRIBUTE, "");
   }
-
+  /* If it is a vector index, then adjust the type and algorithm. */
+  if (m_options.exists("gcp_quantizer")) {
+    m_type = dd::Index::IT_VECTOR;
+    m_algorithm = dd::Index::IA_KMEANS;
+  }
   return false;
 }
 
@@ -215,10 +222,17 @@ bool Index_impl::store_attributes(Raw_record *r) {
                 m_secondary_engine_attribute.empty()))) {
     return true;
   }
+  auto type = m_type;
+  auto algorithm = m_algorithm;
+  if (m_type == dd::Index::IT_VECTOR) {
+    type = dd::Index::IT_MULTIPLE;
+    assert(m_algorithm == dd::Index::IA_KMEANS);
+    algorithm = dd::Index::IA_SE_SPECIFIC;
+  }
   return store_id(r, Indexes::FIELD_ID) || store_name(r, Indexes::FIELD_NAME) ||
          r->store(Indexes::FIELD_TABLE_ID, m_table->id()) ||
-         r->store(Indexes::FIELD_TYPE, m_type) ||
-         r->store(Indexes::FIELD_ALGORITHM, m_algorithm) ||
+         r->store(Indexes::FIELD_TYPE, type) ||
+         r->store(Indexes::FIELD_ALGORITHM, algorithm) ||
          r->store(Indexes::FIELD_IS_ALGORITHM_EXPLICIT,
                   m_is_algorithm_explicit) ||
          r->store(Indexes::FIELD_IS_VISIBLE, m_is_visible) ||

@@ -565,7 +565,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
   2. We should not introduce new shift/reduce conflicts any more.
 */
 
-%expect 37
+%expect 38
 
 /*
    MAINTAINER:
@@ -1499,6 +1499,11 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 */
 
 
+%token<lexer.keyword> NUM_LEAVES_SYM             9001  /* Cloud SQL */
+%token<lexer.keyword> DISTANCE_MEASURE_SYM       9002  /* Cloud SQL */
+%token<lexer.keyword> QUANTIZER_SYM              9003  /* Cloud SQL */
+%token<lexer.keyword> TREE_SYM                   9004  /* Cloud SQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1727,6 +1732,12 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <key_alg>
         index_type
+
+%type <key_sub_alg>
+        quantizer_type
+
+%type <distance_measure>
+        distance_measure_type
 
 %type <string_list>
         string_list using_list opt_use_partition use_partition ident_string_list
@@ -2128,6 +2139,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <index_options> opt_index_options index_options  opt_fulltext_index_options
           fulltext_index_options opt_spatial_index_options spatial_index_options
+          opt_vector_index_options vector_index_options
 
 %type <opt_index_lock_and_algorithm> opt_index_lock_and_algorithm
 
@@ -2135,6 +2147,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
           spatial_index_option
           index_type_clause
           opt_index_type_clause
+          vector_index_option
+          vector_index_sub_option
 
 %type <alter_table_algorithm> alter_algorithm_option_value
         alter_algorithm_option
@@ -3583,6 +3597,19 @@ create_index_stmt:
                                              nullptr, $6, $8, $10,
                                              $11.algo.get_or_default(),
                                              $11.lock.get_or_default());
+          }
+        | CREATE VECTOR_SYM INDEX_SYM ident opt_index_type_clause
+          ON_SYM table_ident '(' key_list_with_expression ')' opt_vector_index_options
+          opt_index_lock_and_algorithm
+          {
+            if (!opt_cloudsql_vector)
+            {
+              MYSQL_YYABORT_ERROR(ER_VECTOR_FEATURE_CANNOT_BE_USED, MYF(0));
+            }
+            $$= NEW_PTN PT_create_index_stmt(@$, YYMEM_ROOT, KEYTYPE_VECTOR, $4,
+                                             $5, $7, $9, $11,
+                                             $12.algo.get_or_default(),
+                                             $12.lock.get_or_default());
           }
         ;
 
@@ -7069,6 +7096,15 @@ table_constraint_def:
           {
             $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_SPATIAL, $3, nullptr, $5, $7);
           }
+        | VECTOR_SYM opt_key_or_index opt_ident '(' key_list_with_expression ')'
+          opt_vector_index_options
+          {
+            if (!opt_cloudsql_vector)
+            {
+              MYSQL_YYABORT_ERROR(ER_VECTOR_FEATURE_CANNOT_BE_USED, MYF(0));
+            }
+            $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_VECTOR, $3, NULL, $5, $7);
+          }
         | opt_constraint_name constraint_key_type opt_index_name_and_type
           '(' key_list_with_expression ')' opt_index_options
           {
@@ -7237,10 +7273,11 @@ type:
           {
             $$= NEW_PTN PT_char_type(@$, Char_type::VARCHAR, $2, &my_charset_bin);
           }
-        | VECTOR_SYM opt_field_length
+        | VECTOR_SYM opt_field_length opt_using_varbinary
           {
             $$= NEW_PTN PT_vector_type(@$, $2);
           }
+
         | YEAR_SYM opt_field_length field_options
           {
             if ($2)
@@ -7500,6 +7537,11 @@ field_length:
 opt_field_length:
           %empty %prec PREFER_PARENTHESES { $$= nullptr; /* use default length */ }
         | field_length
+        ;
+
+opt_using_varbinary:
+          %empty
+        | USING VARBINARY_SYM
         ;
 
 opt_precision:
@@ -8032,6 +8074,77 @@ spatial_index_option:
           common_index_option
         ;
 
+opt_vector_index_options:
+          %empty { $$.init(YYMEM_ROOT); }
+        | vector_index_options
+        ;
+
+vector_index_options:
+          vector_index_option
+          {
+            $$.init(YYMEM_ROOT);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | vector_index_options vector_index_option
+          {
+            if ($1.push_back($2))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+vector_index_option:
+          index_option { $$= $1; }
+        | vector_index_sub_option { $$= $1; }
+        ;
+
+distance_measure_type:
+          ident
+          {
+            if (is_identifier($1, "L2_SQUARED")) {
+              $$= DISTANCE_MEASURE_L2_SQUARED;
+            } else if (is_identifier($1, "COSINE")) {
+              $$= DISTANCE_MEASURE_COSINE;
+            } else if (is_identifier($1, "DOT_PRODUCT")) {
+              $$= DISTANCE_MEASURE_DOT_PRODUCT;
+            } else {
+              my_error(ER_UNKNOWN_VECTOR_INDEX_OPTION, MYF(0), $1.str, "distance_measure");
+              MYSQL_YYABORT;
+            }
+          }
+          ;
+
+quantizer_type:
+          ident
+          {
+            if (is_identifier($1, "SQ8")) {
+              $$= HA_KEY_SUB_ALG_TREE_SQ;
+            } else {
+              my_error(ER_UNKNOWN_VECTOR_INDEX_OPTION, MYF(0), $1.str, "quantizer");
+              MYSQL_YYABORT;
+            }
+          }
+          ;
+vector_index_sub_option:
+          QUANTIZER_SYM opt_equal quantizer_type
+          {
+            $$= NEW_PTN PT_index_quantizer_option(@$, $3);
+          }
+          | NUM_LEAVES_SYM opt_equal ulong_num
+          {
+            if ($3 == 0) {
+              my_error(ER_VECTOR_INDEX_BAD_PARTITION_NUMBER, MYF(0));
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_index_partitions_option(@$, $3);
+          }
+          | DISTANCE_MEASURE_SYM opt_equal distance_measure_type
+          {
+            $$= NEW_PTN PT_index_distance_measure_option(@$, $3);
+          }
+          ;
+
 opt_index_options:
           %empty { $$.init(YYMEM_ROOT); }
         | index_options
@@ -8120,6 +8233,7 @@ index_type:
           BTREE_SYM { $$= HA_KEY_ALG_BTREE; }
         | RTREE_SYM { $$= HA_KEY_ALG_RTREE; }
         | HASH_SYM  { $$= HA_KEY_ALG_HASH; }
+        | TREE_SYM  { $$= HA_KEY_ALG_KMEANS; }
         ;
 
 key_list:
@@ -16050,6 +16164,7 @@ ident_keywords_unambiguous:
         | DISABLE_SYM
         | DISCARD_SYM
         | DISK_SYM
+        | DISTANCE_MEASURE_SYM
         | DUALITY_SYM
         | DUMPFILE
         | DUPLICATE_SYM
@@ -16187,6 +16302,7 @@ ident_keywords_unambiguous:
         | NOWAIT_SYM
         | NO_WAIT_SYM
         | NULLS_SYM
+        | NUM_LEAVES_SYM
         | NUMBER_SYM
         | NVARCHAR_SYM
         | OFF_SYM
@@ -16229,6 +16345,7 @@ ident_keywords_unambiguous:
         | PROCESSLIST_SYM
         | PROFILES_SYM
         | PROFILE_SYM
+        | QUANTIZER_SYM
         | QUARTER_SYM
         | QUERY_SYM
         | QUICK
@@ -16279,6 +16396,7 @@ ident_keywords_unambiguous:
         | ROW_FORMAT_SYM
         | RTREE_SYM
         | S3_SYM
+        | TREE_SYM
         | SCHEDULE_SYM
         | SCHEMA_NAME_SYM
         | SECONDARY_ENGINE_SYM
@@ -16406,7 +16524,6 @@ ident_keywords_unambiguous:
         | XML_SYM
         | YEAR_SYM
         | ZONE_SYM
-        | VECTOR_SYM
         ;
 
 /*

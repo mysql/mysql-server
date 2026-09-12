@@ -39,6 +39,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -69,9 +70,11 @@
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/item_cloudsql_vector_func.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/iterators/cloudsql_vector_iterators.h"
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/iterators/timing_iterator.h"
@@ -109,6 +112,7 @@
 #include "sql/sql_update.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
+#include "sql/vector_opts.h"
 #include "sql/visible_fields.h"
 #include "sql/window.h"
 #include "template_utils.h"
@@ -884,6 +888,138 @@ AccessPath *CreateNestedLoopAccessPath(THD *thd, AccessPath *outer,
   } else {
     path->nested_loop_join().pfs_batch_mode = pfs_batch_mode;
   }
+  return path;
+}
+
+
+AccessPath *CreateVectorIndexJoinAccessPath(THD *thd, AccessPath *outer,
+  AccessPath *inner) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::VECTOR_INDEX_JOIN;
+  path->vector_index_join().outer = outer;
+  path->vector_index_join().inner = inner;
+  return path;
+}
+
+// Given a table, populate the index lookup object with the primary key info.
+// This is needed to compare the vector search results with the base table.
+int createPrimaryKeyLookupRef(THD *thd, TABLE *base_table, Index_lookup *ref) {
+  KEY primary_key = base_table->key_info[base_table->s->primary_key];
+  KEY_PART_INFO *key_part_end =
+      primary_key.key_part + primary_key.user_defined_key_parts;
+
+  // Initialize the index lookup object with the primary key info.
+  if (init_ref(thd, primary_key.user_defined_key_parts, primary_key.key_length,
+           base_table->s->primary_key, ref))
+    return 1;
+
+  // Iterate through the key parts and populate the index lookup's
+  // items & key_copy
+  int item_no = 0;
+  uchar *key_buff = ref->key_buff;
+  for (KEY_PART_INFO *key_part = primary_key.key_part; key_part < key_part_end;
+       key_part++)
+  {
+    Field *pk_field = base_table->field[key_part->fieldnr - 1];
+    Item_field *item_field = new (thd->mem_root) Item_field(pk_field);
+
+    // Update table read set for the field. This is needed to read PK columns
+    // if they are NOT referenced in the query, but we need to read it for
+    // evaluating ANN search
+    if (!bitmap_test_and_set(base_table->read_set, pk_field->field_index())) {
+      base_table->covering_keys.intersect(pk_field->part_of_key);
+    }
+    ref->items[item_no] = item_field;
+    ref->key_copy[item_no] = new (thd->mem_root)
+        store_key(thd, key_part->field, key_buff, nullptr, key_part->length,
+                  ref->items[item_no]);
+    // Use the store_length, which contains NULL and length info, to update the
+    // key_buff pointer.
+    key_buff += key_part->store_length;
+    item_no++;
+  }
+  return 0;
+}
+
+AccessPath *
+PossiblyAttachVectorIndexScan(THD *thd, QEP_TAB *tab, AccessPath *path,
+                              Item_func_approx_distance *ann_item,
+                              ha_rows limit, bool do_iterative_filtering) {
+  // Return if ANN search has already been attempted and failed.
+  if (ann_item->ann_failed) return path;
+
+  // Get the embedding column
+  Item *searchVectorItem = ((Item_func *)ann_item)->arguments()[0];
+  Field *searchVectorField = get_embedding_field(searchVectorItem);
+  if (!searchVectorField) {
+    ann_item->ann_failed = true;
+    push_warning(thd, ER_ANN_FALLBACK_TO_BRUTE_FORCE);
+    return path;
+  }
+
+  // If ANN search returns an error, fall back to brute force by not inlining
+  // the vector index scan. 
+  bool vector_index_unusable_dbug = false;
+  DBUG_EXECUTE_IF("vector_index_unusable", vector_index_unusable_dbug = true;);
+  if (!searchVectorField->table->file->ha_cloudsql_ann_index_usable() ||
+      vector_index_unusable_dbug) {
+    if (ann_item->get_vector_query_status() != nullptr) {
+      *ann_item->get_vector_query_status() = INDEX_UNUSABLE;
+      ann_item->push_ann_warning_and_inc_counter(thd);
+    }
+    ann_item->ann_failed = true;
+    return path;
+  }
+  // Allocate vector results buffers
+  ann_item->allocate_vector_results(thd, searchVectorField->table, limit);
+
+  VectorSearchOptions search_options = ann_item->get_search_options();
+  // This is pass-by-value, so we will not modify the options in the item. This
+  // is okay because we are passing limit to the NewVectorIndexScanAccessPath.
+  search_options.num_neighbors = limit;
+  // Vector index scan to serve as inner path
+  AccessPath *outer_vector_index_scan = NewVectorIndexScanAccessPath(
+      thd, searchVectorField->table, ann_item->get_query_vector(),
+      ann_item->get_query_vector_size(), search_options,
+      ann_item->get_results(), ann_item->get_vector_query_status());
+
+  // Create index lookup object which indicates that the primary key should be
+  // compared between the the vector search results and the base table.
+  Index_lookup *ref = new (thd->mem_root) Index_lookup();
+
+  // Accessing the needed info from the table (copied from item_strfunc.cc)
+  TABLE *base_table = searchVectorField->table;
+
+  AccessPath *inner_eq_ref = nullptr;
+
+  // With iterative index scans, the inner 'path' has already been set-up as
+  // an EQRef access path with filters attached.
+  if (!do_iterative_filtering) {
+    // Create an EQRef access path to serve as the 'inner' path
+    if (!createPrimaryKeyLookupRef(thd, base_table, ref))
+      inner_eq_ref = NewEQRefAccessPath(thd, searchVectorField->table, ref,
+                                      /*count_examined_rows=*/true);
+  } else {
+    // Create an EQRef access path to serve as the 'inner' path
+    inner_eq_ref = path;
+  }
+
+  // Create a join between the vector index scan and the EQRef access path
+  if (inner_eq_ref) {
+    if (ann_item->get_vector_query_status() != nullptr)
+      *ann_item->get_vector_query_status() =
+          INLINED_INDEX_RESULTS_NOT_POPULATED;
+    if (do_iterative_filtering) {
+      path = CreateVectorIndexJoinAccessPath(thd, outer_vector_index_scan,
+                                      inner_eq_ref);
+      } else {
+        path = CreateNestedLoopAccessPath(thd, outer_vector_index_scan,
+                                          inner_eq_ref, JoinType::INNER, false);
+      }
+  }
+
+  // Compute the cost of the vector index branch
+  setVectorIndexBranchCost(thd, tab, path, ann_item, limit);
   return path;
 }
 
@@ -2899,6 +3035,12 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
     vector<Item *> join_conditions;
     vector<PendingCondition> predicates_above_join;
 
+    if (qep_tab->condition() && contains_function_of_type(qep_tab->condition(),
+                                  Item_func::CLOUDSQL_APPROX_DISTANCE_FUNC)) {
+      my_error(ER_UNABLE_TO_EXECUTE_ANN, MYF(0),
+               "Cannot use APPROX_DISTANCE functions in a condition");
+    }
+
     // If we are on the inner side of a semi-/antijoin, pending_join_conditions
     // will be set. If the join should be executed using hash join,
     // SplitConditions() will put all join conditions in
@@ -3961,6 +4103,62 @@ AccessPath *QEP_TAB::access_path() {
                              /*is_after_filter=*/false, path);
   }
 
+
+  Query_expression *query_expression =
+      join()
+          ->thd->lex->current_query_block()
+          ->master_query_expression();
+
+  bool query_has_limit = query_expression->has_any_limit();
+
+  // Track whether we are doing iterative index scans for ANN. This is used
+  // later in this function after filters are attached when applicable.
+  bool do_iterative_filtering = false;
+
+  Item * ann_item = nullptr;
+  if (opt_cloudsql_vector && query_has_limit) {
+    ha_rows num_neighbors = query_expression->select_limit_cnt;
+
+    // Find the ANN item for the vector index search.
+    ann_item = get_ann_item_for_vector_index_search(join(), table_ref);
+    if (ann_item) {
+      Item_func_approx_distance *ann_func =
+          down_cast<Item_func_approx_distance *>(ann_item);
+
+      // If the current expression has a condition and iterative index scans
+      // are enabled, we can do iterative index scans.
+      do_iterative_filtering = condition() && filesort
+          && join()->thd->variables.cloudsql_vector_iterative_filtering;
+
+      if (num_neighbors > MAX_NEIGHBORS_COUNT) {
+        *(ann_func->get_vector_query_status()) = LIMIT_TOO_LARGE;
+        ann_func->push_ann_warning_and_inc_counter(join()->thd);
+        do_iterative_filtering = false;
+      } else if (is_csql_prefer_ann()) {
+        if (do_iterative_filtering) {
+          // With iterative scans, the 'inner' path of the join needs to be
+          // created now to ensure that filters are attached to it. We also
+          // wait to attach the VectorIndexScan until later in this function.
+          Index_lookup *ref = new (join()->thd->mem_root) Index_lookup();
+          if (!createPrimaryKeyLookupRef(join()->thd, table(), ref)) {
+            // Create an EQRef access path to serve as the 'inner' path
+            path = NewEQRefAccessPath(join()->thd, table(), ref,
+                                          /*count_examined_rows=*/true);
+            do_iterative_filtering = true;
+          }
+        } else {
+          path = PossiblyAttachVectorIndexScan(join()->thd, this, path,
+                                              ann_func, num_neighbors, false);
+        }
+      } else {
+        // Do KNN if we do not prefer ANN.
+        if (ann_func->get_vector_query_status()) {
+          *ann_func->get_vector_query_status() = ANN_MORE_EXPENSIVE_THAN_KNN;
+        }
+      }
+    }
+  }
+
   /*
     If we have an item like <expr> IN ( SELECT f2 FROM t2 ), and we were not
     able to rewrite it into a semijoin, the optimizer may rewrite it into
@@ -4026,6 +4224,16 @@ AccessPath *QEP_TAB::access_path() {
       path = PossiblyAttachFilter(path, predicates_below_join, join()->thd,
                                   &conditions_depend_on_outer_tables);
       mark_condition_as_pushed_to_sort();
+    }
+
+    if (do_iterative_filtering && is_csql_prefer_ann()) {
+      // Filters are attached above, so we can attach the VectorIndexScan now.
+      assert(ann_item);
+      Item_func_approx_distance *ann_func =
+          down_cast<Item_func_approx_distance *>(ann_item);
+      path = PossiblyAttachVectorIndexScan(join()->thd, this, path, ann_func,
+                                            query_expression->select_limit_cnt,
+                                            true);
     }
 
     // Wrap the chosen RowIterator in a SortingIterator, so that we get

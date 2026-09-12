@@ -1,0 +1,29 @@
+# Copyright 2026 Google LLC
+
+# Initial data
+CREATE DATABASE db1;
+USE db1;
+--let $table_name=test.t1
+--source suite/vector_index/include/vector_data.inc
+
+#Create vector index with all options
+--eval CREATE VECTOR INDEX t1_j ON $table_name($vector_col_name) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=cosine NUM_LEAVES=10;
+
+# Show we can select from t1 without breaking things
+--eval SELECT i, vector_to_string(j) from $table_name LIMIT 4;
+--replace_numeric_round 4
+--eval SELECT i, approx_distance(j, string_to_vector('[0.3,0.4,0.5]'), 'distance_measure=cosine') app from $table_name order by app, i LIMIT 4;
+
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+# This is just to test b/382342321
+SELECT NUM_LEAVES FROM information_schema.innodb_vector_indexes;
+
+# Drop DATABASE and make sure there is no issue to index on the test.t1 table
+DROP DATABASE db1;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+# Cleanup
+USE test;
+DROP TABLE t1;
+SELECT * FROM information_schema.innodb_vector_indexes;

@@ -1,0 +1,73 @@
+# Copyright 2026 Google LLC
+
+##########################################################################
+# Test script to test CHECK TABLE for tables with vector indexes.
+#############
+
+--source include/have_debug.inc
+
+# Test - 1: Happy path with no corruption
+--let $table_name=t1
+--let $index_name=t1_j
+--let $column_name=j
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index.inc
+
+# Test - 2: Corrupted index in the sub_table routine
+SET SESSION debug='+d,dict_set_sub_table_index_corrupted';
+--let $table_name=t2
+--let $index_name=t2_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index.inc
+SET SESSION debug='-d,dict_set_sub_table_index_corrupted';
+
+# Test - 3: Corrupted clustered index
+SET SESSION debug='+d,dict_set_sub_table_clust_index_corrupted';
+--let $table_name=t3
+--let $index_name=t3_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index.inc
+SET SESSION debug='-d,dict_set_sub_table_clust_index_corrupted';
+
+# Test - 4: Corrupted clustered indexin the row scan routine
+SET SESSION debug='+d,dict_set_sub_table_clust_index_row_scan_corrupted';
+--let $table_name=t4
+--let $index_name=t4_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index.inc
+SET SESSION debug='-d,dict_set_sub_table_clust_index_row_scan_corrupted';
+
+# Test - 5: Corrupted clustered indexin the row scan routine
+SET SESSION debug='+d,dict_set_sub_table_corrupted_clust_index';
+--let $table_name=t5
+--let $index_name=t5_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index.inc
+SET SESSION debug='-d,dict_set_sub_table_corrupted_clust_index';
+
+# Test - 6: Row mismatch between base and sub table
+SET SESSION debug='+d,dict_set_sub_table_mismatch_rows_count';
+--let $table_name=t6
+--let $index_name=t6_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index.inc
+SET SESSION debug='-d,dict_set_sub_table_mismatch_rows_count';
+
+# Test - 7: With quick option, no error should happen at row level check.
+SET SESSION debug='+d,dict_set_sub_table_clust_index_corrupted';
+--let $table_name=t7
+--let $index_name=t7_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index_with_option.inc
+SET SESSION debug='-d,dict_set_sub_table_clust_index_corrupted';
+
+# Test - 8: With quick option, error should happen at scan level check.
+SET SESSION debug='+d,dict_set_sub_table_corrupted_clust_index';
+--let $table_name=t8
+--let $index_name=t8_j
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+--source suite/vector_index/include/check_table_with_vector_index_with_option.inc
+SET SESSION debug='-d,dict_set_sub_table_corrupted_clust_index';

@@ -45,6 +45,10 @@ external tools. */
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_LIBRARY
+#include "vector0dd.h"
+#endif /* !UNIV_LIBRARY */
+
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */
 const char *dict_add_col_name(const char *col_names, /*!< in: existing column
@@ -296,6 +300,12 @@ dict_index_t *dict_mem_index_create(
   heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   index = static_cast<dict_index_t *>(mem_heap_zalloc(heap, sizeof(*index)));
+
+#ifndef UNIV_LIBRARY
+  if (type & DICT_VECTOR) {
+    index->vec_index_info = std::make_shared<ib_vector::VectorIndexInfo>();
+  }
+#endif
 
   new (&index->fields_array)(decltype(index->fields_array))();
   dict_mem_fill_index_struct(index, heap, table_name, index_name, space, type,

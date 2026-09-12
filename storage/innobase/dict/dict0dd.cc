@@ -48,6 +48,7 @@ Data dictionary interface */
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
+#include "vector0dd.h"
 #include "sql/dd/impl/types/column_impl.h"
 #include "sql/dd/types/column_type_element.h"
 #ifndef UNIV_HOTBACKUP
@@ -1973,7 +1974,7 @@ void dd_visit_keys_with_too_long_parts(
     std::function<void(const KEY &)> visitor) {
   for (uint key_num = 0; key_num < table->s->keys; key_num++) {
     const KEY &key = table->key_info[key_num];
-    if (!(key.flags & (HA_SPATIAL | HA_FULLTEXT))) {
+    if (!(key.flags & (HA_SPATIAL | HA_FULLTEXT | HA_VECTOR))) {
       for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
         const KEY_PART_INFO *key_part = &key.key_part[i];
         if (max_part_len < key_part->length) {
@@ -2610,6 +2611,13 @@ static void dd_write_index(dd::Object_id dd_space_id, Index *dd_index,
   p.set(dd_index_key_strings[DD_TABLE_ID], index->table->id);
   p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
   p.set(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
+
+  if (index->type == DICT_VECTOR) {
+    auto vec_info = ib_vector::dict_table_get_vector_index_info(index->table);
+    if (vec_info) {
+      vec_info->write_to_dd(p, index);
+    }
+  }
 }
 
 template void dd_write_index<dd::Index>(dd::Object_id, dd::Index *,
@@ -2898,7 +2906,7 @@ MY_COMPILER_DIAGNOSTIC_POP()
 */
 static inline uint16_t get_index_prefix_len(const KEY &key,
                                             const KEY_PART_INFO *key_part) {
-  if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+  if (key.flags & (HA_SPATIAL | HA_FULLTEXT | HA_VECTOR)) {
     return 0;
   }
 
@@ -2962,6 +2970,8 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
     ut_ad(key.flags & HA_NOSAME);
     ut_ad(n_uniq > 0);
     type = DICT_CLUSTERED | DICT_UNIQUE;
+  } else if (key.flags & HA_VECTOR) {
+    type = DICT_VECTOR;
   } else {
     type = (key.flags & HA_NOSAME) ? DICT_UNIQUE : 0;
   }
@@ -3640,6 +3650,10 @@ static inline void fill_dict_existing_column(
       }
     }
 
+    if (column->type() == dd::enum_column_types::VECTOR) {
+      ib_vector::set_vector_col_info(m_table, column);
+    }
+
     dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
                            col_len, !field->is_hidden_by_system(), phy_pos,
                            (row_version_t)v_added, INVALID_ROW_VERSION);
@@ -3950,6 +3964,13 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
     DICT_TF2_FLAG_SET(m_table, DICT_TF2_AUX);
     m_table->parent_id = aux_table.parent_id;
+  }
+  /* Check if this table is SUB table, if so, set parent_id */
+  if (dd_tab->se_private_data().exists(
+          dd_table_key_strings[DD_TABLE_VECTOR_SUB_TABLE_PARENT_ID])) {
+    dd_tab->se_private_data().get(dd_table_key_strings[DD_TABLE_VECTOR_SUB_TABLE_PARENT_ID],
+                                  &m_table->parent_id);
+    m_table->is_vector_sub_table = true;
   }
 
   if (is_discard) {
@@ -5107,6 +5128,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
   /* Now fill the space ID and Root page number for each index */
   dict_index_t *index = m_table->first_index();
+  dict_index_t *vector_index{nullptr};
   for (const auto dd_index : dd_table->indexes()) {
     ut_ad(index != nullptr);
 
@@ -5191,13 +5213,21 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     }
 
     ut_ad(root > 1);
-    ut_ad(index->type & DICT_FTS || root != FIL_NULL ||
-          dict_table_is_discarded(m_table));
+    ut_ad(index->type & DICT_FTS || index->type & DICT_VECTOR ||
+          root != FIL_NULL || dict_table_is_discarded(m_table));
     ut_ad(id != 0);
     index->page = root;
     index->space = sid;
     index->id = id;
     index->trx_id = trx_id;
+
+    if (index->type & DICT_VECTOR) {
+      auto vec_info = ib_vector::dict_table_get_vector_index_info(m_table);
+      vector_index = index;
+      if (vec_info != nullptr) {
+        vec_info->read_from_dd(se_private_data, index);
+      }
+    }
 
     /** Look up the spatial reference system in the
     dictionary. Since this may cause a table open to read the
@@ -5249,6 +5279,15 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
     if (dict_sys->dynamic_metadata != nullptr) {
       dict_table_load_dynamic_metadata(m_table);
+    }
+
+    /* If we have encountered any error while reading vector index from DD or
+    if the index was marked corrupted, we mark the index unusable. */
+    if (vector_index != nullptr) {
+      auto vec_info = ib_vector::dict_table_get_vector_index_info(m_table);
+      if (vec_info != nullptr) {
+        vec_info->mark_unusable_if_needed(vector_index);
+      }
     }
   }
 

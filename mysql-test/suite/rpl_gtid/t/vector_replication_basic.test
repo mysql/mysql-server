@@ -1,0 +1,79 @@
+# Test support for replication of Cloudsql Vector columns
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--source include/rpl/init_source_replica.inc
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+
+--let $binlog_start=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+CREATE VECTOR INDEX vec_index_2 ON t2(j) DISTANCE_MEASURE=l2_squared;
+
+--echo #Test: Basic testing to make sure the index is replicated
+--source include/rpl/sync_to_replica.inc
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--connection master
+--echo #Test: Using session variables, do DMLs on the base tables, make sure the data is replicated and inserted and available on index
+SET @new_j = string_to_vector("[2.0, 2.0, 2.0]");
+UPDATE t1 SET j = @new_j WHERE i = 1;
+INSERT INTO t1 values(1001, @new_j);
+
+--source include/rpl/sync_to_replica.inc
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=cosine') LIMIT 3;
+
+SELECT i, vector_to_string(j) FROM t1 WHERE i = 1;
+
+SELECT COUNT(*) FROM t1;
+
+--echo #Test: Restart Replica server alone and make sure indexes are reloaded properly
+--let $rpl_server_number=2
+--source include/rpl/restart_server.inc
+SELECT i, vector_to_string(j) FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--echo #Test: Test vector creation is binlogged
+# Restart master
+--let $rpl_server_number=1
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/save_binlog_file_position.inc
+
+--connection master
+--let $binlog_file= query_get_value(SHOW BINARY LOGS, Log_name, 1)
+--source include/rpl/deprecated/show_binlog_events.inc
+--let $binlog_start=
+--let $binlog_file= query_get_value(SHOW BINARY LOGS, Log_name, 2)
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--echo # drop vector index
+DROP INDEX vec_index ON t1;
+DROP INDEX vec_index_2 ON t2;
+
+
+--source include/rpl/sync_to_replica.inc
+--echo #Test: On Replica, customers can create indexes directly.
+--echo # create vector index
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+
+--connection master
+
+--echo # cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/rpl/deinit.inc

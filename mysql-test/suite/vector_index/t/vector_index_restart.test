@@ -1,0 +1,80 @@
+# Copyright 2026 Google LLC
+
+# To test various scenerios during shutdown
+
+--source include/have_debug.inc
+CALL mtr.add_suppression("Vector index marked corrupted");
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+CREATE VECTOR INDEX vectorIndext2 ON t2(j) DISTANCE_MEASURE=dot_product;
+
+--echo #######################################################################
+--echo #     Test the vector indexes being persisted on a clean shutdown     #
+--echo #######################################################################
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5,0.25,0.125]'), 'distance_measure=cosine'),i  LIMIT 10;
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.3,0.6,0.9]'), 'distance_measure=dot_product'),i LIMIT 10;
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--source include/restart_mysqld.inc
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--echo ########################################################################
+--echo #     Test the vector indexes can be used by ANN queries after restart #
+--echo ########################################################################
+
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.1,0.322,0.064]'), 'distance_measure=cosine'),i  LIMIT 10;
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.389,0.873,0.689]'), 'distance_measure=dot_product'),i LIMIT 10;
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--echo ########################################################################
+--echo #     Test that corruption persist through a restart                   #
+--echo ########################################################################
+SET SESSION debug='+d,dict_set_sub_table_clust_index_row_scan_corrupted';
+CHECK TABLE t2;
+SET SESSION debug='-d,dict_set_sub_table_clust_index_row_scan_corrupted';
+
+# Index should be corrupted and ANN query should fall back to KNN
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.389,0.873,0.689]'), 'distance_measure=dot_product'),i LIMIT 10;
+
+--source include/restart_mysqld.inc
+
+# Index should be corrupted and ANN query should fall back to KNN
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.389,0.873,0.689]'), 'distance_measure=dot_product'),i LIMIT 10;
+
+DROP INDEX vectorIndext2 ON t2;
+
+# Simulate a DD read error during restart. Index should be corrupted and ANN query should fall back to KNN
+--let $restart_parameters = restart: --debug=+d,simulate_dd_vector_read_error
+--source include/restart_mysqld.inc
+
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.1,0.322,0.064]'), 'distance_measure=cosine'),i  LIMIT 10;
+SET SESSION debug='-d,simulate_dd_vector_read_error';
+
+# corruption should persist after restart
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+# Index should be corrupted and ANN query should fall back to KNN
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.1,0.322,0.064]'), 'distance_measure=cosine'),i  LIMIT 10;
+
+DROP TABLE t1;
+DROP TABLE t2;

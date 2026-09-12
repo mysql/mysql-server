@@ -1,0 +1,160 @@
+# Copyright 2026 Google LLC
+
+use test;
+delimiter |;
+CREATE
+  procedure
+    vector_index_create()
+      begin
+        CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE =l2_squared;
+END |
+delimiter ;|
+
+delimiter |;
+
+CREATE
+  procedure
+    vector_index_alter()
+      begin
+        DROP INDEX vec_index ON t1;
+        CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE =dot_product;
+END  |
+delimiter ;|
+
+delimiter |;
+CREATE
+  procedure
+    fill_vector_table(tname varchar(40), n_rows int)
+      begin
+        declare i int DEFAULT 1;
+
+declare d1 float DEFAULT 1.0;
+declare d2 float DEFAULT 2.0;
+declare d3 float DEFAULT 3.0;
+
+while i
+<= n_rows do
+SET @s =
+  concat('insert into ', tname, "(emb) values (string_to_vector('[", d1, ',', d2, ',', d3, "]'))");
+
+prepare stmt FROM @s;
+
+EXECUTE stmt;
+
+SET i = i + 1;
+SET d1 = d1 + 1;
+SET d2 = d2 + 1;
+SET d3 = d3 + 1;
+
+END while;
+END |
+delimiter ;|
+
+DELIMITER |;
+CREATE PROCEDURE wait_for_event_to_delete()
+BEGIN
+loop_label: LOOP
+  SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.EVENTS
+    WHERE EVENT_SCHEMA = 'test' 
+    AND EVENT_NAME = 'insert_vector' into @event_exists;
+  IF (@event_exists = 0) THEN
+      LEAVE loop_label;  -- Exit the loop when stop_loop becomes 1
+  END IF;
+END LOOP loop_label;
+END |
+DELIMITER ;|
+
+CREATE TABLE t1(id int PRIMARY KEY AUTO_INCREMENT, emb vector(3) USING varbinary);
+
+CREATE FUNCTION ann_function_test ()
+RETURNS BIGINT
+RETURN (SELECT id FROM t1 ORDER BY APPROX_DISTANCE(emb, string_to_vector('[1,2,3]') , 'distance_measure=l2_squared') LIMIT 1);
+
+--disable_query_log
+CALL fill_vector_table('t1', 1000);
+--enable_query_log
+
+--echo # Test Case 1: Vector operations from a procedure
+CALL vector_index_create();
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+CALL vector_index_alter();
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+
+--echo # Test Case 2: Vector operations from a function
+--echo # TODO: should be able to run NEAREST from a function
+
+delimiter |;
+
+CREATE FUNCTION nearest_func(tname varchar(40))
+RETURNS
+  varchar(40)
+    BEGIN
+      RETURN(SELECT vector_to_string(emb) FROM t1 WHERE id = 1);
+
+END  |
+delimiter ;|
+
+SELECT nearest_func('test.t1');
+
+--echo # Test Case 3: Vector operations from a trigger
+--echo # TODO: should be able to run NEAREST from a function
+
+CREATE TABLE vector_strings(vector_string varchar(40));
+
+--delimiter |
+CREATE
+  TRIGGER
+    vector_strings_trigger
+      AFTER INSERT
+ON t1 FOR EACH ROW BEGIN INSERT INTO vector_strings values(vector_to_string(NEW.emb));
+
+END;|
+--delimiter ;
+INSERT INTO t1(emb) value(string_to_vector('[1,2,3]'));
+
+SELECT * FROM vector_strings;
+
+--echo # Test Case 3: Vector operations from an event
+SELECT COUNT(*) FROM t1;
+
+SELECT @@event_scheduler;
+
+SELECT COUNT(*) FROM t1 into @count;
+CREATE
+  event insert_vector
+ON schedule every 1 second
+STARTS CURRENT_TIMESTAMP + INTERVAL 5 SECOND
+ENDS CURRENT_TIMESTAMP + INTERVAL 15 SECOND
+ON COMPLETION NOT PRESERVE
+ DO INSERT INTO t1(emb) value(string_to_vector('[1,2,3]'));
+
+CALL wait_for_event_to_delete();
+SELECT COUNT(*) FROM t1;
+
+--echo # Test Case 4: Vector insert on duplicate key
+INSERT INTO t1 (id, emb) VALUES (1, string_to_vector("[1,1,1]")), (10, string_to_vector("[1,1,1]")), (100, string_to_vector("[1,1,1]")), (2000, string_to_vector("[1,1,1]"))
+ON DUPLICATE KEY UPDATE
+  emb = NULL;
+
+SELECT id, vector_to_string(emb) from t1 WHERE id IN (1,10,100, 2000);
+
+--echo "ANN in user function"
+# TODO b/379977618#comment2 - Disabling this as behavior is not consistent acorss all versions.
+#--error ER_UNABLE_TO_EXECUTE_ANN
+#select ann_function_test();
+#select ann_function_test();
+# Third call used to crash the server
+#select ann_function_test();
+#select ann_function_test();
+
+DROP INDEX vec_index ON t1;
+
+DROP TABLE t1;
+DROP TABLE vector_strings;
+DROP FUNCTION ann_function_test;
+DROP PROCEDURE fill_vector_table;
+DROP PROCEDURE vector_index_create;
+DROP PROCEDURE vector_index_alter;
+DROP PROCEDURE wait_for_event_to_delete;
+DROP FUNCTION nearest_func;

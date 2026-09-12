@@ -1,0 +1,182 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Test replicate-ignore-table filter
+#
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(test.t1);
+include/rpl/start_replica.inc
+[connection master]
+Initial Data inserted for table t1
+Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1000
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t2	vec_index_2	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Test replicate-do-table filter
+#
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(), REPLICATE_DO_TABLE=(test.t1);
+include/rpl/start_replica.inc
+[connection master]
+Initial Data inserted for table t1
+Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+SELECT COUNT(*) FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index_1	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Test replicate-wild-ignore-table filter
+#
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(), REPLICATE_WILD_IGNORE_TABLE=('test.t%');
+include/rpl/start_replica.inc
+[connection master]
+Initial Data inserted for table t1
+Initial Data inserted for table t2
+Initial Data inserted for table j1
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_3 ON test.j1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT COUNT(*) FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SELECT COUNT(*) FROM j1;
+COUNT(*)
+1000
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.j1	vec_index_3	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP INDEX vec_index_1 ON test.t1;
+SET @new_j = string_to_vector("[2.0, 2.0, 2.0]");
+UPDATE j1 SET j = @new_j WHERE i = 1;
+INSERT INTO j1 VALUES(1001, @new_j);
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM j1;
+COUNT(*)
+1001
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.j1	vec_index_3	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE j1;
+#
+# Test replicate-wild-do-table filter
+#
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(), REPLICATE_WILD_DO_TABLE=('test.t%');
+include/rpl/start_replica.inc
+[connection master]
+Initial Data inserted for table t1
+Initial Data inserted for table t2
+Initial Data inserted for table j1
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_3 ON test.j1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1000
+SELECT COUNT(*) FROM j1;
+ERROR 42S02: Table 'test.j1' doesn't exist
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t2	vec_index_2	TREE_SQ	L2_SQUARED	Ready
+test.t1	vec_index_1	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE j1;
+#
+# Test replicate-do-db filter
+#
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(), REPLICATE_DO_DB=(test);
+include/rpl/start_replica.inc
+[connection master]
+USE test;
+Initial Data inserted for table t1
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE DATABASE test2;
+USE test2;
+Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_2 ON test2.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+1000
+SELECT COUNT(*) FROM test2.t2;
+ERROR 42000: Unknown database 'test2'
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index_1	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP DATABASE test2;
+USE test;
+DROP TABLE t1;
+#
+# Test replicate-ignore-db filter
+#
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(), REPLICATE_IGNORE_DB=(test2);
+include/rpl/start_replica.inc
+[connection master]
+USE test;
+Initial Data inserted for table t1
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE DATABASE test2;
+USE test2;
+Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_2 ON test2.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+1000
+SELECT COUNT(*) FROM test2.t2;
+ERROR 42000: Unknown database 'test2'
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index_1	TREE_SQ	L2_SQUARED	Ready
+[connection master]
+DROP DATABASE test2;
+USE test;
+DROP TABLE t1;
+include/rpl/deinit.inc

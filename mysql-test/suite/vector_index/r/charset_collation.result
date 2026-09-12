@@ -1,0 +1,146 @@
+# Test case 1: VARCHAR PK (various charset & collation)
+SELECT embeddings FROM gloveds LIMIT 1 INTO @value;
+CREATE TABLE t0(
+id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id VARCHAR(10) CHARACTER SET gbk COLLATE gbk_chinese_ci PRIMARY KEY);
+INSERT INTO t0 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+UPDATE t0 SET next_id = '桌子' WHERE id=1;
+CREATE VECTOR INDEX vec_index0 ON t0(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t0 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE t1(
+id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci PRIMARY KEY);
+INSERT INTO t1 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index1 ON t1(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t1 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE t2(
+id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci PRIMARY KEY);
+INSERT INTO t2 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+UPDATE t2 SET next_id = 'é' WHERE id=1;
+CREATE VECTOR INDEX vec_index2 ON t2(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t2 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE t3(
+id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id VARCHAR(10) CHARACTER SET utf8 COLLATE utf8mb3_unicode_ci PRIMARY KEY);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t3 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index3 ON t3(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t3 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+# Test case 2: Composite VARCHAR PK (various charset & collation)
+CREATE TABLE t4(
+id int, emb vector(50) USING varbinary, name VARCHAR(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci, next_id VARCHAR(10) CHARACTER SET utf8 COLLATE utf8mb3_unicode_ci, PRIMARY KEY(next_id, name));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t4 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index4 ON t4(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t4 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+# Test case 3: Table-level charset/collation where embedding column name is out-of-default charset
+CREATE TABLE t5(
+id int PRIMARY KEY, emb vector(50) USING varbinary, name VARCHAR(20), next_id int) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO t5 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index5 ON t5(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t5 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE t6(
+id int PRIMARY KEY, émb vector(50) USING varbinary, name VARCHAR(20), next_id int) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+INSERT INTO t6 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index6 ON t6(émb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t6 ORDER BY APPROX_DISTANCE(émb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE t7(
+id int PRIMARY KEY, 桌子 vector(50) USING varbinary, name VARCHAR(20), next_id int) DEFAULT CHARSET=gbk COLLATE=gbk_chinese_ci;
+INSERT INTO t7 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index7 ON t7(桌子) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t7 ORDER BY APPROX_DISTANCE(桌子, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE t8(
+id int PRIMARY KEY, €mb vector(50) USING varbinary, name VARCHAR(20), next_id int) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+INSERT INTO t8 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index8 ON t8(€mb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM t8 ORDER BY APPROX_DISTANCE(€mb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+# Test case 4: Table-level charset/collation where table name is out-of-default charset
+CREATE TABLE é(
+id int PRIMARY KEY, émb vector(50) USING varbinary, name VARCHAR(20), next_id int) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+INSERT INTO é SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index9 ON é(émb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM é ORDER BY APPROX_DISTANCE(émb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+CREATE TABLE 桌子(
+id int PRIMARY KEY, emb vector(50) USING varbinary, name VARCHAR(20), next_id int) DEFAULT CHARSET=gbk COLLATE=gbk_chinese_ci;
+INSERT INTO 桌子 SELECT id, embeddings, "name", CAST(id+1 AS CHAR(10)) FROM gloveds;
+CREATE VECTOR INDEX vec_index0 ON 桌子(emb) DISTANCE_MEASURE=l2_squared;
+SELECT id FROM 桌子 ORDER BY APPROX_DISTANCE(emb, @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+id
+110001
+110043
+110154
+110004
+110007
+DROP TABLE t0;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t7;
+DROP TABLE t8;
+DROP TABLE é;
+DROP TABLE 桌子;
+DROP TABLE gloveds;

@@ -37,6 +37,7 @@ Created 2020-11-01 by Sunny Bains. */
 #include "handler0alter.h"
 #include "lock0lock.h"
 #include "row0log.h"
+#include "vector0subtable.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -446,6 +447,9 @@ static void drop_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
         fts_drop_index(table, index, trx, nullptr);
       }
 
+      if (index->type & DICT_VECTOR) {
+        ib_vector::drop_vector_index_sub_table(table, index, trx);
+      }
       switch (dict_index_get_online_status(index)) {
         case ONLINE_INDEX_CREATION:
           /* This state should only be possible when
@@ -505,7 +509,8 @@ dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
 
   /* Build a row based on the clustered index. */
 
-  m_ptr = row_build_w_add_vcol(type, index, m_rec, m_offsets, ctx.m_new_table,
+  auto col_table = ctx.m_vec_index_build ? ctx.m_old_table : ctx.m_new_table;
+  m_ptr = row_build_w_add_vcol(type, index, m_rec, m_offsets, col_table,
                                m_add_cols, ctx.m_add_v, ctx.m_col_map, &m_ext,
                                heap);
 

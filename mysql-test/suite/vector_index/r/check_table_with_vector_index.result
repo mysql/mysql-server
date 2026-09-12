@@ -1,0 +1,269 @@
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t1';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t1';
+NAME	STATE	CORRUPTED
+test/t1	INDEX_READY_TO_USE	0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t1';
+NAME	STATE	CORRUPTED
+test/t1	INDEX_READY_TO_USE	0
+INSERT INTO t1 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t1 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t1';
+NAME	STATE	CORRUPTED
+test/t1	INDEX_READY_TO_USE	0
+DROP INDEX t1_j ON t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t1';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t1;
+SET SESSION debug='+d,dict_set_sub_table_index_corrupted';
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t2';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t2_j ON t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t2';
+NAME	STATE	CORRUPTED
+test/t2	INDEX_READY_TO_USE	0
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	Warning	InnoDB: The B-tree of index t2_j is corrupted.
+test.t2	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t2';
+NAME	STATE	CORRUPTED
+test/t2	INDEX_NOT_USABLE	1
+INSERT INTO t2 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t2 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	Warning	InnoDB: Index t2_j is marked as corrupted
+test.t2	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t2';
+NAME	STATE	CORRUPTED
+test/t2	INDEX_NOT_USABLE	1
+DROP INDEX t2_j ON t2;
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t2';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t2;
+SET SESSION debug='-d,dict_set_sub_table_index_corrupted';
+SET SESSION debug='+d,dict_set_sub_table_clust_index_corrupted';
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t3';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t3_j ON t3(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t3';
+NAME	STATE	CORRUPTED
+test/t3	INDEX_READY_TO_USE	0
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	Warning	InnoDB: The B-tree of index t3_j is corrupted.
+test.t3	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t3';
+NAME	STATE	CORRUPTED
+test/t3	INDEX_NOT_USABLE	1
+INSERT INTO t3 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t3 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	Warning	InnoDB: Index t3_j is marked as corrupted
+test.t3	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t3';
+NAME	STATE	CORRUPTED
+test/t3	INDEX_NOT_USABLE	1
+DROP INDEX t3_j ON t3;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t3';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t3;
+SET SESSION debug='-d,dict_set_sub_table_clust_index_corrupted';
+SET SESSION debug='+d,dict_set_sub_table_clust_index_row_scan_corrupted';
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t4';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t4_j ON t4(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t4';
+NAME	STATE	CORRUPTED
+test/t4	INDEX_READY_TO_USE	0
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	Warning	InnoDB: The vector index t4_j is corrupted.
+test.t4	check	Warning	InnoDB: Vector index 't4_j' contains 1000 entries, should be 1002.
+test.t4	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t4';
+NAME	STATE	CORRUPTED
+test/t4	INDEX_NOT_USABLE	1
+INSERT INTO t4 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t4 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	Warning	InnoDB: Index t4_j is marked as corrupted
+test.t4	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t4';
+NAME	STATE	CORRUPTED
+test/t4	INDEX_NOT_USABLE	1
+DROP INDEX t4_j ON t4;
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t4';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t4;
+SET SESSION debug='-d,dict_set_sub_table_clust_index_row_scan_corrupted';
+SET SESSION debug='+d,dict_set_sub_table_corrupted_clust_index';
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t5';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t5_j ON t5(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t5';
+NAME	STATE	CORRUPTED
+test/t5	INDEX_READY_TO_USE	0
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Warning	InnoDB: The vector index t5_j is corrupted.
+test.t5	check	Warning	InnoDB: Vector index 't5_j' contains 1000 entries, should be 1002.
+test.t5	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t5';
+NAME	STATE	CORRUPTED
+test/t5	INDEX_NOT_USABLE	1
+INSERT INTO t5 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t5 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Warning	InnoDB: Index t5_j is marked as corrupted
+test.t5	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t5';
+NAME	STATE	CORRUPTED
+test/t5	INDEX_NOT_USABLE	1
+DROP INDEX t5_j ON t5;
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t5';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t5;
+SET SESSION debug='-d,dict_set_sub_table_corrupted_clust_index';
+SET SESSION debug='+d,dict_set_sub_table_mismatch_rows_count';
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t6';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t6_j ON t6(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t6';
+NAME	STATE	CORRUPTED
+test/t6	INDEX_READY_TO_USE	0
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Warning	InnoDB: Vector index 't6_j' contains 103 entries, should be 1002.
+test.t6	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t6';
+NAME	STATE	CORRUPTED
+test/t6	INDEX_NOT_USABLE	1
+INSERT INTO t6 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t6 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Warning	InnoDB: Index t6_j is marked as corrupted
+test.t6	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t6';
+NAME	STATE	CORRUPTED
+test/t6	INDEX_NOT_USABLE	1
+DROP INDEX t6_j ON t6;
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t6';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t6;
+SET SESSION debug='-d,dict_set_sub_table_mismatch_rows_count';
+SET SESSION debug='+d,dict_set_sub_table_clust_index_corrupted';
+CHECK TABLE t7 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t7';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t7_j ON t7(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t7';
+NAME	STATE	CORRUPTED
+test/t7	INDEX_READY_TO_USE	0
+CHECK TABLE t7 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t7';
+NAME	STATE	CORRUPTED
+test/t7	INDEX_READY_TO_USE	0
+INSERT INTO t7 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t7 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t7 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t7';
+NAME	STATE	CORRUPTED
+test/t7	INDEX_READY_TO_USE	0
+DROP INDEX t7_j ON t7;
+CHECK TABLE t7 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t7';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t7;
+SET SESSION debug='-d,dict_set_sub_table_clust_index_corrupted';
+SET SESSION debug='+d,dict_set_sub_table_corrupted_clust_index';
+CHECK TABLE t8 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t8	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t8';
+NAME	STATE	CORRUPTED
+CREATE VECTOR INDEX t8_j ON t8(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t8';
+NAME	STATE	CORRUPTED
+test/t8	INDEX_READY_TO_USE	0
+CHECK TABLE t8 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Warning	InnoDB: The vector index t8_j is corrupted.
+test.t8	check	Warning	InnoDB: Vector index 't8_j' contains 1000 entries, should be 1002.
+test.t8	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t8';
+NAME	STATE	CORRUPTED
+test/t8	INDEX_NOT_USABLE	1
+INSERT INTO t8 (j) VALUES (string_to_vector('[2,3,4]'));
+INSERT INTO t8 (j) VALUES (string_to_vector('[4,5,6]'));
+CHECK TABLE t8 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Warning	InnoDB: Index t8_j is marked as corrupted
+test.t8	check	error	Corrupt
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t8';
+NAME	STATE	CORRUPTED
+test/t8	INDEX_NOT_USABLE	1
+DROP INDEX t8_j ON t8;
+CHECK TABLE t8 QUICK FAST;
+Table	Op	Msg_type	Msg_text
+test.t8	check	status	OK
+SELECT T.NAME, I.STATE, I.CORRUPTED  FROM information_schema.innodb_all_vector_indexes I JOIN information_schema.innodb_tables T ON I.table_id = T.table_id WHERE T.name = 'test/t8';
+NAME	STATE	CORRUPTED
+DROP TABLE if exists t8;
+SET SESSION debug='-d,dict_set_sub_table_corrupted_clust_index';

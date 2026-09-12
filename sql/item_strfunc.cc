@@ -1102,7 +1102,6 @@ String *Item_func_concat::val_str(String *str) {
 
 bool Item_func_concat::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
-  if (reject_vector_args()) return true;
 
   ulonglong char_length = 0;
 
@@ -1666,7 +1665,6 @@ String *Item_func_substr::val_str(String *str) {
 bool Item_func_substr::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
-  if (reject_vector_args()) return true;
 
   uint32 max_char_length = args[0]->max_char_length();
 

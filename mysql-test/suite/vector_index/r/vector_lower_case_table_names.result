@@ -1,0 +1,24 @@
+Verify lower_case_table_names=1
+SELECT @@lower_case_table_names;
+@@lower_case_table_names
+1
+Initial Data inserted
+Verify table names/procedures/etc are case-insensitive
+INSERT INTO T1 VALUES (1001, string_to_vector("[1,2,3]"));
+INSERT INTO t1  (i, j) VALUES (1002, string_to_vector('[0,0,0]'));
+INSERT INTO t1  (i, J) VALUES (1003, string_to_vector('[0,0,0]'));
+CREATE VECTOR INDEX vec_index on T1(j) DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index2 on t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Operation create Index failed with error, Reason: Vector key on the table already exists.
+UPDATE t1 SET J = STRING_TO_VECTOR('[1,2,3]') WHERE i = 1;
+Verify we can run ANN queries
+SELECT COUNT(*) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 10;
+COUNT(*)
+1003
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECK TABLE T1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE T1;

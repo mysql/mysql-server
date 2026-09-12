@@ -1,0 +1,54 @@
+SELECT @@GLOBAL.cloudsql_vector;
+@@GLOBAL.cloudsql_vector
+0
+Expected error 'Read only variable'
+SET @@GLOBAL.cloudsql_vector=1;
+ERROR HY000: Variable 'cloudsql_vector' is a read only variable
+SELECT @@GLOBAL.cloudsql_vector = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector';
+@@GLOBAL.cloudsql_vector = VARIABLE_VALUE
+1
+SELECT @@cloudsql_vector = @@GLOBAL.cloudsql_vector;
+@@cloudsql_vector = @@GLOBAL.cloudsql_vector
+1
+1 Expected
+SELECT COUNT(@@cloudsql_vector);
+COUNT(@@cloudsql_vector)
+1
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@local.cloudsql_vector);
+ERROR HY000: Variable 'cloudsql_vector' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.cloudsql_vector);
+ERROR HY000: Variable 'cloudsql_vector' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT cloudsql_vector = @@SESSION.cloudsql_vector;
+ERROR HY000: Variable 'cloudsql_vector' is a GLOBAL variable
+SELECT @@GLOBAL.cloudsql_vector;
+@@GLOBAL.cloudsql_vector
+0
+Expected error 'Read only variable'
+SET @@GLOBAL.cloudsql_vector=1;
+ERROR HY000: Variable 'cloudsql_vector' is a read only variable
+SELECT @@GLOBAL.cloudsql_vector = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector';
+@@GLOBAL.cloudsql_vector = VARIABLE_VALUE
+1
+SELECT @@cloudsql_vector = @@GLOBAL.cloudsql_vector;
+@@cloudsql_vector = @@GLOBAL.cloudsql_vector
+1
+1 Expected
+SELECT COUNT(@@cloudsql_vector);
+COUNT(@@cloudsql_vector)
+1
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@local.cloudsql_vector);
+ERROR HY000: Variable 'cloudsql_vector' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.cloudsql_vector);
+ERROR HY000: Variable 'cloudsql_vector' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT cloudsql_vector = @@SESSION.cloudsql_vector;
+ERROR HY000: Variable 'cloudsql_vector' is a GLOBAL variable

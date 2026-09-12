@@ -195,6 +195,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "ut0mem.h"
 #include "ut0test.h"
+#include "vector0dd.h"
+#include "vector0pk.h"
+#include "vector0vector.h"
 #include "ut0ut.h"
 #else
 #include <typelib.h>
@@ -822,6 +825,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
     PSI_RWLOCK_KEY(index_online_log, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(dict_table_stats, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(hash_table_locks, 0, PSI_DOCUMENT_ME),
+    PSI_RWLOCK_KEY(vector_index, 0, PSI_DOCUMENT_ME),
+    PSI_RWLOCK_KEY(vector_index_registry, 0, PSI_DOCUMENT_ME),
 };
 #endif /* UNIV_PFS_RWLOCK */
 
@@ -2055,6 +2060,10 @@ ulong thd_parallel_read_threads(THD *thd) {
   return THDVAR(thd, parallel_read_threads);
 }
 
+bool thd_parallel_vector_search_enabled(const THD *thd) {
+  return thd != nullptr && thd->variables.cloudsql_vector_parallel_search;
+}
+
 ulong thd_ddl_buffer_size(THD *thd) { return THDVAR(thd, ddl_buffer_size); }
 
 size_t thd_ddl_threads(THD *thd) noexcept { return THDVAR(thd, ddl_threads); }
@@ -2306,6 +2315,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
     case DB_IO_NO_PUNCH_HOLE_FS:
     case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
       return HA_ERR_UNSUPPORTED;
+    case DB_VEC_ANN_FAILED:
+      return (HA_ERR_ANN_FAILED);
   }
 }
 
@@ -4948,6 +4959,11 @@ static int innodb_init_params() {
                             << "when running with --help --verbose options.";
     srv_buf_pool_size_org = srv_buf_pool_size;
     srv_buf_pool_size = srv_buf_pool_def_size;
+  }
+
+  /* Don't run with cloudsql_vector when InnoDB is started in read_only mode. */
+  if (srv_read_only_mode || srv_force_recovery > 0) {
+    opt_cloudsql_vector = false;
   }
 
   innodb_buffer_pool_size_init();
@@ -7869,7 +7885,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   }
 #endif /* UNIV_DEBUG */
 
-  if (m_prebuilt->table->is_fts_aux()) {
+  if (m_prebuilt->table->is_fts_aux() ||
+      m_prebuilt->table->is_vector_sub_table) {
     dict_table_close(m_prebuilt->table, false, false);
   }
 
@@ -11475,6 +11492,157 @@ void ha_innobase::ft_end() {
   rnd_end();
 }
 
+/** Perform ANN query based on the vector index on the target table
+@param[in]      query   the query vector
+@param[in]      search_options ANN search options
+@param[in,out]  results the container holding the list of nearest neighbors
+@return <beats_me> */
+int ha_innobase::cloudsql_vector_ann_search(std::vector<float> &&query,
+                                            VectorSearchOptions search_options,
+                                            VectorSearchResults *results) {
+  if (!opt_cloudsql_vector) {
+    return HA_ERR_ANN_FAILED;
+  }
+
+  /* Sanity checks */
+  ut_a(table && m_prebuilt && m_prebuilt->table && m_prebuilt->trx);
+
+  THD* thd = ha_thd();
+  ut_ad(thd);
+
+  /* We should be in a SELECT */
+  ut_ad(thd_sql_command(thd) == SQLCOM_SELECT);
+
+  /* A non locking SELECT */
+  ut_ad(m_prebuilt->select_lock_type == LOCK_NONE);
+
+  /* The trx is sane */
+  ut_a(m_prebuilt->trx == thd_to_trx(thd));
+
+  auto base_table = m_prebuilt->table;
+  ut_ad(ib_vector::dict_table_has_vector_index(base_table));
+  auto vec_info = ib_vector::dict_table_get_vector_index_info(base_table);
+
+  bool first_stream_query = false;
+  bool sub_table_index_needed = true;
+  if (search_options.stream_id != 0) {
+    auto vector_index = vec_info->index();
+    if (vector_index->has_cached_query(search_options.stream_id)) {
+      sub_table_index_needed = false;
+    } else {
+      first_stream_query = true;
+      MONITOR_INC(MONITOR_VECTOR_INDEXES_NUM_QUERIES);
+    }
+  } else {
+    MONITOR_INC(MONITOR_VECTOR_INDEXES_NUM_QUERIES);
+  }
+
+  auto vector_index = vec_info->index();
+  ut_ad(vector_index);
+
+  dict_index_t* sub_table_index = nullptr;
+
+  dict_table_t* st_handle = nullptr;
+  if (sub_table_index_needed) {
+    st_handle = vec_info->load_index_and_open_sub_table(base_table);
+    if (st_handle == nullptr) {
+      MONITOR_INC(MONITOR_VECTOR_INDEXES_NUM_QUERIES_FAILED);
+      return HA_ERR_ANN_FAILED;
+    }
+    if ((size_t)vector_index->dims() != query.size()) {
+      my_error(ER_VECTOR_QUERY_DIMENSION_MISMATCH, MYF(0), query.size(),
+              vector_index->dims());
+      MONITOR_INC(MONITOR_VECTOR_INDEXES_NUM_QUERIES_FAILED);
+      vec_info->release_index_lock();
+      vec_info->close_sub_table(st_handle);
+      return HA_ERR_ANN_FAILED;
+    }
+
+    // Get the clustered index of sub_table for ANN search
+    sub_table_index = st_handle->first_index();
+    ut_a(sub_table_index);
+
+    /* To be safe start the transaction if it is not already active */
+    trx_start_if_not_started(m_prebuilt->trx, false, UT_LOCATION_HERE);
+
+    /* We need MVCC to do ANN search */
+    trx_assign_read_view(m_prebuilt->trx);
+  }
+
+  std::vector<std::pair<std::string, float>> ann_results;
+  auto kmeans_err =
+      vector_index->get_neighbors(std::move(query), ann_results, search_options,
+                                  sub_table_index, m_prebuilt->trx);
+
+  // do the clean up when it is not a stream query
+  // the caller of a stream query will do the clean up separately
+  if (search_options.stream_id == 0) {
+    cloudsql_vector_ann_cleanup(search_options.stream_id, st_handle);
+  }
+
+  if (kmeans_err == ib_vector::SUCCESS) {
+    if (!ann_results.empty()) {
+      auto base_table_index = base_table->first_index();
+      ut_ad(base_table_index);
+      ib_vector::convert_search_results_to_mysql_format(
+          base_table_index, ann_results, results, false);
+    } else {
+      ut_ad(search_options.stream_id);
+    }
+
+    if (!search_options.stream_id || first_stream_query) {
+      vec_info->inc_queries();
+    }
+    return 0;
+  } else if (kmeans_err == ib_vector::NOT_ENOUGH_DATA_POINTS) {
+    /* Having empty partitions is not an error. */
+    return HA_ERR_ANN_EXHAUSTED;
+  } else {
+    MONITOR_INC(MONITOR_VECTOR_INDEXES_NUM_QUERIES_FAILED);
+    return HA_ERR_ANN_FAILED;
+  }
+}
+
+int ha_innobase::cloudsql_vector_ann_cleanup(ib_vector::StreamIdT stream_id,
+                                             void* st_handle) {
+  dict_table_t* sub_table = (dict_table_t*)st_handle;
+  ut_ad((stream_id == 0) ^ (sub_table == nullptr));
+
+  auto base_table = m_prebuilt->table;
+  ut_ad(ib_vector::dict_table_has_vector_index(base_table));
+  auto vec_info = ib_vector::dict_table_get_vector_index_info(base_table);
+
+  if (stream_id != 0) {
+    sub_table = (dict_table_t*) vec_info->index()->cached_sub_table(stream_id);
+  }
+
+  // we are depending on the basic assumption that the base- & sub-table are
+  // locked and unlocked together
+  if (sub_table) {
+    if (stream_id) {
+      vec_info->index()->release_cached_query(stream_id);
+    }
+    vec_info->release_index_lock();
+    vec_info->close_sub_table(sub_table);
+  }
+
+  return 0;
+}
+
+/** Should be called after the base table is opened.
+@return true if the vector index is usable. */
+bool ha_innobase::cloudsql_ann_index_usable() {
+  if (!opt_cloudsql_vector) {
+    return false;
+  }
+
+  ut_ad(m_prebuilt->trx == thd_to_trx(m_user_thd));
+  ut_ad(m_prebuilt->table);
+
+  auto index = ib_vector::dict_table_get_vector_index(m_prebuilt->table);
+  return index && index->is_usable(m_prebuilt->trx);
+}
+
 /**
 Store a reference to the current row to 'ref' field of the handle.
 Note that in the case where we have generated the clustered index for the
@@ -11886,6 +12054,13 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
         old_part_col->se_private_data().get(s, &phy_pos);
       }
 
+      if (dd_table) {
+        const dd::Column *column = dd_find_column(dd_table, field_name);
+        if (opt_cloudsql_vector && column->type() == dd::enum_column_types::VECTOR) {
+          ib_vector::set_vector_col_info(table, column);
+        }
+      }
+
       dict_mem_table_add_col(
           table, heap, field_name, col_type,
           dtype_form_prtype((ulint)field->type() | nulls_allowed |
@@ -12198,6 +12373,8 @@ inline int create_index(
     ind_type = DICT_SPATIAL;
   } else if (key->flags & HA_FULLTEXT) {
     ind_type = DICT_FTS;
+  } else if (key->flags & HA_VECTOR) {
+    ind_type = DICT_VECTOR;
   }
 
   if (ind_type == DICT_SPATIAL) {
@@ -14008,6 +14185,11 @@ int create_table_info_t::create_table(const dd::Table *dd_table,
   DBUG_TRACE;
   assert(m_form->s->keys <= MAX_KEY);
 
+  if (m_form->s->has_vector_key()) {
+    my_error(ER_VECTOR_INDEX_DURING_CREATE_TABLE, MYF(0));
+    return HA_ERR_UNSUPPORTED;
+  }
+
   /* Check if dd table has hidden fts doc id index.
   Note: in case of TRUNCATE a fulltext table with
   hidden doc id index. */
@@ -14615,6 +14797,16 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
     return (convert_error_code_to_mysql(error, 0, nullptr));
   }
 
+  /* Moving a table with vector indexes across databases/schemas is not
+  supported because vector index sub tables are schema-qualified. */
+  if (ib_vector::dict_table_has_vector_index(table) &&
+      !dict_tables_have_same_db(norm_from, norm_to)) {
+    dd_table_close(table, thd, nullptr, false);
+    my_error(ER_VECTOR_INDEX_OPERATION_ERROR, MYF(0), "Rename Table",
+             "Moving a table with vector indexes to another schema is not supported.");
+    return HA_ERR_UNSUPPORTED;
+  }
+
   rename_file = dict_table_is_file_per_table(table);
   space = table->space;
 
@@ -15080,6 +15272,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
             continue;
           case dd::Index::IT_MULTIPLE:
             continue;
+          case dd::Index::IT_VECTOR:
           case dd::Index::IT_FULLTEXT:
           case dd::Index::IT_SPATIAL:
             ut_d(ut_error);
@@ -15088,6 +15281,13 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
       case dd::Index::IA_FULLTEXT:
         if (i->type() == dd::Index::IT_FULLTEXT) {
           has_fulltext = true;
+          continue;
+        }
+        ut_d(ut_error);
+        ut_o(break);
+      case dd::Index::IA_KMEANS:
+        if (i->type() == dd::Index::IT_VECTOR) {
+          /* todo */
           continue;
         }
         ut_d(ut_error);
@@ -15119,6 +15319,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
         case dd::Index::IT_MULTIPLE:
         case dd::Index::IT_FULLTEXT:
         case dd::Index::IT_SPATIAL:
+        case dd::Index::IT_VECTOR:
           my_error(ER_INNODB_FT_WRONG_DOCID_INDEX, MYF(0),
                    fts_doc_id_index->name().c_str());
           push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_NAME_FOR_INDEX,
@@ -15536,6 +15737,12 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
 
   if (error != 0) {
     return error;
+  }
+
+  if (ib_vector::dict_table_has_vector_index(innodb_table)) {
+    my_error(ER_VECTOR_INDEX_OPERATION_ERROR, MYF(0), "Truncate",
+             "Truncate is not supported on tables with vector indexes.");
+    return HA_ERR_UNSUPPORTED;
   }
 
   has_autoinc = dict_table_has_autoinc_col(innodb_table);
@@ -17679,10 +17886,12 @@ void ha_innobase::info_low_key(uint flag, const dict_table_t *ib_table) {
 
     double pct_cached;
 
-    /* We do not maintain stats for fulltext or spatial indexes. Thus, we can't
-    calculate pct_cached below because we need dict_index_t::stat_n_leaf_pages
-    for that. See dict_stats_should_ignore_index(). */
-    if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL)) {
+    /* We do not maintain stats for fulltext, vector or spatial indexes.
+    Thus, we can't calculate pct_cached below because we need
+    dict_index_t::stat_n_leaf_pages for that. See
+    dict_stats_should_ignore_index(). */
+    if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL) ||
+        (key->flags & HA_VECTOR)) {
       pct_cached = IN_MEMORY_ESTIMATE_UNKNOWN;
     } else {
       pct_cached = index_pct_cached(index);
@@ -17700,8 +17909,11 @@ void ha_innobase::info_low_key(uint flag, const dict_table_t *ib_table) {
       }
 
       for (ulong j = 0; j < key->actual_key_parts; j++) {
-        if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL)) {
-          /* The record per key does not apply to FTS or Spatial indexes. */
+        if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL) ||
+            (key->flags & HA_VECTOR)) {
+          /* The record per key does not apply to FTS, Vector or Spatial
+           * indexes. */
+
           key->set_records_per_key(j, 1.0f);
           continue;
         }
@@ -18011,7 +18223,7 @@ static bool innobase_get_index_column_cardinality(
     }
   }
 
-  if (ib_table->is_fts_aux()) {
+  if (ib_table->is_fts_aux() || ib_table->is_vector_sub_table) {
     /* Server should not ask for Stats for Internal Tables */
     dd_table_close(ib_table, thd, &mdl, false);
     ut_d(ut_error);
@@ -18026,7 +18238,10 @@ static bool innobase_get_index_column_cardinality(
       }
 
       DEBUG_SYNC(thd, "innodb.after_init_check");
-      if (index->type & (DICT_FTS | DICT_SPATIAL)) {
+      /** Skip calulcating cardinality for vector indexes as they
+      * don't have traditional key cardinality, similar to FTS and Spatial
+      * indexes. */
+      if (index->type & (DICT_FTS | DICT_SPATIAL | DICT_VECTOR)) {
         /* For these indexes innodb_rec_per_key is
         fixed as 1.0 */
         *cardinality = ib_table->stat_n_rows;
@@ -18467,11 +18682,18 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
     }
 
     if (!(check_opt->flags & T_QUICK) && !index->is_corrupted()) {
+      bool valid = false;
+
       /* Enlarge the fatal lock wait timeout during
       CHECK TABLE. */
       srv_fatal_semaphore_wait_extend.fetch_add(1);
 
-      bool valid = btr_validate_index(index, m_prebuilt->trx, false);
+      if (dict_index_is_vector(index)) {
+        valid = ib_vector::validate_sub_table_index_btree(m_prebuilt->table,
+                                                          m_prebuilt->trx);
+      } else {
+        valid = btr_validate_index(index, m_prebuilt->trx, false);
+      }
 
       /* Restore the fatal lock wait timeout after
       CHECK TABLE. */
@@ -18479,7 +18701,12 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
       if (!valid) {
         is_ok = false;
-
+        if (!index->is_corrupted()) {
+          dict_set_corrupted(index);
+          if (dict_index_is_vector(index)) {
+            ib_vector::mark_unusable_if_needed(m_prebuilt->table, index);
+          }
+        }
         push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
                             "InnoDB: The B-tree of"
                             " index %s is corrupted.",
@@ -18537,6 +18764,9 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
         n_dups = 0;
         ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
       }
+    } else if (dict_index_is_vector(index)) {
+      ret = ib_vector::scan_sub_table_recs(m_prebuilt->table, m_prebuilt->trx,
+                                           max_threads, true, &n_rows);
     } else {
       ret = row_scan_index_for_mysql(m_prebuilt, index, max_threads, true,
                                      &n_rows);
@@ -18557,18 +18787,31 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
     }
     if (ret != DB_SUCCESS) {
       /* Assume some kind of corruption. */
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
-                          "InnoDB: The B-tree of"
-                          " index %s is corrupted.",
-                          index->name());
+      if (dict_index_is_vector(index)) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
+                            "InnoDB: The vector index %s is corrupted.",
+                            index->name());
+      } else {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
+                            "InnoDB: The B-tree of index %s is corrupted.",
+                            index->name());
+      }
       is_ok = false;
       dict_set_corrupted(index);
     }
 
     if (index == m_prebuilt->table->first_index()) {
       n_rows_in_table = n_rows;
-    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table) &&
-               (!index->is_multi_value()) &&
+    } else if (dict_index_is_vector(index) && (n_rows != n_rows_in_table + 2)) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
+                          "InnoDB: Vector index '%-.200s' contains %lu"
+                          " entries, should be %lu.",
+                          index->name(), (ulong)n_rows,
+                          (ulong)n_rows_in_table + 2);
+      is_ok = false;
+      dict_set_corrupted(index);
+    } else if (!dict_index_is_vector(index) && !(index->type & DICT_FTS) &&
+               (n_rows != n_rows_in_table) && (!index->is_multi_value()) &&
                (!dict_index_is_spatial(index) || (n_rows < n_rows_in_table) ||
                 (n_dups < n_rows - n_rows_in_table))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
@@ -18577,6 +18820,11 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
                           index->name(), (ulong)n_rows, (ulong)n_rows_in_table);
       is_ok = false;
       dict_set_corrupted(index);
+    }
+
+    // Mark the vector index as unusable if it is corrupted.
+    if (dict_index_is_vector(index) && index->is_corrupted()) {
+      ib_vector::mark_unusable_if_needed(m_prebuilt->table, index);
     }
   }
 
@@ -23516,6 +23764,28 @@ char **thd_innodb_interpreter(THD *thd) {
 }
 #endif /* UNIV_DEBUG */
 
+static void innodb_cloudsql_vector_mem_regulation_update(
+    THD *thd, SYS_VAR *, void *, const void *save) {
+  bool val = *static_cast<const bool *>(save);
+  static bool disabled = !srv_innodb_cloudsql_vector_mem_regulation;
+  if (!disabled && !val) {
+    ib_vector::disable_vector_index_memory_regulator();
+    srv_innodb_cloudsql_vector_mem_regulation = val;
+    disabled = true;
+  } else if (val && !srv_innodb_cloudsql_vector_mem_regulation) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Vector index memory regulation cannot be turned back "
+                        "ON without restarting, if it is already OFF.");
+  }
+}
+
+static MYSQL_SYSVAR_BOOL(
+    cloudsql_vector_mem_regulation, srv_innodb_cloudsql_vector_mem_regulation,
+    PLUGIN_VAR_RQCMDARG,
+    "Controls whether limit the vector index memory consumption, up to "
+    "cloudsql_vector_max_mem_size",
+    nullptr, innodb_cloudsql_vector_mem_regulation_update, true);
+
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),
@@ -23529,6 +23799,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
     MYSQL_SYSVAR(buffer_pool_in_core_file),
     MYSQL_SYSVAR(buffer_pool_dump_pct),
+    MYSQL_SYSVAR(cloudsql_vector_mem_regulation),
 #ifdef UNIV_DEBUG
     MYSQL_SYSVAR(buffer_pool_evict),
 #endif /* UNIV_DEBUG */
@@ -23761,7 +24032,10 @@ mysql_declare_plugin(innobase){
     i_s_innodb_ft_index_cache, i_s_innodb_ft_index_table, i_s_innodb_tables,
     i_s_innodb_tablestats, i_s_innodb_indexes, i_s_innodb_tablespaces,
     i_s_innodb_columns, i_s_innodb_virtual, i_s_innodb_cached_indexes,
-    i_s_innodb_session_temp_tablespaces
+    i_s_innodb_session_temp_tablespaces,
+    i_s_innodb_vector_indexes,
+    i_s_innodb_vector_indexes_memory,
+    i_s_innodb_all_vector_indexes
 
     mysql_declare_plugin_end;
 

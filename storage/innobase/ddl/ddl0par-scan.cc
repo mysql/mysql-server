@@ -49,7 +49,12 @@ struct Parallel_cursor : public Cursor {
       : Cursor(ctx),
         m_index(const_cast<dict_index_t *>(m_ctx.index())),
         m_single_threaded_mode(m_ctx.has_virtual_columns() ||
-                               m_ctx.has_fts_indexes()) {}
+                               m_ctx.has_fts_indexes()) {
+    if (m_ctx.m_vec_index_build) {
+      ut_ad(!m_single_threaded_mode);
+      m_n_threads = ctx.m_max_threads;
+    }
+  }
 
   /** Destructor. */
   ~Parallel_cursor() noexcept override = default;
@@ -88,6 +93,9 @@ struct Parallel_cursor : public Cursor {
   /** Index to iterate over. */
   dict_index_t *m_index{};
 
+  /** Number of threads to use. */
+  size_t m_n_threads{};
+
   /** true if scan should be in single threaded mode. */
   bool m_single_threaded_mode{};
 };
@@ -102,6 +110,11 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
   if (!m_single_threaded_mode) {
     auto use_n_threads = thd_parallel_read_threads(m_ctx.m_trx->mysql_thd);
+    if (m_n_threads > 0) {
+      /** This is a vector index build. Try to use number of parallel threads
+      specified by the caller. */
+      use_n_threads = m_n_threads;
+    }
 
     if (use_n_threads > 1) {
       for (auto &builder : builders) {

@@ -6414,6 +6414,7 @@ string PrintAccessPath(THD *thd, AccessPath &path, const JoinHypergraph &graph,
   string join_order;
 
   switch (path.type) {
+    case AccessPath::VECTOR_INDEX_JOIN:
     case AccessPath::NESTED_LOOP_JOIN:
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
     case AccessPath::BKA_JOIN:
@@ -6505,6 +6506,10 @@ void PrintJoinOrder(const AccessPath *path, string *join_order) {
       case AccessPath::NESTED_LOOP_JOIN:
         outer = subpath->nested_loop_join().outer;
         inner = subpath->nested_loop_join().inner;
+        break;
+      case AccessPath::VECTOR_INDEX_JOIN:
+        outer = subpath->vector_index_join().outer;
+        inner = subpath->vector_index_join().inner;
         break;
       case AccessPath::HASH_JOIN:
         outer = subpath->hash_join().outer;

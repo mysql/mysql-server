@@ -1,0 +1,361 @@
+# Copyright 2026 Google LLC
+
+# Test vector indexes behavior with online DDLs
+
+# Initial data
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted
+
+# Add Spacial Data
+ALTER TABLE t1 ADD COLUMN g POINT SRID 0 DEFAULT (Point(10,20));
+ALTER TABLE t1 MODIFY COLUMN g POINT NOT NULL SRID 0 DEFAULT (Point(10,20));
+
+# Create vector index
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+
+
+# --------------------------------------
+# Column Operations
+# --------------------------------------
+
+## Adding a column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD COLUMN k INT DEFAULT 1, ALGORITHM=COPY;
+
+ALTER TABLE t1 ADD COLUMN k INT DEFAULT 1, ADD COLUMN m INT DEFAULT NULL, ADD COLUMN t VARCHAR(10) DEFAULT 'ㅎ', ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 ADD COLUMN m1 INT DEFAULT NULL, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Renaming a column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHANGE k k1 INT, ALGORITHM=COPY;
+
+ALTER TABLE t1 CHANGE k k1 INT, ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+ALTER TABLE t1 CHANGE k1 k INT, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Reordering columns
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT FIRST, ALGORITHM=COPY;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT FIRST, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_VECTOR_FEATURE_UNSUPPORTED  # ALTER TABLE CHANGE/MODIFY not supported on vector columns
+ALTER TABLE t1 MODIFY COLUMN j INT FIRST;
+
+## Changing the column data type
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHANGE k k BIGINT;
+
+## Extending VARCHAR column size
+# To use ALGORITHM=INPLACE the number of length bytes required by a VARCHAR column must remain the same.
+# For VARCHAR columns of 0 to 255 bytes in size, one length byte is required to encode the value.
+# For VARCHAR columns of 256 bytes in size or more, two length bytes are required.
+# As a result, in-place ALTER TABLE only supports increasing VARCHAR column size from 0 to 255 bytes,
+# or from 256 bytes to a greater size.
+# Uft8mb4 uses 4 bytes for each character so the max character length is 63 x 4 = 252 bytes.
+ALTER TABLE t1 CHANGE COLUMN t t VARCHAR(63), ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHANGE COLUMN t t VARCHAR(64), ALGORITHM=COPY;
+
+## Dropping and Setting the column default value
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=COPY;
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 2, ALGORITHM=COPY;
+
+ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=INSTANT;
+ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 2, ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+ALTER TABLE t1 ALTER COLUMN m DROP DEFAULT, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN m SET DEFAULT 2, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Changing the auto-increment value
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 AUTO_INCREMENT=1002, ALGORITHM=COPY, LOCK=NONE;
+
+ALTER TABLE t1 AUTO_INCREMENT=1002, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Making a column NULL
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT NULL, ALGORITHM=COPY;
+
+ALTER TABLE t1 MODIFY COLUMN k INT NULL, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Making a column NOT NULL
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT NOT NULL, ALGORITHM=COPY;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT NOT NULL, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Modifying the definition of an ENUM or SET column
+ALTER TABLE t1 ADD COLUMN e ENUM('a', 'b', 'c');
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN e ENUM('a', 'b', 'c', 'd'), ALGORITHM=COPY;
+
+ALTER TABLE t1 MODIFY COLUMN e ENUM('a', 'b', 'c', 'd'), ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+ALTER TABLE t1 MODIFY COLUMN e ENUM('a', 'b', 'c', 'd', 'e'), ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Dropping a column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP COLUMN k, ALGORITHM=COPY;
+
+ALTER TABLE t1 DROP COLUMN e, ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 DROP COLUMN k, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+
+# --------------------------------------
+# Index Operations
+# --------------------------------------
+
+## Creating or adding a secondary index
+CREATE INDEX m_idx ON t1 (m);
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_NON_SCALAR_USED_AS_KEY  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD INDEX j_idx (j), ALGORITHM=COPY;
+
+# Secondary index on a vector column is disallowed
+--error ER_NON_SCALAR_USED_AS_KEY
+ALTER TABLE t1 ADD INDEX j_idx (j), ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Renaming an index
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 RENAME INDEX m_idx TO m_idx2, ALGORITHM=COPY, LOCK=NONE;
+
+ALTER TABLE t1 RENAME INDEX m_idx TO m_idx2, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+
+## Changing the index type
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP INDEX m_idx2, ADD INDEX m_idx2(i, m) USING BTREE, ALGORITHM=COPY;
+
+ALTER TABLE t1 DROP INDEX m_idx2, ADD INDEX m_idx2(m) USING BTREE, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Dropping an index
+DROP INDEX m_idx2 ON t1;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Adding a FULLTEXT index
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+CREATE FULLTEXT INDEX t_idx ON t1(t);
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Adding a SPATIAL index
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD SPATIAL INDEX(g), ALGORITHM=COPY, LOCK=SHARED;
+
+ALTER TABLE t1 ADD SPATIAL INDEX(g), ALGORITHM=INPLACE, LOCK=SHARED;
+--source suite/vector_index/include/vector_check_ann.inc
+
+# --------------------------------------
+# Primary Key Operations
+# --------------------------------------
+
+## Dropping a primary key and adding another
+UPDATE t1 SET m = i;
+ALTER TABLE t1 ADD UNIQUE KEY idx (i);
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (m), ALGORITHM=COPY, LOCK=NONE;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (m), ALGORITHM=INPLACE, LOCK=SHARED;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Dropping a primary key
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # Vector column without primary key is not supported
+ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=COPY;
+
+
+# --------------------------------------
+# Generated Column Operations
+# --------------------------------------
+
+## Adding a STORED column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD COLUMN (n INT GENERATED ALWAYS AS (m + 1) STORED), ALGORITHM = COPY;
+
+### Create a table with generated column
+CREATE TABLE t2 (i INT PRIMARY key);
+INSERT INTO t2 SELECT i FROM t1;
+ALTER TABLE t2 ADD COLUMN (n INT GENERATED ALWAYS AS (i + 1) STORED);
+ALTER TABLE t2 ADD COLUMN j VECTOR(3) USING VARBINARY;
+UPDATE t2 JOIN t1 ON t2.i = t1.i SET t2.j = t1.j;
+CREATE VECTOR INDEX vec_index2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+--let $table_name=t2
+
+## Modifying STORED column order
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 MODIFY COLUMN n INT GENERATED ALWAYS AS (i + 1) STORED FIRST, ALGORITHM=COPY;
+
+## Dropping a STORED column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 DROP COLUMN n, ALGORITHM=COPY, LOCK=NONE;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t2 DROP COLUMN n, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Adding a VIRTUAL column
+ALTER TABLE t2 ADD COLUMN (o INT GENERATED ALWAYS AS (i + 1) VIRTUAL), ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+ALTER TABLE t2 ADD COLUMN (p INT GENERATED ALWAYS AS (i + 1) VIRTUAL), ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 ADD COLUMN (q INT GENERATED ALWAYS AS (i + 1) VIRTUAL), ALGORITHM=COPY;
+
+## Modifying VIRTUAL column order
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 MODIFY COLUMN o INT GENERATED ALWAYS AS (i + 1) VIRTUAL FIRST, ALGORITHM=COPY;
+
+## Dropping a VIRTUAL column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 DROP COLUMN o, ALGORITHM=COPY;
+
+ALTER TABLE t2 DROP COLUMN p, ALGORITHM=INSTANT;
+--source suite/vector_index/include/vector_check_ann.inc
+
+ALTER TABLE t2 DROP COLUMN o, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+
+# --------------------------------------
+# Foreign Key Operations
+# --------------------------------------
+
+## Adding a foreign key constraint
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD CONSTRAINT fk_name FOREIGN KEY (i) REFERENCES t2(i), ALGORITHM=COPY;
+
+SET foreign_key_checks=OFF;
+ALTER TABLE t1 ADD CONSTRAINT fk_name FOREIGN KEY (i) REFERENCES t2(i), ALGORITHM=INPLACE;
+--let $table_name=t1
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Dropping a foreign key constraint
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP FOREIGN KEY fk_name, ALGORITHM=COPY;
+
+ALTER TABLE t1 DROP FOREIGN KEY fk_name, ALGORITHM=INPLACE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+
+# --------------------------------------
+# Table Operations
+# --------------------------------------
+
+## Changing the ROW_FORMAT
+--error ER_VECTOR_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED, ALGORITHM=COPY, LOCK=NONE;
+
+--error ER_VECTOR_FEATURE_UNSUPPORTED  # Vector column with KEY_BLOCK_SIZE changes not supported
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Changing the KEY_BLOCK_SIZE
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 KEY_BLOCK_SIZE = 2, ALGORITHM=COPY, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 KEY_BLOCK_SIZE = 2, ALGORITHM=INPLACE, LOCK=SHARED;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Setting persistent table statistics
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 STATS_PERSISTENT=0, STATS_SAMPLE_PAGES=20, STATS_AUTO_RECALC=1, ALGORITHM=COPY, LOCK=NONE;
+
+ALTER TABLE t1 STATS_PERSISTENT=0, STATS_SAMPLE_PAGES=20, STATS_AUTO_RECALC=1, ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Specifying a character set
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHARACTER SET = 'sjis', ALGORITHM=COPY, LOCK=NONE;
+
+ALTER TABLE t1 CHARACTER SET = 'sjis', ALGORITHM=INPLACE, LOCK=NONE;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Converting a character set
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CONVERT TO CHARACTER SET 'binary', ALGORITHM=COPY;
+
+## Optimizing a table
+OPTIMIZE TABLE t1;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Rebuilding with the FORCE option
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 FORCE, ALGORITHM=COPY, LOCK=NONE;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 FORCE, ALGORITHM=INPLACE, LOCK=SHARED;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Performing a null rebuild
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=COPY, LOCK=NONE;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (needs rebuild) is not supported yet.
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE, LOCK=SHARED;
+--source suite/vector_index/include/vector_check_ann.inc
+
+## Renaming a table
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED  # ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 RENAME TO t3, ALGORITHM=COPY;
+
+ALTER TABLE t1 RENAME TO t3, ALGORITHM=INSTANT;
+--let $table_name = t3
+--source suite/vector_index/include/vector_check_ann.inc
+
+ALTER TABLE t3 RENAME TO t1, ALGORITHM=INPLACE;
+--let $table_name = t1
+--source suite/vector_index/include/vector_check_ann.inc
+
+
+# --------------------------------------
+# Tablespace Operations
+# --------------------------------------
+
+## Moving to general tablespace is not supported
+CREATE TABLESPACE test;
+--error ER_VECTOR_FEATURE_UNSUPPORTED  # Vector column not allowed to be in general tablespace
+ALTER TABLE t1 TABLESPACE = test;
+
+# Drop vector column
+ALTER TABLE t1 DROP COLUMN j;
+# Vector index should be removed as well
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+
+# Clean up
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE test;

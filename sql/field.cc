@@ -7064,9 +7064,10 @@ type_conversion_status Field_vector::store(const char *from, size_t length,
     return TYPE_ERR_BAD_VALUE;
   }
 
-  if (dimensions > get_max_dimensions()) {
-    set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
-    return TYPE_WARN_TRUNCATED;
+  if (dimensions != get_max_dimensions()) {
+    my_error(ER_VECTOR_DATA_DIMENSION_MISMATCH, MYF(0), dimensions,
+             get_max_dimensions());
+    return TYPE_ERR_BAD_VALUE;
   }
 
   /* Check for NAN or INF value in the vector. */
@@ -9231,6 +9232,7 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_VECTOR:
       return 0;
     case MYSQL_TYPE_VARCHAR:
       return length;

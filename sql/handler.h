@@ -114,6 +114,11 @@ struct handlerton;
 
 typedef struct xid_t XID;
 typedef struct st_xarecover_txn XA_recover_txn;
+struct VectorSearchOptions {
+  int num_leaves_to_search;
+  int num_neighbors;
+  int64_t stream_id = 0;
+};
 struct MDL_key;
 
 namespace dd {
@@ -3719,6 +3724,9 @@ class Alter_inplace_info {
   // Set or remove column's MASKING POLICY name
   static const HA_ALTER_FLAGS ALTER_COLUMN_MASKING = 1ULL << 50;
 
+  // Add Vector Index
+  static const HA_ALTER_FLAGS ADD_VECTOR_INDEX = 1ULL << 51;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
@@ -4749,6 +4757,12 @@ class Ft_hints {
     get_partition_handler()
 */
 
+/** Forward declaration for Vector Indexes. */
+class VectorSearchResults;
+namespace ib_vector {
+class VectorCfg;
+}
+
 class handler {
   friend class Partition_handler;
 
@@ -5145,6 +5159,14 @@ class handler {
 
   int ha_unload_table(const char *db_name, const char *table_name,
                       bool error_if_not_loaded);
+
+  int ha_cloudsql_vector_ann_search(std::vector<float> &&query,
+                                    VectorSearchOptions search_options,
+                                    VectorSearchResults *results);
+
+  int ha_cloudsql_vector_ann_cleanup(int64_t stream_id);
+
+  bool ha_cloudsql_ann_index_usable();
 
   /**
     Initializes a parallel scan. It creates a parallel_scan_ctx that has to
@@ -5982,6 +6004,29 @@ class handler {
   virtual int rnd_next(uchar *buf) = 0;
   /// @see index_read_map().
   virtual int rnd_pos(uchar *buf, uchar *pos) = 0;
+
+  virtual int cloudsql_vector_ann_search([[maybe_unused]] std::vector<float> &&query,
+                                         [[maybe_unused]] VectorSearchOptions search_options,
+                                         [[maybe_unused]] VectorSearchResults *results) {
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  /**
+    Cleanup the ANN query cache of a stream ANN search call series
+    @param stream_id The stream id of the ANN search call series
+    @param st_handle The sub table handle used by the ANN search call series
+    @return 0 on success, non-zero on failure.
+    @remarks If called from outside of cloudsql_vector_ann_search, make sure
+             st_handle is set to nullptr because the caller does not have such
+             knowledge. It can also be called by cloudsql_vector_ann_search in
+             case the search is not using stream mode. In that case the
+             stream_id must be set to 0.
+   */
+  virtual int cloudsql_vector_ann_cleanup([[maybe_unused]] int64_t stream_id, [[maybe_unused]] void* st_handle) {
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  virtual bool cloudsql_ann_index_usable() { return false; }
 
   virtual int ft_read(uchar *) { return HA_ERR_WRONG_COMMAND; }
 

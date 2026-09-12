@@ -40,9 +40,51 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace ddl {
 
 // Forward declaration.
-struct Copy_ctx;
 struct File_cursor;
 class RTree_inserter;
+
+/** Context for copying cluster index row for the index to being created. Moved
+ * from .cc file to this .h file.
+*/
+struct Copy_ctx {
+  /** Constructor.
+  @param[in] row                Row to copy.
+  @param[in,out] my_table       Server table definition.
+  @param[in] thread_id          ID of current thread. */
+  Copy_ctx(const Row &row, TABLE *my_table, size_t thread_id) noexcept
+      : m_row(row), m_my_table(my_table), m_thread_id(thread_id) {}
+
+  /** Row to copy. */
+  const Row &m_row;
+
+  /** MySQL table definition. */
+  TABLE *m_my_table{};
+
+  /** Number of columns to copy. */
+  size_t m_n_fields{};
+
+  /** Number of multivalue rows to add. */
+  size_t m_n_mv_rows_to_add{};
+
+  /** For storing multi value data. */
+  const multi_value_data *m_mv{};
+
+  /** Number of rows added or UNIV_NO_INDEX_VALUE if this is a multi-value
+  index and current row has nothing valid to be indexed. */
+  size_t m_n_rows_added{};
+
+  /** Number of bytes copied. */
+  size_t m_data_size{};
+
+  /** Number of extra bytes used. */
+  size_t m_extra_size{};
+
+  /** Number of rows added during copy. */
+  size_t m_n_recs{};
+
+  /** ID of the current thread. */
+  size_t m_thread_id{std::numeric_limits<size_t>::max()};
+};
 
 /** For loading indexes. */
 struct Builder {
@@ -85,7 +127,7 @@ struct Builder {
   Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept;
 
   /** Destructor/ */
-  ~Builder() noexcept;
+  virtual ~Builder() noexcept;
 
   /** @return the error status. */
   dberr_t get_error() const noexcept { return m_ctx.get_error(); }
@@ -188,9 +230,10 @@ struct Builder {
   @param[in] mrec               Current row.
   @param[in,out] heap           Heap for the allocating tuple memory.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t dtuple_copy_blobs(dtuple_t *dtuple, ulint *offsets,
-                                          const mrec_t *mrec,
-                                          mem_heap_t *heap) noexcept;
+  [[nodiscard]] virtual dberr_t dtuple_copy_blobs(dtuple_t *dtuple,
+                                                  ulint *offsets,
+                                                  const mrec_t *mrec,
+                                                  mem_heap_t *heap) noexcept;
 
   /** Write data to disk - in append mode. Increment the file size.
   @param[in,out] file           File handle.
@@ -224,7 +267,7 @@ struct Builder {
   @param[in] index              Index on which redo logging was disabled */
   static void write_redo(const dict_index_t *index) noexcept;
 
- private:
+ protected:
   /** State of a cluster index reader thread. */
   struct Thread_ctx {
     /** Constructor.
@@ -235,7 +278,7 @@ struct Builder {
     explicit Thread_ctx(size_t id, Key_sort_buffer *key_buffer) noexcept;
 
     /** Destructor. */
-    ~Thread_ctx() noexcept;
+    virtual ~Thread_ctx() noexcept;
 
     /** Thread ID. */
     size_t m_id{};
@@ -332,7 +375,8 @@ struct Builder {
   @param[in,out] ctx             Copy context.
   @param[in,out] mv_rows_added   Number of multi-value rows added.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept;
+  [[nodiscard]] virtual dberr_t copy_row(Copy_ctx &ctx,
+                                         size_t &mv_rows_added) noexcept;
 
   /** Setup the virtual column src column.
   @param[in,out] ctx            Copy context.
@@ -410,7 +454,7 @@ struct Builder {
   @return the cursor error status. */
   [[nodiscard]] dberr_t handle_error(dberr_t err) noexcept;
 
- private:
+ protected:
   /** Buffer ID. */
   size_t m_id{};
 

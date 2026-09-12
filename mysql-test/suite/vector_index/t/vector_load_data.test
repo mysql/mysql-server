@@ -1,0 +1,68 @@
+# Copyright 2026 Google LLC
+
+use test;
+
+delimiter |;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+  declare i int default 1;
+  declare d1 float default 1.0;
+  declare d2 float default 2.0;
+  declare d3 float default 3.0;
+  while i <= n_rows do
+    set @s = concat("insert into ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+    prepare stmt from @s;
+    execute stmt;
+    set i = i + 1;
+    set d1 = d1 + 1;
+    set d2 = d2 + 1;
+    set d3 = d3 + 1;
+  end while;
+end |
+delimiter ;|
+
+--echo # Test Case 1: Use outfile and load data with vector-type column
+CREATE TABLE t1(id int PRIMARY KEY, emb vector(3) USING varbinary);
+
+--disable_query_log
+CALL fill_vector_table('t1', 10);
+--enable_query_log
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval
+SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1' CHARACTER SET binary FIELDS TERMINATED BY ',' LINES TERMINATED BY '\r\n'
+FROM t1;
+
+DELETE FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' INTO TABLE t1 CHARACTER SET binary FIELDS TERMINATED BY ',' LINES TERMINATED BY '\r\n';
+
+enable_query_log;
+
+SELECT id, vector_to_string(emb) FROM t1;
+
+remove_file $MYSQLTEST_VARDIR/tmp/t1;
+
+--echo # Test Case 2: Use mysqldump and recreate table with vector-type column
+# Binlog is required
+--source include/have_log_bin.inc
+CREATE TABLE t2(id int PRIMARY KEY, emb vector(3) USING varbinary);
+
+CALL fill_vector_table('t2', 10);
+--exec $MYSQL_DUMP --skip-comments test > $MYSQLTEST_VARDIR/tmp/t2dump.sql
+
+SELECT id, vector_to_string(emb) FROM t2;
+
+--echo # Drop the table
+DROP TABLE t2;
+--echo # then recreate it from the dumped file.
+--exec $MYSQL --show-warnings test < $MYSQLTEST_VARDIR/tmp/t2dump.sql
+
+SELECT id, vector_to_string(emb) FROM t2;
+
+remove_file $MYSQLTEST_VARDIR/tmp/t2dump.sql;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP procedure fill_vector_table;
