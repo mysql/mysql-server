@@ -610,6 +610,9 @@ extern const ulong srv_idle_flush_pct_default;
 /** How much flush to be done in case of server is idle */
 extern ulong srv_idle_flush_pct;
 
+/** Switch off vector index memory regulation */
+extern bool srv_innodb_cloudsql_vector_mem_regulation;
+
 /* Number of IO operations per second the server can do */
 extern ulong srv_io_capacity;
 

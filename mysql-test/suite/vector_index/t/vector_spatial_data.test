@@ -1,0 +1,77 @@
+# Copyright 2026 Google LLC
+
+USE test;
+
+DELIMITER |;
+
+--echo # return a POINT object string with random latitude/longitude on earch
+CREATE FUNCTION rand_location(i int)
+RETURNS
+  VARCHAR(100)
+    BEGIN
+      RETURN(CONCAT(
+        'POINT(',
+        -32.3 + i/10.0, ' ',
+        -124.24 + i/10.0,
+        ')'
+    )
+);
+END  |
+
+--echo # Convert a POINT type to a vector string
+CREATE FUNCTION vector_from_point(location POINT)
+RETURNS
+  VARCHAR(100)
+    BEGIN
+      RETURN(CONCAT(
+        '[',
+        ST_X(location), ', ',
+        ST_Y(location),
+        ']'
+    )
+);
+END  |
+
+--echo # Fill t1 with random longitude/laditude pairs in California
+CREATE PROCEDURE fill_location_table(n_rows INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i <= n_rows DO
+    INSERT INTO t1 (location) VALUES (ST_PointFromText(rand_location(i)));
+    SET i = i + 1;
+  END while;
+END |
+
+DELIMITER ;|
+
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, location POINT);
+
+CALL fill_location_table(1000);
+
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, location VECTOR(2) USING VARBINARY);
+
+--echo # Convert the point column in t1 to a vector type column in t2
+INSERT INTO t2 SELECT id, string_to_vector(vector_from_point(location)) FROM t1;
+
+CREATE VECTOR INDEX vec_index ON test.t2(location) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product;
+
+SET @sunnyvale_coordinates = vector_from_point(ST_PointFromText('POINT(37.36 -122.06)'));
+
+--echo # Use ANN/KNN functions with a POINT converted to vector type search param
+SELECT id FROM t2 ORDER BY APPROX_DISTANCE(location, string_to_vector(@sunnyvale_coordinates), 'distance_measure=cosine'), id LIMIT 5;
+SELECT APPROX_DISTANCE(location, string_to_vector(@sunnyvale_coordinates), 'distance_measure=cosine') FROM t2 ORDER BY 1 LIMIT 5;
+
+SELECT id, cosine_distance(location, string_to_vector(@sunnyvale_coordinates)) from t2 order by 2 limit 5;
+
+SELECT vector_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+SELECT cosine_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+SELECT dot_product(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+SELECT l2_squared_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+
+DROP INDEX vec_index ON test.t2;
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP FUNCTION rand_location;
+DROP PROCEDURE fill_location_table;
+DROP FUNCTION vector_from_point;

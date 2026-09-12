@@ -1,0 +1,233 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.concurrent_index_scans
+
+
+### preparation
+
+# save the old flag value
+set @old_vif_flag = @@global.cloudsql_vector_iterative_filtering;
+
+# define a procedure to fill the base table
+delimiter |;
+create procedure fill_vector_table(tname varchar(40))
+begin
+  declare i int default 1;
+  declare d1 float default 1.0;
+  declare d2 float default 2.0;
+  declare d3 float default 3.0;
+
+  declare continue handler for 1615 -- need to reprepare
+  begin
+  end;
+
+  declare continue handler for sqlexception
+  begin
+    show errors;
+    show warnings;
+  end;
+
+  loop_label: loop
+    set @s = concat("insert into ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+    prepare stmt from @s;
+    execute stmt;
+    select count(*) from kill_signal into @temp;
+    if (@temp > 0) then
+        leave loop_label;  -- exit the loop when stop_loop becomes 1
+    end if;
+
+    set i = i + 1;
+    set d1 = d1 + 1;
+    set d2 = d2 + 1;
+    set d3 = d3 + 1;
+  end loop loop_label;
+end |
+delimiter ;|
+
+# define a procedure to run infinite vector search which satisify the stream
+# condition: has a where condition + ANN is in the order by
+delimiter |;
+create procedure infinite_vector_ann(query_type int)
+begin
+  -- variables to hold metrics
+  declare v_rows int;
+  declare v_error int default 0;
+
+  -- this handler will catch any sql errors
+  declare continue handler for sqlexception set v_error = 1;
+
+  -- verify the cloudsql_vector_iterative_filtering flag value
+  select @@global.cloudsql_vector_iterative_filtering;
+  select @@session.cloudsql_vector_iterative_filtering;
+
+  loop_label: loop
+    -- reset variables
+    set v_rows = 0;
+    set v_error = 0;
+
+    -- run the query
+    if query_type = 1 then
+      select count(*) into v_rows from (select id from t1 order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as sub;
+    elseif query_type = 2 then
+      select count(*) into v_rows from (select id from t1 where id % (floor(rand() * 10) + 1) = 0 order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as sub;
+    else
+      select count(*) into v_rows from (select id from t1 order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as sub;
+      select count(*) into v_rows from (select id from t1 where id % (floor(rand() * 10) + 1) = 0 order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as sub;
+    end if;
+
+    -- log the metrics
+    insert into query_log(rows_found, error_code) values (v_rows, v_error);
+
+    select count(*) from kill_signal into @temp;
+    if (@temp > 0) then
+        leave loop_label;  -- exit the loop when stop_loop becomes 1
+    end if;
+
+  end loop loop_label;
+end |
+delimiter ;|
+
+# define a procedure to wait for enough rows in the base table
+delimiter |;
+create procedure wait_for_n_rows(row_count int)
+begin
+  loop_label: loop
+    select count(*) from t1 into @temp;
+    if (@temp > row_count) then
+        leave loop_label;
+    end if;
+  end loop loop_label;
+end |
+delimiter ;|
+
+# prepare the test tables
+create table query_log (rows_found int, error_code int default 0);
+create table t1 (id int primary key, emb vector(3) using varbinary);
+create table kill_signal (id int);
+
+
+### test on non-stream mode (the flag is off)
+
+set global cloudsql_vector_iterative_filtering = off;
+
+# connection 1 adds rows into the base table
+--connect (con_1,localhost,root)
+--echo # setup infinite inserts to table with vector column
+--disable_query_log
+--send call fill_vector_table('t1');
+--enable_query_log
+
+# connection 2 creates vector index once there are enough rows in the base table
+--connect (con_2,localhost,root)
+call wait_for_n_rows(1000);
+create vector index vec_index on t1(emb) distance_measure=l2_squared;
+
+# connection 3s (3_a, 3_b, 3_c) run concurrent vector queries
+--connect (con_3_a,localhost,root)
+--send call infinite_vector_ann(1);
+
+--connect (con_3_b,localhost,root)
+--send call infinite_vector_ann(2);
+
+--connect (con_3_c,localhost,root)
+--send call infinite_vector_ann(3);
+
+# connection 4 waits enough time (5000 rows in base table + another 60s) before
+# stopping the test
+--connect (con_4,localhost,root)
+--echo # wait for 5000 rows to make sure the inserts continued, then set the kill signal for all loops
+call wait_for_n_rows(5000);
+select sleep(60);
+insert into kill_signal value(1);
+
+--connection con_1
+--reap
+--connection con_3_a
+--reap
+--connection con_3_b
+--reap
+--connection con_3_c
+--reap
+--connection default
+disconnect con_1;
+disconnect con_2;
+disconnect con_3_a;
+disconnect con_3_b;
+disconnect con_3_c;
+disconnect con_4;
+
+# look for potential error(s) besides the fact that server hasn't crashed yet
+select * from query_log where error_code != 0;
+
+
+### test with stream mode (turn on the iterative_filtering flag)
+
+set global cloudsql_vector_iterative_filtering = on;
+
+drop index vec_index on t1;
+truncate table t1;
+truncate table kill_signal;
+truncate table query_log;
+
+# connection 1 adds rows into the base table
+--connect (con_1,localhost,root)
+--echo # setup infinite inserts to table with vector column
+--disable_query_log
+--send call fill_vector_table('t1');
+--enable_query_log
+
+# connection 2 creates vector index once there are enough rows in the base table
+--connect (con_2,localhost,root)
+call wait_for_n_rows(1000);
+create vector index vec_index on t1(emb) distance_measure=l2_squared;
+
+# connection 3s (3_a, 3_b, 3_c) run concurrent vector queries
+--connect (con_3_a,localhost,root)
+--send call infinite_vector_ann(1);
+
+--connect (con_3_b,localhost,root)
+--send call infinite_vector_ann(2);
+
+--connect (con_3_c,localhost,root)
+--send call infinite_vector_ann(3);
+
+# connection 4 waits enough time (5000 rows in base table + another 60s) before
+# stopping the test
+--connect (con_4,localhost,root)
+--echo # wait for 5000 rows to make sure the inserts continued, then set the kill signal for all loops
+call wait_for_n_rows(5000);
+select sleep(60);
+insert into kill_signal value(1);
+
+--connection con_1
+--reap
+--connection con_3_a
+--reap
+--connection con_3_b
+--reap
+--connection con_3_c
+--reap
+--connection default
+disconnect con_1;
+disconnect con_2;
+disconnect con_3_a;
+disconnect con_3_b;
+disconnect con_3_c;
+disconnect con_4;
+
+# look for potential error(s) besides the fact that server hasn't crashed yet
+select * from query_log where error_code != 0;
+
+
+### cleanup
+
+drop index vec_index on t1;
+drop table t1;
+drop table kill_signal;
+drop table query_log;
+drop procedure fill_vector_table;
+drop procedure infinite_vector_ann;
+drop procedure wait_for_n_rows;
+
+set @@global.cloudsql_vector_iterative_filtering = @old_vif_flag;

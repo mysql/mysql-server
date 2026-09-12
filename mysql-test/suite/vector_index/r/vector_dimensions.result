@@ -1,0 +1,72 @@
+Initial Data inserted
+SELECT i, vector_to_string(j) FROM t1 LIMIT 1;
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+Create index
+CREATE VECTOR INDEX idx1 ON t1(j) DISTANCE_MEASURE=DOT_PRODUCT;
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+idx1	test.t1	TREE_SQ	16000	DOT_PRODUCT	Ready	INDEX_READY_TO_USE	10	10	0	0	1280246
+SELECT vector_to_string(j) FROM t1 WHERE i = 1 INTO @temp;
+Make sure ANN works
+SELECT i FROM t1 WHERE i = 1 ORDER BY APPROX_DISTANCE(j, string_to_vector(@temp), 'distance_measure=dot_product') LIMIT 10;
+i
+1
+Delete from the table
+DELETE FROM t1 WHERE i = 1;
+SELECT i FROM t1 WHERE i = 1 ORDER BY APPROX_DISTANCE(j, string_to_vector(@temp), 'distance_measure=dot_product') LIMIT 10;
+i
+Various distance measures
+SELECT i, cosine_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+i	dist
+2	-0.0000000021447696951781836
+3	0.0000000036048827256607296
+SELECT i, dot_product(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+i	dist
+1000	-1493341328026
+999	-1493213318118
+SELECT i, l2_squared_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+i	dist
+2	16000
+3	64000
+Insert NULL vector into table
+INSERT INTO t1 (i, j) VALUES (1, NULL);
+SELECT i FROM t1 WHERE j IS NULL;
+i
+1
+Various distance measures with NULL vector row
+SELECT i, cosine_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+i	dist
+1	NULL
+2	-0.0000000021447696951781836
+SELECT i, dot_product(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+i	dist
+1	NULL
+1000	-1493341328026
+SELECT i, l2_squared_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+i	dist
+1	NULL
+2	16000
+Alter embedding to be NULL
+UPDATE t1 SET j = NULL WHERE i = 10;
+SELECT i FROM t1 WHERE j IS NULL;
+i
+1
+10
+Insert non-null value
+INSERT INTO t1 (i, j) VALUES (1001, string_to_vector(@temp));
+Confirm ANN still works after all the changes we've made
+SELECT COUNT(*) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector(@temp), 'distance_measure=dot_product') LIMIT 1;
+COUNT(*)
+1001
+Drop Index
+DROP INDEX idx1 ON t1;
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+CREATE TABLE t2(i INT PRIMARY KEY, j VECTOR(0) USING VARBINARY);
+ERROR HY000: Vector dimension 0 is not supported (min = 1, max = 16383)
+CREATE TABLE t2(i INT PRIMARY KEY, j VECTOR(-1) USING VARBINARY);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1) USING VARBINARY)' at line 1
+CREATE TABLE t2(i INT PRIMARY KEY, j VECTOR(16384) USING VARBINARY);
+ERROR HY000: Data size (65536 Bytes, 16384 dimensions) exceeds VECTOR max (65532 Bytes, 16383 dimensions) for column: 'j'
+DROP TABLE t1;

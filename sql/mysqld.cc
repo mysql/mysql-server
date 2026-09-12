@@ -1014,6 +1014,9 @@ MySQL clients support the protocol:
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
+#include "field_types.h"
+#include "mysql/strings/m_ctype.h"
+
 using mysql::binlog::event::enum_binlog_checksum_alg;
 using std::max;
 using std::min;
@@ -1166,6 +1169,8 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif  // _WIN32
 static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
+static PSI_mutex_key key_LOCK_vector_reload_started;
+static PSI_cond_key key_COND_vector_reload_started;
 static PSI_mutex_key key_LOCK_keyring_operations;
 static PSI_mutex_key key_LOCK_tls_ctx_options;
 static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
@@ -1325,6 +1330,13 @@ MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 bool trust_function_creators = false;
 bool check_proxy_users = false, sha256_password_proxy_users = false;
+
+/* Vector flags */
+bool opt_cloudsql_vector = false;
+bool opt_cloudsql_vector_test_mode = false;
+ulong opt_cloudsql_vector_max_mem_size = 1024 * 1024 * 1024;
+/* End Vector flag */
+
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -1362,6 +1374,13 @@ const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
 uint mysqld_port, test_flags, select_errors, ha_open_options;
 uint mysqld_port_timeout;
+ulong csql_vector_knn_fallback_missing_index = 0;
+ulong csql_vector_knn_fallback_unusable_index = 0;
+ulong csql_vector_knn_fallback_index_inlining_failures = 0;
+ulong csql_vector_knn_fallback_missing_limit = 0;
+ulong csql_vector_knn_fallback_limit_too_large = 0;
+ulong csql_vector_knn_fallback_knn_less_expensive = 0;
+ulong csql_vector_knn_fallback_multiple_ann_one_table = 0;
 ulong delay_key_write_options;
 uint protocol_version;
 uint lower_case_table_names;
@@ -1627,6 +1646,8 @@ sigset_t mysqld_signal_mask;
 my_thread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+mysql_mutex_t LOCK_vector_reload_started;
+mysql_cond_t COND_vector_reload_started;
 mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
@@ -1668,6 +1689,7 @@ mysql_rwlock_t LOCK_server_shutting_down;
 bool server_shutting_down = false;
 
 bool mysqld_server_started = false;
+bool vector_reload_started = false;
 /**
   Set to true to signal at startup if the process must die.
 
@@ -1871,6 +1893,83 @@ static Persisted_variables_cache persisted_variables_cache;
 
 void persisted_variables_refresh_keyring_support() {
   persisted_variables_cache.keyring_support_available();
+}
+
+/* Function used to check PK Type is supported with cloudsql vector columns.
+   SUPPORTED types:
+   1. All Numeric types (Integer, fixed-point and floating-point types) except
+      BIT type
+   2. All DATE and TIME datatypes
+   3. String types - CHAR, VARCHAR, SET, ENUM
+
+   UNSUPPORTED types:
+   1. Numeric type - BIT
+   2. String types - BINARY, VARBINARY, BLOB, TEXT
+   3. Spatial types
+   4. Geomentry types*/
+bool is_pk_type_valid_for_csql_vector (const enum_field_types field_type,
+                                       const CHARSET_INFO *field_charset,
+                                       size_t field_flags)
+{
+  switch (field_type) {
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      return true;
+      break;
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      return true;
+      break;
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
+      return true;
+      break;
+    case MYSQL_TYPE_BOOL:
+      return true;
+      break;
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_TIME2:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_TIMESTAMP2:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_NEWDATE:
+      return true;
+      break;
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_VAR_STRING:
+      return true;
+      break;
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+      if ((field_charset == &my_charset_bin) &&
+            ((field_flags & BINARY_FLAG) ||
+             (field_charset->state & MY_CS_BINSORT))) {
+        return false;
+      }
+      return true;
+      break;
+    case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_TYPED_ARRAY:
+    case MYSQL_TYPE_INVALID:
+    case MYSQL_TYPE_NULL:
+    default:
+      return false;
+      break;
+  }
+  return false;
 }
 
 void set_remaining_args(int argc, char **argv) {
@@ -2951,6 +3050,8 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_mandatory_roles);
   mysql_mutex_destroy(&LOCK_server_started);
   mysql_cond_destroy(&COND_server_started);
+  mysql_mutex_destroy(&LOCK_vector_reload_started);
+  mysql_cond_destroy(&COND_vector_reload_started);
   mysql_mutex_destroy(&LOCK_reset_gtid_table);
   mysql_mutex_destroy(&LOCK_compress_gtid_table);
   mysql_cond_destroy(&COND_compress_gtid_table);
@@ -7196,6 +7297,9 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_server_started, &LOCK_server_started,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started);
+  mysql_mutex_init(key_LOCK_vector_reload_started, &LOCK_vector_reload_started,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_vector_reload_started, &COND_vector_reload_started);
   mysql_mutex_init(key_LOCK_reset_gtid_table, &LOCK_reset_gtid_table,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_compress_gtid_table, &LOCK_compress_gtid_table,
@@ -11715,6 +11819,27 @@ SHOW_VAR status_vars[] = {
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Bytes_sent", (char *)offsetof(System_status_var, bytes_sent),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Cloudsql_vector_knn_fallback_index_inlining_failures",
+     (char *)&csql_vector_knn_fallback_index_inlining_failures, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Cloudsql_vector_knn_fallback_missing_index",
+     (char *)&csql_vector_knn_fallback_missing_index, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Cloudsql_vector_knn_fallback_unusable_index",
+     (char *)&csql_vector_knn_fallback_unusable_index, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Cloudsql_vector_knn_fallback_missing_limit",
+     (char *)&csql_vector_knn_fallback_missing_limit, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Cloudsql_vector_knn_fallback_limit_too_large",
+     (char *)&csql_vector_knn_fallback_limit_too_large, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Cloudsql_vector_knn_fallback_less_expensive",
+     (char *)&csql_vector_knn_fallback_knn_less_expensive, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Cloudsql_vector_knn_fallback_multiple_ann_one_table",
+     (char *)&csql_vector_knn_fallback_multiple_ann_one_table, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
     {"Com", (char *)com_status_vars, SHOW_ARRAY, SHOW_SCOPE_ALL},
     {"Com_stmt_reprepare",
      (char *)offsetof(System_status_var, com_stmt_reprepare), SHOW_LONG_STATUS,
@@ -12259,6 +12384,13 @@ static int mysql_init_variables() {
   memset(&global_status_var, 0, sizeof(global_status_var));
   opt_large_pages = false;
   opt_super_large_pages = false;
+  csql_vector_knn_fallback_index_inlining_failures = 0;
+  csql_vector_knn_fallback_missing_index = 0;
+  csql_vector_knn_fallback_unusable_index = 0;
+  csql_vector_knn_fallback_missing_limit = 0;
+  csql_vector_knn_fallback_limit_too_large = 0;
+  csql_vector_knn_fallback_knn_less_expensive = 0;
+  csql_vector_knn_fallback_multiple_ann_one_table = 0;
 #if defined(ENABLED_DEBUG_SYNC)
   opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -14199,6 +14331,7 @@ static PSI_cond_info all_server_conds[]=
 #endif
   { &key_COND_manager, "COND_manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_COND_vector_reload_started, "COND_vector_reload_started", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if !defined(_WIN32)
   { &key_COND_socket_listener_active, "COND_socket_listener_active", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_start_signal_handler, "COND_start_signal_handler", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},

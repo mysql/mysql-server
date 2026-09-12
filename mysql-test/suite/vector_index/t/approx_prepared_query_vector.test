@@ -1,0 +1,79 @@
+--source include/elide_costs.inc
+
+--echo #
+--echo # APPROX_DISTANCE with a query vector supplied through a user variable
+--echo # must use the value current at EXECUTE time, not the one captured at
+--echo # PREPARE time. Previously, the ANN search kept using the PREPARE-time
+--echo # vector while the exact distances were computed with the current one.
+--echo #
+
+use test;
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+
+--echo # Reference results for two different query vectors.
+select i from t1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 5;
+select i from t1 order by approx_distance(j, string_to_vector('[-1,-2,-3]'), 'distance_measure=l2_squared') limit 5;
+
+--echo # Passing ? as the query vector is rejected at PREPARE time.
+--error ER_UNABLE_TO_EXECUTE_ANN
+prepare stmt from 'select i from t1 order by approx_distance(j, ?, ''distance_measure=l2_squared'') limit 5';
+
+--echo # Preparing with an unset or empty query vector variable succeeds at
+--echo # PREPARE time and is rejected at EXECUTE time.
+prepare stmt from 'select i from t1 order by approx_distance(j, @qv, ''distance_measure=l2_squared'') limit 5';
+--error ER_UNABLE_TO_EXECUTE_ANN
+execute stmt;
+deallocate prepare stmt;
+set @qv = '';
+prepare stmt from 'select i from t1 order by approx_distance(j, @qv, ''distance_measure=l2_squared'') limit 5';
+--error ER_UNABLE_TO_EXECUTE_ANN
+execute stmt;
+
+--echo # Prepared statement executed with two different query vectors.
+set @qv = string_to_vector('[1,2,3]');
+--replace_regex $elide_costs
+explain format=tree select i from t1 order by approx_distance(j, @qv, 'distance_measure=l2_squared') limit 5;
+execute stmt;
+set @qv = string_to_vector('[-1,-2,-3]');
+execute stmt;
+set @qv = string_to_vector('[1,2,3]');
+execute stmt;
+--echo # An invalid query vector at EXECUTE time is rejected, like it is for a
+--echo # freshly parsed statement.
+set @qv = NULL;
+--error ER_UNABLE_TO_EXECUTE_ANN
+execute stmt;
+set @qv = '';
+--error ER_UNABLE_TO_EXECUTE_ANN
+execute stmt;
+set @qv = 'abc';
+--error ER_UNABLE_TO_EXECUTE_ANN
+execute stmt;
+set @qv = string_to_vector('[1,2,3]');
+execute stmt;
+deallocate prepare stmt;
+
+--echo # Same with a filter, which uses iterative filtering.
+set cloudsql_vector_iterative_filtering=ON;
+select i from t1 where i % 2 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 3;
+select i from t1 where i % 2 = 0 order by approx_distance(j, string_to_vector('[-1,-2,-3]'), 'distance_measure=l2_squared') limit 3;
+set @qv = string_to_vector('[1,2,3]');
+prepare stmt from 'select i from t1 where i % 2 = 0 order by approx_distance(j, @qv, ''distance_measure=l2_squared'') limit 3';
+execute stmt;
+set @qv = string_to_vector('[-1,-2,-3]');
+execute stmt;
+deallocate prepare stmt;
+set cloudsql_vector_iterative_filtering=default;
+
+--echo # Statements inside stored procedures are prepared once as well.
+create procedure p() select i from t1 order by approx_distance(j, @qv, 'distance_measure=l2_squared') limit 5;
+set @qv = string_to_vector('[1,2,3]');
+call p();
+set @qv = string_to_vector('[-1,-2,-3]');
+call p();
+drop procedure p;
+
+drop table t1;

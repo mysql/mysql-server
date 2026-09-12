@@ -93,6 +93,7 @@ Database: information_schema
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| INNODB_ALL_VECTOR_INDEXES             |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
@@ -123,6 +124,8 @@ Database: information_schema
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
+| INNODB_VECTOR_INDEXES                 |
+| INNODB_VECTOR_INDEXES_MEMORY          |
 | INNODB_VIRTUAL                        |
 | JSON_DUALITY_VIEWS                    |
 | JSON_DUALITY_VIEW_COLUMNS             |
@@ -181,7 +184,8 @@ Database: INFORMATION_SCHEMA
 | ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
-| FILES                                 |
+| FILES                                 |                               |
+| INNODB_ALL_VECTOR_INDEXES             |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
@@ -212,6 +216,8 @@ Database: INFORMATION_SCHEMA
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
+| INNODB_VECTOR_INDEXES                 |
+| INNODB_VECTOR_INDEXES_MEMORY          |
 | INNODB_VIRTUAL                        |
 | JSON_DUALITY_VIEWS                    |
 | JSON_DUALITY_VIEW_COLUMNS             |

@@ -1,0 +1,100 @@
+# Copyright 2026 Google LLC
+
+USE test;
+
+DELIMITER |;
+CREATE PROCEDURE fill_vector_table(tname VARCHAR(40))
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  DECLARE d1 FLOAT DEFAULT 1.0;
+  DECLARE d2 FLOAT DEFAULT 2.0;
+  DECLARE d3 FLOAT DEFAULT 3.0;
+
+  DECLARE CONTINUE HANDLER FOR 1615 -- Need to reprepare
+  BEGIN
+  END;
+
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SHOW ERRORS;
+    SHOW WARNINGS;
+  END;
+
+  loop_label: LOOP
+    SET @s = CONCAT("insert INTO ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+    PREPARE stmt FROM @s;
+    EXECUTE stmt;
+    SET i = i + 1;
+    SET d1 = d1 + 1;
+    SET d2 = d2 + 1;
+    SET d3 = d3 + 1;
+    SELECT count(*) FROM kill_procedures INTO @temp;
+    IF (@temp > 0) THEN
+        LEAVE loop_label;  -- Exit the loop when stop_loop becomes 1
+    END IF;
+  END LOOP loop_label;
+END |
+DELIMITER ;|
+
+DELIMITER |;
+CREATE PROCEDURE infinite_recreate_index_cosine()
+BEGIN
+  loop_label: LOOP
+    DROP INDEX vec_index ON t1;
+    CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE=cosine;
+    SELECT count(*) FROM kill_procedures INTO @temp;
+    IF (@temp > 0) THEN
+        LEAVE loop_label;  -- Exit the loop when stop_loop becomes 1
+    END IF;
+  END LOOP loop_label;
+END |
+DELIMITER ;|
+
+DELIMITER |;
+CREATE PROCEDURE wait_for_n_rows(row_count INT)
+BEGIN
+  loop_label: LOOP
+    SELECT count(*) FROM t1 INTO @temp;
+    IF (@temp > row_count) THEN
+        LEAVE loop_label;  -- Exit the loop when stop_loop becomes 1
+    END IF;
+  END LOOP loop_label;
+END |
+DELIMITER ;|
+
+CREATE table t1 (id INT primary key, emb vector(3) USING VARBINARY);
+CREATE table kill_procedures (id INT);
+--connect (con_1,localhost,root)
+--echo # Setup infinite inserts to table with vector column
+--disable_query_log
+--send CALL fill_vector_table('t1');
+--enable_query_log
+
+--echo # In a new connection, once there are 1000 rows, create a vector index while the inserts are running
+--connect (con_2,localhost,root)
+CALL wait_for_n_rows(1000);
+CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE=l2_squared;
+
+--connect (con_3,localhost,root)
+--send CALL infinite_recreate_index_cosine();
+
+--connect (con_4,localhost,root)
+--echo # Wait for 1100 rows to make sure the inserts continued, then set the kill signal for all loops
+CALL wait_for_n_rows(1100);
+INSERT INTO kill_procedures value(1);
+
+--connection con_1
+--reap
+--connection con_3
+--reap
+--connection default
+disconnect con_1;
+disconnect con_2;
+disconnect con_3;
+disconnect con_4;
+
+DROP INDEX vec_index ON t1;
+DROP TABLE t1, kill_procedures;
+DROP PROCEDURE fill_vector_table;
+DROP PROCEDURE infinite_recreate_index_cosine;
+DROP PROCEDURE wait_for_n_rows;

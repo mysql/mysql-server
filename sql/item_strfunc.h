@@ -45,8 +45,9 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
-#include "sql/item_cmpfunc.h"    // Item_bool_func
-#include "sql/item_func.h"       // Item_func
+#include "sql/item_cmpfunc.h"  // Item_bool_func
+#include "sql/item_func.h"     // Item_func
+#include "sql/iterators/cloudsql_vector_iterators.h"
 #include "sql/parse_location.h"  // POS
 #include "sql/sql_const.h"
 #include "sql_string.h"

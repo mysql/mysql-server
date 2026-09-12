@@ -2737,7 +2737,14 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
   for (uint i = skip_gipk ? 1 : 0; i < share->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     bool found_primary = false;
-    packet->append(STRING_WITH_LEN(",\n  "));
+
+    // Add vector key comment after PK/before its comma, since we can
+    // no longer assume there is a constraint in the table definition.
+    if (!(key_info->flags & HA_VECTOR)) {
+      packet->append(STRING_WITH_LEN(",\n  "));
+    } else {
+      packet->append(STRING_WITH_LEN("\n  "));
+    }
 
     if (i == primary_key && !strcmp(key_info->name, primary_key_name)) {
       found_primary = true;
@@ -2752,6 +2759,8 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       packet->append(STRING_WITH_LEN("FULLTEXT KEY "));
     else if (key_info->flags & HA_SPATIAL)
       packet->append(STRING_WITH_LEN("SPATIAL KEY "));
+    else if (key_info->flags & HA_VECTOR)
+      packet->append(STRING_WITH_LEN("/* VECTOR KEY "));
     else
       packet->append(STRING_WITH_LEN("KEY "));
 
@@ -2799,6 +2808,9 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       append_identifier(thd, packet, parser_name->str, parser_name->length);
       packet->append(STRING_WITH_LEN(" */ "));
     }
+    if (key_info->flags & HA_VECTOR) {
+      packet->append(STRING_WITH_LEN(" */"));
+    }
   }
 
   // Append foreign key constraint definitions to the CREATE TABLE statement.
@@ -2811,6 +2823,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
   if (table->table_check_constraint_list != nullptr) {
     for (auto &cc : *table->table_check_constraint_list) {
       packet->append(STRING_WITH_LEN(",\n  CONSTRAINT "));
+
       append_identifier(thd, packet, cc.name().str, cc.name().length);
 
       packet->append(STRING_WITH_LEN(" CHECK ("));
@@ -4942,6 +4955,8 @@ static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
       // INDEX_TYPE
       if (key_info->flags & HA_SPATIAL)
         str = "SPATIAL";
+      else if (key_info->flags & HA_VECTOR)
+        str = "VECTOR";
       else {
         const ha_key_alg key_alg = key_info->algorithm;
         /* If index algorithm is implicit get SE default. */
@@ -4960,6 +4975,9 @@ static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
             break;
           case HA_KEY_ALG_FULLTEXT:
             str = "FULLTEXT";
+            break;
+          case HA_KEY_ALG_KMEANS:
+            str = "TREE";
             break;
           default:
             assert(0);

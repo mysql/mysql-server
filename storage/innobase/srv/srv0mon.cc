@@ -1426,6 +1426,41 @@ static monitor_info_t innodb_counter_info[] = {
     {"dblwr_flush_wait_events", "dblwr", "Total flush wait events",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_DBLWR_FLUSH_WAIT_EVENTS},
 
+    /* ========== Vector Index metrics ========== */
+    {"module_vector_indexes", "vector_indexes",
+     "Counters related to vector indexes", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_MODULE_VECTOR_INDEXES},
+
+    {"num_queries", "vector_indexes", "Number of queries", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_VECTOR_INDEXES_NUM_QUERIES},
+
+    {"num_mutations", "vector_indexes", "Number of mutations", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_VECTOR_INDEXES_NUM_MUTATIONS},
+
+    {"num_queries_failed", "vector_indexes", "Number of queries failed",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_VECTOR_INDEXES_NUM_QUERIES_FAILED},
+
+    {"num_mutations_failed", "vector_indexes", "Number of mutations failed",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_VECTOR_INDEXES_NUM_MUTATIONS_FAILED},
+
+    {"num_tree_load", "vector_indexes",
+     "Number of times index tree loaded in memory", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_VECTOR_INDEXES_NUM_TREE_LOAD},
+
+    {"num_tree_load_failed", "vector_indexes",
+     "Number of times index tree load in memory failed", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_VECTOR_INDEXES_NUM_TREE_LOAD_FAILED},
+
+    {"num_tree_unload", "vector_indexes",
+     "Number of times index tree unloaded from memory", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_VECTOR_INDEXES_NUM_TREE_UNLOAD},
+
+    {"single_thread_queries", "vector_indexes",
+     "Number of ANN queries that were processed inline", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_VECTOR_INDEX_SINGLE_THREAD_QUERIES},
+
     /* ========== To turn on/off reset all counters ========== */
     {"all", "All Counters", "Turn on/off and reset all counters",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER},

@@ -103,6 +103,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0log.h"
 #include "row0mysql.h"
 #include "row0sel.h"
+#include "vector0dd.h"
+#include "vector0subtable.h"
 #include "sql/create_field.h"
 #include "srv0mon.h"
 #include "trx0roll.h"
@@ -122,6 +124,7 @@ inline uint16_t instant_type_to_int(Instant_Type type) {
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE =
     Alter_inplace_info::ADD_INDEX | Alter_inplace_info::ADD_UNIQUE_INDEX |
+    Alter_inplace_info::ADD_VECTOR_INDEX |
     Alter_inplace_info::ADD_SPATIAL_INDEX;
 
 /** Operations for rebuilding a table in place */
@@ -325,6 +328,59 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
     the sequence value should be shared among contexts */
     ut_ad(ha_ctx->add_autoinc != ULINT_UNDEFINED);
     sequence = ha_ctx->sequence;
+  }
+
+  /** Check if we are dealing with a vector index. */
+  bool is_vector_index_build() const {
+    for (size_t i = 0; i < num_to_add_index; ++i) {
+      if (add_index[i]->type == DICT_VECTOR) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Validate that a context is set up properly for a vector index build. */
+  bool validate_vector_index_build() const {
+    ut_a(is_vector_index_build());
+
+    DBUG_EXECUTE_IF("vector_index_invalid_ddl", return false;);
+    DBUG_EXECUTE_IF("vector_index_invalid_ddl_crash", DBUG_SUICIDE(););
+    /* Only one index allowed */
+    if (num_to_add_index != 1) {
+      ib::error() << "Only one vector index allowed in DDL. num_indexes: "
+                  << num_to_add_index;
+      return false;
+    }
+
+    /* Online operation is not allowed. */
+    if (online) {
+      ib::error() << "Online vector index build operation is not allowed";
+      return false;
+    }
+
+    /* Vector index build is considered in place operation.*/
+    if (new_table != old_table) {
+      ib::error() << "Vector index build should be an in place operation";
+      return false;
+    }
+
+    /* There must be a vector column in the table. */
+    if (new_table->vector_col_info == nullptr) {
+      ib::error() << "Vector index build requires a vector column in the table";
+      return false;
+    }
+
+    /* Code invariants. */
+    auto vec_info = ib_vector::dict_table_get_vector_index_info(new_table);
+    ut_a(vec_info != nullptr);
+    ut_a(vec_info->sub_table_id() != 0);
+
+    /* No other DDL should be part of this statement. */
+    return (num_to_drop_index == 0 && num_to_rename == 0 &&
+            num_to_add_fk == 0 && num_to_drop_fk == 0 && add_vcol == nullptr &&
+            drop_vcol == nullptr && col_map == nullptr &&
+            fts_drop_aux_vec == nullptr);
   }
 
  private:
@@ -1283,6 +1339,12 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
     online = false;
   }
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_VECTOR_INDEX) {
+    ha_alter_info->unsupported_reason =
+        innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR);
+    online = false;
+  }
+
 
   if (m_prebuilt->table->fts && innobase_fulltext_exist(altered_table)) {
     /* FULLTEXT indexes are supposed to remain. */
@@ -1424,6 +1486,18 @@ static void dd_commit_inplace_update_partition_instant_meta(
     const Ha_innopart_share *part_share, uint16_t n_parts,
     const dd::Table *old_dd_tab, dd::Table *new_dd_tab);
 
+/** Check whether the table has the FTS_DOC_ID column
+@param[in]      table           InnoDB table object
+@param[in]      altered_table   MySQL table object
+@param[in,out]  fts_doc_col_no  The column number for
+                                Doc ID, or ULINT_UNDEFINED
+                                if it is of wrong type
+@param[in,out]  num_v           number of virtual column
+@return whether there exists an FTS_DOC_ID column */
+static bool innobase_fts_check_doc_id_col(const dict_table_t *table,
+                                          const TABLE *altered_table,
+                                          ulint *fts_doc_col_no, ulint *num_v);
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked (provided that check_if_supported_inplace_alter()
 did not return HA_ALTER_INPLACE_NO_LOCK).
@@ -1452,6 +1526,28 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
     ut_ad(!m_prebuilt->table->is_temporary());
     my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
     return true;
+  }
+
+  /** If we have a vector index, we don't allow any ALTER TABLE operation
+  involving a rebuild. We'll also force a rebuild if we are building an FTS
+  index and we don't already have FTS_DOC_ID column. */
+  if (altered_table->s->has_vector_key()) {
+    if (innobase_need_rebuild(ha_alter_info)) {
+      my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0),
+               "ALTER TABLE (needs rebuild)");
+      return true;
+    }
+
+    if (innobase_fulltext_exist(altered_table)) {
+      ulint doc_col_no;
+      ulint num_v = 0;
+      if (!innobase_fts_check_doc_id_col(m_prebuilt->table, altered_table,
+                                         &doc_col_no, &num_v)) {
+        my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0),
+                 "ALTER TABLE (needs rebuild)");
+        return true;
+      }
+    }
   }
 
   if (altered_table->found_next_number_field != nullptr) {
@@ -1895,7 +1991,7 @@ static bool innobase_init_foreign(
   index = table->first_index();
 
   while (index != nullptr) {
-    if (!(index->type & DICT_FTS) &&
+    if (!(index->type & DICT_FTS) && !dict_index_is_vector(index) &&
         dict_foreign_qualify_index(table, col_names, columns, n_cols, index,
                                    nullptr, true, 0)) {
       for (ulint i = 0; i < n_drop_index; i++) {
@@ -2751,6 +2847,8 @@ static void innobase_create_index_def(const TABLE *altered_table,
     } else {
       index_def->m_fields[0].m_is_v_col = false;
     }
+  } else if (key ->flags & HA_VECTOR) {
+      index_def->m_ind_type = DICT_VECTOR;
   } else {
     index_def->m_ind_type = (key->flags & HA_NOSAME) ? DICT_UNIQUE : 0;
   }
@@ -2773,7 +2871,7 @@ static void innobase_create_index_def(const TABLE *altered_table,
 
 /** Check whether the table has the FTS_DOC_ID column
  @return whether there exists an FTS_DOC_ID column */
-bool innobase_fts_check_doc_id_col(
+static bool innobase_fts_check_doc_id_col(
     const dict_table_t *table, /*!< in: InnoDB table with
                                fulltext index */
     const TABLE *altered_table,
@@ -4408,6 +4506,7 @@ template <typename Table>
   ddl::Index_defn *index_defs; /* index definitions */
   dict_table_t *user_table;
   dict_index_t *fts_index = nullptr;
+  dict_index_t *vector_index = nullptr;
   dberr_t error;
   ulint num_fts_index;
   dict_add_v_col_t *add_v = nullptr;
@@ -4948,6 +5047,9 @@ template <typename Table>
       fts_index = ctx->add_index[a];
     }
 
+    if (ctx->add_index[a]->type & DICT_VECTOR) {
+      vector_index = ctx->add_index[a];
+    }
     /* If only online ALTER TABLE operations have been
     requested, allocate a modification log. If the table
     will be locked anyway, the modification
@@ -5012,6 +5114,34 @@ template <typename Table>
     trx_assign_read_view(ctx->prebuilt->trx);
   }
 
+  if (vector_index) {
+    /* If it is a vector index, then it cannot be
+     * > online index
+     * > clustered index
+     * > need_rebuild set to true*/
+    ut_ad(!ctx->online);
+    ut_ad(!new_clustered);
+    ut_ad(!ctx->need_rebuild());
+    ut_ad(ctx->trx->dict_operation_lock_mode == RW_X_LATCH);
+    ut_ad(dict_sys_mutex_own());
+    ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
+    dict_sys_mutex_exit();
+    dict_table_t *vector_index_sub_table =
+        ib_vector::create_vector_index_sub_table(ctx->trx, vector_index);
+    dict_sys_mutex_enter();
+
+    DBUG_EXECUTE_IF("vector_index_sub_table_err", vector_index_sub_table = nullptr;);
+    DBUG_EXECUTE_IF("vector_index_sub_table_crash", DBUG_SUICIDE(););
+    if (vector_index_sub_table == nullptr) {
+      error = DB_ERROR;
+      goto error_handling;
+    }
+    auto vec_index_info = ib_vector::dict_table_get_vector_index_info(ctx->new_table);
+    ut_a(vec_index_info != nullptr);
+    ut_a(vec_index_info->sub_table_id() == 0);
+    ut_a(vec_index_info->index() == nullptr);
+    vec_index_info->set_sub_table_id(vector_index_sub_table->id);
+  }
   if (fts_index) {
     /* Ensure that the dictionary operation mode will
     not change while creating the auxiliary tables. */
@@ -5088,6 +5218,9 @@ template <typename Table>
   if (build_fts_common || fts_index) {
     fts_freeze_aux_tables(ctx->new_table);
   }
+  if (vector_index) {
+    ib_vector::pin_vector_index_sub_table(ctx->new_table);
+  }
 
   row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
   ut_ad(ctx->trx == ctx->prebuilt->trx);
@@ -5108,6 +5241,12 @@ template <typename Table>
 
     if (fts_index) {
       error = fts_create_index_dd_tables(ctx->new_table);
+      if (error != DB_SUCCESS) {
+        goto error_handling;
+      }
+    }
+    if (vector_index) {
+      error = ib_vector::create_vector_index_dd_sub_table(ctx->new_table);
       if (error != DB_SUCCESS) {
         goto error_handling;
       }
@@ -5149,6 +5288,9 @@ error_handled:
   ctx->prebuilt->trx->error_index = nullptr;
   ctx->trx->error_state = DB_SUCCESS;
 
+  if (vector_index) {
+    ib_vector::unpin_vector_index_sub_table(ctx->new_table, dict_locked);
+  }
   if (!dict_locked) {
     row_mysql_lock_data_dictionary(ctx->prebuilt->trx, UT_LOCATION_HERE);
     ut_ad(ctx->trx == ctx->prebuilt->trx);
@@ -5317,6 +5459,13 @@ static void rename_index_in_cache(dict_index_t *index, const char *new_name) {
         mem_heap_strdup_replace(index->heap,
                                 /* Presumed topmost element of the heap: */
                                 index->name, old_name_len + 1, new_name);
+  }
+
+  if (dict_index_is_vector(index)) {
+    auto vec_index = ib_vector::dict_table_get_vector_index_ptr(index->table);
+    if (vec_index != nullptr) {
+      vec_index->set_name(new_name);
+    }
   }
 }
 
@@ -5625,6 +5774,11 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       assert(!(key->flags & HA_KEYFLAG_MASK &
                ~(HA_FULLTEXT | HA_PACK_KEY | HA_BINARY_PACK_KEY)));
       add_fts_idx = true;
+      continue;
+    }
+    if (key->flags & HA_VECTOR) {
+      /* The column length does not matter for
+      vector indexes. */
       continue;
     }
 
@@ -6341,6 +6495,26 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
   DBUG_EXECUTE_IF("innodb_OOM_inplace_alter",
                   return clean_up(DB_OUT_OF_MEMORY););
 
+  if (ctx->is_vector_index_build()) {
+    if (!ctx->validate_vector_index_build()) {
+      my_error(ER_VECTOR_INDEX_INCOMPATIBLE_CREATE_DDL, myf(0));
+      return true;
+    }
+
+    ib_vector::CreateVectorIndexInfo cr_info(
+        ha_alter_info, m_prebuilt->trx, altered_table, ctx->add_key_numbers[0],
+        m_prebuilt->table, ctx->add_index[0], ctx->m_stage);
+    auto ret = ib_vector::create_persistent_vector_index(&cr_info);
+    /** In case of success, DB_INTERRUPTED or an error from the ddl::Context we
+    let the existing upstream code handle it. */
+    if (ret == DB_SUCCESS || ret == DB_INTERRUPTED || cr_info.m_build_error) {
+      return clean_up(ret);
+    } else {
+      my_error(ER_VECTOR_INDEX_CREATE_SE_ERROR, myf(0), ut_strerr(ret));
+      return true;
+    }
+  }
+
   const auto trx = m_prebuilt->trx;
   const auto old_isolation_level = trx->isolation_level;
 
@@ -6370,7 +6544,8 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
                    altered_table, ctx->add_cols, ctx->col_map, ctx->add_autoinc,
                    ctx->sequence, ctx->skip_pk_sort, ctx->m_stage, add_v,
                    eval_table, thd_ddl_buffer_size(m_prebuilt->trx->mysql_thd),
-                   thd_ddl_threads(m_prebuilt->trx->mysql_thd));
+                   thd_ddl_threads(m_prebuilt->trx->mysql_thd),
+                   false);
 
   const auto err = clean_up(ddl.build());
 
@@ -7253,6 +7428,9 @@ after a successful commit_try_norebuild() call.
         ctx->fts_drop_aux_vec = new aux_name_vec_t;
         fts_drop_index(index->table, index, trx, ctx->fts_drop_aux_vec,
                        adding_fts_index);
+      }
+      if (index->type & DICT_VECTOR) {
+        ib_vector::drop_vector_index_sub_table(index->table, index, trx);
       }
 
       /* It is a single table tablespace and the .ibd file is

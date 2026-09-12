@@ -10994,6 +10994,70 @@ ER_WARN_SET_OPERATIONS_BUFFER
 ER_JDV_UNEXPECTED_INVALID_VALUE
   eng "Json Duality View contains invalid values. Please file a bug."
 
+start-error-number 9000
+ER_VECTOR_NOT_SUPPORTED_DIMENSIONS
+  eng "Vector dimension %d is not supported (min = %d, max = %d)"
+
+ER_VECTOR_INDEX_INCOMPATIBLE_OPTION
+  eng "Incompatible value: '%.192s'"
+
+ER_UNABLE_TO_EXECUTE_ANN
+  eng "Unable to perform similarity search, Reason: %s"
+
+ER_ANN_FALLBACK_TO_BRUTE_FORCE
+  eng "Unable to perform similarity search. Performing exact search instead, Reason: %s"
+
+ER_VECTOR_INDEX_OPERATION_ERROR
+  eng "Operation %s failed with error, Reason: %s"
+
+ER_VECTOR_FEATURE_CANNOT_BE_USED
+  eng "Global flag cloudsql_vector is OFF. Please turn on to use this functionality"
+
+ER_VECTOR_FUNCTION_NULL_ARGUMENT
+  eng "NULL value for %.192s in function %.192s not allowed"
+
+ER_INVALID_VECTOR_INPUT
+  eng "Input vector is not valid. Please provide string in [double1,double2,double3...,doublen] format"
+
+ER_VECTOR_DISTANCE_CALCULATION_ERROR
+  eng "Unable to calculate vector distance Reason: %s"
+
+ER_VECTOR_DATA_WRONG_LENGTH
+  eng "Input vector data length must be multiples of 4 and must be less than %d bytes"
+
+ER_VECTOR_FEATURE_UNSUPPORTED
+  eng "Feature not supported with vector columns, %s"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR
+  eng "Do not support online operation on table with VECTOR index"
+
+ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+  eng "Vector index: %s is not supported yet."
+
+ER_UNKNOWN_VECTOR_INDEX_OPTION
+  eng "Unknown vector index option value %s for option %s"
+
+ER_BAD_VECTOR_INDEX_COLUMN
+  eng "Column '%-.192s' cannot be part of Vector index. Please use a vector column instead."
+
+ER_VECTOR_INDEX_BAD_PARTITION_NUMBER
+  eng "Number of leaves specified for the vector index should be greater than 0"
+
+ER_VECTOR_INDEX_INCOMPATIBLE_CREATE_DDL
+  eng "Vector Index cannot be created with other DDL statements."
+
+ER_VECTOR_INDEX_CREATE_SE_ERROR
+  eng "CREATE VECTOR INDEX failed with error from storage engine: %s"
+
+ER_VECTOR_INDEX_DURING_CREATE_TABLE
+  eng "Creation of vector index is not supported during CREATE TABLE statement"
+
+ER_VECTOR_QUERY_DIMENSION_MISMATCH
+  eng "Query vector dimensions %d does not match vector index dimensions %d"
+
+ER_VECTOR_DATA_DIMENSION_MISMATCH
+  eng "Provided vector dimensions (%d) do not match the defined column dimensions (%d)."
+
 #
 #  End of 9.x error messages (server-to-client).
 #

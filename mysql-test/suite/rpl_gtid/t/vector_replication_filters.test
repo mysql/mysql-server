@@ -1,0 +1,227 @@
+# Test support for replication of Cloudsql Vector columns
+# Replication filters, make sure do table/ignore table/wild ignore works with vector indexes
+
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Test replicate-ignore-table filter
+--echo #
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(test.t1);
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+--source include/rpl/sync_to_replica.inc
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+# cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+DROP TABLE t2;
+
+
+--echo #
+--echo # Test replicate-do-table filter
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(), REPLICATE_DO_TABLE=(test.t1);
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+--source include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM t1;
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM t2;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+# cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+DROP TABLE t2;
+
+
+--echo #
+--echo # Test replicate-wild-ignore-table filter
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(), REPLICATE_WILD_IGNORE_TABLE=('test.t%');
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+--let $table_name=j1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table j1
+
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_3 ON test.j1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+--source include/rpl/sync_to_replica.inc
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM t1;
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM j1;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--source include/rpl/connection_source.inc
+DROP INDEX vec_index_1 ON test.t1;
+
+SET @new_j = string_to_vector("[2.0, 2.0, 2.0]");
+UPDATE j1 SET j = @new_j WHERE i = 1;
+INSERT INTO j1 VALUES(1001, @new_j);
+
+--source include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM j1;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+# cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE j1;
+
+
+--echo #
+--echo # Test replicate-wild-do-table filter
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(), REPLICATE_WILD_DO_TABLE=('test.t%');
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+--let $table_name=j1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table j1
+
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+CREATE VECTOR INDEX vec_index_3 ON test.j1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+--source include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM j1;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+# cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE j1;
+
+
+--echo #
+--echo # Test replicate-do-db filter
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(), REPLICATE_DO_DB=(test);
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+USE test;
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+CREATE DATABASE test2;
+USE test2;
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_2 ON test2.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+--source include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM test.t1;
+--error ER_BAD_DB_ERROR
+SELECT COUNT(*) FROM test2.t2;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+# cleanup
+--source include/rpl/connection_source.inc
+DROP DATABASE test2;
+USE test;
+DROP TABLE t1;
+
+--echo #
+--echo # Test replicate-ignore-db filter
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(), REPLICATE_IGNORE_DB=(test2);
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+USE test;
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t1
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+CREATE DATABASE test2;
+USE test2;
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted for table t2
+CREATE VECTOR INDEX vec_index_2 ON test2.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+
+--source include/rpl/sync_to_replica.inc
+SELECT COUNT(*) FROM test.t1;
+--error ER_BAD_DB_ERROR
+SELECT COUNT(*) FROM test2.t2;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+# cleanup
+--source include/rpl/connection_source.inc
+DROP DATABASE test2;
+USE test;
+DROP TABLE t1;
+
+--source include/rpl/deinit.inc

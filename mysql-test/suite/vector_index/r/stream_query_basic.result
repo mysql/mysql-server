@@ -1,0 +1,57 @@
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+select * from information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vec_index	test.t1	TREE_SQ	3	L2_SQUARED	Ready	INDEX_READY_TO_USE	100	100	0	0	4133
+set session debug='+d,vector_force_stream_query';
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 1;
+what?
+6~7~~
+set session debug='-d,vector_force_stream_query';
+set session debug='+d,vector_infinite_stream_query';
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 10;
+what?
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared, num_leaves_to_search=10") limit 10;
+what?
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+set session debug='+d,vector_stream_query_simulate_sparse_partitions';
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 10;
+what?
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared, num_leaves_to_search=1") limit 10;
+what?
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared, num_leaves_to_search=10") limit 10;
+what?
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+6~7~~
+drop table t1;

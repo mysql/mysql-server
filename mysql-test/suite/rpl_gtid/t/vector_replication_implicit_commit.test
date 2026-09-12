@@ -1,0 +1,82 @@
+# Test support for replication of Cloudsql Vector columns
+
+--source include/have_debug.inc
+--source include/rpl/init_source_replica.inc
+
+--connection master
+
+# Initial data
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+--echo Initial Data inserted
+
+SELECT vector_to_string(j) FROM test.t1 WHERE i = 133;
+
+SET AUTOCOMMIT=0;
+START TRANSACTION;
+DROP INDEX vec_index ON test.t1;
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=cosine;
+SET @new_embedding = string_to_vector('[7.0, 8.0, 9.0]') ;
+UPDATE t1 SET j = @new_embedding WHERE i = 133;
+
+--echo # checking values on the slave before commit with implicit commit
+--source include/rpl/sync_to_replica.inc
+SET @new_embedding = string_to_vector('[7.0, 8.0, 9.0]') ;
+--let $assert_text= with implicit commit, vector values on slave doesn't change before commit
+--let $assert_cond= [SELECT COUNT(*) FROM test.t1 WHERE i = 133 AND j = @new_embedding] = 0
+--source include/assert.inc
+
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--let $rpl_connection_name = master
+--source include/connection.inc
+COMMIT;
+--let $assert_text= with implicit commit, vector values on master changes after commit
+--let $assert_cond= [SELECT COUNT(*) FROM test.t1 WHERE i = 133 AND j = @new_embedding] = 1
+--source include/assert.inc
+
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--echo # checking values on the slave after commit with implicit commit
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= with implicit commit, vector values on slave changes after commit
+--let $assert_cond= [SELECT COUNT(*) FROM test.t1 WHERE i = 133 AND j = @new_embedding] = 1
+--source include/assert.inc
+
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--let $rpl_connection_name = master
+--source include/connection.inc
+SET AUTOCOMMIT=1;
+START TRANSACTION;
+# Vector index DDLs happens immediately
+DROP INDEX vec_index ON test.t1;
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SET @new_embedding_2 = string_to_vector('[8.0, 8.0, 8.0]');
+UPDATE t1 SET j = @new_embedding_2 WHERE i = 122;
+
+--echo # checking values on the slave before commit with auto commit
+--source include/rpl/sync_to_replica.inc
+SET @new_embedding_2 = string_to_vector('[8.0, 8.0, 8.0]');
+--let $assert_text= with auto commit, vector values on master changes without commit
+--let $assert_cond= [SELECT COUNT(*) FROM test.t1 WHERE i = 122 AND j = @new_embedding_2] = 1
+--source include/assert.inc
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+--let $rpl_connection_name = master
+--source include/connection.inc
+COMMIT;
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= with auto commit, vector values on slave changes without commit
+--let $assert_cond= [SELECT COUNT(*) FROM test.t1 WHERE i = 122 AND j = @new_embedding_2] = 1
+--source include/assert.inc
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+
+
+--let $rpl_connection_name = master
+--source include/connection.inc
+--echo # cleanup
+DROP TABLE test.t1;
+
+--source include/rpl/deinit.inc

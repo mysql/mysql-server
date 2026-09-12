@@ -180,6 +180,14 @@ class ha_innobase : public handler {
 
   int rnd_pos(uchar *buf, uchar *pos) override;
 
+  int cloudsql_vector_ann_search(std::vector<float> &&query,
+                                 VectorSearchOptions search_options,
+                                 VectorSearchResults *results) override;
+
+  int cloudsql_vector_ann_cleanup(int64_t stream_id, void* st_handle) override;
+
+  bool cloudsql_ann_index_usable() override;
+
   int ft_init() override;
 
   void ft_end();
@@ -827,6 +835,10 @@ extern const struct _ft_vft ft_vft_result;
 @param[in]      thd       Session instance, or nullptr to query the global
                           innodb_parallel_read_threads value. */
 ulong thd_parallel_read_threads(THD *thd);
+
+/** Return true if parallel vector search is enabled for this session.
+@param[in]      thd       Session instance, or nullptr */
+bool thd_parallel_vector_search_enabled(const THD *thd);
 
 /** Structure Returned by ha_innobase::ft_init_ext() */
 typedef struct new_ft_info {

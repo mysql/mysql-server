@@ -1,0 +1,134 @@
+#
+# mysqldump test when we have vector data
+#
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+  /* VECTOR KEY `vectorIndext1` (`j`(12)) */
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+ALTER TABLE t1 ADD column k INT;
+ALTER TABLE t1 ADD CONSTRAINT chk1 CHECK (k IS NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  CONSTRAINT `chk1` CHECK ((`k` is null))
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+CREATE TABLE t2 (id INT PRIMARY KEY);
+ALTER TABLE t3 ADD COLUMN t2_id INT, ADD CONSTRAINT fk_t3_t2 FOREIGN KEY (t2_id) REFERENCES t2(id);
+CREATE VECTOR INDEX vectorIndext3 ON t3(j) DISTANCE_MEASURE=cosine;
+ALTER TABLE t4 ADD COLUMN t2_id INT, ADD CONSTRAINT fk_t4_t2 FOREIGN KEY (t2_id) REFERENCES t2(id), ADD CONSTRAINT chk_id CHECK (t2_id > 0);
+CREATE VECTOR INDEX vectorIndext4 ON t4(j) DISTANCE_MEASURE=cosine;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  PRIMARY KEY (`i`)
+  /* VECTOR KEY `vectorIndext1` (`j`(12)) */,
+  CONSTRAINT `chk1` CHECK ((`k` is null))
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `t2_id` int DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `fk_t3_t2` (`t2_id`)
+  /* VECTOR KEY `vectorIndext3` (`j`(12)) */,
+  CONSTRAINT `fk_t3_t2` FOREIGN KEY (`t2_id`) REFERENCES `t2` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `t2_id` int DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `fk_t4_t2` (`t2_id`)
+  /* VECTOR KEY `vectorIndext4` (`j`(12)) */,
+  CONSTRAINT `fk_t4_t2` FOREIGN KEY (`t2_id`) REFERENCES `t2` (`id`),
+  CONSTRAINT `chk_id` CHECK ((`t2_id` > 0))
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  CONSTRAINT `chk1` CHECK ((`k` is null))
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `t2_id` int DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `fk_t3_t2` (`t2_id`),
+  CONSTRAINT `fk_t3_t2` FOREIGN KEY (`t2_id`) REFERENCES `t2` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` vector(3) DEFAULT NULL,
+  `t2_id` int DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `fk_t4_t2` (`t2_id`),
+  CONSTRAINT `fk_t4_t2` FOREIGN KEY (`t2_id`) REFERENCES `t2` (`id`),
+  CONSTRAINT `chk_id` CHECK ((`t2_id` > 0))
+) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.15,0.725,0.6125]'), 'distance_measure=cosine'),i  LIMIT 10;
+i
+372
+573
+994
+923
+974
+436
+251
+725
+376
+654
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.15,0.725,0.6125]'), 'distance_measure=cosine'),i  LIMIT 10;
+i
+974
+403
+654
+831
+161
+573
+725
+265
+994
+638
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t2;

@@ -384,6 +384,8 @@ union MY_SQL_PARSER_STYPE {
   enum_var_type var_type;
   keytype key_type;
   ha_key_alg key_alg;
+  ha_key_sub_alg key_sub_alg;
+  enum distance_measure distance_measure;
   enum row_type row_type;
   ha_rkey_function ha_rkey_mode;
   enum_ha_read_modes ha_read_mode;

@@ -1,0 +1,76 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+Initial Data inserted for table t1
+Initial Data inserted for table t2
+# create vector index
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+CREATE VECTOR INDEX vec_index_2 ON t2(j) DISTANCE_MEASURE=l2_squared;
+#Test: Basic testing to make sure the index is replicated
+include/rpl/sync_to_replica.inc
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t2	vec_index_2	TREE_SQ	L2_SQUARED	Ready
+test.t1	vec_index	TREE_SQ	COSINE	Ready
+#Test: Using session variables, do DMLs on the base tables, make sure the data is replicated and inserted and available on index
+SET @new_j = string_to_vector("[2.0, 2.0, 2.0]");
+UPDATE t1 SET j = @new_j WHERE i = 1;
+INSERT INTO t1 values(1001, @new_j);
+include/rpl/sync_to_replica.inc
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=cosine') LIMIT 3;
+i	vector_to_string(j)
+114	[2.72599e-01,5.40020e-01,7.25321e-01]
+929	[2.02220e-01,3.91113e-01,5.82769e-01]
+312	[3.12909e-01,6.90011e-01,8.38601e-01]
+SELECT i, vector_to_string(j) FROM t1 WHERE i = 1;
+i	vector_to_string(j)
+1	[2.00000e+00,2.00000e+00,2.00000e+00]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1001
+#Test: Restart Replica server alone and make sure indexes are reloaded properly
+include/rpl/restart_server.inc [server_number=2]
+SELECT i, vector_to_string(j) FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+i	vector_to_string(j)
+35	[9.68458e-01,9.98815e-01,9.59338e-01]
+628	[9.67916e-01,9.80959e-01,9.30255e-01]
+8	[7.88571e-01,9.28295e-01,9.60178e-01]
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t2	vec_index_2	TREE_SQ	L2_SQUARED	Ready
+#Test: Test vector creation is binlogged
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/save_binlog_file_position.inc
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine
+master-bin.000001	#	Query	#	#	use `test`; CREATE VECTOR INDEX vec_index_2 ON t2(j) DISTANCE_MEASURE=l2_squared
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Stop	#	#	
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# drop vector index
+DROP INDEX vec_index ON t1;
+DROP INDEX vec_index_2 ON t2;
+include/rpl/sync_to_replica.inc
+#Test: On Replica, customers can create indexes directly.
+# create vector index
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+SELECT table_name, index_name, index_type, dist_measure, status FROM information_schema.innodb_vector_indexes;
+table_name	index_name	index_type	dist_measure	status
+test.t1	vec_index	TREE_SQ	COSINE	Ready
+# cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/deinit.inc

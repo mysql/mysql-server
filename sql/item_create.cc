@@ -60,6 +60,7 @@
 #include "mysqld_error.h"
 #include "sql-common/my_decimal.h"
 #include "sql/item.h"
+#include "sql/item_cloudsql_vector_func.h"
 #include "sql/item_cmpfunc.h"  // Item_func_any_value
 #include "sql/item_func.h"     // Item_func_udf_str
 #include "sql/item_geofunc.h"  // Item_func_st_area
@@ -1700,6 +1701,12 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"CAN_ACCESS_RESOURCE_GROUP",
      SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1)},
     {"CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1)},
+    {"VECTOR_DISTANCE",
+     SQL_FN_V_LIST(Item_func_cloudsql_vector_distance, 2, 3)},
+    {"COSINE_DISTANCE", SQL_FN(Item_func_cosine_distance, 2)},
+    {"L2_SQUARED_DISTANCE", SQL_FN(Item_func_l2_squared_distance, 2)},
+    {"DOT_PRODUCT", SQL_FN(Item_func_dot_product, 2)},
+    {"APPROX_DISTANCE", SQL_FN_V_LIST(Item_func_approx_distance, 3, 3)},
     {"IS_VISIBLE_DD_OBJECT",
      SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 3)},
     {"INTERNAL_TABLE_ROWS",

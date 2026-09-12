@@ -1,0 +1,66 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.vector_index_memory_basic
+
+--source include/have_debug.inc
+call mtr.add_suppression("Failed to allocate memory");
+call mtr.add_suppression("Error encountered during index build: not enough memory");
+call mtr.add_suppression("Failed to scan table and build index");
+call mtr.add_suppression("IndexRegistry::MemoryInfo: total_memory");
+call mtr.add_suppression("Not enough memory to collect training dataset");
+
+### prepare the tables
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+
+--exec include/vector_data_generate.sh t1 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t2 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t3 $dimensions $rows $deterministic| $MYSQL test 2>&1
+
+# For a 1000 row table, if we set num_leaves to 100, the tree size will be around 4000.
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=100;
+create vector index v2 on t2(j) distance_measure=cosine num_leaves=100;
+create vector index v3 on t3(j) distance_measure=cosine num_leaves=100;
+
+# At this point all index should be loaded
+--let $loaded_indexes = `select loaded_indexes from information_schema.innodb_vector_indexes_memory`
+if ($loaded_indexes != 3) {
+  --die Expected 3 loaded indexes
+}
+
+--source suite/vector_index/include/reset_vector_tree_counters.inc
+# Setting to this value will force unloading of one index.
+set global cloudsql_vector_max_mem_size = 10240;
+--let $loaded_indexes = `select loaded_indexes from information_schema.innodb_vector_indexes_memory`
+if ($loaded_indexes != 2) {
+  --die Expected 2 loaded indexes
+}
+
+--let $tree_unloads = `select count from information_schema.innodb_metrics where name = 'num_tree_unload'`
+if ($tree_unloads != 1) {
+  --die Expected 1 tree unloads
+}
+
+# Try creating an index. It should fail because of memory constraints.
+drop index v1 on t1;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=100;
+
+# Disable memory management
+set global innodb_cloudsql_vector_mem_regulation = off;
+
+# Create index should work fine now
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=100;
+
+# Verify that we can't reenable it
+set global innodb_cloudsql_vector_mem_regulation = on;
+
+# We need to restart the server
+--source include/restart_mysqld.inc
+
+#### clean up
+drop table t1;
+drop table t2;
+drop table t3;

@@ -4587,9 +4587,10 @@ bool btr_validate_index(
   Index_details index_details;
 #endif /* UNIV_DEBUG */
 
-  /* Full Text index are implemented by auxiliary tables,
+  /* Full Text and Vector index are implemented by auxiliary tables,
   not the B-tree */
-  if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
+  if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
+      dict_index_is_vector(index)) {
     return (true);
   }
 

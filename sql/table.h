@@ -882,6 +882,16 @@ struct TABLE_SHARE {
   uint max_key_length{0};    /* Length of the longest key */
   uint max_unique_length{0}; /* Length of the longest unique key */
   uint total_key_length{0};
+
+  inline bool has_vector_key() const {
+    for (uint i = 0; i < keys; i++) {
+      if (key_info[i].flags & HA_VECTOR) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /**
     Whether this is a temporary table that already has a UNIQUE index (removing
     duplicate rows on insert), so that the optimizer does not need to run

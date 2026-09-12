@@ -74,6 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0i_s.h"
 #include "trx0trx.h"
 #include "ut0new.h"
+#include "vector0dd.h"
 
 #include "my_dbug.h"
 
@@ -6102,8 +6103,10 @@ static int i_s_innodb_indexes_fill_table(THD *thd, Table_ref *tables, Item *) {
     if (index_rec != nullptr) {
       dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
 
-      /* Close parent table if it's a fts aux table. */
-      if (index_rec->table->is_fts_aux() && parent) {
+      /* Close parent table if it's a fts/vector aux table. */
+      if ((index_rec->table->is_fts_aux() ||
+           index_rec->table->is_vector_sub_table) &&
+          parent) {
         dd_table_close(parent, thd, &mdl_on_parent, true);
       }
     }
@@ -7561,6 +7564,611 @@ struct st_mysql_plugin i_s_innodb_session_temp_tablespaces = {
     /* the function to invoke when plugin is loaded */
     /* int (*)(void*); */
     STRUCT_FLD(init, innodb_session_temp_tablespaces_init),
+
+    /* the function to invoke when plugin is un installed */
+    /* int (*)(void*); */
+    STRUCT_FLD(check_uninstall, nullptr),
+
+    /* the function to invoke when plugin is unloaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(deinit, i_s_common_deinit),
+
+    /* plugin version (for SHOW PLUGINS) */
+    /* unsigned int */
+    STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+    /* SHOW_VAR* */
+    STRUCT_FLD(status_vars, nullptr),
+
+    /* SYS_VAR** */
+    STRUCT_FLD(system_vars, nullptr),
+
+    /* reserved for dependency checking */
+    /* void* */
+    STRUCT_FLD(__reserved1, nullptr),
+
+    /* Plugin flags */
+    /* unsigned long */
+    STRUCT_FLD(flags, 0UL),
+};
+
+/**  INNODB_VECTOR_INDEXES **************************/
+/* Fields of the dynamic table
+INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES */
+static ST_FIELD_INFO innodb_vector_indexes_fields_info[] = {
+#define INNODB_VECTOR_INDEXES_NAME 0
+    {STRUCT_FLD(field_name, "INDEX_NAME"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_TABLE_NAME 1
+    {STRUCT_FLD(field_name, "TABLE_NAME"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_TYPE 2
+    {STRUCT_FLD(field_name, "INDEX_TYPE"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_DIMENSION 3
+    {STRUCT_FLD(field_name, "DIMENSION"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_DIST_MEASURE 4
+    {STRUCT_FLD(field_name, "DIST_MEASURE"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_STATUS 5
+    {STRUCT_FLD(field_name, "STATUS"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_STATE 6
+    {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_PARTITIONS 7
+    {STRUCT_FLD(field_name, "NUM_LEAVES"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_SEARCH_PARTITIONS 8
+    {STRUCT_FLD(field_name, "NUM_LEAVES_TO_SEARCH"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_QUERIES 9
+    {STRUCT_FLD(field_name, "QUERIES"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_MUTATIONS 10
+    {STRUCT_FLD(field_name, "MUTATIONS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_TREE_SIZE 11
+    {STRUCT_FLD(field_name, "TREE_MEMORY"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+    END_OF_ST_FIELD_INFO};
+
+/**  INNODB_VECTOR_INDEXES_MEMORY **************************/
+/* Fields of the dynamic table
+INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES_MEMORY */
+static ST_FIELD_INFO innodb_vector_indexes_memory_fields_info[] = {
+#define INNODB_VECTOR_INDEXES_MEMORY_DISABLED 0
+    {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+
+#define INNODB_VECTOR_INDEXES_TOTAL_MEMORY 1
+    {STRUCT_FLD(field_name, "TOTOAL_MEMORY"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_INDEX_MEMORY 2
+    {STRUCT_FLD(field_name, "INDEX_MEMORY"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_TRAINING_MEMORY 3
+    {STRUCT_FLD(field_name, "TRAINING_MEMORY"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_VECTOR_INDEXES_LOADED_INDEXES 4
+    {STRUCT_FLD(field_name, "LOADED_INDEXES"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+    END_OF_ST_FIELD_INFO};
+
+/** Function to fill INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES
+@param[in]      thd             thread
+@param[in]      shard_info      shard information struct
+@param[in,out]  table_to_fill   fill this table
+@return 0 on success */
+static int i_s_innodb_vector_indexes_fill_one(
+    THD *thd, const ib_vector::VectorIndexStats &info, TABLE *table_to_fill) {
+  Field **fields;
+
+  DBUG_TRACE;
+
+  fields = table_to_fill->field;
+
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_NAME],
+                        info.name_.c_str()));
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_TABLE_NAME],
+                        info.table_name_.c_str()));
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_TYPE],
+                        info.type_.c_str()));
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_DIST_MEASURE],
+                        info.dist_measure_.c_str()));
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_STATUS],
+                        info.status_.c_str()));
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_STATE],
+                        info.index_state_.c_str()));
+
+  OK(fields[INNODB_VECTOR_INDEXES_DIMENSION]->store(info.dimension_, true));
+  OK(fields[INNODB_VECTOR_INDEXES_PARTITIONS]->store(info.partitions_, true));
+  OK(fields[INNODB_VECTOR_INDEXES_SEARCH_PARTITIONS]->store(
+      info.query_partitions_, true));
+  OK(fields[INNODB_VECTOR_INDEXES_QUERIES]->store(info.queries_, true));
+  OK(fields[INNODB_VECTOR_INDEXES_MUTATIONS]->store(info.mutations_, true));
+  OK(fields[INNODB_VECTOR_INDEXES_TREE_SIZE]->store(info.tree_size_, true));
+
+  OK(schema_table_store_record(thd, table_to_fill));
+
+  return 0;
+}
+
+/** Function to populate INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES table. Iterate
+over the in-memory structure and fill the table
+@param[in]      thd             thread
+@param[in,out]  tables          tables to fill
+@return 0 on success */
+static int i_s_innodb_vector_indexes_fill(THD *thd, Table_ref *tables, Item *) {
+  DBUG_TRACE;
+
+  /* deny access to user without PROCESS_ACL privilege */
+  if (check_global_access(thd, PROCESS_ACL)) {
+    return 0;
+  }
+
+  std::vector<ib_vector::VectorIndexStats> index_info;
+  ib_vector::i_s_fill_vector_info(index_info);
+  for (auto &info : index_info) {
+    i_s_innodb_vector_indexes_fill_one(thd, info, tables->table);
+  }
+
+  return 0;
+}
+
+/** Function to populate INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES_MEMORY table.
+It iterate over the in-memory structure and fill the table
+@param[in]      thd             thread
+@param[in,out]  tables          tables to fill
+@return 0 on success */
+static int i_s_innodb_vector_indexes_memory_fill(THD *thd, Table_ref *tables,
+                                                 Item *) {
+  DBUG_TRACE;
+
+  /* deny access to user without PROCESS_ACL privilege */
+  if (check_global_access(thd, PROCESS_ACL)) {
+    return 0;
+  }
+
+  if (!opt_cloudsql_vector) {
+    return 0;
+  }
+
+  ib_vector::VectorIndexMemoryInfo info;
+  ib_vector::i_s_fill_vector_memoy_info(info);
+  auto fields = tables->table->field;
+
+  OK(field_store_string(fields[INNODB_VECTOR_INDEXES_MEMORY_DISABLED],
+                        info.disabled_ ? "DISABLED" : "ENABLED"));
+
+  OK(fields[INNODB_VECTOR_INDEXES_TOTAL_MEMORY]->store(info.total_memory_,
+                                                       true));
+  OK(fields[INNODB_VECTOR_INDEXES_INDEX_MEMORY]->store(info.index_memory_,
+                                                       true));
+  OK(fields[INNODB_VECTOR_INDEXES_TRAINING_MEMORY]->store(info.training_memory_,
+                                                          true));
+  OK(fields[INNODB_VECTOR_INDEXES_LOADED_INDEXES]->store(
+      info.num_loaded_indexes_, true));
+
+  OK(schema_table_store_record(thd, tables->table));
+
+  return 0;
+}
+
+/** Bind the dynamic table
+INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES
+@param[in,out]  p       table schema object
+@return 0 on success */
+static int innodb_vector_indexes_init(void *p) {
+  ST_SCHEMA_TABLE *schema;
+
+  DBUG_TRACE;
+
+  schema = (ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = innodb_vector_indexes_fields_info;
+  schema->fill_table = i_s_innodb_vector_indexes_fill;
+
+  return 0;
+}
+
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_VECTOR_INDEXES_MEMORY
+@param[in,out]  p       table schema object
+@return 0 on success */
+static int innodb_vector_indexes_memory_init(void *p) {
+  ST_SCHEMA_TABLE *schema;
+
+  DBUG_TRACE;
+
+  schema = (ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = innodb_vector_indexes_memory_fields_info;
+  schema->fill_table = i_s_innodb_vector_indexes_memory_fill;
+
+  return 0;
+}
+
+struct st_mysql_plugin i_s_innodb_vector_indexes = {
+    /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+    /* int */
+    STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+    /* pointer to type-specific plugin descriptor */
+    /* void* */
+    STRUCT_FLD(info, &i_s_info),
+
+    /* plugin name */
+    /* const char* */
+    STRUCT_FLD(name, "INNODB_VECTOR_INDEXES"),
+
+    /* plugin author (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(author, "GCP Cloudsql"),
+
+    /* general descriptive text (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(descr, "InnoDB vector indexes info"),
+
+    /* the plugin license (PLUGIN_LICENSE_XXX) */
+    /* int */
+    STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+    /* the function to invoke when plugin is loaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(init, innodb_vector_indexes_init),
+
+    /* the function to invoke when plugin is un installed */
+    /* int (*)(void*); */
+    STRUCT_FLD(check_uninstall, nullptr),
+
+    /* the function to invoke when plugin is unloaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(deinit, i_s_common_deinit),
+
+    /* plugin version (for SHOW PLUGINS) */
+    /* unsigned int */
+    STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+    /* SHOW_VAR* */
+    STRUCT_FLD(status_vars, nullptr),
+
+    /* SYS_VAR** */
+    STRUCT_FLD(system_vars, nullptr),
+
+    /* reserved for dependency checking */
+    /* void* */
+    STRUCT_FLD(__reserved1, nullptr),
+
+    /* Plugin flags */
+    /* unsigned long */
+    STRUCT_FLD(flags, 0UL),
+};
+
+struct st_mysql_plugin i_s_innodb_vector_indexes_memory = {
+    /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+    /* int */
+    STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+    /* pointer to type-specific plugin descriptor */
+    /* void* */
+    STRUCT_FLD(info, &i_s_info),
+
+    /* plugin name */
+    /* const char* */
+    STRUCT_FLD(name, "INNODB_VECTOR_INDEXES_MEMORY"),
+
+    /* plugin author (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(author, "GCP Cloudsql"),
+
+    /* general descriptive text (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(descr, "InnoDB vector indexes memory info"),
+
+    /* the plugin license (PLUGIN_LICENSE_XXX) */
+    /* int */
+    STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+    /* the function to invoke when plugin is loaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(init, innodb_vector_indexes_memory_init),
+
+    /* the function to invoke when plugin is un installed */
+    /* int (*)(void*); */
+    STRUCT_FLD(check_uninstall, nullptr),
+
+    /* the function to invoke when plugin is unloaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(deinit, i_s_common_deinit),
+
+    /* plugin version (for SHOW PLUGINS) */
+    /* unsigned int */
+    STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+    /* SHOW_VAR* */
+    STRUCT_FLD(status_vars, nullptr),
+
+    /* SYS_VAR** */
+    STRUCT_FLD(system_vars, nullptr),
+
+    /* reserved for dependency checking */
+    /* void* */
+    STRUCT_FLD(__reserved1, nullptr),
+
+    /* Plugin flags */
+    /* unsigned long */
+    STRUCT_FLD(flags, 0UL),
+};
+
+/**  INNODB_ALL_VECTOR_INDEXES **************************/
+/* Fields of the dynamic table
+INFORMATION_SCHEMA.INNODB_ALL_VECTOR_INDEXES */
+static ST_FIELD_INFO innodb_all_vector_indexes_fields_info[] = {
+#define INNODB_ALL_VECTOR_INDEXES_ID 0
+    {STRUCT_FLD(field_name, "id"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_ALL_VECTOR_INDEXES_TABLE_ID 1
+    {STRUCT_FLD(field_name, "table_id"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_ALL_VECTOR_INDEXES_SUB_TABLE_ID 2
+    {STRUCT_FLD(field_name, "sub_table_id"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_ALL_VECTOR_INDEXES_STATE 3
+    {STRUCT_FLD(field_name, "state"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_ALL_VECTOR_INDEXES_CORRUPTED 4
+    {STRUCT_FLD(field_name, "corrupted"), STRUCT_FLD(field_length, 1),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_ALL_VECTOR_INDEXES_CONFIG 5
+    {STRUCT_FLD(field_name, "config"), STRUCT_FLD(field_length, 4096),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+    END_OF_ST_FIELD_INFO};
+
+/** Function to fill INFORMATION_SCHEMA.INNODB_ALL_VECTOR_INDEXES
+@param[in]      thd             thread
+@param[in]      index           dict_index_t to fill
+@param[in,out]  table_to_fill   fill this table
+@return 0 on success */
+static int i_s_innodb_all_vector_indexes_fill_one(THD *thd,
+                                                  const dict_index_t *index,
+                                                  TABLE *table_to_fill) {
+  Field **fields;
+
+  DBUG_TRACE;
+
+  auto vec_info = ib_vector::dict_table_get_vector_index_info(index->table);
+  std::shared_ptr<ib_vector::VectorIndex> vector_index{nullptr};
+  if (vec_info != nullptr) {
+    vector_index = vec_info->index();
+  }
+
+  fields = table_to_fill->field;
+
+  OK(fields[INNODB_ALL_VECTOR_INDEXES_ID]->store(index->id, true));
+  OK(fields[INNODB_ALL_VECTOR_INDEXES_TABLE_ID]->store(index->table->id, true));
+  if (index->is_corrupted()) {
+    OK(fields[INNODB_ALL_VECTOR_INDEXES_CORRUPTED]->store(1, true));
+  } else {
+    OK(fields[INNODB_ALL_VECTOR_INDEXES_CORRUPTED]->store(0, true));
+  }
+  if (vec_info) {
+    OK(fields[INNODB_ALL_VECTOR_INDEXES_SUB_TABLE_ID]->store(
+        vec_info->sub_table_id(), true));
+  } else {
+    OK(fields[INNODB_ALL_VECTOR_INDEXES_SUB_TABLE_ID]->store(0, true));
+  }
+
+  if (vector_index != nullptr) {
+    OK(field_store_string(
+        fields[INNODB_ALL_VECTOR_INDEXES_STATE],
+        ib_vector::IndexStateToString(vector_index->state())));
+    OK(field_store_string(fields[INNODB_ALL_VECTOR_INDEXES_CONFIG],
+                          vector_index->config().to_json_string().c_str()));
+  } else {
+    OK(field_store_string(fields[INNODB_ALL_VECTOR_INDEXES_STATE], "UNKNOWN"));
+    OK(field_store_string(fields[INNODB_ALL_VECTOR_INDEXES_CONFIG], ""));
+  }
+
+  OK(schema_table_store_record(thd, table_to_fill));
+
+  return 0;
+}
+
+/** Function to populate INFORMATION_SCHEMA.INNODB_ALL_VECTOR_INDEXES table.
+Iterate over the in-memory structure and fill the table
+@param[in]      thd             thread
+@param[in,out]  tables          tables to fill
+@return 0 on success */
+static int i_s_innodb_all_vector_indexes_fill(THD *thd, Table_ref *tables,
+                                              Item *) {
+  btr_pcur_t pcur;
+  const rec_t *rec;
+  mem_heap_t *heap;
+  mtr_t mtr;
+  MDL_ticket *mdl = nullptr;
+  dict_table_t *dd_indexes;
+  bool ret;
+
+  DBUG_TRACE;
+
+  /* deny access to user without PROCESS_ACL privilege */
+  if (check_global_access(thd, PROCESS_ACL)) {
+    return 0;
+  }
+
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
+  dict_sys_mutex_enter();
+  mtr_start(&mtr);
+
+  /* Start scan the mysql.indexes */
+  rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_indexes_name.c_str(),
+                            &dd_indexes);
+
+  /* Process each record in the table */
+  while (rec) {
+    const dict_index_t *index_rec;
+    MDL_ticket *mdl_on_tab = nullptr;
+
+    /* Populate a dict_index_t structure with information from
+    a INNODB_INDEXES row */
+    ret = ib_vector::process_dd_indexes_rec(heap, rec, &index_rec, &mdl_on_tab,
+                                            dd_indexes, &mtr);
+
+    dict_sys_mutex_exit();
+
+    if (ret) {
+      i_s_innodb_all_vector_indexes_fill_one(thd, index_rec, tables->table);
+    }
+
+    mem_heap_empty(heap);
+
+    /* Get the next record */
+    dict_sys_mutex_enter();
+
+    if (index_rec != nullptr) {
+      dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
+    }
+
+    mtr_start(&mtr);
+    rec = dd_getnext_system_rec(&pcur, &mtr);
+  }
+
+  mtr_commit(&mtr);
+  dd_table_close(dd_indexes, thd, &mdl, true);
+  dict_sys_mutex_exit();
+  mem_heap_free(heap);
+
+  return 0;
+}
+
+/** Bind the dynamic table
+INFORMATION_SCHEMA.INNODB_ALL_VECTOR_INDEXES
+@param[in,out]  p       table schema object
+@return 0 on success */
+static int innodb_all_vector_indexes_init(void *p) {
+  ST_SCHEMA_TABLE *schema;
+
+  DBUG_TRACE;
+
+  schema = (ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = innodb_all_vector_indexes_fields_info;
+  schema->fill_table = i_s_innodb_all_vector_indexes_fill;
+
+  return 0;
+}
+
+struct st_mysql_plugin i_s_innodb_all_vector_indexes = {
+    /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+    /* int */
+    STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+    /* pointer to type-specific plugin descriptor */
+    /* void* */
+    STRUCT_FLD(info, &i_s_info),
+
+    /* plugin name */
+    /* const char* */
+    STRUCT_FLD(name, "INNODB_ALL_VECTOR_INDEXES"),
+
+    /* plugin author (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(author, "GCP Cloudsql"),
+
+    /* general descriptive text (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(descr, "InnoDB all vector indexes info"),
+
+    /* the plugin license (PLUGIN_LICENSE_XXX) */
+    /* int */
+    STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+    /* the function to invoke when plugin is loaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(init, innodb_all_vector_indexes_init),
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */

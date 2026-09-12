@@ -1,0 +1,35 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+include/rpl/sync_to_replica.inc
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vec_index_1	test.t1	TREE_SQ	3	L2_SQUARED	Ready	INDEX_READY_TO_USE	10	10	0	0	443
+call mtr.add_suppression("Failed during replica I/O thread initialization");
+call mtr.add_suppression("Replica SQL.*Failed during replica thread initialization.* MY-013117");
+include/rpl/stop_replica.inc
+RESET REPLICA;
+# Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+START REPLICA;
+include/rpl/wait_for_applier_error.inc [errno=13117]
+Last_SQL_Error = 'Fatal error: Failed during replica thread initialization'
+include/rpl/wait_for_receiver_error.inc [errno=13117]
+Last_IO_Error = 'Fatal error: Failed during replica I/O thread initialization '
+DROP INDEX vec_index_1 ON test.t1;
+# Removing debug point 'simulate_io_replica_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'simulate_sql_replica_error_on_init' from @@GLOBAL.debug
+include/rpl/start_replica.inc
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+include/rpl/sync_to_replica.inc
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+DROP TABLE test.t1;
+include/rpl/deinit.inc
