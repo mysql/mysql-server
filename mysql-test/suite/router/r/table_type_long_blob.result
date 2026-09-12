@@ -1,0 +1,40 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/test
+# Registred DB_OBJECT at path: /svc/test/long_blob_types
+
+GET /svc/test/long_blob_types
+{
+    "resultSets": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "long_text": "long text",
+                    "long_blob": "AQI="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "long_text",
+                        "type": "LONGTEXT"
+                    },
+                    {
+                        "name": "long_blob",
+                        "type": "LONGBLOB"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
