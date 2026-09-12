@@ -2298,15 +2298,17 @@ static const TABLE_SHARE *find_open_table_share(const Table_ref *tables,
   into t3, so t3 being part of the query makes immediate deletes from t1
   unsafe even when t2 is not in the query. Whether a table's children are
   affected through their delete rule or their update rule depends on
-  whether the action deletes or updates that table's rows.
+  whether the action deletes or updates that table's rows. Tables read by
+  other query blocks of the statement, such as subqueries, count as read
+  too, since their reads are interleaved with the scan the same way.
 
   @param  table       table to be checked (must be updatable base table)
   @param  query_block query block of the DELETE or UPDATE statement
   @param  is_delete   true for DELETE, false for UPDATE
 
   @retval true  A referential action triggered by modifying @p table can
-                modify rows of a table read by the query.
-  @retval false No such dependency within the query.
+                modify rows of a table read by the statement.
+  @retval false No such dependency within the statement.
 */
 
 bool fk_actions_affect_queried_table(const Table_ref *table,
@@ -2315,6 +2317,8 @@ bool fk_actions_affect_queried_table(const Table_ref *table,
   assert(table->table != nullptr);
 
   const Table_ref *all_tables = query_block->parent_lex->query_tables;
+  const Table_ref *first_not_own =
+      query_block->parent_lex->first_not_own_table();
 
   // Depth-first walk over the tables whose rows the statement's referential
   // actions may modify. The bool tracks whether rows of that table get
@@ -2340,15 +2344,18 @@ bool fk_actions_affect_queried_table(const Table_ref *table,
           rows_deleted ? fk_p->delete_rule : fk_p->update_rule;
       if (!fk_rule_modifies_child(rule)) continue;
 
-      // A modified child that the query reads makes immediate modification
-      // of the subject table unsafe.
-      for (const Table_ref *tl = query_block->leaf_tables; tl != nullptr;
-           tl = tl->next_leaf) {
+      // A modified child that the statement reads makes immediate
+      // modification of the subject table unsafe. Walk the complete table
+      // list of the statement, so that tables read by other query blocks
+      // (e.g. subqueries) are seen too, but stop before the tables added by
+      // prelocking, since those are not read by the statement itself.
+      for (const Table_ref *tl = all_tables;
+           tl != nullptr && tl != first_not_own; tl = tl->next_global) {
         if (tl->table == nullptr) continue;  // View or derived table.
-        const TABLE_SHARE *leaf_share = tl->table->s;
-        if (my_strcasecmp(table_alias_charset, leaf_share->db.str,
+        const TABLE_SHARE *read_share = tl->table->s;
+        if (my_strcasecmp(table_alias_charset, read_share->db.str,
                           fk_p->referencing_table_db.str) == 0 &&
-            my_strcasecmp(table_alias_charset, leaf_share->table_name.str,
+            my_strcasecmp(table_alias_charset, read_share->table_name.str,
                           fk_p->referencing_table_name.str) == 0)
           return true;
       }

@@ -185,6 +185,34 @@ SELECT * FROM root ORDER BY id;
 DROP TABLE query_child, common_child, z_delete, a_update, root;
 
 --echo #
+--echo # DELETE with the child table read only by a correlated subquery
+--echo #
+
+CREATE TABLE p(id INT PRIMARY KEY, i INT);
+
+INSERT INTO p VALUES (1, 2), (2, 1);
+
+CREATE TABLE c(
+  p_id INT PRIMARY KEY,
+  FOREIGN KEY (p_id) REFERENCES p(id) ON DELETE CASCADE
+);
+
+INSERT INTO c VALUES (1), (2);
+
+ANALYZE TABLE p, c;
+
+# The child table is read by the subquery, not by the top-level query block.
+# Both rows in p satisfy the predicate at the start of the statement, so both
+# should be deleted, and the cascade should empty c as well.
+DELETE p FROM p
+  WHERE (SELECT COUNT(*) FROM c WHERE c.p_id = p.i) > 0;
+
+SELECT * FROM p ORDER BY id;
+SELECT * FROM c ORDER BY p_id;
+
+DROP TABLE c, p;
+
+--echo #
 --echo # Multi-table UPDATE with ON UPDATE SET NULL
 --echo #
 

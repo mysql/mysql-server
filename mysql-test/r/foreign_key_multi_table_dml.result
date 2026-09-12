@@ -157,6 +157,27 @@ SELECT * FROM root ORDER BY id;
 id	i
 DROP TABLE query_child, common_child, z_delete, a_update, root;
 #
+# DELETE with the child table read only by a correlated subquery
+#
+CREATE TABLE p(id INT PRIMARY KEY, i INT);
+INSERT INTO p VALUES (1, 2), (2, 1);
+CREATE TABLE c(
+p_id INT PRIMARY KEY,
+FOREIGN KEY (p_id) REFERENCES p(id) ON DELETE CASCADE
+);
+INSERT INTO c VALUES (1), (2);
+ANALYZE TABLE p, c;
+Table	Op	Msg_type	Msg_text
+test.p	analyze	status	OK
+test.c	analyze	status	OK
+DELETE p FROM p
+WHERE (SELECT COUNT(*) FROM c WHERE c.p_id = p.i) > 0;
+SELECT * FROM p ORDER BY id;
+id	i
+SELECT * FROM c ORDER BY p_id;
+p_id
+DROP TABLE c, p;
+#
 # Multi-table UPDATE with ON UPDATE SET NULL
 #
 CREATE TABLE t1(id INT PRIMARY KEY, u INT UNIQUE, i INT);
