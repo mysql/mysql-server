@@ -1,0 +1,7 @@
+call mtr.add_suppression("Signature algorithm .* is not supported by the TLS library and was removed from the preference list");
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	CIPHER
+include/assert.inc [Ssl_sigalgs_list is non-empty]
+include/assert.inc [Effective sigalgs list contains at least one RFC 8446 MTI algorithm]
+include/assert.inc [Every token in Ssl_sigalgs_list is a known configured token]

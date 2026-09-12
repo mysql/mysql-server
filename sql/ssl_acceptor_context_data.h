@@ -73,6 +73,7 @@ enum class Ssl_acceptor_context_property_type {
   session_cache_timeouts,
   used_session_cache_entries,
   session_cache_timeout,
+  ssl_sigalgs_list,
   last
 };
 /**
@@ -150,6 +151,10 @@ class Ssl_acceptor_context_data final {
 
   /** Report that this channel can negotiate non-PQC sessions. */
   void report_tls_channel_without_force_pqc() const;
+
+  /** Log a warning for each signature algorithm dropped from this context.
+      Call only once the context has been installed. */
+  void report_dropped_sigalgs() const;
 
   /** Get channel name */
   const char *channel_name() const { return channel_.c_str(); }

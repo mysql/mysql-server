@@ -13560,6 +13560,9 @@ ER_MRS_COMPONENT_WARNING
 ER_MRS_COMPONENT_ERROR
   eng "%s"
 
+ER_WARN_TLS_SIGALG_UNSUPPORTED
+  eng "Signature algorithm '%s' is not supported by the TLS library and was removed from the preference list for channel '%s'."
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #
