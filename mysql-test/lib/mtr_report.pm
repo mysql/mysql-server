@@ -76,6 +76,9 @@ our $summary_report_file;
 our $verbose;
 our $xml_report_file;
 
+# Called by mtr_error before POSIX::_exit (which skips END blocks).
+our $pre_exit_hook;
+
 our $disk_usage         = 0;
 our $prev_report_length = 0;
 our $timediff           = 0;
@@ -959,6 +962,7 @@ sub mtr_error (@) {
   print STDERR _name() . _timestamp() . "mysql-test-run: *** ERROR: " .
     join(" ", @_) . "\n";
   if (IS_WINDOWS) {
+    eval { $pre_exit_hook->() } if $pre_exit_hook;
     POSIX::_exit(1);
   } else {
     exit(1);
