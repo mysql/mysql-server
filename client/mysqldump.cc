@@ -2023,17 +2023,61 @@ static void check_identifier_length(const char *identifier,
     Example: "t\1" => "t\\\\1"
 
 */
-static char *quote_for_like(const char *name, char *buff) {
+static constexpr size_t MAX_ESCAPED_LIKE_IDENTIFIER_SIZE = NAME_LEN * 4 + 3;
+
+template <size_t BufferSize>
+static char *quote_for_like(const char *name, char (&buff)[BufferSize]) {
   char *to = buff;
+  size_t remaining = BufferSize;
+
+  DBUG_EXECUTE_IF("mysqldump_maximum_like_identifier", {
+    static char maximum_identifier[NAME_LEN + 1];
+    memset(maximum_identifier, '\\', sizeof(maximum_identifier) - 1);
+    maximum_identifier[sizeof(maximum_identifier) - 1] = 0;
+    name = maximum_identifier;
+  });
+
+  DBUG_EXECUTE_IF("mysqldump_oversized_like_identifier", {
+    static char oversized_identifier[NAME_LEN + 2];
+    memset(oversized_identifier, '\\', sizeof(oversized_identifier) - 1);
+    oversized_identifier[sizeof(oversized_identifier) - 1] = 0;
+    name = oversized_identifier;
+  });
+
+  if (name == nullptr) {
+    die(EX_CONSCHECK, "Cannot quote a NULL identifier");
+    return nullptr;
+  }
+
+  if (remaining < 3) {
+    die(EX_CONSCHECK, "Buffer is too small to quote an identifier for LIKE");
+    return nullptr;
+  }
+
   *to++ = '\'';
+  --remaining;
   while (*name) {
+    size_t quoted_char_size = 1;
+    if (*name == '\\')
+      quoted_char_size = 4;
+    else if (*name == '\'' || *name == '_' || *name == '%')
+      quoted_char_size = 2;
+    /* Reserve two bytes for the closing quote and terminating null. */
+    if (remaining < quoted_char_size + 2) {
+      die(EX_CONSCHECK, "Identifier is too long to quote safely for LIKE");
+      return nullptr;
+    }
     if (*name == '\\') {
       *to++ = '\\';
       *to++ = '\\';
       *to++ = '\\';
-    } else if (*name == '\'' || *name == '_' || *name == '%')
+      remaining -= 3;
+    } else if (*name == '\'' || *name == '_' || *name == '%') {
       *to++ = '\\';
+      --remaining;
+    }
     *to++ = *name++;
+    --remaining;
   }
   to[0] = '\'';
   to[1] = 0;
@@ -3524,13 +3568,16 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
       /* Get MySQL specific create options */
       if (create_options) {
-        char show_name_buff[NAME_LEN * 2 + 2 + 24];
+        char show_name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
+        char show_table_status_query[sizeof("show table status like ") +
+                                     MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
 
-        /* Check memory for quote_for_like() */
-        snprintf(buff, sizeof(buff), "show table status like %s",
+        snprintf(show_table_status_query, sizeof(show_table_status_query),
+                 "show table status like %s",
                  quote_for_like(table, show_name_buff));
 
-        if (mysql_query_with_error_report(mysql, &result, buff)) {
+        if (mysql_query_with_error_report(mysql, &result,
+                                          show_table_status_query)) {
           if (mysql_errno(mysql) != ER_PARSE_ERROR) { /* If old MySQL version */
             verbose_msg(
                 "-- Warning: Couldn't get status information for "
@@ -3720,7 +3767,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 */
 
 static int dump_triggers_for_table(char *table_name, char *db_name) {
-  char name_buff[NAME_LEN * 4 + 3];
+  char name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
   char query_buff[QUERY_LENGTH];
   const bool old_ansi_quotes_mode = ansi_quotes_mode;
   MYSQL_RES *show_triggers_rs;
@@ -5193,12 +5240,10 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   char *name = nullptr;
   MYSQL_RES *table_res;
   MYSQL_ROW row;
-  char query[4 * NAME_LEN];
-  char show_name_buff[FN_REFLEN];
+  char query[sizeof("SHOW TABLES LIKE ") + MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
+  char show_name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
   DBUG_TRACE;
 
-  /* Check memory for quote_for_like() */
-  assert(2 * sizeof(old_table_name) < sizeof(show_name_buff));
   snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
            quote_for_like(old_table_name, show_name_buff));
 
@@ -5674,13 +5719,13 @@ static void print_value(FILE *file, MYSQL_RES *result, MYSQL_ROW row,
 
 char check_if_ignore_table(const char *table_name, char *table_type) {
   char result = IGNORE_NONE;
-  char buff[FN_REFLEN + 80], show_name_buff[FN_REFLEN];
+  char buff[sizeof("show table status like ") +
+            MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
+  char show_name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
   MYSQL_RES *res = nullptr;
   MYSQL_ROW row;
   DBUG_TRACE;
 
-  /* Check memory for quote_for_like() */
-  assert(2 * sizeof(table_name) < sizeof(show_name_buff));
   snprintf(buff, sizeof(buff), "show table status like %s",
            quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(mysql, &res, buff)) {
