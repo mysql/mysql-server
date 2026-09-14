@@ -5526,5 +5526,11 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
+  if (err == DB_SUCCESS) {
+    for (dict_index_t *index : table->indexes) {
+      index->trx_id = trx->id;
+    }
+  }
+
   return (row_import_cleanup(prebuilt, trx, err));
 }
