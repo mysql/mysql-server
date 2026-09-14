@@ -169,3 +169,12 @@ a	p	s
 7	NULL	A<L>Z
 DROP TABLE t1;
 #
+# LOAD XML CDATA prefix backtracking
+#
+CREATE TABLE t1 (a VARCHAR(100));
+LOAD XML INFILE 'MYSQLTEST_VARDIR/tmp/loadxml-cdata-prefix.dat' INTO TABLE t1;;
+SELECT * FROM t1;
+a
+NULL
+DROP TABLE t1;
+#
