@@ -573,7 +573,7 @@ class TestEnv : public ::testing::Environment {
                     "--conf-set-option",
                     "DEFAULT.plugin_folder=" +
                         ProcessManager::get_plugin_dir().str()});
-    ASSERT_NO_THROW(bootstrap_proc.wait_for_exit(10s))
+    ASSERT_NO_THROW(bootstrap_proc.wait_for_exit())
         << bootstrap_proc.get_current_output();
     ASSERT_EQ(bootstrap_proc.exit_code(), 0)
         << bootstrap_proc.get_full_output();
