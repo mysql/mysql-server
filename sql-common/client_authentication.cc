@@ -276,6 +276,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       int const cipher_length = RSA_size(public_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+      if (cipher_length > MAX_CIPHER_LENGTH) {
+        /* public key is too large for encrypted_password */
+        goto err;
+      }
       /*
         When using RSA_PKCS1_OAEP_PADDING the password length must be less
         than RSA_size(rsa) - 41.
@@ -415,6 +419,12 @@ static bool process_public_key_and_prepare_scramble_nonblocking(
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   ctx->sha2_auth.cipher_length = RSA_size(ctx->sha2_auth.public_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
+  if (ctx->sha2_auth.cipher_length > MAX_CIPHER_LENGTH) {
+    /* public key is too large for encrypted_password */
+    DBUG_PRINT("info", ("Public key is too large to encrypt password."));
+    return true;
+  }
 
   /*
     When using RSA_PKCS1_OAEP_PADDING the password length
@@ -741,6 +751,10 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         int const cipher_length = RSA_size(public_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+        if (cipher_length > MAX_CIPHER_LENGTH) {
+          /* public key is too large for encrypted_password */
+          goto err;
+        }
         /*
            When using RSA_PKCS1_OAEP_PADDING the password length must be less
            than RSA_size(rsa) - 41.
