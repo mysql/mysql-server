@@ -25,6 +25,7 @@
 #include "auth_digest.h"
 
 #include <gtest/gtest.h>
+#include <openssl/evp.h>
 
 #include "classic_auth.h"
 #include "hexify.h"
@@ -75,6 +76,25 @@ TEST(AuthDigest, caching_sha2_password) {
           "\x76\x2e\xe9\xe3\x14\x50\x73\x8a\x2f\x64\xe4\xcf\x83\xa3\x20\xd0"
           "\xae\x9b\xc0\x6c\x58\x8d\x8d\xef\x1a\xb6\xe7\x68\xaa\x90\x78\xac"))
       << hexify(*scramble_res);
+}
+
+TEST(AuthBaseTest, RejectsOversizedPlaintext) {
+  TlsServerContext tls_context;
+  ASSERT_TRUE(tls_context.load_key_and_cert(SSL_TEST_DATA_DIR "/server-key.pem",
+                                            SSL_TEST_DATA_DIR
+                                            "/server-cert.pem"));
+
+  auto public_key_pem =
+      AuthBase::public_key_from_ssl_ctx_as_pem(tls_context.get());
+  ASSERT_TRUE(public_key_pem);
+  auto public_key = AuthBase::public_key_from_pem(*public_key_pem);
+  ASSERT_TRUE(public_key);
+
+  // OAEP padding needs space in addition to the plaintext.
+  const std::string plaintext(EVP_PKEY_size(public_key->get()), 'x');
+  auto encrypted = AuthBase::public_key_encrypt(plaintext, public_key->get());
+  ASSERT_FALSE(encrypted);
+  EXPECT_EQ(encrypted.error(), make_error_code(std::errc::bad_message));
 }
 
 TEST(RsaTlsContextTest, KeepsGenerationAcrossReload) {

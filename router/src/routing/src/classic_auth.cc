@@ -103,19 +103,23 @@ stdx::expected<std::string, std::error_code> AuthBase::public_key_encrypt(
   std::string data;
 
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
-  data.resize(EVP_PKEY_get_size(pkey));
-
   EvpPkeyCtx key_ctx{EVP_PKEY_CTX_new(pkey, nullptr)};
-  EVP_PKEY_encrypt_init(key_ctx.get());
-  EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING);
+  if (!key_ctx || EVP_PKEY_encrypt_init(key_ctx.get()) != 1 ||
+      EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING) !=
+          1) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
 
-  size_t encrypted_len;
+  data.resize(EVP_PKEY_get_size(pkey));
+  size_t encrypted_len = data.size();
 
-  EVP_PKEY_encrypt(key_ctx.get(),  //
-                   reinterpret_cast<unsigned char *>(data.data()),
-                   &encrypted_len,
-                   reinterpret_cast<const unsigned char *>(plaintext.data()),
-                   plaintext.size());
+  if (EVP_PKEY_encrypt(
+          key_ctx.get(), reinterpret_cast<unsigned char *>(data.data()),
+          &encrypted_len,
+          reinterpret_cast<const unsigned char *>(plaintext.data()),
+          plaintext.size()) != 1) {
+    return stdx::unexpected(make_error_code(std::errc::bad_message));
+  }
 #else
   auto *rsa = EVP_PKEY_get0_RSA(pkey);
   data.resize(RSA_size(rsa));
