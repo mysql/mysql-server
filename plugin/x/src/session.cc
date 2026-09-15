@@ -32,6 +32,7 @@
 #include <string>
 
 #include "include/my_sys.h"
+#include "my_compiler.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/client.h"
@@ -395,7 +396,9 @@ void Session::mark_as_tls_session() {
   set_tls_handle();
 }
 
-void Session::set_tls_handle() {
+// UBSAN vptr instrumentation emits a THD RTTI reference, but xplugin_unit_tests
+// links libmysqlx without the server THD typeinfo.
+SUPPRESS_UBSAN void Session::set_tls_handle() {
   // The SQL session is backed by the X Protocol connection, rather than its
   // own Vio. Keep its TLS handle in sync so that the server TLS status
   // variables report the negotiated connection properties.
