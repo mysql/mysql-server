@@ -182,6 +182,13 @@ class MysqlCacheManager {
     }
   }
 
+  // Bootstrap and metadata monitoring only. Embedded implementations may
+  // bypass max_connections while retaining the selected SQL identity.
+  virtual CachedObject get_control_plane_instance(
+      collector::MySQLConnection type) {
+    return get_instance(type, true);
+  }
+
   virtual std::unique_ptr<collector::CountedMySQLSession> clone_instance(
       const CountedMySQLSession::ConnectionParameters &params);
 

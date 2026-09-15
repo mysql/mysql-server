@@ -85,20 +85,23 @@ Mysql_command_service_session::~Mysql_command_service_session() { close(); }
 void Mysql_command_service_session::connect(const std::string &user,
                                             const std::string &host,
                                             bool initialize_thread,
-                                            unsigned long extra_client_flags) {
-  connect_impl(user, host, initialize_thread, extra_client_flags, nullptr);
+                                            unsigned long extra_client_flags,
+                                            bool bypass_max_connections) {
+  connect_impl(user, host, initialize_thread, extra_client_flags,
+               bypass_max_connections, nullptr);
 }
 
 void Mysql_command_service_session::connect_authenticated(
     const std::string &user, const mysql_harness::SecureString &password,
     unsigned long extra_client_flags) {
   constexpr bool initialize_thread = false;
-  connect_impl(user, {}, initialize_thread, extra_client_flags, &password);
+  connect_impl(user, {}, initialize_thread, extra_client_flags,
+               /*bypass_max_connections=*/false, &password);
 }
 
 void Mysql_command_service_session::connect_impl(
     const std::string &user, const std::string &host, bool initialize_thread,
-    unsigned long extra_client_flags,
+    unsigned long extra_client_flags, bool bypass_max_connections,
     const mysql_harness::SecureString *password) {
   close();
   user_ = user;
@@ -122,8 +125,10 @@ void Mysql_command_service_session::connect_impl(
     constexpr unsigned int authenticated_connect_timeout = 5;
     constexpr unsigned int authenticated_read_timeout = 30;
     if ((password == nullptr &&
-         cmd_options->set(mysql_h_, MYSQL_NO_LOCK_REGISTRY,
-                          &no_lock_registry) != 0) ||
+         (cmd_options->set(mysql_h_, MYSQL_NO_LOCK_REGISTRY,
+                           &no_lock_registry) != 0 ||
+          cmd_options->set(mysql_h_, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                           &bypass_max_connections) != 0)) ||
         cmd_options->set(mysql_h_, MYSQL_COMMAND_USER_NAME, user_.c_str()) !=
             0 ||
         (password == nullptr &&

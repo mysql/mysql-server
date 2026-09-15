@@ -251,8 +251,8 @@ void SchemaMonitor::run() {
       do {
         using namespace observability;
         auto session = (*session_check_version).empty()
-                           ? cache_->get_instance(
-                                 collector::kMySQLConnectionMetadataRW, true)
+                           ? cache_->get_control_plane_instance(
+                                 collector::kMySQLConnectionMetadataRW)
                            : std::move(*session_check_version);
 
         const auto schema_version = query_schema_version(session.get());
@@ -367,6 +367,13 @@ void SchemaMonitor::run() {
           session->execute(update.str());
 
           try {
+            // In component mode, the monitor session bypasses max_connections.
+            // It still counts as a connection. Close it before opening the
+            // statistics session, which must obey the limit.
+            session = {};
+            session = cache_->get_instance(
+                collector::kMySQLConnectionMetadataRW, /*wait=*/true);
+
             const auto actual_stored_time = std::chrono::system_clock::now();
             auto status_time =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -447,13 +454,14 @@ SchemaMonitor::get_router_name_and_address() {
 std::optional<collector::MysqlCacheManager::CachedObject>
 SchemaMonitor::MetadataSourceDestination::get_rw_session() {
   if (is_dynamic_) {
-    return cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
+    return cache_->get_control_plane_instance(
+        collector::kMySQLConnectionMetadataRW);
   }
 
   collector::MysqlCacheManager::CachedObject result_session;
   try {
-    result_session =
-        cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
+    result_session = cache_->get_control_plane_instance(
+        collector::kMySQLConnectionMetadataRW);
     if (current_destination_state_ == DestinationState::k_offline) {
       current_destination_state_ = DestinationState::k_ok;
     }

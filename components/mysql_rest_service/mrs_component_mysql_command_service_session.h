@@ -66,7 +66,8 @@ class Mysql_command_service_session {
       delete;
 
   void connect(const std::string &user, const std::string &host,
-               bool initialize_thread, unsigned long extra_client_flags = 0);
+               bool initialize_thread, unsigned long extra_client_flags = 0,
+               bool bypass_max_connections = false);
   // Requires the caller's thread lifecycle to initialize
   // mysql_command_thread.
   void connect_authenticated(const std::string &user,
@@ -90,6 +91,7 @@ class Mysql_command_service_session {
  private:
   void connect_impl(const std::string &user, const std::string &host,
                     bool initialize_thread, unsigned long extra_client_flags,
+                    bool bypass_max_connections,
                     const mysql_harness::SecureString *password);
 
   MYSQL_H mysql_h_{nullptr};

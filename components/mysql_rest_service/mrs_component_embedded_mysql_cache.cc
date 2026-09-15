@@ -74,16 +74,18 @@ CountedMySQLSession::ConnectionParameters build_connection_params(
   return params;
 }
 
-std::unique_ptr<CountedMySQLSession> make_counted_embedded_mysql_session() {
-  return std::make_unique<CountedMySQLSession>(make_embedded_mysql_session());
+std::unique_ptr<CountedMySQLSession> make_counted_embedded_mysql_session(
+    bool bypass_max_connections = false) {
+  return std::make_unique<CountedMySQLSession>(
+      make_embedded_mysql_session(bypass_max_connections));
 }
 
 CountedMySQLSession *allocate_embedded_mysql_session(
     const Destination &destination, const std::string &internal_auth_id,
-    collector::MySQLConnection type) {
+    collector::MySQLConnection type, bool bypass_max_connections = false) {
   auto params = build_connection_params(destination, internal_auth_id);
   auto sqls = collector::build_mysql_cache_initial_sqls(type);
-  auto session = make_counted_embedded_mysql_session();
+  auto session = make_counted_embedded_mysql_session(bypass_max_connections);
   session->connect_and_set_opts(params, sqls);
   mrs::Counter<kEntityCounterMySQLConnectionsCreated>::increment();
   return session.release();
@@ -159,6 +161,21 @@ class EmbeddedMysqlCacheManager : public collector::MysqlCacheManager {
     return cache_for(type).get_instance(wait);
   }
 
+  CachedObject get_control_plane_instance(
+      collector::MySQLConnection type) override {
+    auto &cache = cache_for(type);
+    const bool metadata = type == collector::kMySQLConnectionMetadataRO ||
+                          type == collector::kMySQLConnectionMetadataRW;
+
+    // Embedded caches close returned sessions, preventing exempt sessions
+    // from being reused by requests.
+    return CachedObject(
+        &cache, true,
+        allocate_embedded_mysql_session(
+            destination_, metadata ? metadata_auth_id_ : data_auth_id_, type,
+            /*bypass_max_connections=*/true));
+  }
+
   collector::MySQLConnection get_type(const CachedObject &obj) override {
     if (obj.parent_ == &metadata_ro_.cache)
       return collector::kMySQLConnectionMetadataRO;
@@ -174,9 +191,10 @@ class EmbeddedMysqlCacheManager : public collector::MysqlCacheManager {
 
   std::unique_ptr<CountedMySQLSession> clone_instance(
       const CountedMySQLSession::ConnectionParameters &params) override {
-    // The shared interface uses clone_instance() for session duplication. In
-    // embedded mode this still creates an isolated srv_session-backed handle
-    auto session = make_counted_embedded_mysql_session();
+    // Clones are used only for query cancellation, which must work at the
+    // connection limit while retaining the original session's SQL identity.
+    auto session = make_counted_embedded_mysql_session(
+        /*bypass_max_connections=*/true);
     session->connect_and_set_opts(params, {});
     mrs::Counter<kEntityCounterMySQLConnectionsCreated>::increment();
     return session;

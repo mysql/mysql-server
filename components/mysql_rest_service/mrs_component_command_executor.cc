@@ -100,8 +100,10 @@ void Command_executor::connect() {
   }
 
   try {
+    // Bootstrap and metadata readiness must work at the connection limit.
     m_command_service_session.connect(m_connect_user, m_connect_host,
-                                      is_explicit_mode());
+                                      is_explicit_mode(), 0,
+                                      /*bypass_max_connections=*/true);
   } catch (const Mysql_command_service_session::Connection_error &e) {
     throw Connection_error(e.what(), e.error_code());
   } catch (...) {

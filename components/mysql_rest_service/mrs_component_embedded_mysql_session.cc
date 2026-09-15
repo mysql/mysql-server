@@ -145,8 +145,14 @@ class EmbeddedMysqlSession : public MySQLSession {
   using MySQLSession::connect;
   using MySQLSession::query_one;
 
-  EmbeddedMysqlSession() = default;
+  explicit EmbeddedMysqlSession(bool bypass_max_connections)
+      : bypass_max_connections_{bypass_max_connections} {}
   ~EmbeddedMysqlSession() override { cleanup(); }
+
+  EmbeddedMysqlSession(const EmbeddedMysqlSession &) = delete;
+  EmbeddedMysqlSession &operator=(const EmbeddedMysqlSession &) = delete;
+  EmbeddedMysqlSession(EmbeddedMysqlSession &&) = delete;
+  EmbeddedMysqlSession &operator=(EmbeddedMysqlSession &&) = delete;
 
   void connect(const std::string &host, unsigned int port,
                const std::string &auth_id,
@@ -405,8 +411,13 @@ class EmbeddedMysqlSession : public MySQLSession {
  private:
   void init_command_session(const std::string &connect_user,
                             const std::string &connect_host) {
-    command_service_session_.connect(connect_user, connect_host, true,
-                                     extra_client_flags_);
+    try {
+      command_service_session_.connect(connect_user, connect_host, true,
+                                       extra_client_flags_,
+                                       bypass_max_connections_);
+    } catch (const Mysql_command_service_session::Connection_error &e) {
+      throw MySQLSession::Error(e.what(), e.error_code(), e.what());
+    }
   }
 
   void initialize_session_state() {
@@ -557,6 +568,7 @@ class EmbeddedMysqlSession : public MySQLSession {
     last_error_is_statement_ = false;
   }
 
+  const bool bypass_max_connections_;
   Mysql_command_service_session command_service_session_;
   uint64_t next_statement_id_{1};
   std::unordered_map<uint64_t, my_h_statement> statements_;
@@ -570,8 +582,9 @@ class EmbeddedMysqlSession : public MySQLSession {
 
 }  // namespace
 
-std::unique_ptr<mysqlrouter::MySQLSession> make_embedded_mysql_session() {
-  return std::make_unique<EmbeddedMysqlSession>();
+std::unique_ptr<mysqlrouter::MySQLSession> make_embedded_mysql_session(
+    bool bypass_max_connections) {
+  return std::make_unique<EmbeddedMysqlSession>(bypass_max_connections);
 }
 
 }  // namespace mrs_component

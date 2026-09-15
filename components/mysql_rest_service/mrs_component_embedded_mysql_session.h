@@ -37,7 +37,8 @@ namespace mrs_component {
 // the username parameter is the canonical MySQL auth id whose security context
 // is attached, default_schema is still applied, and password/network
 // destination parameters are intentionally ignored.
-std::unique_ptr<mysqlrouter::MySQLSession> make_embedded_mysql_session();
+std::unique_ptr<mysqlrouter::MySQLSession> make_embedded_mysql_session(
+    bool bypass_max_connections = false);
 
 }  // namespace mrs_component
 

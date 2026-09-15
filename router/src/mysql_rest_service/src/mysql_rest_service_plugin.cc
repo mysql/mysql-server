@@ -131,8 +131,8 @@ class MrsModule {
     my_init();
 
     try {
-      auto conn1 = mysql_connection_cache->get_instance(
-          collector::kMySQLConnectionMetadataRO, true);
+      auto conn1 = mysql_connection_cache->get_control_plane_instance(
+          collector::kMySQLConnectionMetadataRO);
 
       check_version_compatibility(conn1.get());
     } catch (const MySQLSession::Error &e) {
@@ -150,8 +150,8 @@ class MrsModule {
     }
 
     try {
-      auto conn2 = mysql_connection_cache->get_instance(
-          collector::kMySQLConnectionUserdataRO, true);
+      auto conn2 = mysql_connection_cache->get_control_plane_instance(
+          collector::kMySQLConnectionUserdataRO);
 
       check_version_compatibility(conn2.get());
     } catch (const MySQLSession::Error &e) {
@@ -184,8 +184,8 @@ class MrsModule {
       name = address + ":" + std::to_string(configuration.http_port_);
     }
 
-    auto conn1 = mysql_connection_cache->get_instance(
-        collector::kMySQLConnectionMetadataRO, true);
+    auto conn1 = mysql_connection_cache->get_control_plane_instance(
+        collector::kMySQLConnectionMetadataRO);
     const auto existing_id_maybe =
         find_existing_routers(conn1.get(), name, address);
     if (existing_id_maybe && *existing_id_maybe != configuration.router_id_) {
