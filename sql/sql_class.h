@@ -3049,11 +3049,7 @@ class THD : public MDL_context_owner,
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
-  inline void set_ssl(Vio *vio) {
-    mysql_mutex_lock(&LOCK_thd_data);
-    m_SSL = (SSL *)vio->ssl_arg;
-    mysql_mutex_unlock(&LOCK_thd_data);
-  }
+  void set_ssl(Vio *vio);
 
   inline void clear_active_vio() {
     mysql_mutex_lock(&LOCK_thd_data);

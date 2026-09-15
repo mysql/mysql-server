@@ -1238,6 +1238,12 @@ void THD::set_new_thread_id() {
   thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 }
 
+void THD::set_ssl(Vio *vio) {
+  mysql_mutex_lock(&LOCK_thd_data);
+  m_SSL = (SSL *)vio->ssl_arg;
+  mysql_mutex_unlock(&LOCK_thd_data);
+}
+
 void THD::set_protocol_dependent_variables(Protocol *proto) {
   assert(proto != nullptr);
 

@@ -32,7 +32,6 @@
 #include <string>
 
 #include "include/my_sys.h"
-#include "my_compiler.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/client.h"
@@ -47,8 +46,6 @@
 #include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "sql/sql_class.h"
-
 // #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 // #include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 
@@ -396,13 +393,11 @@ void Session::mark_as_tls_session() {
   set_tls_handle();
 }
 
-// UBSAN vptr instrumentation emits a THD RTTI reference, but xplugin_unit_tests
-// links libmysqlx without the server THD typeinfo.
-SUPPRESS_UBSAN void Session::set_tls_handle() {
+void Session::set_tls_handle() {
   // The SQL session is backed by the X Protocol connection, rather than its
   // own Vio. Keep its TLS handle in sync so that the server TLS status
   // variables report the negotiated connection properties.
-  m_sql.get_thd()->set_ssl(m_client->connection().get_vio());
+  m_sql.set_ssl(m_client->connection().get_vio());
 }
 
 /** Checks whether things owned by the given user are visible to this session.
