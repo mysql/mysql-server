@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "health_monitor_stat_buffer.h"
 #include "health_monitor_system_vars.h"
 #include "health_monitor_triggered_reporter.h"
+#include "health_monitor_util.h"
 
 namespace hm {
 using namespace ms;
@@ -230,10 +231,8 @@ void Memory_Collector::update_per_sample_totals(
   if (m_last_avail_mb == 0) {
     m_last_avail_mb = m_avail_mb;
   } else if (m_last_avail_mb > 0) {
-    double diff_pct =
-        static_cast<double>(m_last_avail_mb - m_avail_mb) / m_last_avail_mb;
-    diff_pct *= 100.0;  // Using double literal for precision
-    if (std::abs(diff_pct) >= m_delta_pct) {
+    const double diff_pct = utl::change_percent(m_last_avail_mb, m_avail_mb);
+    if (diff_pct >= m_delta_pct) {
       m_force_status = true;
       m_last_avail_mb = m_avail_mb;
     }

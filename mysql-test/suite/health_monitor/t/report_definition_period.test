@@ -1,0 +1,43 @@
+--echo # Report periods must fit the signed scheduling interval.
+--source ../include/health_monitor_setup.inc
+
+--echo # Missing, zero, positive and maximum periods are accepted.
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"missing","queries":[]},{"title":"zero","period":0,"queries":[]},{"title":"positive","period":1,"queries":[]},{"title":"maximum","period":2147483647,"queries":[]}]';
+SET @saved_periodic = @@GLOBAL.health_monitor.periodic_report_definition;
+SET GLOBAL health_monitor.memory_report_definition = @saved_periodic;
+SET @saved_memory = @@GLOBAL.health_monitor.memory_report_definition;
+
+--echo # Reject negative periods in the first and later reports.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"negative","period":-1,"queries":[]}]';
+SELECT @@GLOBAL.health_monitor.periodic_report_definition = @saved_periodic AS unchanged;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"valid","period":1,"queries":[]},{"title":"negative","period":-1,"queries":[]}]';
+SELECT @@GLOBAL.health_monitor.periodic_report_definition = @saved_periodic AS unchanged;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.memory_report_definition =
+  '[{"title":"valid","period":0,"queries":[]},{"title":"negative","period":-1,"queries":[]}]';
+SELECT @@GLOBAL.health_monitor.memory_report_definition = @saved_memory AS unchanged;
+
+--echo # Reject values outside the signed integer range and non-integers.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"too_large","period":2147483648,"queries":[]}]';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"too_small","period":-2147483649,"queries":[]}]';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"fractional","period":0.5,"queries":[]}]';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"string","period":"1","queries":[]}]';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"null","period":null,"queries":[]}]';
+SELECT @@GLOBAL.health_monitor.periodic_report_definition = @saved_periodic AS unchanged;
+
+UNINSTALL COMPONENT 'file://component_health_monitor';

@@ -108,6 +108,15 @@ IF(HEALTH_MONITOR_ADDITIONAL_PROTECTED_USER)
 ENDIF()
 
 IF(WITH_UNIT_TESTS)
+  MYSQL_ADD_EXECUTABLE(health_monitor_util-t
+    gunit/health_monitor_util-t.cc
+    ADD_TEST health_monitor_util
+    LINK_LIBRARIES
+    gtest
+    gtest_main
+    server_unittest_library
+    )
+
   MYSQL_ADD_EXECUTABLE(health_monitor_configuration-t
     gunit/health_monitor_configuration-t.cc
     ADD_TEST health_monitor

@@ -1187,15 +1187,24 @@ bool Report_Definition_Manager::settings_valid(const char *cfg, Document *doc) {
   ParseResult const ok = doc->Parse(cfg);
   if (!ok || !doc->IsArray()) return false;
 
-  // There must be at least one report that has a title,
+  // Every entry must be an object. Any supplied period must be an integer
+  // from 0 through INT_MAX. At least one entry must have a string title
   // and an array of queries.
-  for (auto &p : doc->GetArray())
+  bool has_report = false;
+  for (const auto &p : doc->GetArray()) {
+    if (!p.IsObject()) return false;
+    // Report::next and the thread wait interval use signed integers.
+    if (p.HasMember("period") &&
+        (!p["period"].IsInt() || p["period"].GetInt() < 0)) {
+      return false;
+    }
     if (p.HasMember("title") && p["title"].IsString() &&
         p.HasMember("queries") && p["queries"].IsArray()) {
-      return true;
+      has_report = true;
     }
+  }
 
-  return false;
+  return has_report;
 }
 
 /**

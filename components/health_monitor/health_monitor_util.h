@@ -34,6 +34,13 @@ class utl {
  public:
   utl() = delete;  // prevent instantiation
   static double percent(double part, double whole);
+  /** Return the absolute percentage change, or zero without a baseline. */
+  static double change_percent(uint64_t previous, uint64_t current) {
+    if (previous == 0) return 0.0;
+    const uint64_t difference =
+        current > previous ? current - previous : previous - current;
+    return static_cast<double>(difference) / previous * 100.0;
+  }
   static bool stoi(const std::string &s, int &result);
   static bool stoul(const std::string &s, uint64_t &result);
   static bool stoll(const std::string &s, int64_t &result);

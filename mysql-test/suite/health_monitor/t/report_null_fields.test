@@ -1,0 +1,33 @@
+--echo # Report SQL NULL fields without crashing or changing empty strings.
+--source include/have_log_diagnostic.inc
+
+--let $MYSQLD_DIAGNOSTIC_LOG= $MYSQL_TMP_DIR/report_null_fields.log
+--let $restart_parameters= restart: --log-diagnostic-enable=1 --log-diagnostic=$MYSQLD_DIAGNOSTIC_LOG
+--replace_result $MYSQLD_DIAGNOSTIC_LOG MYSQLD_DIAGNOSTIC_LOG
+--source include/restart_mysqld.inc
+--source ../include/health_monitor_setup.inc
+
+CREATE VIEW sys.hm_null_fields AS
+  SELECT 'hm_null_row' AS marker, NULL AS null_value,
+         '' AS empty_value, 'ordinary' AS text_value;
+GRANT SELECT ON sys.hm_null_fields TO 'mysql.session'@localhost;
+
+SET GLOBAL health_monitor.periodic_report_definition =
+  '[{"title":"NULL field regression","footer":"NULL field report complete","period":1,"queries":[{"query":"hm_null_fields","internal":false}]}]';
+SET GLOBAL health_monitor.periodic_reporting = ON;
+
+--let $grep_file= $MYSQLD_DIAGNOSTIC_LOG
+--let $grep_pattern= ^hm_null_row,NULL,,ordinary
+--let $wait_timeout= 30
+--source include/wait_for_pattern_in_file.inc
+--let $grep_pattern= NULL field report complete
+--source include/wait_for_pattern_in_file.inc
+
+UNINSTALL COMPONENT 'file://component_health_monitor';
+SELECT 1 AS server_alive;
+REVOKE SELECT ON sys.hm_null_fields FROM 'mysql.session'@localhost;
+DROP VIEW sys.hm_null_fields;
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+--remove_file $MYSQLD_DIAGNOSTIC_LOG

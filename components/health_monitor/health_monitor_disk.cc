@@ -407,10 +407,8 @@ void Disk_Collector::update_per_sample_totals(const Disk_Info &disk_info) {
   if (m_last_avail_mb == 0) {
     m_last_avail_mb = m_avail_mb;
   } else {
-    double diff_pct =
-        static_cast<double>(m_last_avail_mb - m_avail_mb) / m_last_avail_mb;
-    diff_pct *= 100.0;
-    if (std::abs(diff_pct) >= m_delta_pct) {
+    const double diff_pct = utl::change_percent(m_last_avail_mb, m_avail_mb);
+    if (diff_pct >= m_delta_pct) {
       m_force_status = true;
       m_last_avail_mb = m_avail_mb;
     }
