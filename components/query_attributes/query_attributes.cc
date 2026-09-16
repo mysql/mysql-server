@@ -93,7 +93,7 @@ static bool mysql_query_attribute_string_init(UDF_INIT *initid, UDF_ARGS *args,
 
   if (args->arg_type[0] != STRING_RESULT) {
     strcpy(message, "mysql_query_attribute_string() expects a string argument");
-    return false;
+    return true;
   }
   initid->maybe_null = true;
   initid->max_length = query_attribute_value_max_length;
@@ -103,7 +103,7 @@ static bool mysql_query_attribute_string_init(UDF_INIT *initid, UDF_ARGS *args,
           const_cast<char *>(query_attribute_return_charset))) {
     strcpy(message,
            "mysql_query_attribute_string() failed to set result charset");
-    return false;
+    return true;
   }
 
   if (mysql_service_mysql_udf_metadata->argument_set(
@@ -111,7 +111,7 @@ static bool mysql_query_attribute_string_init(UDF_INIT *initid, UDF_ARGS *args,
           const_cast<char *>(query_attribute_return_charset))) {
     strcpy(message,
            "mysql_query_attribute_string() failed to set result charset");
-    return false;
+    return true;
   }
 
   initid->ptr = reinterpret_cast<char *>(
