@@ -2913,9 +2913,16 @@ bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   and no-conversion fetching.
 */
 
-static void read_binary_time(MYSQL_TIME *tm, uchar **pos) {
+static bool read_binary_time(MYSQL_TIME *tm, uchar **pos) {
   /* net_field_length will set pos to the first byte of data */
-  const uint length = net_field_length(pos);
+  uint length = net_field_length(pos);
+  DBUG_EXECUTE_IF("simulate_malformed_binary_time_length", { length = 1; });
+
+  if (!(length == 0 || length == 8 || length == 12)) {
+    set_zero_time(tm, MYSQL_TIMESTAMP_TIME);
+    *pos += length;
+    return true;
+  }
 
   if (length) {
     uchar *to = *pos;
@@ -2937,10 +2944,20 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos) {
     *pos += length;
   } else
     set_zero_time(tm, MYSQL_TIMESTAMP_TIME);
+
+  return false;
 }
 
-static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos) {
-  const uint length = net_field_length(pos);
+static bool read_binary_datetime(MYSQL_TIME *tm, uchar **pos) {
+  uint length = net_field_length(pos);
+
+  DBUG_EXECUTE_IF("simulate_malformed_binary_datetime_length", { length = 1; });
+
+  if (!(length == 0 || length == 4 || length == 7 || length == 11)) {
+    set_zero_time(tm, MYSQL_TIMESTAMP_DATETIME);
+    *pos += length;
+    return true;
+  }
 
   if (length) {
     uchar *to = *pos;
@@ -2962,10 +2979,20 @@ static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos) {
     *pos += length;
   } else
     set_zero_time(tm, MYSQL_TIMESTAMP_DATETIME);
+
+  return false;
 }
 
-static void read_binary_date(MYSQL_TIME *tm, uchar **pos) {
-  const uint length = net_field_length(pos);
+static bool read_binary_date(MYSQL_TIME *tm, uchar **pos) {
+  uint length = net_field_length(pos);
+
+  DBUG_EXECUTE_IF("simulate_malformed_binary_date_length", { length = 1; });
+
+  if (!(length == 0 || length == 4)) {
+    set_zero_time(tm, MYSQL_TIMESTAMP_DATE);
+    *pos += length;
+    return true;
+  }
 
   if (length) {
     uchar *to = *pos;
@@ -2981,6 +3008,8 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos) {
     *pos += length;
   } else
     set_zero_time(tm, MYSQL_TIMESTAMP_DATE);
+
+  return false;
 }
 
 /*
@@ -3492,14 +3521,20 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     case MYSQL_TYPE_DATE: {
       MYSQL_TIME tm;
 
-      read_binary_date(&tm, row);
+      if (read_binary_date(&tm, row)) {
+        *param->error = true;
+        break;
+      }
       fetch_datetime_with_conversion(param, field, &tm);
       break;
     }
     case MYSQL_TYPE_TIME: {
       MYSQL_TIME tm;
 
-      read_binary_time(&tm, row);
+      if (read_binary_time(&tm, row)) {
+        *param->error = true;
+        break;
+      }
       fetch_datetime_with_conversion(param, field, &tm);
       break;
     }
@@ -3507,7 +3542,10 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME tm;
 
-      read_binary_datetime(&tm, row);
+      if (read_binary_datetime(&tm, row)) {
+        *param->error = true;
+        break;
+      }
       fetch_datetime_with_conversion(param, field, &tm);
       break;
     }
@@ -3597,21 +3635,21 @@ static void fetch_result_time(MYSQL_BIND *param,
                               MYSQL_FIELD *field [[maybe_unused]],
                               uchar **row) {
   auto *tm = (MYSQL_TIME *)param->buffer;
-  read_binary_time(tm, row);
+  *param->error = read_binary_time(tm, row);
 }
 
 static void fetch_result_date(MYSQL_BIND *param,
                               MYSQL_FIELD *field [[maybe_unused]],
                               uchar **row) {
   auto *tm = (MYSQL_TIME *)param->buffer;
-  read_binary_date(tm, row);
+  *param->error = read_binary_date(tm, row);
 }
 
 static void fetch_result_datetime(MYSQL_BIND *param,
                                   MYSQL_FIELD *field [[maybe_unused]],
                                   uchar **row) {
   auto *tm = (MYSQL_TIME *)param->buffer;
-  read_binary_datetime(tm, row);
+  *param->error = read_binary_datetime(tm, row);
 }
 
 static void fetch_result_bin(MYSQL_BIND *param,
