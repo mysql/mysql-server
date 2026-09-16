@@ -1,0 +1,78 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE USER mrs_socket_match@localhost
+IDENTIFIED WITH auth_socket AS 'MYSQLD_OS_USER';
+CREATE USER mrs_socket_other@localhost
+IDENTIFIED WITH auth_socket AS 'OTHER_OS_USER';
+CREATE USER mrs_socket_password@'%'
+  IDENTIFIED WITH caching_sha2_password BY 'correct-password';
+CREATE USER mrs_socket_external@'%' IDENTIFIED WITH test_plugin_server
+AS 'mrs_socket_proxy';
+CREATE USER mrs_socket_proxy@'%' IDENTIFIED BY 'proxy-password';
+GRANT PROXY ON mrs_socket_proxy@'%' TO mrs_socket_external@'%';
+CREATE SCHEMA mrs_auth_socket;
+CREATE TABLE mrs_auth_socket.fixture (id INT PRIMARY KEY, marker VARCHAR(64));
+INSERT INTO mrs_auth_socket.fixture VALUES (73, 'auth-socket-fixture');
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/db
+# Registred DB_OBJECT at path: /svc/db/fixture
+# Registred AUTH APP at path: /svc
+
+# MySQL uses an ML-DSA certificate; MRS HTTPS keeps its RSA certificate.
+SET @saved_ssl_ca=@@GLOBAL.ssl_ca;
+SET @saved_ssl_cert=@@GLOBAL.ssl_cert;
+SET @saved_ssl_key=@@GLOBAL.ssl_key;
+SET @saved_use_pqc_sign=@@GLOBAL.use_pqc_sign;
+SET @saved_require_secure_transport=@@GLOBAL.require_secure_transport;
+SET GLOBAL use_pqc_sign=ON;
+SET GLOBAL ssl_ca='MYSQL_TMP_DIR/mrs_pqc_cert.pem';
+SET GLOBAL ssl_cert='MYSQL_TMP_DIR/mrs_pqc_cert.pem';
+SET GLOBAL ssl_key='MYSQL_TMP_DIR/mrs_pqc_key.pem';
+ALTER INSTANCE RELOAD TLS;
+pqc_tls_connection
+1
+
+# A correct password still authenticates over TCP with an ML-DSA server.
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+
+# External-password authentication also works with secure transport required.
+SET GLOBAL require_secure_transport=ON;
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+
+# Incorrect passwords and peer-identity authentication remain rejected.
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Cleanup
+SET GLOBAL ssl_ca=@saved_ssl_ca;
+SET GLOBAL ssl_cert=@saved_ssl_cert;
+SET GLOBAL ssl_key=@saved_ssl_key;
+SET GLOBAL use_pqc_sign=@saved_use_pqc_sign;
+ALTER INSTANCE RELOAD TLS;
+SET GLOBAL require_secure_transport=@saved_require_secure_transport;
+DROP USER mrs_socket_match@localhost, mrs_socket_other@localhost,
+mrs_socket_password@'%', mrs_socket_external@'%', mrs_socket_proxy@'%';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_auth_socket;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

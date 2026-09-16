@@ -95,7 +95,29 @@ void Mysql_command_service_session::connect_authenticated(
     const std::string &user, const mysql_harness::SecureString &password,
     unsigned long extra_client_flags) {
   constexpr bool initialize_thread = false;
-  connect_impl(user, {}, initialize_thread, extra_client_flags,
+  const char *host = "";
+
+#ifndef _WIN32
+  // Select supported TCP before authentication so one HTTP login does not
+  // consume two hourly connection admissions. Otherwise keep the local
+  // transport.
+  const auto &config = mrs_component().server_config();
+  if (config.m_port != "0") {
+    // MRS rejects comma-separated bind_address values during startup,
+    // so no address-list parsing is needed here.
+    const auto &bind_address = config.m_bind_address;
+    if (bind_address == "::" || bind_address == "::1") {
+      host = "::1";
+    } else if (bind_address == "*" || bind_address == "0.0.0.0" ||
+               bind_address == "127.0.0.1") {
+      host = "127.0.0.1";
+    }
+  }
+  // Unix sockets satisfy require_secure_transport even when MySQL TLS is off.
+  if (host[0] != '\0' && config.requires_local_authentication()) host = "";
+#endif
+
+  connect_impl(user, host, initialize_thread, extra_client_flags,
                /*bypass_max_connections=*/false, &password);
 }
 
@@ -124,6 +146,8 @@ void Mysql_command_service_session::connect_impl(
     // Preserve the bounded timeouts used by the former MySQLSession path.
     constexpr unsigned int authenticated_connect_timeout = 5;
     constexpr unsigned int authenticated_read_timeout = 30;
+    // Allow ML-DSA server certificates while retaining classical signatures.
+    constexpr bool use_pqc_sign = true;
     if ((password == nullptr &&
          (cmd_options->set(mysql_h_, MYSQL_NO_LOCK_REGISTRY,
                            &no_lock_registry) != 0 ||
@@ -131,7 +155,7 @@ void Mysql_command_service_session::connect_impl(
                            &bypass_max_connections) != 0)) ||
         cmd_options->set(mysql_h_, MYSQL_COMMAND_USER_NAME, user_.c_str()) !=
             0 ||
-        (password == nullptr &&
+        ((password == nullptr || !host_.empty()) &&
          cmd_options->set(mysql_h_, MYSQL_COMMAND_HOST_NAME, host_.c_str()) !=
              0) ||
         cmd_options->set(mysql_h_, MYSQL_COMMAND_CLIENT_FLAGS, &client_flags) !=
@@ -141,6 +165,8 @@ void Mysql_command_service_session::connect_impl(
                            &authenticated_connect_timeout) != 0 ||
           cmd_options->set(mysql_h_, MYSQL_OPT_READ_TIMEOUT,
                            &authenticated_read_timeout) != 0 ||
+          cmd_options->set(mysql_h_, MYSQL_OPT_USE_PQC_SIGN, &use_pqc_sign) !=
+              0 ||
           cmd_options->set(mysql_h_, MYSQL_COMMAND_PASSWORD,
                            password->c_str()) != 0))) {
       throw std::runtime_error(

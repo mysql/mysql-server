@@ -1,0 +1,39 @@
+--source ../include/test/setup_auth_socket.inc
+
+--echo
+--echo # TLS is available without Performance Schema, even with its cache off.
+SELECT @@performance_schema, @@require_secure_transport;
+SHOW GLOBAL STATUS LIKE 'Ssl_session_cache_mode';
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_external -p mrs_socket_proxy
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_match -p nonempty-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_match.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_match.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+
+--echo
+--echo # Disabling MySQL TLS retains secure socket passwords and fails closed.
+SET @saved_tls_version=@@GLOBAL.tls_version;
+SET GLOBAL tls_version='';
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+SHOW GLOBAL STATUS LIKE 'Ssl_session_cache_mode';
+--source ../include/test/verify_auth_socket_local.inc
+
+--echo
+--echo # Cleanup
+SET GLOBAL tls_version=@saved_tls_version;
+ALTER INSTANCE RELOAD TLS;
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_match.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_password.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external_local.dat
+--source ../include/test/cleanup_auth_socket.inc

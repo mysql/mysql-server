@@ -1,0 +1,20 @@
+# Gate IPv6 before any restart that requires an IPv6 listener.
+--source include/have_ipv6.inc
+--source ../include/test/setup_auth_socket.inc
+
+--echo
+--echo # IPv6 wildcard bind.
+--let $mrs_auth_socket_bind_address=::
+--source ../include/test/verify_auth_socket_tcp.inc
+
+--echo
+--echo # IPv6 loopback bind.
+--let $mrs_auth_socket_bind_address=::1
+--source ../include/test/verify_auth_socket_tcp.inc
+
+--echo
+--echo # Cleanup
+RESET PERSIST mysql_rest_service.http_port;
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_match.dat
+--source ../include/test/cleanup_auth_socket.inc

@@ -66,7 +66,8 @@ ComponentEmbeddedRuntimeServices::authenticate_mysql_user(
   Mysql_command_service_session session;
   session.connect_authenticated(user, password, CLIENT_FOUND_ROWS);
 
-  constexpr char current_user_query[] = "SELECT CURRENT_USER()";
+  constexpr char current_user_query[] =
+      "SELECT CURRENT_USER(), @@session.external_user";
   if (cmd_query->query(session.handle(), current_user_query,
                        sizeof(current_user_query) - 1) != 0) {
     throw std::runtime_error(session.last_error());
@@ -78,6 +79,7 @@ ComponentEmbeddedRuntimeServices::authenticate_mysql_user(
   const auto result_cleanup = create_scope_guard([result] {
     if (result != nullptr) cmd_query_result->free_result(result);
   });
+
   if (store_result_error != 0 || result == nullptr) {
     throw std::runtime_error("Failed to retrieve authenticated MySQL user");
   }
@@ -85,9 +87,25 @@ ComponentEmbeddedRuntimeServices::authenticate_mysql_user(
   unsigned int field_count = 0;
   MYSQL_ROW_H row = nullptr;
   if (cmd_field_info->num_fields(result, &field_count) != 0 ||
-      field_count != 1 || cmd_query_result->fetch_row(result, &row) != 0 ||
+      field_count != 2 || cmd_query_result->fetch_row(result, &row) != 0 ||
       row == nullptr || row[0] == nullptr) {
     return std::nullopt;
+  }
+
+  // external_user is also set by plugins that can authenticate over TCP.
+  if (row[1] != nullptr) {
+    unsigned int protocol = MYSQL_PROTOCOL_DEFAULT;
+    if (cmd_options->get(session.handle(), MYSQL_OPT_PROTOCOL, &protocol) !=
+        0) {
+      throw std::runtime_error(
+          "Failed to retrieve MySQL authentication transport");
+    }
+    if (protocol == MYSQL_PROTOCOL_SOCKET) {
+      // Socket authentication may trust mysqld's OS identity, not the HTTP
+      // caller. Reject it; retrying would charge another hourly connection
+      // admission.
+      return std::nullopt;
+    }
   }
 
   ulong *lengths = nullptr;

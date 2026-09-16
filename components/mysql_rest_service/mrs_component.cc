@@ -57,7 +57,8 @@ REQUIRES_SERVICE_PLACEHOLDER_AS(component_sys_variable_register,
 REQUIRES_SERVICE_PLACEHOLDER_AS(component_sys_variable_unregister,
                                 sysvar_unregister);
 
-// Statusvar registry
+// Statusvar reader and registry
+REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_status_variable_string, statusvar_reader);
 REQUIRES_SERVICE_PLACEHOLDER_AS(status_variable_registration,
                                 statusvar_register);
 
@@ -494,6 +495,7 @@ BEGIN_COMPONENT_REQUIRES(component_mysql_rest_service)
     REQUIRES_SERVICE_AS(component_sys_variable_register, sysvar_register),
     REQUIRES_SERVICE_AS(component_sys_variable_unregister, sysvar_unregister),
     REQUIRES_SERVICE_AS(status_variable_registration, statusvar_register),
+    REQUIRES_SERVICE_AS(mysql_status_variable_string, statusvar_reader),
     REQUIRES_SERVICE_AS(mysql_command_factory, cmd_factory),
     REQUIRES_SERVICE_AS(mysql_command_options, cmd_options),
     REQUIRES_SERVICE_AS(mysql_command_query, cmd_query),

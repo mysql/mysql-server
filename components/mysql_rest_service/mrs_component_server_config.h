@@ -54,13 +54,13 @@ class ServerConfig {
   std::string m_ssl_cipher;
   std::string m_bind_address;
   std::string m_socket;
-  bool m_have_ssl = false;
 
   int fetch_required_sysvars();
+  bool requires_local_authentication() const;
 
  private:
-  int get_sysvar_value(const std::string &name, std::string &value);
-  int get_have_ssl(bool &value);
+  int get_sysvar_value(const std::string &name, std::string &value) const;
+  int get_have_ssl(bool &value) const;
 };
 
 }  // namespace mrs_component

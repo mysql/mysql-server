@@ -1,0 +1,75 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE USER mrs_socket_match@localhost
+IDENTIFIED WITH auth_socket AS 'MYSQLD_OS_USER';
+CREATE USER mrs_socket_other@localhost
+IDENTIFIED WITH auth_socket AS 'OTHER_OS_USER';
+CREATE USER mrs_socket_password@'%'
+  IDENTIFIED WITH caching_sha2_password BY 'correct-password';
+CREATE USER mrs_socket_external@'%' IDENTIFIED WITH test_plugin_server
+AS 'mrs_socket_proxy';
+CREATE USER mrs_socket_proxy@'%' IDENTIFIED BY 'proxy-password';
+GRANT PROXY ON mrs_socket_proxy@'%' TO mrs_socket_external@'%';
+CREATE SCHEMA mrs_auth_socket;
+CREATE TABLE mrs_auth_socket.fixture (id INT PRIMARY KEY, marker VARCHAR(64));
+INSERT INTO mrs_auth_socket.fixture VALUES (73, 'auth-socket-fixture');
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/db
+# Registred DB_OBJECT at path: /svc/db/fixture
+# Registred AUTH APP at path: /svc
+
+# TLS is available without Performance Schema, even with its cache off.
+SELECT @@performance_schema, @@require_secure_transport;
+@@performance_schema	@@require_secure_transport
+0	1
+SHOW GLOBAL STATUS LIKE 'Ssl_session_cache_mode';
+Variable_name	Value
+Ssl_session_cache_mode	OFF
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Disabling MySQL TLS retains secure socket passwords and fails closed.
+SET @saved_tls_version=@@GLOBAL.tls_version;
+SET GLOBAL tls_version='';
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+Warnings:
+Warning	3888	Failed to set up SSL because of the following SSL library error: TLS version is invalid
+SHOW GLOBAL STATUS LIKE 'Ssl_session_cache_mode';
+Variable_name	Value
+Ssl_session_cache_mode	NONE
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Cleanup
+SET GLOBAL tls_version=@saved_tls_version;
+ALTER INSTANCE RELOAD TLS;
+DROP USER mrs_socket_match@localhost, mrs_socket_other@localhost,
+mrs_socket_password@'%', mrs_socket_external@'%', mrs_socket_proxy@'%';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_auth_socket;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

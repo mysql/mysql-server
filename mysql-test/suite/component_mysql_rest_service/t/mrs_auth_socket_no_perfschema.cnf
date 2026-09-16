@@ -1,0 +1,6 @@
+!include mrs_auth_socket.cnf
+
+[mysqld.1]
+performance-schema=OFF
+require-secure-transport=ON
+ssl-session-cache-mode=OFF

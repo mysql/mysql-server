@@ -40,6 +40,7 @@
 #include "mysql/components/services/mysql_debug_keyword_service.h"
 #include "mysql/components/services/mysql_debug_sync_service.h"
 #include "mysql/components/services/mysql_statement_service.h"
+#include "mysql/components/services/mysql_status_variable_reader.h"
 #include "mysql/components/services/mysql_string.h"
 #include "mysql/components/services/mysql_system_variable.h"
 #include "mysql/components/services/mysql_thd_attributes.h"
@@ -75,7 +76,9 @@ extern REQUIRES_SERVICE_PLACEHOLDER_AS(component_sys_variable_register,
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(component_sys_variable_unregister,
                                        sysvar_unregister);
 
-// Statusvar registry
+// Statusvar reader and registry
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_status_variable_string,
+                                       statusvar_reader);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(status_variable_registration,
                                        statusvar_register);
 
