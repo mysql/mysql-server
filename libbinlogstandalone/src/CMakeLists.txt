@@ -22,6 +22,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(REPLICATION_SOURCES
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/binary_log_funcs.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/binlog_event.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/buffer/grow_calculator.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/buffer/grow_constraint.cpp

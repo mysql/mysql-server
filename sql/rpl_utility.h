@@ -35,6 +35,7 @@
 #include <unordered_map>
 
 #include "field_types.h"  // enum_field_types
+#include "libbinlogevents/export/binary_log_funcs.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -408,6 +409,15 @@ class table_def {
     data from the master to a specific column.
   */
   uint32 calc_field_size(uint col, const uchar *master_data) const;
+
+  /*
+    This function returns the field size in raw bytes after checking that any
+    field length bytes read from master_data fit within available.
+  */
+  enum_calc_field_size_status calc_field_size_checked(uint col,
+                                                      const uchar *master_data,
+                                                      size_t available,
+                                                      uint32 *field_size) const;
 
 #ifdef MYSQL_SERVER
   /**
