@@ -190,6 +190,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
   definition, it skips the GIPK too.
 
   @param raw_data The data received from the source
+  @param event_end Pointer to the end of the event.
   @param column_image The column bitmap
   @param column_count The number of column in the image bitmap
   @param null_bits    The bits that are null
@@ -200,9 +201,9 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
   @return const uchar* The adjusted point to the source data
  */
 const uchar *translate_beginning_of_raw_data(
-    const uchar *raw_data, MY_BITMAP const *column_image, size_t column_count,
-    Bit_reader &null_bits, table_def *tabledef, bool source_has_gipk,
-    bool replica_has_gipk);
+    const uchar *raw_data, const uchar *event_end,
+    MY_BITMAP const *column_image, size_t column_count, Bit_reader &null_bits,
+    table_def *tabledef, bool source_has_gipk, bool replica_has_gipk);
 
 // Fill table's record[0] with default values.
 int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check);
