@@ -4537,11 +4537,14 @@ static void cli_calculate_client_flag(MYSQL *mysql, const char *db,
   else
     mysql->client_flag &= ~CLIENT_CONNECT_WITH_DB;
 
-  /* Remove options that server doesn't support */
-  mysql->client_flag = mysql->client_flag &
-                       (~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41 |
-                          CLIENT_OPTIONAL_RESULTSET_METADATA) |
-                        mysql->server_capabilities);
+  /* Preserve client only flags */
+  ulong client_only_flags = mysql->client_flag & CLIENT_ONLY_ALL_FLAGS;
+
+  /* Negotiate common client and server capabilities */
+  ulong negotiated = mysql->client_flag & mysql->server_capabilities;
+
+  /* Effective flags to use by the client */
+  mysql->client_flag = client_only_flags | negotiated;
 
   if (mysql->options.protocol == MYSQL_PROTOCOL_SOCKET &&
       mysql->options.extension &&
