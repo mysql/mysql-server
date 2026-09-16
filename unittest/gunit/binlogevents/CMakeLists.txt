@@ -32,6 +32,7 @@ INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 # Add tests
 SET(TESTS
+  binary_log_funcs
   gno_intervals
   grow_calculator
   gtids
