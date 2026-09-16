@@ -536,7 +536,7 @@ int System_vars::initialize_all() {
   periodic_reporting().name = "periodic_reporting";
   periodic_reporting().desc = "Health Monitor is reporting periodically";
   periodic_reporting().type = PLUGIN_VAR_BOOL;
-  periodic_reporting().def  = true;
+  periodic_reporting().def  = false;
   periodic_reporting().update_func = update_bool_var;
 
   periodic_report_definition().name = "periodic_report_definition";

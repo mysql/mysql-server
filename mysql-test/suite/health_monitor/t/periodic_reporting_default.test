@@ -1,0 +1,65 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify that periodic reporting is disabled by default.
+--echo ## Explicitly enabling reporting must start the periodic reporter.
+--echo ## Restoring the default must stop it.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Install the component and verify periodic reporting is OFF.
+--echo #  2. Verify that no periodic reporter thread is running.
+--echo #  3. Set periodic_reporting to ON and verify the thread starts.
+--echo #  4. Set periodic_reporting to DEFAULT and verify it is OFF.
+--echo #  5. Verify that the reporter thread stops and uninstall the component.
+
+--source include/no_protocol.inc
+
+--echo
+--echo # Ignore collector messages during installation
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install directly because the common setup explicitly disables reporting.
+install component 'file://component_health_monitor';
+
+--echo # Periodic reporting is disabled by default
+select @@global.health_monitor.periodic_reporting as periodic_reporting;
+select count(*) as periodic_reporter_threads from performance_schema.threads
+  where name = 'thread/health/periodic_reporter';
+
+--echo # Explicit enablement still starts the periodic reporter
+set @@global.health_monitor.periodic_reporting = on;
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 1 from performance_schema.threads
+    where name = 'thread/health/periodic_reporter';
+--source include/wait_condition_or_abort.inc
+select @@global.health_monitor.periodic_reporting as periodic_reporting;
+select count(*) as periodic_reporter_threads from performance_schema.threads
+  where name = 'thread/health/periodic_reporter';
+
+--echo # Restoring DEFAULT stops the periodic reporter
+set @@global.health_monitor.periodic_reporting = default;
+let $wait_condition =
+  select count(*) = 0 from performance_schema.threads
+    where name = 'thread/health/periodic_reporter';
+--source include/wait_condition_or_abort.inc
+select @@global.health_monitor.periodic_reporting as periodic_reporting;
+select count(*) as periodic_reporter_threads from performance_schema.threads
+  where name = 'thread/health/periodic_reporter';
+
+uninstall component 'file://component_health_monitor';
